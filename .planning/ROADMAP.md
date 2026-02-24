@@ -27,7 +27,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. All 12 five-minute bucket slots per hour map to a distinct phrase
   3. Exactly noon returns "noon" and exactly midnight returns "midnight" (not "12 o'clock")
   4. The function has no WPF dependency and all edge cases pass unit tests
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Scaffold .NET solution: classlib + MSTest test project wired together
+- [ ] 01-02-PLAN.md — TDD cycle: write exhaustive bucket tests (RED), implement PhraseEngine.GetPhrase (GREEN), verify all edge cases
 
 ### Phase 2: Window Shell
 **Goal**: A transparent, frameless, always-on-top WPF window floats on the desktop with a working close mechanism
@@ -58,6 +62,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Phrase Engine | 0/? | Not started | - |
+| 1. Phrase Engine | 0/2 | Not started | - |
 | 2. Window Shell | 0/? | Not started | - |
 | 3. Integration | 0/? | Not started | - |
