@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Windows;
+using FuzzyClock.Core;
 
 namespace FuzzyClock.App;
 
@@ -40,6 +41,7 @@ public partial class App : Application
 
         var mainWindow = new MainWindow();
         mainWindow.Owner = hiddenOwner;
+        mainWindow.SetInitialPhrase(PhraseEngine.GetPhrase(DateTime.Now));
         mainWindow.Show();
     }
 
