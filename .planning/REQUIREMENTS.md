@@ -14,8 +14,8 @@ Requirements for v1.1 release. Each maps to roadmap phases.
 
 ### Display
 
-- [ ] **DISP-05**: User can change the phrase font size (16pt, 24pt, or 32pt) via right-click menu; current size shown as checked
-- [ ] **DISP-06**: Selected font size is restored on startup (saved to same JSON file as position)
+- [x] **DISP-05**: User can change the phrase font size (16pt, 24pt, or 32pt) via right-click menu; current size shown as checked
+- [x] **DISP-06**: Selected font size is restored on startup (saved to same JSON file as position)
 
 ## v2 Requirements
 
@@ -50,8 +50,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | WIN-04 | Phase 4 | Complete |
 | WIN-05 | Phase 4 | Complete |
-| DISP-05 | Phase 5 | Pending |
-| DISP-06 | Phase 5 | Pending |
+| DISP-05 | Phase 5 | Complete |
+| DISP-06 | Phase 5 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 4 total

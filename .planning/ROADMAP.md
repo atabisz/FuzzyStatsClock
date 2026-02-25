@@ -81,7 +81,7 @@ Plans:
 | 2. Window Shell | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 3. Integration | v1.0 | 2/2 | Complete | 2026-02-25 |
 | 4. Settings + Drag + Position Persistence | v1.1 | 2/2 | Complete | 2026-02-25 |
-| 5. Font Size Selection + Persistence | v1.1 | 0/? | Not started | - |
+| 5. Font Size Selection + Persistence | 1/1 | Complete   | 2026-02-25 | - |
 
 ---
 *Last updated: 2026-02-25 after Phase 4 complete (04-02 human-verified and approved)*

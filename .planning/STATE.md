@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 5 of 5 (Font Size Selection + Persistence)
-Plan: 0 of ? in current phase
-Status: Phase 4 complete — ready to begin Phase 5
-Last activity: 2026-02-25 — 04-02 complete; human verification approved; Phase 4 done
+Plan: 1 of 1 in current phase
+Status: 05-01 implementation complete — at checkpoint:human-verify (Task 3)
+Last activity: 2026-02-25 — 05-01 tasks 1 and 2 complete; awaiting human verification
 
-Progress: [####░░░░░░] 80% (4/5 phases complete — v1.0 shipped; Phase 4 complete)
+Progress: [#####░░░░░] 90% (4/5 phases complete + Phase 5 implementation done, pending human verify)
 
 ## Performance Metrics
 
@@ -31,9 +31,10 @@ Progress: [####░░░░░░] 80% (4/5 phases complete — v1.0 shipped; Ph
 | 2. Window Shell | 3 | 3 min | 1 min |
 | 3. Integration | 2 | 7 min | 3.5 min |
 | 4. Settings + Drag | 2 | 12 min | 6 min |
+| 5. Font Size | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 10 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min)
+- Last 10 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -59,6 +60,9 @@ Recent decisions affecting current work:
 - [Phase 04-02]: SessionEnding handler added as backup save for Windows log-off/shutdown since Window.Closing is not raised in those paths
 - [Phase 04-02]: ContentRendered is the safe deferral point for clamping — ActualWidth/ActualHeight are 0 until first layout pass with SizeToContent=WidthAndHeight
 - [Phase 04-02]: Re-clamp after every phrase change — SizeToContent=WidthAndHeight resizes window on phrase update; widget near right/bottom edge can be pushed off-screen
+- [Phase 05-01]: ContextMenu.Opened is single sync point for IsChecked — click handlers do NOT touch IsChecked, preventing double-toggle of WPF IsCheckable default
+- [Phase 05-01]: ApplyFontSize() separated from ApplySettings() — ApplyFontSize calls UpdateLayout()+SaveSettings() which are unsafe before window is shown
+- [Phase 05-01]: UpdateLayout() before Clamp() in ApplyFontSize() — same pattern as UpdatePhraseIfChanged(); font size change resizes window via SizeToContent
 
 ### Pending Todos
 
@@ -74,5 +78,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 04-02-PLAN.md — Phase 4 done; ready to begin Phase 5 (font size)
+Stopped at: 05-01 checkpoint:human-verify — tasks 1 and 2 committed; awaiting human verification of font size submenu
 Resume file: None
