@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 2 in progress — Plan 02-01 complete (WPF scaffold), Plan 02-02 next (transparent overlay)
+**Current focus:** Phase 2 complete — Plan 02-02 complete (transparent overlay shell), ready for Phase 3 (integration)
 
 ## Current Position
 
-Phase: 2 of 3 (Window Shell) — IN PROGRESS
-Plan: 1 of 2 in phase 2 — COMPLETE
-Status: Phase 2 plan 1 complete
-Last activity: 2026-02-25 — Plan 02-01 complete: FuzzyClock.App WPF scaffold, solution wired, Core reference added
+Phase: 2 of 3 (Window Shell) — COMPLETE
+Plan: 2 of 2 in phase 2 — COMPLETE
+Status: Phase 2 complete
+Last activity: 2026-02-25 — Plan 02-02 complete: transparent frameless WPF overlay, Mutex single-instance, hidden owner Alt+Tab suppression, DropShadowEffect TextBlock
 
-Progress: [███░░░░░░░] 30%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 1.67 min
-- Total execution time: 5 min
+- Total plans completed: 4
+- Average duration: 1.5 min
+- Total execution time: 7 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Phrase Engine | 2 | 4 min | 2 min |
-| 2. Window Shell | 1 | 1 min | 1 min |
+| 2. Window Shell | 2 | 3 min | 1.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min)
+- Last 5 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -54,6 +54,11 @@ Recent decisions affecting current work:
 - [01-02]: Assert.DoesNotContain/Contains preferred over Assert.IsFalse/IsTrue for MSTest4 compatibility
 - [02-01]: Template files (App.xaml, MainWindow.xaml, AssemblyInfo.cs) preserved as-is — Plan 02-02 will overwrite them; AssemblyInfo.cs contains ThemeInfo attribute required by WPF
 - [02-01]: No csproj properties added beyond dotnet CLI output — scaffold is minimal and correct
+- [02-02]: AllowsTransparency + WindowStyle=None + Background=Transparent must all be set in XAML — AllowsTransparency cannot be changed after window handle is created
+- [02-02]: Grid Background=#01000000 (alpha=1): fully transparent alpha=0 has no hit-test surface, breaking right-click
+- [02-02]: Application.Current.Shutdown() in close handler — not this.Close() — because hidden owner keeps process alive otherwise
+- [02-02]: ContentRendered for positioning — ActualWidth is 0 in constructor before SizeToContent layout pass completes
+- [02-02]: Hidden ToolWindow owner pattern: ShowInTaskbar=False alone does not suppress Alt+Tab entry
 
 ### Pending Todos
 
@@ -66,5 +71,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 02-01-PLAN.md — FuzzyClock.App WPF scaffold complete, solution updated, ready for Plan 02-02
+Stopped at: Completed 02-02-PLAN.md — transparent WPF overlay shell complete, Phase 2 done, ready for Phase 3 (integration)
 Resume file: None
