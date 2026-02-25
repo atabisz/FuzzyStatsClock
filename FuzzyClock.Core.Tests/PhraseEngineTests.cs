@@ -191,8 +191,8 @@ public class PhraseEngineTests
     {
         // Verify midnight+5 uses "12" not "0"
         string result = PhraseEngine.GetPhrase(T(0, 5));
-        Assert.IsFalse(result.Contains(" 0"), $"Phrase should not contain \" 0\": \"{result}\"");
-        Assert.IsTrue(result.Contains("12"), $"Phrase should contain \"12\": \"{result}\"");
+        Assert.DoesNotContain(" 0", result);
+        Assert.Contains("12", result);
     }
 
     // ----- No DateTime.Now usage (structural test via behavior) -----
