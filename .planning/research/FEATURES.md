@@ -1,210 +1,336 @@
-# Feature Landscape
+# Feature Research
 
-**Domain:** Fuzzy / natural-language clock desktop widget
+**Domain:** Desktop overlay widget — drag/position-persist/font-size milestone (v1.1)
 **Researched:** 2026-02-25
-**Confidence:** MEDIUM (training-data knowledge of existing apps; no live web access available during this session)
+**Confidence:** HIGH (all claims verified against official Microsoft documentation)
 
 ---
 
-## Table Stakes
+## Scope Note
 
-Features users expect from any fuzzy clock. Missing = product feels incomplete or broken.
+This file replaces the v1.0 FEATURES.md and focuses exclusively on the three new features
+targeted in v1.1. The existing codebase is a transparent frameless always-on-top WPF window
+with `AllowsTransparency="True"`, `WindowStyle="None"`, `SizeToContent="WidthAndHeight"`,
+`Background="Transparent"` on the Window, and `Background="#01000000"` on the root Grid
+(near-transparent, ensuring hit-testability). That setup is the foundation for all three
+new features.
+
+---
+
+## Feature Landscape
+
+### Table Stakes (Users Expect These)
+
+These are behaviors users will silently expect. Getting them wrong registers as a bug, not
+a missing feature.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Fuzzy English phrase for current time | Core promise of the product | Low | e.g. "quarter past 3", "almost midnight" |
-| Correct 12-hour phrasing (AM/PM awareness) | Natural English does not use 24-hour; "3 in the morning" vs "3 in the afternoon" is optional, but the hour number must be right | Low | 12-hour hour (1-12), not 24-hour |
-| Phrase updates at predictable boundaries | Users learn the cadence; stale text breaks trust | Low | 5-minute boundary updates are the standard cadence |
-| Always-visible overlay / desktop presence | Why use a widget at all? If it hides, it's just a clock app | Low–Med | WPF transparent frameless window; always-on-top |
-| Readable typography | Glanceable at desktop distance | Low | Font size, contrast, drop shadow or halo so text is visible on any wallpaper |
-| Correct handling of noon and midnight | Special-cased in natural English — "noon", "midnight", not "12 o'clock PM" | Low | "noon" at 12:00, "midnight" at 0:00 |
-| Correct handling of the top of the hour | "X o'clock" or "on the dot" expected at :00 | Low | "three o'clock", not "zero minutes past three" |
+| Left-click drag anywhere on widget moves it | How every borderless widget works; user's first instinct | LOW | `Window.DragMove()` on `MouseLeftButtonDown`; the root Grid `#01000000` background already makes the full bounding box hit-testable (confirmed in existing code) |
+| Widget stays put after drag | If it snaps back, user loses trust immediately | LOW | Already set via `Window.Left`/`Window.Top` — these persist for the session; durability across restarts is the persistence feature below |
+| Position saved and restored across restarts | A widget that forgets where you placed it is fundamentally broken for a persistent desktop tool | LOW | JSON file in `%LOCALAPPDATA%\FuzzyClock\settings.json`; load on startup, save on drag-end or close |
+| Widget never starts off-screen | Monitor resolutions change, displays disconnect; saved position must be validated | LOW–MEDIUM | Clamp `Left`/`Top` so at least a minimum visible region (e.g., 50px square) intersects the available working area; use `SystemParameters.WorkArea` for single-monitor or `System.Windows.Forms.Screen.GetWorkingArea()` for multi-monitor |
+| Font size change is immediate | Menu selection should update the live widget visually; no "apply" button | LOW | Set `FontSize` on both `PhraseText` and `ShadowText` TextBlocks; call `UpdateLayout()` then re-run position logic |
+| Font size persists across restarts | Choosing a font size every launch is friction; users set it once | LOW | Store as integer in the same JSON file as position |
+| Right-click menu shows current font size as selected | Standard radio/check-mark UX; without it the menu feels stateless | LOW | `IsChecked="True"` on the active size `MenuItem`; update IsChecked when size changes |
 
-## Differentiators
+### Differentiators (Competitive Advantage)
 
-Features that set one fuzzy clock apart from another. Not expected by default, but valued.
+Not required to ship v1.1, but would make the feature feel more polished.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Poetic / varied phrasing beyond strict quarter-past vocabulary | More interesting than rote "quarter past / half past"; feels like a person speaking | Low–Med | e.g. "just gone half past", "nearly quarter to", "just a little after 11" — the project specifically wants this style |
-| Multiple phrase styles / personalities | Users can match the widget's voice to their taste (formal, casual, poetic) | Med | macOS Fuzzy Clock offers multiple "fuzziness levels" |
-| Draggable positioning | User places widget where it doesn't interfere with desktop icons | Low | Click-and-drag window move without a title bar |
-| Configurable font / size / color | Wallpaper changes mean contrast needs change | Med | Registry or config file; settings dialog adds scope |
-| Opacity / transparency control | Blends into desktop without completely hiding | Low–Med | WPF makes this straightforward |
-| Click-through mode (optional toggle) | Advanced users want the widget to be non-interactive | Low | WS_EX_TRANSPARENT extended window style |
-| System tray icon with right-click menu | Standard Windows widget UX: exit, move, settings | Med | Adds scope but expected by Windows users |
-| Startup with Windows (auto-launch) | Persistent desktop presence requires this | Low | Registry run key or startup folder shortcut |
-| Second-level granularity option | "about twenty past" vs exact "twenty-two past" — optional precision toggle | Med | Rarely needed for fuzzy clock; mostly anti-feature |
-| Locale / language variants | Spanish, French, German fuzzy phrases | High | Out of scope for a personal English widget |
-| Animated transitions between phrases | Fade old phrase out, fade new phrase in | Low–Med | Polished feel; WPF animations are straightforward |
+| Drag cursor feedback (grabbing hand cursor) | Communicates "this is draggable" to first-time users | LOW | Set `Cursor="SizeAll"` or `"Hand"` on the Grid during drag; use `MouseLeftButtonDown`/`MouseLeftButtonUp` events to toggle |
+| Save position on drag-end (not on close) | Position is durable even if widget crashes or is killed via Task Manager | LOW | Handle `LocationChanged` event with debounce, or save in `MouseLeftButtonUp` after `DragMove()` completes |
+| Snap-to-screen-edge magnetism | Reduces visual clutter; common in overlay tools | MEDIUM | Detect if `Left` or `Top` is within ~20px of a screen edge and snap; adds complexity, not required for v1.1 |
+| Screen-edge snap memory | Remembers which screen edge was the home position | MEDIUM | Would need edge-identity in the JSON; skip for v1.1 |
+| Undo last drag (Ctrl+Z) | Rarely needed; no desktop widget app offers this | HIGH | Anti-feature for this project; skip |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build for this project.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Settings / preferences screen | Adds UI complexity, WPF forms, state management — kills the "minimal" goal | Hard-code sensible defaults; accept a plain config file if needed |
-| 24-hour mode | Contradicts natural English; "fifteen hundred hours" is not conversational | Always use 12-hour |
-| Date display | Scope creep; changes the product from "time widget" to "info widget" | Keep it time-only |
-| Exact digital time display | Defeats the purpose; users who want exact time have a taskbar clock | Never show HH:MM |
-| Multiple clock instances | Adds IPC/session complexity for negligible gain | Single window only |
-| Network time sync / NTP | OS already handles this; duplicating it adds failure modes | Use `DateTime.Now` directly |
-| Notification / alarm system | Completely different product category | Out of scope |
-| Second-by-second updates | Meaningless for fuzzy phrases; wastes CPU on pointless redraws | 5-minute boundary timer only |
-| Per-monitor DPI awareness UI scaling controls | Handle automatically via WPF DPI awareness; don't expose as a user setting | Mark app as per-monitor DPI aware in manifest |
-
----
-
-## Phrase Bucket Patterns
-
-### How Fuzzy Clocks Divide the Hour
-
-The standard approach divides the 60-minute hour into 12 buckets of 5 minutes each. Each bucket maps to a canonical English phrase. The exact bucket boundaries vary by implementation:
-
-**Strict 5-minute alignment (most common in simple apps)**
-
-Minutes are rounded to the nearest 5-minute mark:
-
-```
-:00–:02   → "[hour] o'clock"
-:03–:07   → "five past [hour]"
-:08–:12   → "ten past [hour]"
-:13–:17   → "quarter past [hour]"
-:18–:22   → "twenty past [hour]"
-:23–:27   → "twenty-five past [hour]"
-:28–:32   → "half past [hour]"
-:33–:37   → "twenty-five to [next hour]"
-:38–:42   → "twenty to [next hour]"
-:43–:47   → "quarter to [next hour]"
-:48–:52   → "ten to [next hour]"
-:53–:57   → "five to [next hour]"
-:58–:59   → "[next hour] o'clock"  (or "almost [next hour]")
-```
-
-This gives 12 slots. Some apps fire exactly at :00, :05, :10, etc. and hold for 5 minutes, so the update boundary is a 5-minute mark rather than a midpoint.
-
-**Poetic / approximation style (this project's target)**
-
-Rather than mechanical "five past / ten past" throughout, the interesting buckets (those that fall between the named landmarks) can use approximation language:
-
-```
-:00        → "[hour] o'clock"  /  "exactly [hour]"
-:01–:04    → "just gone [hour]"  /  "just after [hour]"
-:05        → "five past [hour]"
-:06–:09    → "a little after five past [hour]"  /  "just gone five past"
-:10        → "ten past [hour]"
-:11–:14    → "almost quarter past [hour]"
-:15        → "quarter past [hour]"
-:16–:19    → "just gone quarter past [hour]"
-:20        → "twenty past [hour]"
-:21–:24    → "a little after twenty past [hour]"
-:25        → "twenty-five past [hour]"
-:26–:29    → "almost half past [hour]"
-:30        → "half past [hour]"
-:31–:34    → "just gone half past [hour]"
-:35        → "twenty-five to [next hour]"
-:36–:39    → "almost twenty to [next hour]"
-:40        → "twenty to [next hour]"
-:41–:44    → "a little after twenty to [next hour]"
-:45        → "quarter to [next hour]"
-:46–:49    → "just gone quarter to [next hour]"
-:50        → "ten to [next hour]"
-:51–:54    → "almost five to [next hour]"
-:55        → "five to [next hour]"
-:56–:59    → "almost [next hour]"
-```
-
-**This project's stated design** uses 5-minute buckets updating at boundaries, so 12 distinct phrases per hour cycle. Based on PROJECT.md examples ("just a little after 11", "almost noon", "quarter past 3"), the vocabulary blends both the named landmarks AND the approximation language:
-
-```
-Bucket 0  (:00–:04)  → "[hour] o'clock"  /  "just gone [hour]"
-Bucket 1  (:05–:09)  → "five past [hour]"  /  "just a little after [hour]"
-Bucket 2  (:10–:14)  → "ten past [hour]"
-Bucket 3  (:15–:19)  → "quarter past [hour]"
-Bucket 4  (:20–:24)  → "twenty past [hour]"
-Bucket 5  (:25–:29)  → "twenty-five past [hour]"  /  "almost half past [hour]"
-Bucket 6  (:30–:34)  → "half past [hour]"
-Bucket 7  (:35–:39)  → "twenty-five to [next hour]"
-Bucket 8  (:40–:44)  → "twenty to [next hour]"
-Bucket 9  (:45–:49)  → "quarter to [next hour]"
-Bucket 10 (:50–:54)  → "ten to [next hour]"
-Bucket 11 (:55–:59)  → "five to [next hour]"  /  "almost [next hour]"
-```
-
-### Special Cases
-
-| Time | Phrase | Rationale |
-|------|--------|-----------|
-| 12:00 | "noon" or "twelve o'clock" | Natural English landmark |
-| 0:00 / 24:00 | "midnight" | Natural English landmark |
-| 12:30 | "half past noon" or "half past twelve" | Either is natural |
-| 11:55–11:59 | "almost noon" | PROJECT.md explicitly uses this |
-| Any :00 | "[hour] o'clock" | Universal English convention |
-
-### Phrase Vocabulary by Named Apps (training data, MEDIUM confidence)
-
-**macOS "Fuzzy Clock" (by Anders Borum / similar apps in Mac App Store)**
-- Offers multiple "fuzziness" levels: exact (shows HH:MM), fuzzy (5-min buckets), very fuzzy (hour-only)
-- Standard English vocabulary: "quarter past", "half past", "quarter to", "five past", "ten past", etc.
-- Some variants use "around X" for the hour-only level
-
-**Word Clock apps (various platforms)**
-- Display all words on a grid; illuminate the words that form the current phrase
-- Always 5-minute granularity (physical constraint of the grid layout)
-- Vocabulary locked to the grid: "IT IS", "HALF", "TEN", "QUARTER", "TWENTY", "FIVE", "MINUTES", "TO", "PAST", plus hour words
-- Not draggable overlay widgets — full-screen or screensaver format
-
-**KDE Plasma "Fuzzy Clock" widget (open source)**
-- Source: `plasma-desktop` package, `fuzzy-clock` applet
-- Configurable fuzziness: 1 min, 5 min, 10 min, 15 min, 30 min, 1 hour
-- Uses KDE i18n strings for phrases; English defaults are the standard "X past Y" / "X to Y" patterns
-- No approximation vocabulary — strictly uses the named landmarks
-
-**GNOME "Fuzzy Clock" extension**
-- Similar to KDE: 5-minute buckets, standard "past/to" vocabulary
-- Single phrase per bucket, no variation or personality
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Click-through transparent areas pass mouse to desktop | "I don't want the widget to block clicks on my desktop" | Cannot be combined with dragging: if the window is WS_EX_TRANSPARENT, mouse events go to the window behind it and `DragMove()` is never reached. Also the existing `#01000000` Grid background is specifically there to ensure hit-testability | If click-through is ever needed, it must be an explicit toggle that disables drag; not compatible as a default behavior |
+| Arbitrary font size text input | "I want exactly 28pt" | Adds an input field, validation, and a wider range of layout edge cases; the overlay was designed for glanceability at 3 fixed sizes | Provide three labeled options: Small (16pt), Medium (24pt), Large (32pt) |
+| Font family selector | "I prefer a different font" | Introduces layout instability — different fonts have different metrics that break the shadow-offset alignment and border sizing | Keep Segoe UI Light; it is available on all modern Windows installs |
+| Settings dialog / window | "A proper settings screen would be nicer" | Contradicts the product's core simplicity; adds a second WPF window, focus management, and theming concerns | Keep everything in the right-click context menu |
+| Position locked / locked toggle | "Prevent accidental drags" | Niche; adds a state indicator; the right-click-to-close pattern already shows the widget is intentionally interactive | Skip for v1.1 |
+| Multi-monitor position memory per-monitor | "Remember which monitor I usually put it on" | `System.Windows.Forms.Screen` enumerates monitors, but saving per-monitor position requires monitor identity (device name or bounds) which changes when monitors are rearranged | Clamp the single saved position to the nearest visible screen on restore; that is sufficient for most reconfigurations |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Correct phrase buckets → Everything else (core engine)
-Phrase bucket engine → Phrase update timer
-Phrase update timer → Always-on-top overlay window
-Always-on-top overlay → Readable typography (contrast/shadow)
-Readable typography → Draggable positioning (so user can avoid conflicts)
-Draggable positioning → Startup persistence (position must survive restart)
+[Drag to reposition]
+    └──requires──> [Hit-testable window surface]
+                       (already satisfied: root Grid Background="#01000000")
+    └──requires──> [Window.Left / Window.Top are writable]
+                       (already satisfied: WindowStartupLocation="Manual")
+
+[Position persistence]
+    └──requires──> [Drag to reposition] (something to persist)
+    └──requires──> [JSON settings file] (new: System.Text.Json, no extra NuGet needed in .NET 10)
+    └──requires──> [Off-screen clamp on load]
+                       (new: SystemParameters.WorkArea or Screen.GetWorkingArea)
+
+[Font size selection]
+    └──requires──> [Right-click context menu] (already exists)
+    └──enhances──> [Right-click context menu] (adds a "Font Size" submenu with 3 items)
+    └──requires──> [JSON settings file] (shared with position persistence)
+
+[JSON settings file]
+    └──requires──> [Known file path] (Environment.SpecialFolder.LocalApplicationData + "FuzzyClock")
+    └──requires──> [Graceful missing-file handling] (first run: use defaults, no crash)
 ```
+
+### Dependency Notes
+
+- **Position persistence and font-size persistence share one file.** The settings object should hold both `Left`, `Top`, and `FontSize`. Reading/writing once is simpler and avoids partial-save issues.
+- **SizeToContent interaction with font size.** The window already uses `SizeToContent="WidthAndHeight"`. Changing font size changes the window's ActualWidth/ActualHeight. After applying font size, `UpdateLayout()` must be called before re-positioning, exactly as `UpdatePhraseIfChanged()` already does. This dependency already has a working pattern in the codebase.
+- **PositionTopRight() must be retired or made conditional.** Currently `ContentRendered` unconditionally calls `PositionTopRight()`. With persistence, the startup flow becomes: (1) load settings, (2) apply font size, (3) apply saved position if valid, else fall back to top-right default. The existing `PositionTopRight()` becomes a fallback, not the primary path.
 
 ---
 
-## MVP Recommendation
+## Drag-to-Reposition: Detailed Behavior Specification
 
-Prioritize for the first working build:
+### How DragMove Works in This Window
 
-1. Phrase bucket engine with all 12 slots and special cases (noon, midnight, o'clock)
-2. Transparent, frameless, always-on-top WPF window with text rendered at desktop
-3. 5-minute boundary timer driving phrase refresh
-4. Readable typography with drop shadow / outline so phrase is visible on any wallpaper
-5. Draggable window (mouse drag without title bar)
+`Window.DragMove()` is the standard WPF approach. It:
+- Requires the left mouse button to be pressed when called (throws `InvalidOperationException` otherwise)
+- Delegates to Win32's `SendMessage(WM_NCLBUTTONDOWN, HTCAPTION, ...)` internally
+- Takes over mouse capture for the duration of the drag
+- Updates `Window.Left` and `Window.Top` continuously as the user drags
+- Releases on mouse button up automatically
 
-Defer to a later iteration:
-- Startup with Windows — useful but not needed to validate the core experience
-- Animated fade transitions — polish, not function
-- System tray icon — adds scope; right-click "Exit" via task manager is acceptable for MVP
-- Config file for font/color — hard-code sensible defaults first; wait to see what users actually want to change
+**Hit-test precondition (critical for this project):** `DragMove()` only fires if the mouse is over a hit-testable surface. The existing window design already handles this correctly:
+- `Background="Transparent"` on `Window` would be transparent to hit-testing if not compensated
+- `Background="#01000000"` on the root `Grid` (alpha=1, barely visible) makes the entire bounding box hit-testable
+- The `ShadowText` TextBlock has `IsHitTestVisible="False"` (correct — shadow layer should not interfere)
+- No changes to XAML are needed to support dragging the transparent area around the text
+
+**Where to hook it:** Handle `MouseLeftButtonDown` on the root `Grid` or override `OnMouseLeftButtonDown` on the `Window`:
+
+```csharp
+protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+{
+    base.OnMouseLeftButtonDown(e);
+    DragMove();
+}
+```
+
+This fires for any left-click anywhere in the bounding box, including the text and the transparent-but-hit-testable padding area.
+
+**Right-click menu conflict:** `DragMove()` is only called on `MouseLeftButtonDown`. Right-click for the context menu fires `MouseRightButtonDown` — these are separate event paths. No conflict.
+
+### Expected Drag UX
+
+- Widget moves fluidly with the cursor, no lag
+- No visual feedback is required (users expect drag of a transparent window to just work)
+- Widget can be placed anywhere on-screen, including partially off-screen
+- Drag does NOT auto-clamp during the drag; clamping is only applied at startup when restoring a saved position
+
+### Edge Cases
+
+| Case | Expected Behavior |
+|------|-------------------|
+| Drag initiated on text vs. transparent area | Same behavior — the `#01000000` Grid makes both hit-testable |
+| Drag toward screen edge / taskbar | Windows handles this; widget can overlap the taskbar (it is `Topmost=True`) |
+| Right-click during drag | Not reachable — drag takes mouse capture; right-click events don't fire until mouse is released |
+| Click on transparent padding area | Works — Grid background makes it hit-testable |
+| Drag on second monitor | Works — `DragMove()` handles virtual desktop coordinates natively |
+
+---
+
+## Position Persistence: Detailed Behavior Specification
+
+### What to Save
+
+```json
+{
+  "left": 1420.0,
+  "top": 20.0,
+  "fontSize": 32
+}
+```
+
+`Window.Left` and `Window.Top` are in WPF logical units (1/96th inch, i.e., device-independent pixels). These should be saved as-is — they are already in a consistent coordinate system. Do not convert to physical pixels before saving.
+
+### When to Save
+
+- On `LocationChanged` event (fires continuously during drag) — use a debounce or only save on `MouseLeftButtonUp` after drag to avoid write-storm
+- Simplest safe option: save in a `LocationChanged` handler, but only write if the position has been stable for >500ms (timer-based debounce), OR save when the application exits (`Application.Exit` or `Window.Closing`)
+- Even simpler: override `OnMouseLeftButtonUp` to save after `DragMove()` completes; since `DragMove()` blocks until button release, the next statement after `DragMove()` runs exactly when the user drops the widget
+
+### Where to Save
+
+```
+%LOCALAPPDATA%\FuzzyClock\settings.json
+```
+
+In C#:
+```csharp
+var dir = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "FuzzyClock");
+Directory.CreateDirectory(dir); // no-op if already exists
+var path = Path.Combine(dir, "settings.json");
+```
+
+This location is:
+- User-scoped (survives app reinstall, does not require elevation)
+- Writable without UAC
+- Standard Windows convention for per-user app data
+- Separate from the app binary directory (avoid writing to Program Files)
+
+### Off-Screen Clamping
+
+**Why clamping is needed:** A saved position of `Left=3840, Top=20` is valid for a 4K monitor but renders the widget invisible after disconnecting that monitor. The user would have no way to retrieve the widget.
+
+**What "off-screen" means:** The saved `(Left, Top)` places the widget entirely outside all connected displays' combined working area, or so far into a corner that no usable region is visible.
+
+**Clamping strategy — minimum visible region:**
+
+```
+After loading Left/Top from file:
+1. Compute the widget's would-be Rect: new Rect(left, top, ActualWidth, ActualHeight)
+2. For each Screen in System.Windows.Forms.Screen.AllScreens:
+   Compute intersection of widget Rect with screen.WorkingArea
+3. If total intersection area >= threshold (e.g., 50×50 logical pixels):
+   Position is acceptable — apply it
+4. Else (widget would be off all screens or nearly so):
+   Fall back to PositionTopRight() on primary screen
+```
+
+**Simpler single-monitor approach (acceptable for v1.1):**
+Use `SystemParameters.WorkArea` (primary screen only) and clamp:
+
+```csharp
+var work = SystemParameters.WorkArea;
+double clampedLeft = Math.Max(work.Left, Math.Min(left, work.Right - ActualWidth));
+double clampedTop  = Math.Max(work.Top,  Math.Min(top,  work.Bottom - ActualHeight));
+```
+
+**Trade-off:** Simple clamp against primary screen is correct for single-monitor users and handles the most common off-screen case (monitor disconnected). Multi-monitor users who deliberately position the widget on a secondary display will have it moved to primary after a disconnect, which is the least-bad outcome (widget is always visible).
+
+**Recommendation for v1.1:** Use `SystemParameters.WorkArea` (WPF native, no WinForms reference needed). Add multi-monitor support (via `System.Windows.Forms.Screen.GetWorkingArea`) only if it becomes a reported pain point.
+
+### First Run (No Settings File)
+
+Load returns null/default. Apply defaults: `FontSize=32`, position = top-right (existing `PositionTopRight()` logic). Write the defaults to file after first `ContentRendered` so subsequent launches have a file to read.
+
+### Corrupted / Invalid Settings File
+
+Wrap the JSON read in try/catch. On any exception (malformed JSON, missing fields, out-of-range values), silently fall back to defaults and overwrite the file with defaults. Do not surface an error dialog — the widget should always start.
+
+---
+
+## Font Size Selection: Detailed Behavior Specification
+
+### The Three Sizes
+
+| Option | Display Label | FontSize | Rationale |
+|--------|---------------|----------|-----------|
+| Small  | "Small (16pt)"  | 16 | Compact; good for high-density desktops |
+| Medium | "Medium (24pt)" | 24 | Default for most users; readable at arm's length |
+| Large  | "Large (32pt)"  | 32 | Current v1.0 default; good for high-DPI or distance viewing |
+
+The current v1.0 code hardcodes `FontSize="32"` on both TextBlocks. v1.1 makes this a user choice with 32pt as the default on first run.
+
+### Context Menu Structure
+
+Extend the existing right-click `ContextMenu` on the root `Grid`:
+
+```
+[ Close ]
+[ ─────────── ]
+[ Font Size  ▶ ]
+               [ Small (16pt)   ✓ ]   ← check mark on active size
+               [ Medium (24pt)    ]
+               [ Large (32pt)     ]
+```
+
+This uses WPF's native `MenuItem` → nested `MenuItem` submenu pattern:
+
+```xml
+<MenuItem Header="Font Size">
+    <MenuItem x:Name="FontSmall"  Header="Small (16pt)"  IsCheckable="True" Click="FontSize_Click" Tag="16" />
+    <MenuItem x:Name="FontMedium" Header="Medium (24pt)" IsCheckable="True" Click="FontSize_Click" Tag="24" />
+    <MenuItem x:Name="FontLarge"  Header="Large (32pt)"  IsCheckable="True" Click="FontSize_Click" Tag="32" />
+</MenuItem>
+```
+
+**Radio-style mutual exclusion:** WPF `MenuItem` does not have a built-in `GroupName` like `RadioButton`. Implement it manually: in the `FontSize_Click` handler, set `IsChecked=false` on all three items, then set `IsChecked=true` on the clicked item.
+
+### Applying Font Size
+
+```csharp
+double size = double.Parse((string)((MenuItem)sender).Tag);
+PhraseText.FontSize = size;
+ShadowText.FontSize = size;
+UpdateLayout();           // Required: SizeToContent makes ActualWidth stale
+RepositionAfterResize();  // Re-apply stored position (or PositionTopRight if no stored position)
+```
+
+The shadow TextBlock must receive the same FontSize as the primary, or the 2px offset shadow will misalign at different sizes.
+
+### Position After Font Size Change
+
+When font size changes, the window resizes (`SizeToContent="WidthAndHeight"`). If the window is currently positioned at the right or bottom edge of a screen, a size increase may push it off-screen. After applying a new font size, re-clamp `Left`/`Top` using the same clamping logic used at startup.
+
+**Do not automatically re-anchor to top-right.** The user may have dragged the widget to a custom position. Just clamp if the new size creates an off-screen condition.
+
+### Save on Font Size Change
+
+Save the updated settings immediately after applying the new font size. The user should not need to restart or close the app for the preference to be durable.
+
+---
+
+## MVP Definition
+
+### Ship with v1.1
+
+All four are already committed in PROJECT.md as the active milestone requirements.
+
+- [ ] **Drag to reposition (WIN-04)** — `OnMouseLeftButtonDown` → `DragMove()`; no XAML changes needed
+- [ ] **Position restored on startup, clamped if off-screen (WIN-05)** — JSON file in LocalApplicationData; single-monitor WorkArea clamp
+- [ ] **Font size selector in right-click menu (DISP-05)** — "Font Size" submenu with 3 IsCheckable MenuItems; radio mutual exclusion in code-behind
+- [ ] **Font size persists (DISP-06)** — stored in the same JSON file as position
+
+### Not in v1.1 (Confirmed Deferred)
+
+- [ ] **Auto-launch on Windows login (STRT-01)** — registry run key; explicitly deferred to v2+ in PROJECT.md
+- [ ] **Animated phrase transitions** — polish; does not affect positioning or font
+- [ ] **Multi-monitor smart positioning** — `Screen.GetWorkingArea`; acceptable to skip for v1.1
+
+---
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Drag to reposition | HIGH | LOW (3–5 lines of code) | P1 |
+| Position persistence + clamping | HIGH | LOW–MEDIUM (JSON file + clamp logic) | P1 |
+| Font size selector in menu | HIGH | LOW (XAML submenu + handler) | P1 |
+| Font size persistence | HIGH | LOW (reuse the same JSON write path) | P1 |
+| Drag cursor feedback | LOW | LOW | P3 — nice to have |
+| Save-on-drag-end (debounced) vs save-on-close | LOW | LOW | P2 — save-on-close is acceptable for v1.1 |
+| Multi-monitor clamping | MEDIUM | MEDIUM | P3 — defer unless reported |
 
 ---
 
 ## Sources
 
-- Project context: `C:/src/gsd1/.planning/PROJECT.md` (HIGH confidence — first-party)
-- macOS Fuzzy Clock feature set: training data (MEDIUM confidence — apps may have changed since training)
-- KDE Plasma fuzzy-clock applet behavior: training data from open-source codebase knowledge (MEDIUM confidence)
-- GNOME fuzzy clock extension: training data (MEDIUM confidence)
-- Word Clock apps: training data (MEDIUM confidence)
-- English phrase vocabulary / bucket patterns: training data cross-referenced with project examples (HIGH confidence for the vocabulary itself — natural English time expressions are stable)
+- `Window.DragMove()` method: https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.dragmove (HIGH confidence — official docs, verified 2026-02-25)
+- `UIElement.IsHitTestVisible` + WPF hit testing: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/hit-testing-in-the-visual-layer (HIGH confidence — official docs, verified 2026-02-25)
+- `SystemParameters.WorkArea`: https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.workarea (HIGH confidence — official docs, verified 2026-02-25)
+- `Screen.GetWorkingArea()` for multi-monitor: https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.screen.getworkingarea (HIGH confidence — official docs, verified 2026-02-25)
+- `Window.Left` / `Window.Top` coordinate system: https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.left (HIGH confidence — official docs, verified 2026-02-25)
+- `MenuItem.IsChecked` / submenu patterns: https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.menuitem.ischecked (HIGH confidence — official docs, verified 2026-02-25)
+- `System.Text.Json` serialization: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/how-to (HIGH confidence — official docs, verified 2026-02-25)
+- `Environment.GetFolderPath(LocalApplicationData)`: https://learn.microsoft.com/en-us/dotnet/api/system.environment.getfolderpath (HIGH confidence — official docs, verified 2026-02-25)
+- Existing codebase: `C:/src/gsd1/FuzzyClock.App/MainWindow.xaml` and `MainWindow.xaml.cs` (HIGH confidence — first-party, read directly)
 
-> Note: Live web access was unavailable during this research session. Claims about specific app feature sets are marked MEDIUM confidence and should be verified against current app store listings or source code before treating as authoritative.
+---
+*Feature research for: Fuzzy Clock v1.1 — drag/position-persist/font-size*
+*Researched: 2026-02-25*

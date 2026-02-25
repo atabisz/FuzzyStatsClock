@@ -1,374 +1,476 @@
-# Domain Pitfalls: WPF Transparent Frameless Always-On-Top Desktop Widget
+# Pitfalls Research
 
-**Domain:** WPF transparent/frameless always-on-top desktop widget (C#)
+**Domain:** WPF transparent frameless overlay — drag, position persistence, font size (v1.1 additions)
 **Project:** Fuzzy Clock
 **Researched:** 2026-02-25
-**Confidence:** HIGH — all critical pitfalls verified against official Microsoft docs
+**Confidence:** HIGH — all critical claims verified against official Microsoft docs (windowsdesktop-10.0)
+
+---
+
+> **Scope note:** This document covers pitfalls specific to adding drag-to-reposition, JSON position/font-size persistence, and font size selection to the existing transparent WPF overlay. The prior v1.0 pitfalls (transparency dependency, ClearType, software rendering, DispatcherTimer drift, hit-testing, DPI, multiple instances, Topmost, taskbar, SizeToContent) are documented in the original PITFALLS.md and not duplicated here. This document focuses exclusively on v1.1 concerns and how they interact with the already-shipped v1.0 constraints.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites or major visual/functional breakdowns.
+Mistakes that cause silent wrong behavior, broken positioning, or lost settings.
 
 ---
 
-### Pitfall 1: The Three-Way Transparency Dependency
+### Pitfall 1: DragMove() Fires on the Shadow TextBlock and Steals Mouse Events
 
 **What goes wrong:**
-Setting `Background="Transparent"` alone does not produce a see-through window. The window stays opaque. Transparency requires all three properties set together, and they must be set before the window is shown — they cannot be changed at runtime after the window is rendered.
+The window has two overlapping `TextBlock` elements — `ShadowText` and `PhraseText`. If `MouseLeftButtonDown` is wired on the outer `Grid` (or on `this`), it fires correctly. But if the handler is placed on `PhraseText` only, dragging the shadow offset area (2px right/down from text) fires on `ShadowText` instead and the drag silently does nothing — because `ShadowText` has `IsHitTestVisible="False"`. Result: drag works on 90% of the text area but fails on the shadow offset pixels.
+
+More importantly: calling `DragMove()` on the `Window` when the source of the `MouseLeftButtonDown` is a non-window element requires the event to bubble up. If any child element marks the event as `Handled = true` (which `ContextMenu` infrastructure sometimes does), `DragMove()` receives a stale mouse state and throws `InvalidOperationException: The left mouse button is not down`.
 
 **Why it happens:**
-`AllowsTransparency` only works when `WindowStyle` is `None`. Setting `Background` to `Transparent` without `AllowsTransparency=True` merely paints an opaque white or system-color background. Developers often set one or two of the three and wonder why the window is still a solid white rectangle.
+`DragMove()` is documented to throw `InvalidOperationException` if the left button is not pressed at call time. The button state check is performed at the Win32 level at the moment of the call. If the event has been handled (or if the call is deferred even one dispatcher tick), the button may already be released.
 
-**The required combination (all three mandatory):**
-```xaml
-<Window WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent">
-```
-
-**Consequences:**
-- Setting `AllowsTransparency="True"` with any `WindowStyle` other than `None` throws `InvalidOperationException` at runtime.
-- Forgetting `Background="Transparent"` leaves a solid white/grey rectangle behind the text.
-- Attempting to change these properties after the window handle is created throws `InvalidOperationException`.
-
-**Prevention:** Set all three in XAML before any code runs. Never attempt to toggle transparency at runtime.
-
-**Detection:** A white rectangle instead of floating text. Runtime `InvalidOperationException` with message mentioning `AllowsTransparency`.
-
-**Phase:** Initial window setup (Phase 1 of any build).
-
-**Sources:** `Window.AllowsTransparency` official docs — https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency; WPF Windows Overview — https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/
-
----
-
-### Pitfall 2: ClearType Font Rendering is Disabled on Transparent Backgrounds
-
-**What goes wrong:**
-WPF's subpixel ClearType rendering is disabled on transparent (layered) windows. Text reverts to greyscale anti-aliasing. On a transparent background, text can appear blurry, thin, or difficult to read, especially at smaller font sizes. This is not a bug — it is a fundamental OS-level constraint. ClearType requires knowledge of the background color under each subpixel; a transparent/composited background makes this impossible.
-
-**Why it happens:**
-ClearType works by manipulating individual RGB sub-pixels based on the background color. When the background is composited from whatever is beneath the window at runtime, the compositor cannot pre-compute the sub-pixel colors. The system falls back to greyscale anti-aliasing.
-
-**Consequences:**
-- Text that looks sharp in a normal window appears thinner and slightly blurry on the transparent widget.
-- This is especially visible at font sizes under ~24pt.
-- Cannot be "fixed" by any WPF property — it is a Windows Desktop Window Manager (DWM) constraint.
-
-**Prevention and mitigation:**
-- Choose fonts and sizes that remain legible under greyscale anti-aliasing (larger, bolder weights read better).
-- Use `TextOptions.TextRenderingMode="Grayscale"` explicitly to get consistent, predictable rendering rather than relying on ClearType mode that silently degrades.
-- Use `TextOptions.TextFormattingMode="Display"` for GDI-compatible pixel-hinting at smaller sizes.
-- Test with the actual font, size, and color combination on the transparent background before finalizing design.
-- High-contrast foreground colors (pure white or pure black text) compensate for the reduced subpixel clarity.
-
-**Detection:** Text appears slightly blurry compared to the same text in a normal window. Visible when text is compared side-by-side on a regular opaque panel.
-
-**Phase:** Font/text implementation (Phase 1). A design decision, not a bug to fix later.
-
-**Sources:** ClearType Overview — https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/cleartype-overview; Graphics Rendering Tiers — https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/graphics-rendering-tiers
-
----
-
-### Pitfall 3: Transparent Windows Use Software Rendering (Layered Window Fallback)
-
-**What goes wrong:**
-WPF transparent windows (`AllowsTransparency=True`) are implemented via Win32 layered windows. On systems running the Windows Display Driver Model (WDDM) — Windows Vista and later — these are hardware accelerated at the DWM level. However, WPF's own rendering pipeline for the content of layered windows is noted as not hardware-accelerated in the rendering tier documentation. This means the CPU handles compositing, not the GPU.
-
-**Why it happens:**
-The WPF rendering tier table explicitly lists "Layered windows" as software-rendered on non-WDDM systems, and the content pipeline for these windows bypasses the hardware-accelerated path. For a simple text widget that updates every 5 minutes, this is acceptable — but it is a mistake to add visual effects (blur, shadows, animations) expecting GPU performance.
-
-**Consequences:**
-- Adding `DropShadowEffect` or `BlurEffect` to a transparent window will use software rendering, causing high CPU usage and potential rendering artifacts.
-- Complex animations in a transparent window may stutter or consume unexpected CPU.
-- For a static/rarely-updated text display this is not a problem in practice.
-
-**Prevention:** Keep the widget visually simple. Avoid bitmap effects on transparent windows. If a drop shadow is desired, use `TextEffect` or add a manual stroke/shadow via `TextBlock` with multiple layers rather than `DropShadowEffect`.
-
-**Detection:** High CPU usage at idle, frame rate issues in Task Manager GPU overlay. Profile with WPF Performance Suite.
-
-**Phase:** Initial implementation. Decide visual design before implementation.
-
-**Sources:** Graphics Rendering Tiers — https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/graphics-rendering-tiers
-
----
-
-### Pitfall 4: DispatcherTimer Drift Causes Wrong Phrase Display
-
-**What goes wrong:**
-Using `DispatcherTimer` with a fixed 5-minute interval to update the phrase results in cumulative drift. The timer fires slightly after the interval (never before, per official docs). Over hours, the timer can slip enough that it fires at :04 instead of :05, causing the wrong phrase to display for an entire 5-minute window. For example, at 11:59:58 the timer should show "almost noon" but fires late, shows "noon" at 12:00:04, then shows "almost noon" again at 12:04:04 — creating a confusing minute-late drift.
-
-**Why it happens:**
-`DispatcherTimer` fires are queued on the dispatcher loop. When the UI thread is busy (even briefly), the timer fires after the scheduled time. The timer is explicitly documented as "not guaranteed to execute exactly when the time interval occurs." A naive implementation fires on interval, not on clock boundaries.
-
-**Consequences:**
-- The displayed phrase can be one 5-minute bucket behind actual time for a full tick cycle.
-- After hours of running, the update time drifts further from wall-clock boundaries.
-
-**Prevention:**
-Do not align the timer to a fixed 5-minute interval from startup. Instead:
-1. On each tick, read `DateTime.Now` and compute the correct phrase from the actual time.
-2. Calculate the time until the *next* 5-minute boundary and set a one-shot timer (or reset the interval) to fire at that boundary.
+**How to avoid:**
+Wire `MouseLeftButtonDown` directly on the outermost `Grid` (which has `Background="#01000000"` and is therefore fully hit-testable). Do not wire on child elements. Call `DragMove()` synchronously inside the handler — no `Dispatcher.BeginInvoke`, no `await`.
 
 ```csharp
-// Correct approach: compute next 5-minute boundary
-private static TimeSpan TimeUntilNextBucket()
+// Correct: on the Grid, synchronous
+private void Grid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
 {
-    var now = DateTime.Now;
-    var minutesUntilNext = 5 - (now.Minute % 5);
-    var secondsUntilNext = minutesUntilNext * 60 - now.Second;
-    return TimeSpan.FromSeconds(secondsUntilNext + 1); // +1s buffer
+    // e.ButtonState check is redundant inside MouseLeftButtonDown, but defensive
+    this.DragMove();
 }
 ```
 
-3. Always derive phrase from `DateTime.Now` on each tick, not from a counter.
+Do not call `DragMove()` inside `PreviewMouseLeftButtonDown` — the preview route fires before hit-testing resolves the final target and can trigger on transparent areas.
 
-**Detection:** Notice the widget phrase is one bucket behind real time. Check whether the widget shows "almost noon" at 12:03 instead of "noon."
+**Warning signs:**
+- Drag works when clicking text center but fails at text edges or shadow area.
+- `InvalidOperationException` in output window during drag attempts.
+- Drag starts, window moves one pixel, then freezes.
 
-**Phase:** Timer/update logic implementation (Phase 1).
-
-**Sources:** `DispatcherTimer` official docs — https://learn.microsoft.com/en-us/dotnet/api/system.windows.threading.dispatchertimer; remarks: "Timers are not guaranteed to execute exactly when the time interval occurs."
+**Phase to address:** Phase introducing drag (v1.1 Phase 1).
 
 ---
 
-### Pitfall 5: Window Dragging Broken on Fully Transparent Hit Areas
+### Pitfall 2: DragMove() Blocks Until Mouse Release — ContentRendered and Timer Interaction
 
 **What goes wrong:**
-When `AllowsTransparency="True"` and `Background="Transparent"`, mouse events do not fire on fully transparent (alpha=0) pixels. The window is only "clickable" where actual content with non-zero alpha is rendered. This means dragging by clicking on the empty space around the text text silently fails — the click passes through to whatever is under the window.
+`DragMove()` is a blocking call. It enters a modal message loop internally and does not return until the user releases the left mouse button. While dragging, the `DispatcherTimer` continues to tick (its `Tick` event is queued on the dispatcher), but the handler is blocked in `DragMove()`. When the user releases the button, the accumulated timer ticks drain. Each tick calls `UpdatePhraseIfChanged()`. If the phrase has not changed (the common case), this is harmless. But if the phrase changes during a long drag (crossing a 5-minute boundary), `UpdatePhraseIfChanged()` calls `UpdateLayout()` then `PositionTopRight()`. This repositions the window to the top-right corner, overwriting the position the user just dragged to.
 
 **Why it happens:**
-WPF hit-testing on a layered transparent window respects the alpha channel. A fully transparent area is treated as if the window is not there. This is the correct behavior for click-through overlays, but breaks user interaction for a movable widget.
+`UpdatePhraseIfChanged()` unconditionally calls `PositionTopRight()` after a phrase change. In v1.0 this was correct because there was no user-controlled position. In v1.1 it is a logic error: auto-repositioning after a phrase change must be conditional on whether a saved position exists.
 
-**Consequences:**
-- Users cannot drag the widget by clicking on empty space near the text.
-- `DragMove()` only fires if the mouse button is down over a visible (non-transparent) content area.
-- `DragMove()` itself throws `InvalidOperationException` if the left mouse button is not down when called.
+**How to avoid:**
+Once the user has manually positioned the widget (or a saved position has been loaded), `PositionTopRight()` must never be called again. Introduce a `bool _hasUserPosition` flag. Set it to `true` after the first drag completes (use `LocationChanged` event, which fires after `DragMove()` returns). In `UpdatePhraseIfChanged()`, skip `PositionTopRight()` when `_hasUserPosition` is true.
 
-**Prevention:**
-- Handle `MouseLeftButtonDown` on the text element itself (the `TextBlock`) rather than the window background.
-- Use a semi-transparent (not fully transparent) background on the content container so it has a hit-testable area:
-  ```xaml
-  <Grid Background="#01000000">  <!-- 1/255 alpha: invisible but hit-testable -->
-  ```
-- Call `DragMove()` only inside a `MouseLeftButtonDown` handler:
-  ```csharp
-  private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-  {
-      if (e.ButtonState == MouseButtonState.Pressed)
-          this.DragMove();
-  }
-  ```
+```csharp
+private bool _hasUserPosition = false;
 
-**Detection:** Clicking on "empty" areas around the text passes through to the desktop or applications below. Dragging only works when clicking directly on the text characters.
+// In constructor or ContentRendered:
+this.LocationChanged += (_, _) => _hasUserPosition = true;
 
-**Phase:** Window setup and interaction (Phase 1).
+// In UpdatePhraseIfChanged():
+UpdateLayout();
+if (!_hasUserPosition)
+    PositionTopRight();
+```
 
-**Sources:** `Window.DragMove` official docs — https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.dragmove
+**Warning signs:**
+- User drags widget to center of screen. Clock hits 5-minute boundary. Widget snaps back to top-right corner.
+- Position save contains correct value, but widget appears at top-right on next launch anyway (because `PositionTopRight()` overwrites the saved position mid-session).
+
+**Phase to address:** Phase introducing drag (v1.1 Phase 1) — must be addressed before phrase-change-during-drag can occur.
+
+---
+
+### Pitfall 3: Saving Window.Left/Top During ContentRendered Saves PositionTopRight Values, Not User Position
+
+**What goes wrong:**
+The v1.0 `ContentRendered` handler calls `PositionTopRight()`, which sets `this.Left` and `this.Top`. If the new v1.1 startup code loads a saved position before `ContentRendered` fires, but `ContentRendered` still calls `PositionTopRight()`, the loaded position is immediately overwritten before the user ever sees the window.
+
+The sequence that causes the bug:
+1. App startup: load saved `Left=400, Top=300` from JSON.
+2. Set `this.Left = 400`, `this.Top = 300`.
+3. `Show()` is called. Layout runs. `ContentRendered` fires.
+4. `ContentRendered` calls `PositionTopRight()` — sets `Left = 1880, Top = 20`.
+5. Widget appears at top-right, ignoring saved position.
+
+**Why it happens:**
+`ContentRendered` unconditionally calls `PositionTopRight()` in v1.0 because there was no alternative. With persistence, this must become conditional: only call `PositionTopRight()` if no saved position exists.
+
+**How to avoid:**
+Introduce a `bool _savedPositionLoaded` flag. Set it when a saved position is successfully loaded from JSON. In `ContentRendered`, only call `PositionTopRight()` when `_savedPositionLoaded` is false.
+
+```csharp
+private bool _savedPositionLoaded = false;
+
+// ContentRendered handler:
+ContentRendered += (_, _) =>
+{
+    if (!_savedPositionLoaded)
+        PositionTopRight();
+    // start timer regardless
+    _timer = new DispatcherTimer { ... };
+    _timer.Start();
+};
+```
+
+**Warning signs:**
+- JSON file is written with correct values on close, but position is always top-right on launch.
+- Logging shows `Left`/`Top` are set correctly in constructor but window appears elsewhere.
+
+**Phase to address:** Phase introducing position persistence (v1.1 Phase 1 or 2, whichever implements startup restore).
+
+---
+
+### Pitfall 4: SizeToContent=WidthAndHeight Shifts Window.Left When the Font Size Changes
+
+**What goes wrong:**
+When font size is changed (e.g., 24pt → 32pt), the text becomes wider. With `SizeToContent=WidthAndHeight`, the window grows to the right. The window's `Left` edge does not change — only the `Right` edge moves. This means that if the user placed the widget so its left edge is at x=100, after a font size increase the widget still starts at x=100 but is now wider. This is probably fine.
+
+However, the shadow `TextBlock` also changes size (it mirrors `FontSize`). If only `PhraseText.FontSize` is changed but `ShadowText.FontSize` is not, the window size is computed from the larger element. The two text blocks are in a `Grid`, so the grid is sized to the maximum of the two. Mismatched font sizes produce a correctly-sized window but with a shadow that appears in the wrong position relative to the text (shifted diagonally if the shadow's font is larger).
+
+More critically: after changing font size, `ActualWidth` is stale until a layout pass runs. If position is saved to JSON immediately after changing the font size (e.g., in a `SelectionChanged` handler) without calling `UpdateLayout()` first, the saved `Left` value correctly reflects the current position, but if the code also tries to recompute a right-edge anchor, it will use the stale `ActualWidth`.
+
+**Why it happens:**
+WPF layout is deferred. After setting `FontSize` on a `TextBlock`, `ActualWidth` does not update until the next layout pass. This was already discovered in v1.0 for phrase changes (the `UpdateLayout()` call before `PositionTopRight()` was specifically added for this reason). The same applies to font size changes.
+
+**How to avoid:**
+When handling font size change:
+1. Set `FontSize` on **both** `PhraseText` and `ShadowText`.
+2. Call `UpdateLayout()` to force a layout pass.
+3. If repositioning is needed, do it after `UpdateLayout()`.
+4. Then save the new font size (and optionally the current position) to JSON.
+
+```csharp
+private void SetFontSize(double newSize)
+{
+    PhraseText.FontSize = newSize;
+    ShadowText.FontSize = newSize;   // must match — shadow is a mirror
+    UpdateLayout();
+    // Now ActualWidth is correct for the new font size
+    // Save preferences to JSON here
+    SavePreferences();
+}
+```
+
+**Warning signs:**
+- Shadow text appears at a slightly different scale than phrase text after font change.
+- Saved `ActualWidth` is logged as stale/zero after a font change.
+- Right-edge anchor calculation is wrong by the delta in text width.
+
+**Phase to address:** Phase introducing font size selection (v1.1 Phase 2).
+
+---
+
+### Pitfall 5: JSON File Next to Exe Fails When Installed in Program Files
+
+**What goes wrong:**
+Using `AppDomain.CurrentDomain.BaseDirectory` or `Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)` to locate the JSON settings file places it in the same directory as the executable. This works when running from the build output directory or a user-writable location. If the app is ever installed in `C:\Program Files\FuzzyClock\` — even by simply copying the exe there manually — the JSON write fails silently or throws `UnauthorizedAccessException` because `Program Files` is read-only for non-elevated processes.
+
+Even for personal use, this is a fragile pattern: if the exe is in a OneDrive-synced folder or a read-only network share, writes fail.
+
+**Why it happens:**
+Windows Vista and later apply UAC virtualization for writes to `Program Files`, but this is unreliable and deprecated for new applications. The correct location for per-user, non-roaming application data is `%LOCALAPPDATA%` (`Environment.SpecialFolder.LocalApplicationData`), which is always writable by the current user.
+
+**How to avoid:**
+Use `Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)` as the base directory. This resolves to `C:\Users\<username>\AppData\Local\` on Windows 10/11. Store under a company/app subdirectory:
+
+```csharp
+private static string GetSettingsPath()
+{
+    string appData = Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData);
+    string dir = Path.Combine(appData, "FuzzyClock");
+    Directory.CreateDirectory(dir);   // no-op if already exists
+    return Path.Combine(dir, "settings.json");
+}
+```
+
+`Directory.CreateDirectory` is safe to call even if the directory already exists — it does not throw.
+
+**Warning signs:**
+- Settings appear to save during testing (exe in project output dir) but are lost after moving the exe.
+- `UnauthorizedAccessException` in Event Viewer after installation.
+- File write succeeds but subsequent launch cannot find the file (UAC virtualization to VirtualStore).
+
+**Phase to address:** Phase introducing JSON persistence (v1.1 Phase 1 or 2).
+
+---
+
+### Pitfall 6: Closing Event Is Not Raised When Application.Current.Shutdown() Is Called From the Hidden Owner Window
+
+**What goes wrong:**
+v1.0 uses a hidden owner window to suppress taskbar/Alt+Tab entries. The close menu item calls `Application.Current.Shutdown()`. The official docs state: "If Shutdown is called, the Closing event for each window is raised. However, if Closing is canceled, cancellation is ignored."
+
+The risk is subtle: `Closing` **is** raised for `MainWindow` when `Shutdown()` is called. But there is an exception documented in the `Closing` event: "If an owned window was opened by its owner window using `Show`, and the owner window is closed, the owned window's `Closing` event is not raised."
+
+If the hidden owner window is closed first (e.g., via `owner.Close()`), `MainWindow.Closing` may not fire. If position is saved in `MainWindow.Closing`, it will not be saved in this path.
+
+Additionally, there is a separate undocumented path: if the user ends the Windows session (log off, shutdown), the official docs warn that `Closing` is **not raised** for session-end. `SessionEnding` on `Application` must be handled separately to save settings on session end.
+
+**Why it happens:**
+`Closing` is a `Close()`/user-action event, not a general "app is ending" event. `SessionEnding` is a separate event. Two separate save paths are needed.
+
+**How to avoid:**
+Save settings in both `MainWindow.Closing` and `Application.SessionEnding`. Keep the save logic in a single method called from both:
+
+```csharp
+// In App.xaml.cs:
+private void App_SessionEnding(object sender, SessionEndingCancelEventArgs e)
+{
+    // Save whatever the main window has
+    (MainWindow as MainWindow)?.SavePreferences();
+}
+
+// In MainWindow:
+protected override void OnClosing(CancelEventArgs e)
+{
+    SavePreferences();
+    base.OnClosing(e);
+}
+```
+
+**Warning signs:**
+- Settings save correctly when the user right-clicks and chooses Close, but are lost after a reboot/log-off.
+- `Closing` handler is confirmed to run via debugging, but preferences file is stale after session end.
+
+**Phase to address:** Phase introducing JSON persistence (v1.1 Phase 1 or 2).
+
+---
+
+### Pitfall 7: Window.Left/Top Are NaN Before ContentRendered — Loading Position Too Early
+
+**What goes wrong:**
+`Window.Left` and `Window.Top` can be read as `double.NaN` before the window handle is created. If the startup sequence loads the JSON file and sets `this.Left = savedLeft` in the `MainWindow` constructor (before `InitializeComponent()` completes), the assignment is accepted but may be silently overridden by the XAML-defined `WindowStartupLocation="Manual"` processing during the first layout pass.
+
+The safe assignment window is: **after `InitializeComponent()` returns, before `Show()` is called**. Assignment in this window is respected by `WindowStartupLocation="Manual"`.
+
+**Why it happens:**
+`WindowStartupLocation="Manual"` tells WPF to use the `Left`/`Top` values at the time the window is shown. If those values are set before `InitializeComponent()`, the XAML parser may reset them to defaults. If set after `Show()`, the window has already been positioned.
+
+**How to avoid:**
+Load and apply the saved position in `App.xaml.cs` after constructing `MainWindow` but before calling `mainWindow.Show()`:
+
+```csharp
+// In App.xaml.cs OnStartup:
+var mainWindow = new MainWindow();
+var prefs = LoadPreferences();       // load from JSON
+if (prefs.HasSavedPosition)
+{
+    mainWindow.Left = prefs.Left;
+    mainWindow.Top = prefs.Top;
+}
+mainWindow.SetInitialPhrase(PhraseEngine.GetPhrase(DateTime.Now));
+mainWindow.Show();
+```
+
+This mirrors the existing pattern for `SetInitialPhrase()` and keeps the startup sequence consistent.
+
+**Warning signs:**
+- Saved position is in the JSON file. `Left`/`Top` are set in the constructor. Window still appears at default position.
+- `Window.Left` reads as `NaN` immediately after assignment in constructor.
+
+**Phase to address:** Phase introducing position restore on startup (v1.1 Phase 1 or 2).
+
+---
+
+### Pitfall 8: Clamping Saved Position Using PrimaryScreenWidth Breaks Multi-Monitor Setups
+
+**What goes wrong:**
+The v1.0 `PositionTopRight()` uses `SystemParameters.PrimaryScreenWidth`. Using `PrimaryScreenWidth` for off-screen clamping at startup validates only the primary monitor's bounds. A user who saved a position on a second monitor will have it clamped to the primary monitor on every launch, because `savedLeft > PrimaryScreenWidth` reads as "out of bounds."
+
+**Why it happens:**
+`SystemParameters.PrimaryScreenWidth` returns the width of the primary monitor only. A valid position on a secondary monitor to the right (e.g., `Left = 2000` on a 1920+1080 dual-monitor setup) reads as off-screen against primary-only bounds.
+
+**How to avoid:**
+Clamp against the virtual screen bounds, which spans all connected monitors:
+
+```csharp
+private static (double left, double top) ClampToVirtualScreen(double left, double top, double width, double height)
+{
+    double vLeft   = SystemParameters.VirtualScreenLeft;
+    double vTop    = SystemParameters.VirtualScreenTop;
+    double vWidth  = SystemParameters.VirtualScreenWidth;
+    double vHeight = SystemParameters.VirtualScreenHeight;
+
+    // Ensure at least some part of the window is visible
+    double clampedLeft = Math.Max(vLeft, Math.Min(left, vLeft + vWidth  - width));
+    double clampedTop  = Math.Max(vTop,  Math.Min(top,  vTop  + vHeight - height));
+    return (clampedLeft, clampedTop);
+}
+```
+
+Note: `ActualWidth` and `ActualHeight` must be valid (after layout) before calling this. Call it in `ContentRendered` when restoring a saved position.
+
+`SystemParameters.VirtualScreenWidth` is documented as "the width, in pixels adjusted for DPI, of the virtual screen" — the bounding rectangle of all display monitors. `VirtualScreenLeft` and `VirtualScreenTop` give the top-left origin, which can be negative if a monitor is positioned to the left of the primary.
+
+**Warning signs:**
+- Widget saved on secondary monitor always reappears on primary monitor after restart.
+- Widget always appears at the left edge of the primary monitor (clamped from negative virtual screen coordinates).
+
+**Phase to address:** Phase introducing position restore (v1.1 Phase 1 or 2).
 
 ---
 
 ## Moderate Pitfalls
 
-Mistakes that cause frustrating behavior but do not require a rewrite.
+Issues that produce wrong behavior but are straightforward to fix once identified.
 
 ---
 
-### Pitfall 6: DPI Scaling Makes the Widget the Wrong Size or Position
+### Pitfall 9: Right-Click ContextMenu Opens When Trying to Drag, Swallowing MouseLeftButtonDown
 
 **What goes wrong:**
-On high-DPI displays (125%, 150%, 200% scale), the widget appears too small or too large, or is positioned off-screen when restoring a saved window position. Hardcoded pixel coordinates for `Window.Left` and `Window.Top` are in device-independent pixels (DIPs) in WPF, but saved/restored values can become incorrect when the DPI changes between sessions (e.g., after moving a laptop to a different monitor or changing display settings).
+The ContextMenu is attached to the `Grid` in v1.0. In WPF, `ContextMenu` is triggered on `MouseRightButtonUp`. These are independent event routes and should not interfere. However, if the drag handler is incorrectly placed on `MouseDown` (covering both buttons) instead of `MouseLeftButtonDown`, right-clicking to open the context menu triggers the drag handler first, calling `DragMove()` when the right button is down, which throws `InvalidOperationException`.
 
-**Why it happens:**
-WPF uses device-independent pixels (1 DIP = 1/96 inch). At 96 DPI (100%), 1 DIP = 1 physical pixel. At 192 DPI (200% scale), 1 DIP = 2 physical pixels. WPF auto-scales the content, but the coordinate space for `Window.Left`/`Top` is still in DIPs. When a saved position is restored on a different DPI context, the window may appear at the wrong physical location or be clipped off-screen.
+**How to avoid:**
+Always use `MouseLeftButtonDown` (not `MouseDown`) for the drag handler. The `MouseButtonEventArgs.ChangedButton` check is unnecessary if the correct event is used.
 
-**Consequences:**
-- Widget invisible after launch on a new monitor configuration.
-- Widget appears in bottom-right corner of wrong monitor.
-- Font appears too large or too small if font size is specified in physical units.
-
-**Prevention:**
-- Always specify font sizes in WPF points (which are DPI-independent), never in pixels.
-- When persisting window position, validate that the saved position falls within a valid screen area at startup:
-  ```csharp
-  // Clamp to visible screen area on restore
-  if (savedLeft < 0 || savedLeft > SystemParameters.VirtualScreenWidth)
-      this.Left = 100;
-  if (savedTop < 0 || savedTop > SystemParameters.VirtualScreenHeight)
-      this.Top = 100;
-  ```
-- Use `SizeToContent="WidthAndHeight"` so the window auto-sizes to its text content rather than having a hardcoded size.
-
-**Detection:** Widget is invisible after a display configuration change. Position looks correct on developer machine but wrong on 4K display at 150%.
-
-**Phase:** Position persistence and startup (Phase 1 or settings/persistence phase).
-
-**Sources:** High DPI Desktop Application Development — https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows; WPF Graphics Rendering Overview — https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/wpf-graphics-rendering-overview
+**Phase to address:** Phase introducing drag (v1.1 Phase 1).
 
 ---
 
-### Pitfall 7: Multiple Instances of the Widget Run Simultaneously
+### Pitfall 10: Font Size MenuItem CheckMark Not Updated on Restore
 
 **What goes wrong:**
-Launching the widget twice results in two overlapping copies floating on the desktop. There is no built-in WPF mechanism to prevent this. This is surprising to users who expect a persistent widget to either bring the existing instance to focus or do nothing on re-launch.
+The right-click context menu has three font size menu items (16pt, 24pt, 32pt). On first launch, none have a checkmark. When the user selects 24pt, the 24pt item gets `IsChecked=true`. On the next launch, the saved font size (24pt) is restored, but if the checkmark is set only in the `Click` handler, the menu items start unchecked — the initial state is wrong.
 
-**Why it happens:**
-WPF applications have no single-instance enforcement by default. Each launch creates a new process.
+**How to avoid:**
+After restoring font size from JSON on startup, explicitly set `IsChecked` on the correct menu item. The simplest approach: a helper method `UpdateFontSizeChecks(double size)` that sets all three items' `IsChecked` based on the current size. Call it both from the `Click` handler and from the startup restore code.
 
-**Consequences:**
-- Two copies of the time phrase on screen, potentially with different positions.
-- Background timer runs twice, consuming extra resources.
+**Phase to address:** Phase introducing font size UI (v1.1 Phase 2).
 
-**Prevention:**
-Use a named `Mutex` at application startup to detect and bring forward an existing instance:
+---
+
+### Pitfall 11: JSON Deserialization Silently Returns Defaults on Corrupt File
+
+**What goes wrong:**
+`System.Text.Json.JsonSerializer.Deserialize<T>()` returns `null` (for reference types) or throws on corrupt JSON. If the file is empty, partially written (crash mid-write), or contains unexpected keys, `Deserialize` may return `null` or a partially-populated object with `Left = 0, Top = 0`. Position 0,0 is the top-left corner of the virtual screen — a valid but wrong position that appears as "the widget jumped to the corner" rather than "settings failed to load."
+
+**How to avoid:**
+Wrap deserialization in try/catch. Treat any exception or `null` result as "no saved settings" — fall through to `PositionTopRight()`:
+
 ```csharp
-static Mutex _mutex = new Mutex(true, "FuzzyClock_SingleInstance", out bool isNew);
-if (!isNew)
+private static AppSettings? LoadSettings(string path)
 {
-    // Another instance is running — bring it to front via Win32 if needed
-    Application.Current.Shutdown();
-    return;
+    try
+    {
+        if (!File.Exists(path)) return null;
+        string json = File.ReadAllText(path);
+        return JsonSerializer.Deserialize<AppSettings>(json);
+    }
+    catch
+    {
+        return null;  // corrupt file: use defaults
+    }
 }
 ```
 
-**Detection:** User launches the app twice and sees two widgets or duplicate text.
+Never distinguish "file not found" from "corrupt file" for this use case — both should produce the same fallback behavior.
 
-**Phase:** Application startup (Phase 1).
-
----
-
-### Pitfall 8: Topmost Window Covers System UI Elements (Full-Screen Applications, UAC Dialogs)
-
-**What goes wrong:**
-`Topmost = true` causes the widget to appear above all normal windows, but it can also appear over full-screen applications (games, video players, presentations). The widget may be visible and distracting during presentations or full-screen use. Additionally, `Topmost` windows do not appear above other `Topmost` windows (such as UAC elevation dialogs), which can cause z-order confusion.
-
-**Why it happens:**
-WPF's `Topmost` maps to `HWND_TOPMOST` in Win32, which places the window above all non-topmost windows. It does not mean "topmost of all windows" — other topmost windows (Task Manager, UAC dialogs) still appear above it.
-
-**Consequences:**
-- Annoying overlap during full-screen video or game sessions.
-- Widget is hidden when system-level topmost dialogs appear — user may not understand why it disappeared.
-
-**Prevention:**
-- Accept this as expected behavior and document it.
-- For full-screen detection: intercept `WM_WTSSESSION_CHANGE` or use `SystemEvents` to detect full-screen state changes — this is advanced and likely out of scope for v1.
-- For the MVP: simply document that the widget appears over normal windows. Do not try to solve full-screen suppression initially.
-
-**Detection:** Widget appears over a full-screen movie. Or disappears when Task Manager is shown in always-on-top mode.
-
-**Phase:** Not a build concern for Phase 1 — document as known behavior.
+**Phase to address:** Phase introducing JSON persistence.
 
 ---
 
-### Pitfall 9: Position Not Persisted Across Sessions (Widget Resets to Default Position)
+### Pitfall 12: Atomic JSON Write — Partial Write on Crash Corrupts Settings
 
 **What goes wrong:**
-On every launch, the widget appears at the same default screen position rather than where the user last placed it. This makes the widget feel unpolished and requires the user to reposition it every time they log in.
+Writing the JSON file with `File.WriteAllText(path, json)` overwrites the previous file in-place. If the process crashes mid-write (power loss, forced kill), the file is left partially written and the next launch reads corrupt JSON (see Pitfall 11).
 
-**Why it happens:**
-WPF does not persist window position automatically. Without explicit save/restore logic, `Window.Left` and `Window.Top` use their default values from XAML.
+For a simple 2-field settings file (~40 bytes) the write is atomic at OS level on most configurations, but this is not guaranteed. A safer pattern for any settings file is write-then-rename.
 
-**Consequences:**
-- Frustrating UX: user positions the widget, reboots, widget is back in the top-left corner.
-- Users stop using the widget because repositioning it is tedious.
+**How to avoid:**
+Write to a temp file first, then rename over the target:
 
-**Prevention:**
-Persist `Window.Left` and `Window.Top` in `Properties.Settings`, the registry, or a JSON file. Load on startup, save in `Window.Closing`:
 ```csharp
-// On startup
-this.Left = Properties.Settings.Default.WindowLeft;
-this.Top = Properties.Settings.Default.WindowTop;
-
-// On closing
-Properties.Settings.Default.WindowLeft = this.Left;
-Properties.Settings.Default.WindowTop = this.Top;
-Properties.Settings.Default.Save();
-```
-Include position validation at load time (see Pitfall 6).
-
-**Detection:** Widget always starts at the same position regardless of where the user moved it.
-
-**Phase:** Position persistence — should be in Phase 1 given it is core UX.
-
----
-
-## Minor Pitfalls
-
-Issues that are surprising but easy to fix once identified.
-
----
-
-### Pitfall 10: WindowStyle.None Removes Keyboard Shortcuts and System Menu
-
-**What goes wrong:**
-Setting `WindowStyle="None"` removes Alt+F4 as a way to close the window and removes the right-click title bar context menu. For a widget with no other close mechanism, the user cannot close it.
-
-**Prevention:**
-Add a right-click context menu to the window, or handle `KeyDown` for `Key.Escape` or `Key.F4`. Minimal example:
-```xaml
-<Window.ContextMenu>
-    <ContextMenu>
-        <MenuItem Header="Close" Click="Close_Click"/>
-    </ContextMenu>
-</Window.ContextMenu>
+private static void SaveSettings(string path, AppSettings settings)
+{
+    string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+    string tempPath = path + ".tmp";
+    File.WriteAllText(tempPath, json);
+    File.Move(tempPath, path, overwrite: true);  // atomic on same volume
+}
 ```
 
-**Detection:** User cannot close the widget by any normal means.
+`File.Move` with `overwrite: true` is available in .NET 3.0+ and is effectively atomic on the same NTFS volume.
 
-**Phase:** Phase 1 — address when implementing the window.
-
----
-
-### Pitfall 11: Taskbar Entry Confuses Users
-
-**What goes wrong:**
-By default, a WPF window appears in the Windows taskbar. For a transparent overlay widget, a taskbar button is unexpected — it makes the widget look like a regular application rather than a desktop gadget. Clicking the taskbar button minimizes it, which hides the widget completely with no indication of how to restore it.
-
-**Prevention:**
-Set `ShowInTaskbar="False"` and `WindowState` should not go to `Minimized` without a way to restore. For a simple always-visible widget, the taskbar button is unnecessary.
-
-```xaml
-<Window ShowInTaskbar="False" ...>
-```
-
-**Detection:** User sees the clock widget in the taskbar and minimizes it accidentally.
-
-**Phase:** Phase 1 — set in XAML during initial implementation.
+**Phase to address:** Phase introducing JSON persistence — implement alongside the initial write logic.
 
 ---
 
-### Pitfall 12: `SizeToContent` Not Set Causes Layout Reflow Problems
+## Technical Debt Patterns
 
-**What goes wrong:**
-If the window has a fixed `Width` and `Height`, shorter or longer phrases may be clipped or surrounded by excess empty (transparent) space. The phrase "just a little past quarter past" is longer than "noon" — a fixed-size window either clips the long phrase or wastes space around the short phrase.
-
-**Prevention:**
-Use `SizeToContent="WidthAndHeight"` and let the `TextBlock` drive the window size. Set appropriate `MinWidth` / `MaxWidth` to prevent extreme layouts. Also set `TextWrapping="NoWrap"` if single-line presentation is desired.
-
-```xaml
-<Window SizeToContent="WidthAndHeight" ...>
-    <TextBlock TextWrapping="NoWrap" FontSize="36" .../>
-```
-
-**Detection:** Long phrases are clipped. Short phrases have a large transparent halo around them (visible as a hit-testable area over other windows).
-
-**Phase:** Phase 1 — set during XAML layout design.
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Save position only in `Closing` | Simple, one save path | Lost on session end / forced shutdown | Never — also handle `SessionEnding` |
+| Use `PrimaryScreenWidth` for off-screen clamp | Works on single-monitor setups | Breaks multi-monitor: valid positions clamped to primary | Never |
+| Hardcode JSON path next to exe | Easy to find during development | Fails in Program Files; lost on app reinstall | Development/testing only; use AppData in production |
+| Set font size only on `PhraseText`, not `ShadowText` | Fewer lines to write | Shadow renders at different size; window measures incorrectly | Never |
+| Skip `UpdateLayout()` after font size change | Slightly fewer method calls | Position calculations use stale `ActualWidth` | Never |
+| Call `PositionTopRight()` unconditionally on phrase change | No flag management | Snaps widget to top-right after user has repositioned | Never after drag is added |
 
 ---
 
-## Phase-Specific Warnings
+## Integration Gotchas
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Window XAML setup | Three-way transparency dependency (Pitfall 1) | Set all three properties in XAML before any code |
-| Text display | ClearType disabled on transparency (Pitfall 2) | Test legibility early; choose font/size for greyscale AA |
-| Timer implementation | DispatcherTimer drift (Pitfall 4) | Align to clock boundaries; derive phrase from `DateTime.Now` |
-| Mouse interaction | Hit-testing fails on transparent pixels (Pitfall 5) | Use `#01000000` background on Grid; handle drag on TextBlock |
-| App startup | Multiple instances (Pitfall 7) | Named Mutex at startup |
-| Position save/restore | Off-screen after DPI change (Pitfall 6) | Validate saved coords against screen bounds at startup |
-| Initial XAML | No close mechanism (Pitfall 10) | Right-click ContextMenu or keyboard handler |
-| Initial XAML | Taskbar entry (Pitfall 11) | `ShowInTaskbar="False"` |
-| Content layout | Phrase length variation (Pitfall 12) | `SizeToContent="WidthAndHeight"` |
+How the new v1.1 features interact with existing v1.0 code.
+
+| Integration Point | Common Mistake | Correct Approach |
+|-------------------|----------------|------------------|
+| `ContentRendered` + position restore | `ContentRendered` calls `PositionTopRight()` unconditionally | Make `PositionTopRight()` conditional on `!_savedPositionLoaded` |
+| `UpdatePhraseIfChanged()` + user drag | Always calls `PositionTopRight()` after phrase change | Skip `PositionTopRight()` when `_hasUserPosition` is true |
+| Font size change + shadow TextBlock | Only updating `PhraseText.FontSize` | Always update both `PhraseText.FontSize` and `ShadowText.FontSize` together |
+| Font size change + `UpdateLayout()` | Saving/repositioning before layout runs | Call `UpdateLayout()` first, then save/reposition |
+| `DragMove()` + `LocationChanged` | Not knowing when drag ends (DragMove blocks) | `LocationChanged` fires after each position update during drag; set `_hasUserPosition = true` here |
+| `Closing` + `Application.Current.Shutdown()` | Only handling `Closing` for save | Also handle `Application.SessionEnding` for power-off/log-off |
+| Virtual screen clamping + `ActualWidth` | Using 0 or stale `ActualWidth` in clamp math | Clamp in `ContentRendered` after `UpdateLayout()` when `ActualWidth` is valid |
+
+---
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] **Drag:** `DragMove()` is wired on the `Grid`, not a child element. Handler uses `MouseLeftButtonDown`, not `MouseDown`.
+- [ ] **Drag flag:** `_hasUserPosition` or equivalent is set via `LocationChanged`. `PositionTopRight()` is guarded by this flag.
+- [ ] **Position restore:** Saved `Left`/`Top` applied in `App.xaml.cs` after `new MainWindow()` but before `Show()`.
+- [ ] **ContentRendered guard:** `PositionTopRight()` inside `ContentRendered` is conditional on no saved position.
+- [ ] **Virtual screen clamp:** Off-screen detection uses `VirtualScreenLeft/Top/Width/Height`, not `PrimaryScreenWidth/Height`.
+- [ ] **Font size — both TextBlocks:** Font size change sets `FontSize` on `ShadowText` AND `PhraseText`.
+- [ ] **Font size — UpdateLayout:** `UpdateLayout()` is called after font size change before any size-dependent calculations.
+- [ ] **Font size — menu checkmarks:** `IsChecked` on all three font size items is set correctly on startup from restored value.
+- [ ] **JSON path:** Settings file is in `%LOCALAPPDATA%\FuzzyClock\`, not next to the exe.
+- [ ] **JSON write safety:** Write uses temp-file + rename pattern.
+- [ ] **JSON read safety:** `Deserialize` is wrapped in try/catch; `null` result falls back to defaults.
+- [ ] **Session end:** `Application.SessionEnding` handler saves settings (not only `Closing`).
+
+---
+
+## Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| DragMove() called on wrong element | LOW | Move handler to outer Grid; rebuild |
+| `PositionTopRight()` overwrites user position | LOW | Add `_hasUserPosition` flag and guard; rebuild |
+| `ContentRendered` ignores saved position | LOW | Add `_savedPositionLoaded` guard; rebuild |
+| Font size not applied to ShadowText | LOW | Add `ShadowText.FontSize = newSize`; rebuild |
+| JSON saved next to exe (need to move) | LOW | Delete old file location; update path to AppData; rebuild |
+| Corrupt settings file in AppData | LOW | Delete the file; app falls back to defaults on next launch |
+| Multi-monitor positions clamped to primary | LOW | Replace `PrimaryScreenWidth` with `VirtualScreen*` parameters |
+| Session-end settings loss | LOW | Add `SessionEnding` handler; rebuild |
+
+---
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| DragMove() on wrong element / throws | v1.1 Phase introducing drag | Manual test: drag by clicking on all areas of the widget including shadow edge |
+| DragMove() blocks; phrase change snaps position | v1.1 Phase introducing drag | Let widget run through a 5-minute boundary while dragged to a non-default position; verify it stays |
+| ContentRendered overwrites saved position | v1.1 Phase introducing persistence | Launch after saving a position; verify widget appears where saved |
+| SizeToContent + font change + UpdateLayout | v1.1 Phase introducing font size | Change font size; verify shadow aligns with text; verify ActualWidth is correct afterward |
+| JSON path next to exe | v1.1 Phase introducing persistence | Verify settings file path is in %LOCALAPPDATA%; test by moving exe to a different directory |
+| Session-end save gap | v1.1 Phase introducing persistence | Save a position; log off without closing the app; re-login and verify position is preserved |
+| Multi-monitor clamp | v1.1 Phase introducing persistence | Save a position on a non-primary monitor; restart; verify widget restores to that monitor |
+| Window.Left NaN before Show() | v1.1 Phase introducing persistence | Set saved position in App.xaml.cs before Show(); verify correct position on first frame |
+| Checkmarks on font menu not set at startup | v1.1 Phase introducing font size UI | Save 24pt; restart; right-click; verify 24pt item is checked and others are not |
 
 ---
 
@@ -376,13 +478,16 @@ Use `SizeToContent="WidthAndHeight"` and let the `TextBlock` drive the window si
 
 | Source | URL | Confidence |
 |--------|-----|------------|
-| Window.AllowsTransparency official docs | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency | HIGH |
-| Window.DragMove official docs | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.dragmove | HIGH |
-| Window.WindowStyle official docs | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.windowstyle | HIGH |
-| WPF Windows Overview | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/ | HIGH |
-| ClearType Overview (WPF) | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/cleartype-overview | HIGH |
-| Graphics Rendering Tiers (layered windows table) | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/graphics-rendering-tiers | HIGH |
-| DispatcherTimer remarks re: accuracy | https://learn.microsoft.com/en-us/dotnet/api/system.windows.threading.dispatchertimer | HIGH |
-| High DPI Desktop Application Development (Win32) | https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows | HIGH |
-| WPF Graphics Rendering Overview | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/wpf-graphics-rendering-overview | HIGH |
-| Optimizing Performance: Text (WPF) | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/optimizing-performance-text | HIGH |
+| Window.DragMove — throws InvalidOperationException if left button not down | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.dragmove | HIGH |
+| Window.LocationChanged — fires after DragMove | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.locationchanged | HIGH |
+| Window.Left — property value in logical units (1/96th inch); NaN = system default | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.left | HIGH |
+| Window.SizeToContent — WidthAndHeight; SizeChanged fired when content resizes | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.sizetocontent | HIGH |
+| Window.Closing — not raised on session end; owned window Closing not raised if owner closes | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.closing | HIGH |
+| SystemParameters.VirtualScreenWidth — bounding rect of all monitors, DPI-adjusted | https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.virtualscreenwidth | HIGH |
+| Environment.SpecialFolder.LocalApplicationData — per-user non-roaming app data, always writable | https://learn.microsoft.com/en-us/dotnet/api/system.environment.specialfolder | HIGH |
+| File path formats — relative paths dangerous in multithreaded apps; exe-adjacent writes fail in Program Files | https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats | HIGH |
+
+---
+
+*Pitfalls research for: WPF transparent overlay — v1.1 drag, position persistence, font size*
+*Researched: 2026-02-25*
