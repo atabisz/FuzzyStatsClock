@@ -80,7 +80,10 @@ Plans:
   2. Widget launches with a v1.1 settings.json (no stats fields) and reads correct defaults without throwing
   3. Widget writes and reads back StatsVisible=true and StatsIntervalSeconds=10 across a restart with no data loss
   4. A settings.json with StatsIntervalSeconds=0 (corrupted or pre-migration) loads with StatsIntervalSeconds replaced by the default (3), not zero
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 06-01-PLAN.md — Convert AppSettings to init-property record, add StatsVisible + StatsIntervalSeconds with safe defaults, add zero-interval guard in Load(), fix all positional AppSettings call sites in MainWindow.xaml.cs
 
 ### Phase 7: StatsService
 **Goal**: The application has a verified data source that returns plausible CPU, GPU, and memory percentages from Windows PDH counters without blocking the UI thread
