@@ -9,8 +9,8 @@ Requirements for v1.1 release. Each maps to roadmap phases.
 
 ### Window
 
-- [ ] **WIN-04**: User can drag the widget to any position on the desktop
-- [ ] **WIN-05**: Widget position is restored on startup; if saved position is off-screen (e.g. after monitor change), it is clamped to visible area
+- [x] **WIN-04**: User can drag the widget to any position on the desktop
+- [x] **WIN-05**: Widget position is restored on startup; if saved position is off-screen (e.g. after monitor change), it is clamped to visible area
 
 ### Display
 
@@ -48,8 +48,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WIN-04 | Phase 4 | Pending |
-| WIN-05 | Phase 4 | Pending |
+| WIN-04 | Phase 4 | Complete |
+| WIN-05 | Phase 4 | Complete |
 | DISP-05 | Phase 5 | Pending |
 | DISP-06 | Phase 5 | Pending |
 
