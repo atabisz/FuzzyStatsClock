@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Phrase Engine** - Pure C# time-to-phrase logic with full bucket coverage and special cases
 - [x] **Phase 2: Window Shell** - Transparent, frameless, always-on-top WPF window with close mechanism
-- [ ] **Phase 3: Integration** - Wire engine into window via timer; verify phrase updates and text legibility
+- [x] **Phase 3: Integration** - Wire engine into window via timer; verify phrase updates and text legibility
 
 ## Phase Details
 
@@ -61,8 +61,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Wire PhraseEngine into MainWindow: Border backdrop, named ShadowText, DispatcherTimer poll, UpdatePhraseIfChanged with UpdateLayout
-- [ ] 03-02-PLAN.md — Set initial phrase in App.xaml.cs before Show(); human visual verification of live widget
+- [x] 03-01-PLAN.md — Wire PhraseEngine into MainWindow: Border backdrop, named ShadowText, DispatcherTimer poll, UpdatePhraseIfChanged with UpdateLayout
+- [x] 03-02-PLAN.md — Set initial phrase in App.xaml.cs before Show(); human visual verification of live widget
 
 ## Progress
 
@@ -71,6 +71,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Phrase Engine | 2/2 | Complete    | 2026-02-25 |
-| 2. Window Shell | 3/3 | Complete    | 2026-02-25 |
-| 3. Integration | 1/2 | In Progress|  |
+| 1. Phrase Engine | 2/2 | Complete | 2026-02-25 |
+| 2. Window Shell | 3/3 | Complete | 2026-02-25 |
+| 3. Integration | 2/2 | Complete | 2026-02-25 |
