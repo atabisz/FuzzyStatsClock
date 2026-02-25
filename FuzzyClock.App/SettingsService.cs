@@ -21,7 +21,13 @@ public static class SettingsService
         {
             if (!File.Exists(FilePath)) return Defaults();
             var json = File.ReadAllText(FilePath);
-            return JsonSerializer.Deserialize<AppSettings>(json) ?? Defaults();
+            var loaded = JsonSerializer.Deserialize<AppSettings>(json) ?? Defaults();
+            // Guard: StatsIntervalSeconds=0 means the field was absent in an old settings
+            // file or the file is corrupted. A zero-interval DispatcherTimer fires at
+            // maximum rate, causing a CPU spike. Replace with the safe default.
+            if (loaded.StatsIntervalSeconds <= 0)
+                loaded = loaded with { StatsIntervalSeconds = Defaults().StatsIntervalSeconds };
+            return loaded;
         }
         catch { return Defaults(); }
     }
@@ -35,7 +41,11 @@ public static class SettingsService
     }
 
     // Left = -1: sentinel for "no saved position"
-    public static AppSettings Defaults() => new(-1, 20, 32);
+    public static AppSettings Defaults() => new()
+    {
+        Left = -1, Top = 20, FontSize = 32,
+        StatsVisible = false, StatsIntervalSeconds = 3
+    };
 
     /// <summary>
     /// Clamp Left/Top so the entire window is within the virtual screen bounds.
