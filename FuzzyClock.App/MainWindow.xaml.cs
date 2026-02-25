@@ -112,7 +112,19 @@ public partial class MainWindow : Window
         // Guard: do NOT call PositionTopRight() after the user has set a custom position.
         // Without this guard, every 5-minute phrase change snaps the widget to top-right.
         if (!_hasUserPosition)
+        {
             PositionTopRight();
+        }
+        else
+        {
+            // Re-clamp after phrase change — SizeToContent may resize the window,
+            // pushing it partially off-screen if positioned near an edge.
+            var clamped = SettingsService.Clamp(
+                new AppSettings(Left, Top, _currentFontSize),
+                ActualWidth, ActualHeight);
+            Left = clamped.Left;
+            Top  = clamped.Top;
+        }
     }
 
     private void PositionTopRight()
