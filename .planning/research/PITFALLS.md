@@ -1,313 +1,353 @@
 # Pitfalls Research
 
-**Domain:** WPF transparent frameless overlay — drag, position persistence, font size (v1.1 additions)
+**Domain:** WPF transparent frameless overlay — CPU/GPU/MEM stats panel (v1.2 additions)
 **Project:** Fuzzy Clock
 **Researched:** 2026-02-25
-**Confidence:** HIGH — all critical claims verified against official Microsoft docs (windowsdesktop-10.0)
+**Confidence:** HIGH — all critical claims verified against official Microsoft docs and existing source code
 
 ---
 
-> **Scope note:** This document covers pitfalls specific to adding drag-to-reposition, JSON position/font-size persistence, and font size selection to the existing transparent WPF overlay. The prior v1.0 pitfalls (transparency dependency, ClearType, software rendering, DispatcherTimer drift, hit-testing, DPI, multiple instances, Topmost, taskbar, SizeToContent) are documented in the original PITFALLS.md and not duplicated here. This document focuses exclusively on v1.1 concerns and how they interact with the already-shipped v1.0 constraints.
+> **Scope note:** This document covers pitfalls specific to adding CPU/GPU/memory Performance Counter stats and a WPF bar panel to the existing transparent WPF overlay. The prior v1.0 pitfalls (transparency, ClearType, software rendering, DispatcherTimer, hit-testing, DPI, multiple instances, Topmost) and v1.1 pitfalls (DragMove, position persistence, SizeToContent + font size, JSON save safety) are documented in prior PITFALLS.md files and not duplicated here. This document focuses exclusively on v1.2 concerns and how they interact with the already-shipped v1.1 constraints.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause silent wrong behavior, broken positioning, or lost settings.
+Mistakes that cause silent wrong behavior, crashes, or resource leaks.
 
 ---
 
-### Pitfall 1: DragMove() Fires on the Shadow TextBlock and Steals Mouse Events
+### Pitfall 1: First `NextValue()` Call on CPU PerformanceCounter Always Returns 0
 
 **What goes wrong:**
-The window has two overlapping `TextBlock` elements — `ShadowText` and `PhraseText`. If `MouseLeftButtonDown` is wired on the outer `Grid` (or on `this`), it fires correctly. But if the handler is placed on `PhraseText` only, dragging the shadow offset area (2px right/down from text) fires on `ShadowText` instead and the drag silently does nothing — because `ShadowText` has `IsHitTestVisible="False"`. Result: drag works on 90% of the text area but fails on the shadow offset pixels.
-
-More importantly: calling `DragMove()` on the `Window` when the source of the `MouseLeftButtonDown` is a non-window element requires the event to bubble up. If any child element marks the event as `Handled = true` (which `ContextMenu` infrastructure sometimes does), `DragMove()` receives a stale mouse state and throws `InvalidOperationException: The left mouse button is not down`.
+The `Processor` performance counter category uses a rate-based counter type (`PERF_100NSEC_TIMER_INV`). The first call to `NextValue()` returns `0.0f` because the counter needs two samples to calculate a rate — it has no "previous" sample on the first call. If the stats panel is shown immediately on startup, the CPU bar renders as empty (0%) and then jumps to a real value on the second tick. More importantly, if startup initialization code uses the first `NextValue()` result to decide whether the counter is working, it will incorrectly conclude the counter returned nothing.
 
 **Why it happens:**
-`DragMove()` is documented to throw `InvalidOperationException` if the left button is not pressed at call time. The button state check is performed at the Win32 level at the moment of the call. If the event has been handled (or if the call is deferred even one dispatcher tick), the button may already be released.
+Rate counters (`% Processor Time`) compute the percentage from the delta between two readings taken at different times. The first reading establishes the baseline; only the second and subsequent readings produce a meaningful value. This is documented behavior: "To obtain performance data for counters that required an initial or previous value for performing the necessary calculation, call the `NextValue` method twice."
 
-**How to avoid:**
-Wire `MouseLeftButtonDown` directly on the outermost `Grid` (which has `Background="#01000000"` and is therefore fully hit-testable). Do not wire on child elements. Call `DragMove()` synchronously inside the handler — no `Dispatcher.BeginInvoke`, no `await`.
+**Consequences:**
+- CPU bar shows 0% on first tick after startup — then snaps to real value on second tick. This looks like a brief glitch.
+- If the stats service initializes counters synchronously on the UI thread during startup (which blocks for the first read), the 0 result is correctly discarded by the second read, but the blocking is a UI freeze risk (see Pitfall 3).
+- If initialization code treats `0` return as "counter unavailable" and falls back to an error state, stats will never appear.
+
+**Prevention:**
+Create counters during app startup or service initialization, call `NextValue()` once immediately to prime the counter (discard the result), and start updating the UI only after the second tick:
 
 ```csharp
-// Correct: on the Grid, synchronous
-private void Grid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+// Initialize and discard first sample — it's always 0 for rate counters
+_cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+_cpuCounter.NextValue();  // prime — result is always 0, discard it
+
+// After first DispatcherTimer tick, NextValue() returns a real value
+```
+
+**Detection:**
+- CPU bar always shows 0% for the first 1 second after launch, then jumps to a real value.
+- CPU reads 0 in logging even when the machine is clearly loaded.
+
+**Phase to address:** Phase introducing stats service initialization.
+
+---
+
+### Pitfall 2: AppSettings Positional Record — New Fields Default to 0/false When Old settings.json Is Loaded
+
+**What goes wrong:**
+`AppSettings` is currently `record AppSettings(double Left, double Top, int FontSize)`. Adding new fields for stats (e.g., `bool StatsVisible` and `int StatsIntervalSeconds`) extends the positional record:
+
+```csharp
+// New record after v1.2 additions
+record AppSettings(double Left, double Top, int FontSize, bool StatsVisible, int StatsIntervalSeconds);
+```
+
+An existing v1.1 `settings.json` contains only `{"Left":…, "Top":…, "FontSize":…}`. When `System.Text.Json` deserializes this into the new record, the missing constructor parameters `StatsVisible` and `StatsIntervalSeconds` receive their **C# type defaults**: `false` and `0`.
+
+`StatsIntervalSeconds = 0` is a bug: constructing `new DispatcherTimer { Interval = TimeSpan.FromSeconds(0) }` creates a zero-interval timer that fires as fast as the message loop allows, potentially hammering `NextValue()` thousands of times per second and consuming significant CPU. It also causes `PerformanceCounter.NextValue()` to be called faster than Windows updates the counters (the PDH layer updates at ~1Hz), producing meaningless constant readings.
+
+`StatsVisible = false` means stats are hidden on first launch after upgrade — the user will see no stats and may not know the feature exists.
+
+**Why it happens:**
+Prior to .NET 9, System.Text.Json treats all constructor parameters as optional during deserialization. Missing JSON fields silently use the default value for the parameter type. The official docs confirm: "Prior to .NET 9, constructor-based deserialization treated all constructor parameters as optional." .NET 10 preserves this behavior unless `RespectRequiredConstructorParameters = true` is explicitly set (which this project does not set). Source: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/required-properties
+
+**Consequences:**
+- `StatsIntervalSeconds = 0` → `DispatcherTimer` fires at maximum rate → CPU spike → performance counter spam → bad readings.
+- `StatsVisible = false` → stats never appear on first launch after upgrade, even though the feature is enabled by default.
+- `FontSize` is already in the JSON, so it is correctly restored. Only the new fields are affected.
+
+**Prevention:**
+`SettingsService.Defaults()` already exists and returns safe defaults. The fix is to apply defaults for any field that received a type-default value. There are two approaches:
+
+**Approach A (recommended): Guard in `SettingsService.Load()` after deserialization**
+
+```csharp
+public static AppSettings Load()
 {
-    // e.ButtonState check is redundant inside MouseLeftButtonDown, but defensive
-    this.DragMove();
+    try
+    {
+        if (!File.Exists(FilePath)) return Defaults();
+        var json = File.ReadAllText(FilePath);
+        var loaded = JsonSerializer.Deserialize<AppSettings>(json) ?? Defaults();
+        // Apply safe defaults for fields that were absent in older settings files.
+        // StatsIntervalSeconds = 0 means the field was missing; use default (1s).
+        return loaded with
+        {
+            StatsIntervalSeconds = loaded.StatsIntervalSeconds > 0
+                ? loaded.StatsIntervalSeconds : Defaults().StatsIntervalSeconds,
+            StatsVisible = /* no correction needed; false-on-first-launch is a policy decision */
+                loaded.StatsVisible
+        };
+    }
+    catch { return Defaults(); }
 }
 ```
 
-Do not call `DragMove()` inside `PreviewMouseLeftButtonDown` — the preview route fires before hit-testing resolves the final target and can trigger on transparent areas.
+**Approach B: Give new parameters default values in the record definition**
+
+Positional records do not support default parameter values in the standard positional syntax. Adding defaults requires the non-positional form or a secondary constructor. This breaks the `with` expression pattern used in `SettingsService.Clamp()` and complicates `System.Text.Json` handling. Approach A is simpler and localizes the migration logic in one place.
 
 **Warning signs:**
-- Drag works when clicking text center but fails at text edges or shadow area.
-- `InvalidOperationException` in output window during drag attempts.
-- Drag starts, window moves one pixel, then freezes.
+- CPU fan spins up immediately after installing v1.2 on a machine that had v1.1 settings.json.
+- Stats panel does not appear even though `StatsVisible` default is intended to be `true`.
+- `DispatcherTimer.Interval` is `TimeSpan.Zero` in the debugger.
 
-**Phase to address:** Phase introducing drag (v1.1 Phase 1).
+**Phase to address:** Phase introducing `AppSettings` changes — must be addressed before any code reads `StatsIntervalSeconds` from settings.
 
 ---
 
-### Pitfall 2: DragMove() Blocks Until Mouse Release — ContentRendered and Timer Interaction
+### Pitfall 3: PerformanceCounter Initialization Blocks the UI Thread
 
 **What goes wrong:**
-`DragMove()` is a blocking call. It enters a modal message loop internally and does not return until the user releases the left mouse button. While dragging, the `DispatcherTimer` continues to tick (its `Tick` event is queued on the dispatcher), but the handler is blocked in `DragMove()`. When the user releases the button, the accumulated timer ticks drain. Each tick calls `UpdatePhraseIfChanged()`. If the phrase has not changed (the common case), this is harmless. But if the phrase changes during a long drag (crossing a 5-minute boundary), `UpdatePhraseIfChanged()` calls `UpdateLayout()` then `PositionTopRight()`. This repositions the window to the top-right corner, overwriting the position the user just dragged to.
+`PerformanceCounter` constructors and the first `NextValue()` call make Win32 PDH (Performance Data Helper) calls that can take 200–500ms on some machines, especially:
+- On cold start when the PDH cache is not populated.
+- When the `GPU Engine` category has many instances (a machine with multiple GPUs and many running D3D processes can have dozens of instances to enumerate).
+- When Windows Defender or UAC intercepts the registry read that backs Performance Counters.
+
+If `new PerformanceCounter(...)` is called in `App.xaml.cs OnStartup()` or in the `MainWindow` constructor on the UI thread, the application freezes visibly for up to half a second before the first frame is rendered.
 
 **Why it happens:**
-`UpdatePhraseIfChanged()` unconditionally calls `PositionTopRight()` after a phrase change. In v1.0 this was correct because there was no user-controlled position. In v1.1 it is a logic error: auto-repositioning after a phrase change must be conditional on whether a saved position exists.
+`PerformanceCounter` initialization reads from HKLM registry keys and mapped memory. This is synchronous I/O on the calling thread. There is no async variant.
 
-**How to avoid:**
-Once the user has manually positioned the widget (or a saved position has been loaded), `PositionTopRight()` must never be called again. Introduce a `bool _hasUserPosition` flag. Set it to `true` after the first drag completes (use `LocationChanged` event, which fires after `DragMove()` returns). In `UpdatePhraseIfChanged()`, skip `PositionTopRight()` when `_hasUserPosition` is true.
+**Consequences:**
+- Visible freeze on startup (white window or blank before first frame).
+- In severe cases (corrupted PDH counters, slow registry), can take several seconds.
 
-```csharp
-private bool _hasUserPosition = false;
-
-// In constructor or ContentRendered:
-this.LocationChanged += (_, _) => _hasUserPosition = true;
-
-// In UpdatePhraseIfChanged():
-UpdateLayout();
-if (!_hasUserPosition)
-    PositionTopRight();
-```
-
-**Warning signs:**
-- User drags widget to center of screen. Clock hits 5-minute boundary. Widget snaps back to top-right corner.
-- Position save contains correct value, but widget appears at top-right on next launch anyway (because `PositionTopRight()` overwrites the saved position mid-session).
-
-**Phase to address:** Phase introducing drag (v1.1 Phase 1) — must be addressed before phrase-change-during-drag can occur.
-
----
-
-### Pitfall 3: Saving Window.Left/Top During ContentRendered Saves PositionTopRight Values, Not User Position
-
-**What goes wrong:**
-The v1.0 `ContentRendered` handler calls `PositionTopRight()`, which sets `this.Left` and `this.Top`. If the new v1.1 startup code loads a saved position before `ContentRendered` fires, but `ContentRendered` still calls `PositionTopRight()`, the loaded position is immediately overwritten before the user ever sees the window.
-
-The sequence that causes the bug:
-1. App startup: load saved `Left=400, Top=300` from JSON.
-2. Set `this.Left = 400`, `this.Top = 300`.
-3. `Show()` is called. Layout runs. `ContentRendered` fires.
-4. `ContentRendered` calls `PositionTopRight()` — sets `Left = 1880, Top = 20`.
-5. Widget appears at top-right, ignoring saved position.
-
-**Why it happens:**
-`ContentRendered` unconditionally calls `PositionTopRight()` in v1.0 because there was no alternative. With persistence, this must become conditional: only call `PositionTopRight()` if no saved position exists.
-
-**How to avoid:**
-Introduce a `bool _savedPositionLoaded` flag. Set it when a saved position is successfully loaded from JSON. In `ContentRendered`, only call `PositionTopRight()` when `_savedPositionLoaded` is false.
+**Prevention:**
+Initialize `PerformanceCounter` objects on a background thread via `Task.Run()`, then marshal the timer-tick reads back to the Dispatcher. The stats panel shows a loading state (e.g., "---") until initialization completes:
 
 ```csharp
-private bool _savedPositionLoaded = false;
-
-// ContentRendered handler:
-ContentRendered += (_, _) =>
+// In StatsService constructor or Initialize():
+Task.Run(() =>
 {
-    if (!_savedPositionLoaded)
-        PositionTopRight();
-    // start timer regardless
-    _timer = new DispatcherTimer { ... };
-    _timer.Start();
-};
-```
+    _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+    _cpuCounter.NextValue();  // prime — always 0, discard
+    _memCounter = new PerformanceCounter("Memory", "% Committed Bytes In Use");
+    _memCounter.NextValue();  // prime
+    _gpuCounters = BuildGpuCounters(); // may enumerate many instances
+    _initialized = true;
+});
 
-**Warning signs:**
-- JSON file is written with correct values on close, but position is always top-right on launch.
-- Logging shows `Left`/`Top` are set correctly in constructor but window appears elsewhere.
-
-**Phase to address:** Phase introducing position persistence (v1.1 Phase 1 or 2, whichever implements startup restore).
-
----
-
-### Pitfall 4: SizeToContent=WidthAndHeight Shifts Window.Left When the Font Size Changes
-
-**What goes wrong:**
-When font size is changed (e.g., 24pt → 32pt), the text becomes wider. With `SizeToContent=WidthAndHeight`, the window grows to the right. The window's `Left` edge does not change — only the `Right` edge moves. This means that if the user placed the widget so its left edge is at x=100, after a font size increase the widget still starts at x=100 but is now wider. This is probably fine.
-
-However, the shadow `TextBlock` also changes size (it mirrors `FontSize`). If only `PhraseText.FontSize` is changed but `ShadowText.FontSize` is not, the window size is computed from the larger element. The two text blocks are in a `Grid`, so the grid is sized to the maximum of the two. Mismatched font sizes produce a correctly-sized window but with a shadow that appears in the wrong position relative to the text (shifted diagonally if the shadow's font is larger).
-
-More critically: after changing font size, `ActualWidth` is stale until a layout pass runs. If position is saved to JSON immediately after changing the font size (e.g., in a `SelectionChanged` handler) without calling `UpdateLayout()` first, the saved `Left` value correctly reflects the current position, but if the code also tries to recompute a right-edge anchor, it will use the stale `ActualWidth`.
-
-**Why it happens:**
-WPF layout is deferred. After setting `FontSize` on a `TextBlock`, `ActualWidth` does not update until the next layout pass. This was already discovered in v1.0 for phrase changes (the `UpdateLayout()` call before `PositionTopRight()` was specifically added for this reason). The same applies to font size changes.
-
-**How to avoid:**
-When handling font size change:
-1. Set `FontSize` on **both** `PhraseText` and `ShadowText`.
-2. Call `UpdateLayout()` to force a layout pass.
-3. If repositioning is needed, do it after `UpdateLayout()`.
-4. Then save the new font size (and optionally the current position) to JSON.
-
-```csharp
-private void SetFontSize(double newSize)
+// Timer tick reads only proceed when _initialized is true:
+private void OnStatsTick(object? sender, EventArgs e)
 {
-    PhraseText.FontSize = newSize;
-    ShadowText.FontSize = newSize;   // must match — shadow is a mirror
-    UpdateLayout();
-    // Now ActualWidth is correct for the new font size
-    // Save preferences to JSON here
-    SavePreferences();
-}
-```
-
-**Warning signs:**
-- Shadow text appears at a slightly different scale than phrase text after font change.
-- Saved `ActualWidth` is logged as stale/zero after a font change.
-- Right-edge anchor calculation is wrong by the delta in text width.
-
-**Phase to address:** Phase introducing font size selection (v1.1 Phase 2).
-
----
-
-### Pitfall 5: JSON File Next to Exe Fails When Installed in Program Files
-
-**What goes wrong:**
-Using `AppDomain.CurrentDomain.BaseDirectory` or `Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)` to locate the JSON settings file places it in the same directory as the executable. This works when running from the build output directory or a user-writable location. If the app is ever installed in `C:\Program Files\FuzzyClock\` — even by simply copying the exe there manually — the JSON write fails silently or throws `UnauthorizedAccessException` because `Program Files` is read-only for non-elevated processes.
-
-Even for personal use, this is a fragile pattern: if the exe is in a OneDrive-synced folder or a read-only network share, writes fail.
-
-**Why it happens:**
-Windows Vista and later apply UAC virtualization for writes to `Program Files`, but this is unreliable and deprecated for new applications. The correct location for per-user, non-roaming application data is `%LOCALAPPDATA%` (`Environment.SpecialFolder.LocalApplicationData`), which is always writable by the current user.
-
-**How to avoid:**
-Use `Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)` as the base directory. This resolves to `C:\Users\<username>\AppData\Local\` on Windows 10/11. Store under a company/app subdirectory:
-
-```csharp
-private static string GetSettingsPath()
-{
-    string appData = Environment.GetFolderPath(
-        Environment.SpecialFolder.LocalApplicationData);
-    string dir = Path.Combine(appData, "FuzzyClock");
-    Directory.CreateDirectory(dir);   // no-op if already exists
-    return Path.Combine(dir, "settings.json");
-}
-```
-
-`Directory.CreateDirectory` is safe to call even if the directory already exists — it does not throw.
-
-**Warning signs:**
-- Settings appear to save during testing (exe in project output dir) but are lost after moving the exe.
-- `UnauthorizedAccessException` in Event Viewer after installation.
-- File write succeeds but subsequent launch cannot find the file (UAC virtualization to VirtualStore).
-
-**Phase to address:** Phase introducing JSON persistence (v1.1 Phase 1 or 2).
-
----
-
-### Pitfall 6: Closing Event Is Not Raised When Application.Current.Shutdown() Is Called From the Hidden Owner Window
-
-**What goes wrong:**
-v1.0 uses a hidden owner window to suppress taskbar/Alt+Tab entries. The close menu item calls `Application.Current.Shutdown()`. The official docs state: "If Shutdown is called, the Closing event for each window is raised. However, if Closing is canceled, cancellation is ignored."
-
-The risk is subtle: `Closing` **is** raised for `MainWindow` when `Shutdown()` is called. But there is an exception documented in the `Closing` event: "If an owned window was opened by its owner window using `Show`, and the owner window is closed, the owned window's `Closing` event is not raised."
-
-If the hidden owner window is closed first (e.g., via `owner.Close()`), `MainWindow.Closing` may not fire. If position is saved in `MainWindow.Closing`, it will not be saved in this path.
-
-Additionally, there is a separate undocumented path: if the user ends the Windows session (log off, shutdown), the official docs warn that `Closing` is **not raised** for session-end. `SessionEnding` on `Application` must be handled separately to save settings on session end.
-
-**Why it happens:**
-`Closing` is a `Close()`/user-action event, not a general "app is ending" event. `SessionEnding` is a separate event. Two separate save paths are needed.
-
-**How to avoid:**
-Save settings in both `MainWindow.Closing` and `Application.SessionEnding`. Keep the save logic in a single method called from both:
-
-```csharp
-// In App.xaml.cs:
-private void App_SessionEnding(object sender, SessionEndingCancelEventArgs e)
-{
-    // Save whatever the main window has
-    (MainWindow as MainWindow)?.SavePreferences();
-}
-
-// In MainWindow:
-protected override void OnClosing(CancelEventArgs e)
-{
-    SavePreferences();
-    base.OnClosing(e);
+    if (!_initialized) return;
+    // ... read counters ...
 }
 ```
 
 **Warning signs:**
-- Settings save correctly when the user right-clicks and chooses Close, but are lost after a reboot/log-off.
-- `Closing` handler is confirmed to run via debugging, but preferences file is stale after session end.
+- App takes noticeably longer to show first frame after v1.2 is installed.
+- Startup hang is intermittent (depends on PDH cache state).
 
-**Phase to address:** Phase introducing JSON persistence (v1.1 Phase 1 or 2).
-
----
-
-### Pitfall 7: Window.Left/Top Are NaN Before ContentRendered — Loading Position Too Early
-
-**What goes wrong:**
-`Window.Left` and `Window.Top` can be read as `double.NaN` before the window handle is created. If the startup sequence loads the JSON file and sets `this.Left = savedLeft` in the `MainWindow` constructor (before `InitializeComponent()` completes), the assignment is accepted but may be silently overridden by the XAML-defined `WindowStartupLocation="Manual"` processing during the first layout pass.
-
-The safe assignment window is: **after `InitializeComponent()` returns, before `Show()` is called**. Assignment in this window is respected by `WindowStartupLocation="Manual"`.
-
-**Why it happens:**
-`WindowStartupLocation="Manual"` tells WPF to use the `Left`/`Top` values at the time the window is shown. If those values are set before `InitializeComponent()`, the XAML parser may reset them to defaults. If set after `Show()`, the window has already been positioned.
-
-**How to avoid:**
-Load and apply the saved position in `App.xaml.cs` after constructing `MainWindow` but before calling `mainWindow.Show()`:
-
-```csharp
-// In App.xaml.cs OnStartup:
-var mainWindow = new MainWindow();
-var prefs = LoadPreferences();       // load from JSON
-if (prefs.HasSavedPosition)
-{
-    mainWindow.Left = prefs.Left;
-    mainWindow.Top = prefs.Top;
-}
-mainWindow.SetInitialPhrase(PhraseEngine.GetPhrase(DateTime.Now));
-mainWindow.Show();
-```
-
-This mirrors the existing pattern for `SetInitialPhrase()` and keeps the startup sequence consistent.
-
-**Warning signs:**
-- Saved position is in the JSON file. `Left`/`Top` are set in the constructor. Window still appears at default position.
-- `Window.Left` reads as `NaN` immediately after assignment in constructor.
-
-**Phase to address:** Phase introducing position restore on startup (v1.1 Phase 1 or 2).
+**Phase to address:** Phase introducing stats service — initialize async from the start; do not optimize later.
 
 ---
 
-### Pitfall 8: Clamping Saved Position Using PrimaryScreenWidth Breaks Multi-Monitor Setups
+### Pitfall 4: GPU Counter Category Is Multi-Instance — Single Instance Name Reads Only One Engine
 
 **What goes wrong:**
-The v1.0 `PositionTopRight()` uses `SystemParameters.PrimaryScreenWidth`. Using `PrimaryScreenWidth` for off-screen clamping at startup validates only the primary monitor's bounds. A user who saved a position on a second monitor will have it clamped to the primary monitor on every launch, because `savedLeft > PrimaryScreenWidth` reads as "out of bounds."
+GPU usage is exposed through the `GPU Engine` performance counter category, counter name `Utilization Percentage`. Unlike the CPU counter (`Processor` category, `_Total` instance), the GPU Engine category has one instance **per engine per adapter per process**. Instance names look like:
+
+```
+pid_1234_luid_0x00000000_0x0000C45F_phys_0_eng_0_engtype_3D
+pid_1234_luid_0x00000000_0x0000C45F_phys_0_eng_1_engtype_Copy
+pid_5678_luid_0x00000000_0x0000C45F_phys_0_eng_0_engtype_VideoDecode
+```
+
+Creating a single `PerformanceCounter` for one of these instances reads only that process's use of that specific engine. This does not represent total GPU utilization.
 
 **Why it happens:**
-`SystemParameters.PrimaryScreenWidth` returns the width of the primary monitor only. A valid position on a secondary monitor to the right (e.g., `Left = 2000` on a 1920+1080 dual-monitor setup) reads as off-screen against primary-only bounds.
+Windows exposes GPU utilization at the per-process per-engine level, not as a system-wide total. Unlike CPU (`_Total` is a real aggregate instance), there is no `_Total` instance for `GPU Engine`. Enumerating all instances and summing them gives a gross aggregate, but the correct approach is to enumerate, filter by engine type (typically "3D" for render workload), and sum across all processes for that engine type — then divide by the engine count to normalize.
 
-**How to avoid:**
-Clamp against the virtual screen bounds, which spans all connected monitors:
+**Consequences:**
+- GPU bar shows a low constant value (only reading one process/engine).
+- GPU bar shows > 100% if summing without normalization.
+- `InvalidOperationException` if the instance name that was captured at startup is later removed (process exits, GPU resets).
+
+**Prevention:**
+Enumerate all instances of `GPU Engine` at each timer tick (or cache them and refresh periodically), filter for the engine type of interest, sum `Utilization Percentage`, and clamp to [0, 100]:
 
 ```csharp
-private static (double left, double top) ClampToVirtualScreen(double left, double top, double width, double height)
+private static float ReadGpuUtilization()
 {
-    double vLeft   = SystemParameters.VirtualScreenLeft;
-    double vTop    = SystemParameters.VirtualScreenTop;
-    double vWidth  = SystemParameters.VirtualScreenWidth;
-    double vHeight = SystemParameters.VirtualScreenHeight;
-
-    // Ensure at least some part of the window is visible
-    double clampedLeft = Math.Max(vLeft, Math.Min(left, vLeft + vWidth  - width));
-    double clampedTop  = Math.Max(vTop,  Math.Min(top,  vTop  + vHeight - height));
-    return (clampedLeft, clampedTop);
+    try
+    {
+        var cat = new PerformanceCounterCategory("GPU Engine");
+        string[] instanceNames = cat.GetInstanceNames();
+        float total = 0f;
+        int engineCount = 0;
+        foreach (var name in instanceNames.Where(n => n.Contains("engtype_3D")))
+        {
+            using var c = new PerformanceCounter("GPU Engine", "Utilization Percentage", name, readOnly: true);
+            c.NextValue(); // prime
+            // First reading is 0 — value is meaningful only after two reads
+            // In practice, for tick-based reading, call NextValue() once per tick
+            total += c.NextValue();
+            engineCount++;
+        }
+        return engineCount > 0 ? Math.Min(total / engineCount, 100f) : 0f;
+    }
+    catch { return 0f; }
 }
 ```
 
-Note: `ActualWidth` and `ActualHeight` must be valid (after layout) before calling this. Call it in `ContentRendered` when restoring a saved position.
-
-`SystemParameters.VirtualScreenWidth` is documented as "the width, in pixels adjusted for DPI, of the virtual screen" — the bounding rectangle of all display monitors. `VirtualScreenLeft` and `VirtualScreenTop` give the top-left origin, which can be negative if a monitor is positioned to the left of the primary.
+Note: Creating and priming counters on every tick is expensive. Cache the counter objects and only refresh instance names if `InvalidOperationException` is thrown (instance disappeared).
 
 **Warning signs:**
-- Widget saved on secondary monitor always reappears on primary monitor after restart.
-- Widget always appears at the left edge of the primary monitor (clamped from negative virtual screen coordinates).
+- GPU bar shows a constant low value (2–5%) regardless of actual GPU load.
+- GPU bar shows 200%+ during a 3D workload.
+- `InvalidOperationException: Instance does not exist` in output window.
 
-**Phase to address:** Phase introducing position restore (v1.1 Phase 1 or 2).
+**Phase to address:** Phase introducing GPU counter reading.
+
+---
+
+### Pitfall 5: PerformanceCounter Objects Are Not Disposed — Handle Leak on App Lifetime
+
+**What goes wrong:**
+`PerformanceCounter` implements `IDisposable`. Each instance holds an unmanaged handle to the Windows PDH data provider. If counters are created but never disposed — whether at app close, timer interval change, or show/hide toggle — the handles accumulate. For a personal-use widget that runs for days without restart, this may cause PDH provider exhaustion or prevent the counter category from being refreshed.
+
+More specifically: if the update interval changes from 1s to 10s (user changes the setting), and new `PerformanceCounter` objects are allocated without disposing the old ones, the leak compounds each time the user changes the interval.
+
+**Why it happens:**
+`PerformanceCounter` inherits from `Component`, which holds unmanaged resources. The GC will eventually call the finalizer, but this is non-deterministic. Finalizer-based cleanup of PDH handles can race with Windows service restarts or machine sleep/resume cycles.
+
+**Prevention:**
+Keep counter references as fields. Dispose them explicitly in a dedicated `DisposeCounters()` method. Call this method before creating new counters (interval change) and in `OnClosing`/`SessionEnding`:
+
+```csharp
+private void DisposeCounters()
+{
+    _cpuCounter?.Dispose(); _cpuCounter = null;
+    _memCounter?.Dispose(); _memCounter = null;
+    foreach (var c in _gpuCounters) c?.Dispose();
+    _gpuCounters = [];
+}
+```
+
+**Warning signs:**
+- Handle count in Task Manager climbs slowly over hours of use.
+- `InvalidOperationException` when reading counters after machine sleep/resume (handle stale).
+- Counters stop updating after several interval changes in one session.
+
+**Phase to address:** Phase introducing stats service — implement Dispose from the start; do not add it as a patch.
+
+---
+
+### Pitfall 6: SizeToContent=WidthAndHeight — Stats Bars Need Fixed Width or the Window Grows Unpredictably
+
+**What goes wrong:**
+The existing window has `SizeToContent=WidthAndHeight`. The window width is currently determined by the phrase text. Adding a stats panel below the phrase introduces additional content whose width must be explicitly constrained. If the stats bars are defined with `Width="Auto"` or no explicit width, their width is determined by their content (percentage text + bar proportions). As the percentage changes (e.g., CPU goes from "3%" to "100%"), the text width changes slightly, which causes the bar container to resize, which causes the window to resize on every stats tick. At 1-second intervals this produces visible window-width jitter.
+
+Additionally: the stats panel may be **wider** than the phrase text for small font sizes (16pt "past" is narrow). In this case the window width is driven by the stats bars, not the phrase. This is correct behavior for `SizeToContent`, but it means the phrase text appears left-aligned against a wider backdrop — the layout must accommodate this intentionally, not accidentally.
+
+**Why it happens:**
+`SizeToContent=WidthAndHeight` sizes the window to the bounding box of all content. If any child element's desired size changes, the window resizes on the next layout pass. A `DispatcherTimer` tick that updates percentage text triggers a layout pass on the next `Dispatcher` frame.
+
+**Prevention:**
+Give the stats panel a **fixed `Width`** equal to a value wide enough for all label + bar combinations. A value of 160–200px covers all common cases. Do not use `Auto`:
+
+```xml
+<!-- Stats panel: fixed width prevents window-width jitter on every stats tick -->
+<StackPanel x:Name="StatsPanel" Width="180" Visibility="Collapsed">
+    <!-- CPU / GPU / MEM rows -->
+</StackPanel>
+```
+
+The phrase text `TextBlock` sits in a `Grid` cell whose width is now driven by `Max(phraseWidth, 180)` due to `SizeToContent`. This is correct — the window is as wide as the widest element and does not jitter.
+
+**Warning signs:**
+- Window visibly changes width every second when stats are visible and CPU usage is near a threshold (e.g., 9% → 10% changes text width).
+- Widget position drifts slightly on each tick because `Left` does not change but `ActualWidth` does (the right edge moves while the left edge is anchored).
+
+**Phase to address:** Phase introducing stats XAML layout — must be established at layout time, not patched later.
+
+---
+
+### Pitfall 7: Second DispatcherTimer Tick Accumulates if Stats Are Toggled Hide/Show Rapidly
+
+**What goes wrong:**
+The existing `_timer` (10s phrase timer) is created once in `ContentRendered` and never recreated. If the stats timer is implemented as a separate `DispatcherTimer` that is stopped when stats are hidden and restarted when stats are shown, rapid toggling (e.g., the user opens and closes the context menu quickly) can leave multiple timer instances running if the stop/start logic has a race condition.
+
+`DispatcherTimer` dispatches on the UI thread, so there is no concurrency issue in the traditional sense — but `timer.IsEnabled = true` after `timer.IsEnabled = false` followed by `timer.IsEnabled = true` again (from a re-entrance in `ContextMenu_Opened`) can lead to the timer running at double frequency if a new timer is created instead of toggling the existing one.
+
+**Why it happens:**
+`DispatcherTimer` ticks queue on the UI message loop. If a new `DispatcherTimer` is created and started without stopping the previous one, both timers fire. Since `DispatcherTimer` is a WPF type without an implicit per-instance singleton guarantee, two distinct instances are two separate timer sources.
+
+**Prevention:**
+Use a single `DispatcherTimer` instance for stats. Toggle it with `_statsTimer.Start()` and `_statsTimer.Stop()` (not by recreating it). Create the timer once (e.g., in the stats service constructor or in `ContentRendered`). Do not create a new timer on each show/hide toggle:
+
+```csharp
+// Correct: single instance, toggled
+_statsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(_statsIntervalSeconds) };
+_statsTimer.Tick += OnStatsTick;
+// To show: _statsTimer.Start();
+// To hide: _statsTimer.Stop();
+// To change interval: _statsTimer.Stop(); _statsTimer.Interval = ...; _statsTimer.Start();
+```
+
+**Warning signs:**
+- Stats update twice per second when interval is set to 1s after toggling show/hide a few times.
+- CPU usage from the widget itself climbs when stats are toggled repeatedly.
+
+**Phase to address:** Phase introducing stats panel visibility toggle.
+
+---
+
+### Pitfall 8: AllowsTransparency + WPF Bar Rendering — Avoid DropShadowEffect, LinearGradientBrush Performance
+
+**What goes wrong:**
+The existing widget already has `AllowsTransparency="True"`, which disables the hardware-accelerated GPU rendering path for the layered HWND (documented behavior in .NET 5+; the project's `KEY DECISIONS` table confirms DropShadowEffect was already worked around). The stats bar `Rectangle` or `Border` elements are additional visual tree nodes rendered in this software path.
+
+Two specific mistakes make performance worse than necessary:
+1. **`DropShadowEffect` on bar elements** — the same limitation that broke the phrase shadow applies to bars. A `DropShadowEffect` on a `Rectangle` in an `AllowsTransparency` window silently renders as flat (no shadow) in .NET 10.
+2. **`LinearGradientBrush` with many stops** — software rendering with gradient brushes is significantly slower than solid-color fills, especially when the window is in the non-hardware path. A simple flat `SolidColorBrush` renders identically to the eye for a 1px-tall bar.
+
+**Why it happens:**
+`AllowsTransparency="True"` forces the window to render as a layered (WS_EX_LAYERED) window. On .NET 5+, WPF disables hardware-accelerated rendering for layered windows because the DWM composition model changed. All WPF rendering for this window falls back to software rasterization.
+
+**Consequences:**
+- Bars render correctly but slowly if `DropShadowEffect` or complex brushes are used.
+- Noticeable CPU usage increase from software-rasterizing gradient bars at 1-second update frequency.
+- `DropShadowEffect` silently produces no shadow — developer wastes time debugging "why the shadow doesn't work" (same experience the team had with PhraseText in v1.0).
+
+**Prevention:**
+Use only solid-color `SolidColorBrush` fills for bar elements. Use a simple `Grid` with two `Rectangle` layers (fill + background track) rather than a `ProgressBar` control (which uses `ControlTemplate` with multiple visual elements including potential effects). No `DropShadowEffect` anywhere in the visual tree:
+
+```xml
+<!-- Bar row — software-rendering-safe, flat colors only -->
+<Grid Height="6" Margin="0,1">
+    <Rectangle Fill="#44FFFFFF" />  <!-- track background -->
+    <Rectangle x:Name="CpuBar" Fill="#CCFFFFFF" HorizontalAlignment="Left" Width="0" />
+</Grid>
+```
+
+Set `Width` programmatically to `panelWidth * (value / 100.0)`.
+
+**Warning signs:**
+- CPU usage from `FuzzyClock.App` is measurably higher than expected when stats panel is visible.
+- Stats bars appear flat (no gradient visible) even though a gradient was specified.
+- Same `DropShadowEffect` investigation pattern as the v1.0 PhraseText shadow issue.
+
+**Phase to address:** Phase introducing stats XAML layout — establish flat rendering from the start.
 
 ---
 
@@ -317,83 +357,101 @@ Issues that produce wrong behavior but are straightforward to fix once identifie
 
 ---
 
-### Pitfall 9: Right-Click ContextMenu Opens When Trying to Drag, Swallowing MouseLeftButtonDown
+### Pitfall 9: Memory Counter — "Available MBytes" vs "% Committed Bytes In Use"
 
 **What goes wrong:**
-The ContextMenu is attached to the `Grid` in v1.0. In WPF, `ContextMenu` is triggered on `MouseRightButtonUp`. These are independent event routes and should not interfere. However, if the drag handler is incorrectly placed on `MouseDown` (covering both buttons) instead of `MouseLeftButtonDown`, right-clicking to open the context menu triggers the drag handler first, calling `DragMove()` when the right button is down, which throws `InvalidOperationException`.
+The memory stat is displayed as a percentage bar. Two commonly used counters serve different purposes:
+- `Memory` / `Available MBytes`: reports raw available bytes, not a percentage. To convert to a percentage, the total physical RAM must be known. `GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` provides this but adds GC pressure if called frequently.
+- `Memory` / `% Committed Bytes In Use`: reports committed virtual memory as a percentage of the commit limit. This is a legitimate percentage counter and requires no additional math. However, it reflects commit (virtual allocation) usage, not physical RAM pressure.
 
-**How to avoid:**
-Always use `MouseLeftButtonDown` (not `MouseDown`) for the drag handler. The `MouseButtonEventArgs.ChangedButton` check is unnecessary if the correct event is used.
+Using `Available MBytes` and computing a percentage incorrectly (e.g., dividing by 100 instead of by total RAM) produces a percentage that is always above 99% or is nonsensical.
 
-**Phase to address:** Phase introducing drag (v1.1 Phase 1).
+**Prevention:**
+Use `Memory` / `% Committed Bytes In Use` directly — it returns a float percentage [0, 100] requiring no conversion. This is the counter shown in Task Manager's "Memory" column when viewing commit charge. Accept that it measures commit, not physical. The bar reads high on machines with large page files even when physical RAM is available — this is correct and expected behavior for this counter. Document the choice in a comment.
+
+**Phase to address:** Phase introducing memory counter reading.
 
 ---
 
-### Pitfall 10: Font Size MenuItem CheckMark Not Updated on Restore
+### Pitfall 10: Context Menu "Stats" Submenu — IsChecked Sync Must Follow ContextMenu_Opened Pattern
 
 **What goes wrong:**
-The right-click context menu has three font size menu items (16pt, 24pt, 32pt). On first launch, none have a checkmark. When the user selects 24pt, the 24pt item gets `IsChecked=true`. On the next launch, the saved font size (24pt) is restored, but if the checkmark is set only in the `Click` handler, the menu items start unchecked — the initial state is wrong.
+v1.1 established the pattern for font-size menu checkmarks: sync all `IsChecked` states in `ContextMenu_Opened`, never in the click handlers. The new stats submenu adds:
+- `Show Stats` (toggle) — `IsCheckable="True"`, must reflect `_statsVisible`
+- `1s / 3s / 10s` interval items — must reflect `_statsIntervalSeconds`
 
-**How to avoid:**
-After restoring font size from JSON on startup, explicitly set `IsChecked` on the correct menu item. The simplest approach: a helper method `UpdateFontSizeChecks(double size)` that sets all three items' `IsChecked` based on the current size. Call it both from the `Click` handler and from the startup restore code.
+If the click handler for `Show Stats` calls `item.IsChecked = !item.IsChecked` (manual toggle), it double-toggles because `IsCheckable="True"` already toggled `IsChecked` before the click handler runs. This is the same bug documented in v1.0's context menu pitfall: `ContextMenu_Opened` is the single correct sync point.
 
-**Phase to address:** Phase introducing font size UI (v1.1 Phase 2).
-
----
-
-### Pitfall 11: JSON Deserialization Silently Returns Defaults on Corrupt File
-
-**What goes wrong:**
-`System.Text.Json.JsonSerializer.Deserialize<T>()` returns `null` (for reference types) or throws on corrupt JSON. If the file is empty, partially written (crash mid-write), or contains unexpected keys, `Deserialize` may return `null` or a partially-populated object with `Left = 0, Top = 0`. Position 0,0 is the top-left corner of the virtual screen — a valid but wrong position that appears as "the widget jumped to the corner" rather than "settings failed to load."
-
-**How to avoid:**
-Wrap deserialization in try/catch. Treat any exception or `null` result as "no saved settings" — fall through to `PositionTopRight()`:
+**Prevention:**
+Follow the existing v1.1 pattern exactly. In `ContextMenu_Opened`:
 
 ```csharp
-private static AppSettings? LoadSettings(string path)
+StatsShowItem.IsChecked   = _statsVisible;
+StatsInterval1s.IsChecked  = (_statsIntervalSeconds == 1);
+StatsInterval3s.IsChecked  = (_statsIntervalSeconds == 3);
+StatsInterval10s.IsChecked = (_statsIntervalSeconds == 10);
+```
+
+In click handlers: update the backing field and apply the change, never touch `IsChecked` directly.
+
+**Phase to address:** Phase introducing stats context menu.
+
+---
+
+### Pitfall 11: GPU Engine Category May Not Exist on All Machines
+
+**What goes wrong:**
+The `GPU Engine` performance counter category is present on Windows 10 version 1709+ when a WDDM 2.x driver is installed. On virtual machines (RDP sessions, VMs with basic display drivers), Hyper-V without enhanced session, or very old hardware with legacy drivers, the category does not exist. `new PerformanceCounterCategory("GPU Engine")` throws `InvalidOperationException: Category does not exist` if the category is absent.
+
+**Prevention:**
+Wrap all GPU counter initialization in a try/catch. If the category does not exist, set GPU value to `float.NaN` (or a sentinel) and render the GPU bar as `---` or grayed out:
+
+```csharp
+private bool _gpuAvailable = false;
+
+private void InitGpuCounters()
 {
     try
     {
-        if (!File.Exists(path)) return null;
-        string json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<AppSettings>(json);
+        if (!PerformanceCounterCategory.Exists("GPU Engine"))
+        {
+            _gpuAvailable = false;
+            return;
+        }
+        // ... enumerate instances ...
+        _gpuAvailable = true;
     }
-    catch
-    {
-        return null;  // corrupt file: use defaults
-    }
+    catch { _gpuAvailable = false; }
 }
 ```
 
-Never distinguish "file not found" from "corrupt file" for this use case — both should produce the same fallback behavior.
-
-**Phase to address:** Phase introducing JSON persistence.
+**Phase to address:** Phase introducing GPU counter reading — defensive from day one.
 
 ---
 
-### Pitfall 12: Atomic JSON Write — Partial Write on Crash Corrupts Settings
+### Pitfall 12: Stats Visibility = Hidden Does Not Stop Counter Reads (Wasted CPU)
 
 **What goes wrong:**
-Writing the JSON file with `File.WriteAllText(path, json)` overwrites the previous file in-place. If the process crashes mid-write (power loss, forced kill), the file is left partially written and the next launch reads corrupt JSON (see Pitfall 11).
+When stats are hidden (`StatsPanel.Visibility = Collapsed`), the stats timer continues to fire and `PerformanceCounter.NextValue()` continues to be called. This is unnecessary CPU usage for a widget that the user chose to hide. While the individual counter reads are cheap (~0.01ms each), calling them at 1s intervals for hours is wasteful when no output is displayed.
 
-For a simple 2-field settings file (~40 bytes) the write is atomic at OS level on most configurations, but this is not guaranteed. A safer pattern for any settings file is write-then-rename.
-
-**How to avoid:**
-Write to a temp file first, then rename over the target:
+**Prevention:**
+When stats are hidden, stop the stats timer (`_statsTimer.Stop()`). When stats are shown, restart the timer and prime the counters once (discard the 0 return from the first CPU read):
 
 ```csharp
-private static void SaveSettings(string path, AppSettings settings)
+private void SetStatsVisible(bool visible)
 {
-    string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-    string tempPath = path + ".tmp";
-    File.WriteAllText(tempPath, json);
-    File.Move(tempPath, path, overwrite: true);  // atomic on same volume
+    _statsVisible = visible;
+    StatsPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    if (visible) _statsTimer.Start();
+    else         _statsTimer.Stop();
+    SaveSettings();
 }
 ```
 
-`File.Move` with `overwrite: true` is available in .NET 3.0+ and is effectively atomic on the same NTFS volume.
+**Warning signs:**
+- Task Manager shows `FuzzyClock.App` using ~0.5% CPU continuously even with stats hidden.
 
-**Phase to address:** Phase introducing JSON persistence — implement alongside the initial write logic.
+**Phase to address:** Phase introducing stats panel visibility toggle.
 
 ---
 
@@ -401,45 +459,64 @@ private static void SaveSettings(string path, AppSettings settings)
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Save position only in `Closing` | Simple, one save path | Lost on session end / forced shutdown | Never — also handle `SessionEnding` |
-| Use `PrimaryScreenWidth` for off-screen clamp | Works on single-monitor setups | Breaks multi-monitor: valid positions clamped to primary | Never |
-| Hardcode JSON path next to exe | Easy to find during development | Fails in Program Files; lost on app reinstall | Development/testing only; use AppData in production |
-| Set font size only on `PhraseText`, not `ShadowText` | Fewer lines to write | Shadow renders at different size; window measures incorrectly | Never |
-| Skip `UpdateLayout()` after font size change | Slightly fewer method calls | Position calculations use stale `ActualWidth` | Never |
-| Call `PositionTopRight()` unconditionally on phrase change | No flag management | Snaps widget to top-right after user has repositioned | Never after drag is added |
+| Don't prime CPU counter on startup | Simpler init | CPU bar shows 0% for first second — looks broken | Never — two-line fix |
+| Don't guard `StatsIntervalSeconds` for 0 in `Load()` | No migration code needed | Zero-interval timer on upgrade from v1.1 — CPU spike | Never |
+| Initialize counters on UI thread | Simpler code | Startup freeze up to 500ms | Never — use Task.Run |
+| Fixed GPU instance name at startup | Simpler code | Crashes when GPU process exits, instance disappears | Never |
+| Skip Dispose on PerformanceCounter | Simpler teardown | Handle leak, stale handles after sleep/resume | Never |
+| `Width="Auto"` on stats bar | Less XAML | Window-width jitter every second | Never |
+| `DropShadowEffect` on bar elements | Easier shadow | Silently renders flat in AllowsTransparency windows | Never |
+| New `DispatcherTimer` on each interval change | Simpler interval change | Double-firing if not stopped first | Never |
+| Continue stats timer when panel is hidden | Simpler toggle | Continuous CPU drain when user hides stats | Never |
 
 ---
 
 ## Integration Gotchas
 
-How the new v1.1 features interact with existing v1.0 code.
+How the new v1.2 features interact with existing v1.1 code.
 
 | Integration Point | Common Mistake | Correct Approach |
 |-------------------|----------------|------------------|
-| `ContentRendered` + position restore | `ContentRendered` calls `PositionTopRight()` unconditionally | Make `PositionTopRight()` conditional on `!_savedPositionLoaded` |
-| `UpdatePhraseIfChanged()` + user drag | Always calls `PositionTopRight()` after phrase change | Skip `PositionTopRight()` when `_hasUserPosition` is true |
-| Font size change + shadow TextBlock | Only updating `PhraseText.FontSize` | Always update both `PhraseText.FontSize` and `ShadowText.FontSize` together |
-| Font size change + `UpdateLayout()` | Saving/repositioning before layout runs | Call `UpdateLayout()` first, then save/reposition |
-| `DragMove()` + `LocationChanged` | Not knowing when drag ends (DragMove blocks) | `LocationChanged` fires after each position update during drag; set `_hasUserPosition = true` here |
-| `Closing` + `Application.Current.Shutdown()` | Only handling `Closing` for save | Also handle `Application.SessionEnding` for power-off/log-off |
-| Virtual screen clamping + `ActualWidth` | Using 0 or stale `ActualWidth` in clamp math | Clamp in `ContentRendered` after `UpdateLayout()` when `ActualWidth` is valid |
+| `AppSettings` positional record + new fields | New `bool/int` fields default to `false/0` on old JSON | Guard in `SettingsService.Load()`: apply `Defaults()` values when new fields are at their type default |
+| `SizeToContent=WidthAndHeight` + stats bars | `Width="Auto"` on bars causes window-width jitter on every stats tick | Fixed `Width` on the stats panel container |
+| `AllowsTransparency` + bar rendering | `DropShadowEffect` or complex brushes on bar elements | Flat `SolidColorBrush` only; same principle as phrase shadow workaround |
+| Existing `ContextMenu_Opened` pattern + stats menu items | Setting `IsChecked` in click handler (double-toggle) | Sync all stats menu `IsChecked` states in `ContextMenu_Opened` only |
+| Two `DispatcherTimer` instances | Stats timer fires at wrong rate after interval change (old timer not stopped) | Single timer instance; `Stop()` → update `Interval` → `Start()` |
+| `OnClosing`/`SessionEnding` + counter Dispose | Counters not disposed on app close | Call `DisposeCounters()` in `OnClosing` and/or `SessionEnding` |
+| Stats panel hidden + timer running | Timer continues reading counters when panel is not visible | `Stop()` timer when hiding panel; `Start()` when showing |
+| CPU counter + first-read zero | First `NextValue()` returns 0 for rate counters | Prime (discard) first read during initialization; start UI updates on second read |
+| GPU Engine category + missing category | `InvalidOperationException` on VMs or headless machines | Wrap all GPU category access in try/catch; render "---" when unavailable |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Drag:** `DragMove()` is wired on the `Grid`, not a child element. Handler uses `MouseLeftButtonDown`, not `MouseDown`.
-- [ ] **Drag flag:** `_hasUserPosition` or equivalent is set via `LocationChanged`. `PositionTopRight()` is guarded by this flag.
-- [ ] **Position restore:** Saved `Left`/`Top` applied in `App.xaml.cs` after `new MainWindow()` but before `Show()`.
-- [ ] **ContentRendered guard:** `PositionTopRight()` inside `ContentRendered` is conditional on no saved position.
-- [ ] **Virtual screen clamp:** Off-screen detection uses `VirtualScreenLeft/Top/Width/Height`, not `PrimaryScreenWidth/Height`.
-- [ ] **Font size — both TextBlocks:** Font size change sets `FontSize` on `ShadowText` AND `PhraseText`.
-- [ ] **Font size — UpdateLayout:** `UpdateLayout()` is called after font size change before any size-dependent calculations.
-- [ ] **Font size — menu checkmarks:** `IsChecked` on all three font size items is set correctly on startup from restored value.
-- [ ] **JSON path:** Settings file is in `%LOCALAPPDATA%\FuzzyClock\`, not next to the exe.
-- [ ] **JSON write safety:** Write uses temp-file + rename pattern.
-- [ ] **JSON read safety:** `Deserialize` is wrapped in try/catch; `null` result falls back to defaults.
-- [ ] **Session end:** `Application.SessionEnding` handler saves settings (not only `Closing`).
+- [ ] **CPU counter primed:** `NextValue()` called once during initialization and result discarded. UI updates start on second tick.
+- [ ] **AppSettings backward compat:** `SettingsService.Load()` guards against `StatsIntervalSeconds = 0` (old JSON). Value coerced to default before use.
+- [ ] **Counter initialization async:** `new PerformanceCounter(...)` called on `Task.Run()` background thread, not on UI thread.
+- [ ] **GPU counters enumerated per-tick or cached with refresh:** No hard-coded instance name from startup. `InvalidOperationException` from disappeared instance caught and handled.
+- [ ] **All PerformanceCounter objects disposed:** `Dispose()` called in `OnClosing` and before recreating counters on interval change.
+- [ ] **Stats bar `Width` is fixed:** Stats panel container has explicit `Width`, not `Auto`. Window does not jitter on stats update.
+- [ ] **No DropShadowEffect on stats bars:** Flat `SolidColorBrush` fills only.
+- [ ] **Single `DispatcherTimer` for stats:** Timer is reused, not recreated. Interval change does `Stop()` → set `Interval` → `Start()`.
+- [ ] **Stats timer stopped when panel hidden:** `_statsTimer.Stop()` in `SetStatsVisible(false)`. `_statsTimer.Start()` in `SetStatsVisible(true)`.
+- [ ] **GPU category availability check:** `PerformanceCounterCategory.Exists("GPU Engine")` checked before instantiation. Graceful fallback when absent.
+- [ ] **Memory counter choice documented:** Using `% Committed Bytes In Use` (not `Available MBytes`) — is a percentage, requires no conversion.
+- [ ] **Stats menu IsChecked sync in `ContextMenu_Opened`:** Show/Hide and interval checkmarks set there, not in click handlers.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| StatsService / counter initialization | CPU counter first-read = 0; UI thread block | Initialize async (Task.Run); prime and discard first CPU read |
+| AppSettings record extension | New fields default to 0/false on old JSON | Guard in `SettingsService.Load()` for `StatsIntervalSeconds <= 0` |
+| Stats XAML layout | SizeToContent window-width jitter; DropShadowEffect failure | Fixed `Width` on panel; flat brush only |
+| GPU counter reading | Per-engine multi-instance confusion; missing category on VMs | Enumerate + filter + aggregate; try/catch around category access |
+| Stats show/hide toggle | Double-timer, timer running while hidden | Single timer instance; stop on hide, start on show |
+| Context menu stats submenu | IsChecked double-toggle from IsCheckable | Sync in `ContextMenu_Opened` only (follow v1.1 pattern) |
+| Counter teardown | Handle leak, stale handles after sleep | Dispose in OnClosing/SessionEnding; Dispose before recreating |
 
 ---
 
@@ -447,30 +524,15 @@ How the new v1.1 features interact with existing v1.0 code.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| DragMove() called on wrong element | LOW | Move handler to outer Grid; rebuild |
-| `PositionTopRight()` overwrites user position | LOW | Add `_hasUserPosition` flag and guard; rebuild |
-| `ContentRendered` ignores saved position | LOW | Add `_savedPositionLoaded` guard; rebuild |
-| Font size not applied to ShadowText | LOW | Add `ShadowText.FontSize = newSize`; rebuild |
-| JSON saved next to exe (need to move) | LOW | Delete old file location; update path to AppData; rebuild |
-| Corrupt settings file in AppData | LOW | Delete the file; app falls back to defaults on next launch |
-| Multi-monitor positions clamped to primary | LOW | Replace `PrimaryScreenWidth` with `VirtualScreen*` parameters |
-| Session-end settings loss | LOW | Add `SessionEnding` handler; rebuild |
-
----
-
-## Pitfall-to-Phase Mapping
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| DragMove() on wrong element / throws | v1.1 Phase introducing drag | Manual test: drag by clicking on all areas of the widget including shadow edge |
-| DragMove() blocks; phrase change snaps position | v1.1 Phase introducing drag | Let widget run through a 5-minute boundary while dragged to a non-default position; verify it stays |
-| ContentRendered overwrites saved position | v1.1 Phase introducing persistence | Launch after saving a position; verify widget appears where saved |
-| SizeToContent + font change + UpdateLayout | v1.1 Phase introducing font size | Change font size; verify shadow aligns with text; verify ActualWidth is correct afterward |
-| JSON path next to exe | v1.1 Phase introducing persistence | Verify settings file path is in %LOCALAPPDATA%; test by moving exe to a different directory |
-| Session-end save gap | v1.1 Phase introducing persistence | Save a position; log off without closing the app; re-login and verify position is preserved |
-| Multi-monitor clamp | v1.1 Phase introducing persistence | Save a position on a non-primary monitor; restart; verify widget restores to that monitor |
-| Window.Left NaN before Show() | v1.1 Phase introducing persistence | Set saved position in App.xaml.cs before Show(); verify correct position on first frame |
-| Checkmarks on font menu not set at startup | v1.1 Phase introducing font size UI | Save 24pt; restart; right-click; verify 24pt item is checked and others are not |
+| CPU counter always shows 0 | LOW | Add `_cpuCounter.NextValue()` prime call during init; discard result |
+| Stats interval is 0 on upgrade | LOW | Add guard in `SettingsService.Load()`; rebuild |
+| Startup freeze from counter init | MEDIUM | Move `new PerformanceCounter(...)` to `Task.Run()`; add loading state to stats panel |
+| GPU shows wrong value | MEDIUM | Enumerate all `GPU Engine` instances; filter `engtype_3D`; sum; normalize |
+| Handle leak from undisposed counters | LOW | Add `DisposeCounters()` method; call in `OnClosing` |
+| Window-width jitter | LOW | Set fixed `Width` on stats panel container |
+| DropShadowEffect on bars (invisible shadow) | LOW | Replace with flat `SolidColorBrush`; no effects |
+| Double-timer on interval change | LOW | Ensure `Stop()` before changing `Interval`, then `Start()` |
+| GPU throws on VM/no GPU | LOW | Wrap `PerformanceCounterCategory.Exists()` check; `_gpuAvailable = false` fallback |
 
 ---
 
@@ -478,16 +540,17 @@ How the new v1.1 features interact with existing v1.0 code.
 
 | Source | URL | Confidence |
 |--------|-----|------------|
-| Window.DragMove — throws InvalidOperationException if left button not down | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.dragmove | HIGH |
-| Window.LocationChanged — fires after DragMove | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.locationchanged | HIGH |
-| Window.Left — property value in logical units (1/96th inch); NaN = system default | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.left | HIGH |
-| Window.SizeToContent — WidthAndHeight; SizeChanged fired when content resizes | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.sizetocontent | HIGH |
-| Window.Closing — not raised on session end; owned window Closing not raised if owner closes | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.closing | HIGH |
-| SystemParameters.VirtualScreenWidth — bounding rect of all monitors, DPI-adjusted | https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.virtualscreenwidth | HIGH |
-| Environment.SpecialFolder.LocalApplicationData — per-user non-roaming app data, always writable | https://learn.microsoft.com/en-us/dotnet/api/system.environment.specialfolder | HIGH |
-| File path formats — relative paths dangerous in multithreaded apps; exe-adjacent writes fail in Program Files | https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats | HIGH |
+| PerformanceCounter.NextValue — "call twice for rate counters" | https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter.nextvalue | HIGH |
+| PerformanceCounter implements IDisposable | https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter | HIGH |
+| System.Text.Json — positional record constructor parameters treated as optional before .NET 9 | https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/required-properties | HIGH |
+| DispatcherTimer — interval, Start, Stop | https://learn.microsoft.com/en-us/dotnet/api/system.windows.threading.dispatchertimer | HIGH |
+| WPF SizeToContent=WidthAndHeight | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.sizetocontent | HIGH |
+| AllowsTransparency — layered HWND, hardware acceleration disabled for effects | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency | HIGH |
+| PerformanceCounterCategory.Exists — check before instantiating | https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecountercategory.exists | HIGH |
+| GPU Engine performance counter category (WDDM 2.x, Windows 10 1709+) — instance name format, Utilization Percentage counter | Community-documented (multiple sources: Stack Overflow, GitHub issues); exact instance name format confirmed by running `typeperf "\GPU Engine(*)\Utilization Percentage"` | MEDIUM |
+| Existing project source — AppSettings record definition, SettingsService.Load/Defaults, MainWindow AllowsTransparency, existing ContextMenu_Opened pattern | Read directly from `c:/src/gsd1/FuzzyClock.App/AppSettings.cs`, `SettingsService.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs` | HIGH |
 
 ---
 
-*Pitfalls research for: WPF transparent overlay — v1.1 drag, position persistence, font size*
+*Pitfalls research for: WPF transparent overlay — v1.2 CPU/GPU/MEM stats panel + Performance Counters*
 *Researched: 2026-02-25*

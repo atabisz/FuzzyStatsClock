@@ -1,6 +1,6 @@
 # Feature Research
 
-**Domain:** Desktop overlay widget — drag/position-persist/font-size milestone (v1.1)
+**Domain:** Desktop overlay widget — system stats panel (v1.2)
 **Researched:** 2026-02-25
 **Confidence:** HIGH (all claims verified against official Microsoft documentation)
 
@@ -8,12 +8,15 @@
 
 ## Scope Note
 
-This file replaces the v1.0 FEATURES.md and focuses exclusively on the three new features
-targeted in v1.1. The existing codebase is a transparent frameless always-on-top WPF window
-with `AllowsTransparency="True"`, `WindowStyle="None"`, `SizeToContent="WidthAndHeight"`,
-`Background="Transparent"` on the Window, and `Background="#01000000"` on the root Grid
-(near-transparent, ensuring hit-testability). That setup is the foundation for all three
-new features.
+This file replaces the v1.1 FEATURES.md and focuses exclusively on the five new features
+targeted in v1.2. The existing codebase is a transparent frameless always-on-top WPF window
+with a working time-phrase display, drag-to-reposition, font-size selection, and all settings
+persisted to `%LOCALAPPDATA%\FuzzyClock\settings.json`. That foundation is not re-documented here.
+
+The three stats are: CPU %, GPU %, Memory % (RAM). Each stat shows a horizontal bar and
+percentage text. The panel lives below the existing time-phrase TextBlocks in the same window.
+A "Stats" submenu in the right-click context menu provides Show/Hide toggle and Update Interval
+(1s / 3s / 10s).
 
 ---
 
@@ -21,316 +24,286 @@ new features.
 
 ### Table Stakes (Users Expect These)
 
-These are behaviors users will silently expect. Getting them wrong registers as a bug, not
-a missing feature.
+These are behaviors users will silently expect from any minimal stats overlay. Missing them
+registers as a bug, not as a missing feature.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Left-click drag anywhere on widget moves it | How every borderless widget works; user's first instinct | LOW | `Window.DragMove()` on `MouseLeftButtonDown`; the root Grid `#01000000` background already makes the full bounding box hit-testable (confirmed in existing code) |
-| Widget stays put after drag | If it snaps back, user loses trust immediately | LOW | Already set via `Window.Left`/`Window.Top` — these persist for the session; durability across restarts is the persistence feature below |
-| Position saved and restored across restarts | A widget that forgets where you placed it is fundamentally broken for a persistent desktop tool | LOW | JSON file in `%LOCALAPPDATA%\FuzzyClock\settings.json`; load on startup, save on drag-end or close |
-| Widget never starts off-screen | Monitor resolutions change, displays disconnect; saved position must be validated | LOW–MEDIUM | Clamp `Left`/`Top` so at least a minimum visible region (e.g., 50px square) intersects the available working area; use `SystemParameters.WorkArea` for single-monitor or `System.Windows.Forms.Screen.GetWorkingArea()` for multi-monitor |
-| Font size change is immediate | Menu selection should update the live widget visually; no "apply" button | LOW | Set `FontSize` on both `PhraseText` and `ShadowText` TextBlocks; call `UpdateLayout()` then re-run position logic |
-| Font size persists across restarts | Choosing a font size every launch is friction; users set it once | LOW | Store as integer in the same JSON file as position |
-| Right-click menu shows current font size as selected | Standard radio/check-mark UX; without it the menu feels stateless | LOW | `IsChecked="True"` on the active size `MenuItem`; update IsChecked when size changes |
+| Three labeled stats rows (CPU / GPU / MEM) | Any stats overlay shows at least these three; omitting one feels broken | LOW | Three rows in existing StackPanel/Grid, each with a label + bar + % text |
+| Percentage text (0–100%) displayed beside bar | Users must be able to read the number at a glance; bar alone is not readable at small sizes | LOW | `TextBlock` with `Text="{Binding ...}"` or set in timer callback; format as `"45%"` |
+| Horizontal bar fills proportionally to value | This is the universally expected visual metaphor for a usage meter | LOW | WPF `ProgressBar` with `Minimum=0`, `Maximum=100`, `Value=<reading>`; or a custom `Border`/`Rectangle` inside a fixed-width container with `Width` bound to value |
+| Live update on a timer | Stats that don't update are a broken clock | LOW | `DispatcherTimer` with configurable `Interval`; tick handler calls data sources and pushes new values to UI |
+| Show/Hide toggle persists across restarts | A user who hides the stats panel once should not see it reappear every launch | LOW | Extend existing `settings.json` with `statsVisible: bool`; restore in `ApplySettings()` |
+| Update interval persists across restarts | Choosing an interval every launch is friction | LOW | Extend existing `settings.json` with `statsInterval: int` (seconds); restore in `ApplySettings()` |
+| Stats hidden by default on first run | New feature should not force itself on users who haven't asked for it | LOW | Default `statsVisible = false` in settings; first run starts with stats hidden |
 
-### Differentiators (Competitive Advantage)
+### Expected Layout Behavior
 
-Not required to ship v1.1, but would make the feature feel more polished.
+These are the behavioral expectations for the bar + label layout that users have from every
+existing stats widget (Windows Task Manager, Resource Monitor, HWiNFO, GPU-Z, Rainmeter):
+
+| Behavior | Why Expected | Notes |
+|----------|--------------|-------|
+| Label text ("CPU", "GPU", "MEM") is left-aligned, fixed width | Alignment makes bars line up cleanly; labels are short and fixed | `TextBlock` with fixed `Width` or `MinWidth`; `Grid.Column` layout preferred |
+| Bar is the widest element — visual weight of the row | The bar communicates magnitude; text shows precision | Bar gets star-sizing (`Width="*"`) in a Grid column; text is auto-width |
+| Percentage text is right-aligned or immediately follows bar | Users scan right-to-left: bar gives approximate, number confirms | TextBlock after bar; `HorizontalAlignment="Right"` or in a separate Grid column |
+| All three rows are the same width | Mismatched widths feel broken | All rows inside a uniform-width container; `HorizontalAlignment="Stretch"` |
+| Bars update smoothly (no visual flicker) | Jitter or flicker from UI thread thrashing reads as low quality | Dispatcher updates only changed values; no forced full re-layout |
+| Bars do not jump between 0% and 100% on first sample | First-sample anomalies are well-known for PerformanceCounter | Call `NextValue()` once on initialization (throw-away sample), then start the timer |
+
+### Show/Hide Toggle Behavior
+
+| Behavior | Why Expected | Notes |
+|----------|--------------|-------|
+| Toggle immediately shows/hides the stats rows | Menu actions should be instant | Set stats container `Visibility` to `Visible`/`Collapsed` in the click handler |
+| When hidden, time phrase layout is unchanged | User chose to hide stats to reduce clutter; hiding must not break the main feature | `Collapsed` (not `Hidden`) removes layout space; the window shrinks via `SizeToContent="WidthAndHeight"` |
+| When shown after being hidden, bars reflect current values immediately | Stale "last hidden" values would be confusing | Either keep the timer running while hidden (cheapest), or read fresh values on show |
+| Right-click menu shows current state (checked = visible) | Standard IsCheckable menu item convention, already used for font size | Same `IsCheckable` + `ContextMenu_Opened` sync pattern from v1.1 font size menu |
+
+### Update Interval Selector Behavior
+
+| Behavior | Why Expected | Notes |
+|----------|--------------|-------|
+| Three discrete intervals: 1s / 3s / 10s | Three is enough for "fast / balanced / battery-friendly" without overwhelming the menu | Radio-style `IsCheckable` menu items; mutual exclusion in code, same pattern as font size |
+| Active interval shown as checked | Standard for radio-style menu items | Same `ContextMenu_Opened` sync pattern used for font size |
+| Interval change takes effect immediately | User picks 1s to diagnose a problem right now; they should not have to restart | Stop and restart the `DispatcherTimer` with the new `Interval` in the click handler |
+| Default interval is 3s | 1s is too frequent for an always-running widget (minor CPU overhead); 10s is too stale for real-time glance use; 3s is the standard Task Manager default | `statsInterval = 3` as the JSON default |
+
+---
+
+## Differentiators (Nice to Have, Not Required for v1.2)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Drag cursor feedback (grabbing hand cursor) | Communicates "this is draggable" to first-time users | LOW | Set `Cursor="SizeAll"` or `"Hand"` on the Grid during drag; use `MouseLeftButtonDown`/`MouseLeftButtonUp` events to toggle |
-| Save position on drag-end (not on close) | Position is durable even if widget crashes or is killed via Task Manager | LOW | Handle `LocationChanged` event with debounce, or save in `MouseLeftButtonUp` after `DragMove()` completes |
-| Snap-to-screen-edge magnetism | Reduces visual clutter; common in overlay tools | MEDIUM | Detect if `Left` or `Top` is within ~20px of a screen edge and snap; adds complexity, not required for v1.1 |
-| Screen-edge snap memory | Remembers which screen edge was the home position | MEDIUM | Would need edge-identity in the JSON; skip for v1.1 |
-| Undo last drag (Ctrl+Z) | Rarely needed; no desktop widget app offers this | HIGH | Anti-feature for this project; skip |
+| Bar color changes at thresholds (e.g., green → yellow → red) | Visual severity indicator; used by Task Manager and Resource Monitor | MEDIUM | Bind bar `Foreground` to a converter that returns a `SolidColorBrush` based on value ranges; not required |
+| Smooth bar animation (transitions instead of instant jumps) | Polished feel; used in resource monitors | MEDIUM | WPF `ProgressBar` has a built-in animation mode; or manually animate `Width` with a `DoubleAnimation`; adds noise to actual readings — skip |
+| Numerical GB/MB display for RAM (e.g., "7.2 GB / 16 GB") | More informative than % alone for memory decisions | LOW–MEDIUM | Requires `GlobalMemoryStatusEx` P/Invoke for `ullTotalPhys`; doable but out of scope for v1.2 |
+| Per-core CPU graph | Useful for multi-core diagnosis | HIGH | Requires one counter per logical core; separate rows or sparklines; out of scope |
+| GPU VRAM usage % | Useful for gamers | MEDIUM | Requires a separate counter or WMI query; potentially not available on all GPU vendors; out of scope |
+| Historical sparkline (last N readings) | Trend is more useful than a point-in-time reading | HIGH | Requires circular buffer + custom drawing (WPF Canvas or WriteableBitmap); out of scope |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+---
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Click-through transparent areas pass mouse to desktop | "I don't want the widget to block clicks on my desktop" | Cannot be combined with dragging: if the window is WS_EX_TRANSPARENT, mouse events go to the window behind it and `DragMove()` is never reached. Also the existing `#01000000` Grid background is specifically there to ensure hit-testability | If click-through is ever needed, it must be an explicit toggle that disables drag; not compatible as a default behavior |
-| Arbitrary font size text input | "I want exactly 28pt" | Adds an input field, validation, and a wider range of layout edge cases; the overlay was designed for glanceability at 3 fixed sizes | Provide three labeled options: Small (16pt), Medium (24pt), Large (32pt) |
-| Font family selector | "I prefer a different font" | Introduces layout instability — different fonts have different metrics that break the shadow-offset alignment and border sizing | Keep Segoe UI Light; it is available on all modern Windows installs |
-| Settings dialog / window | "A proper settings screen would be nicer" | Contradicts the product's core simplicity; adds a second WPF window, focus management, and theming concerns | Keep everything in the right-click context menu |
-| Position locked / locked toggle | "Prevent accidental drags" | Niche; adds a state indicator; the right-click-to-close pattern already shows the widget is intentionally interactive | Skip for v1.1 |
-| Multi-monitor position memory per-monitor | "Remember which monitor I usually put it on" | `System.Windows.Forms.Screen` enumerates monitors, but saving per-monitor position requires monitor identity (device name or bounds) which changes when monitors are rearranged | Clamp the single saved position to the nearest visible screen on restore; that is sufficient for most reconfigurations |
+## Anti-Features (Scope Creep Risks)
+
+These are features that will be suggested, feel obvious, and would undermine the widget's
+core minimalism or add disproportionate complexity.
+
+| Anti-Feature | Why It Gets Requested | Why to Refuse | What to Do Instead |
+|--------------|----------------------|---------------|-------------------|
+| GPU temperature display | "Since you're reading GPU counters anyway..." | GPU temp is not a Windows Performance Counter; requires vendor-specific DLLs (NVAPI, ADL) or WMI extensions that may not be present on all hardware | Show GPU % only; document the limitation as intentional |
+| CPU temperature / fan speed | "Make it like HWiNFO lite" | Same issue — thermal data requires third-party libraries or WMI Win32_TemperatureProbe (not universally supported) | Hard no; the widget is a minimal overlay, not a hardware monitor |
+| Per-process CPU list / top processes | "Show me what's eating CPU" | This is Task Manager, not a widget; would require enumerating all processes, sorting, and rendering a variable-length list | Users who need this should open Task Manager (Win+Tab → right-click → Task Manager) |
+| Network I/O stats | "Add network bandwidth too" | Adds a fourth stat row and a new data source; this is v1.2 scope expansion, not a table stake | Deferred to v2+ if ever requested; keep it to 3 stats for now |
+| Disk I/O stats | Same as network | Same reasons | Deferred to v2+ |
+| Custom bar colors / color theme | "Let me change the colors" | Adds a color picker or color presets, which requires a new UI surface or more menu items; the design philosophy is no settings screens | Use a fixed accent color that reads well on the existing dark semi-transparent backdrop (#26000000) |
+| Settings exported / imported | "Share my config" | Overkill for a widget with 5–6 settings fields total; the settings.json is already human-readable and user-accessible | Settings file location is known; power users can edit it directly |
+| Click stats row to open Resource Monitor | "Quick launch shortcut" | Adds click handling on rows, which conflicts with drag behavior (left-click drag would fight with row click) | Do not add per-row click targets; drag must remain unambiguous |
+| Configurable bar width | "Make bars wider/narrower" | Adds a slider or text input; the bars should be as wide as the time phrase (tied to font size); fixed relative width is correct | Bars inherit width from the existing window width, which is already driven by font size and phrase length |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Drag to reposition]
-    └──requires──> [Hit-testable window surface]
-                       (already satisfied: root Grid Background="#01000000")
-    └──requires──> [Window.Left / Window.Top are writable]
-                       (already satisfied: WindowStartupLocation="Manual")
+[Stats panel display]
+    └──requires──> [DispatcherTimer] (new; replaces or augments existing 10s timer)
+    └──requires──> [CPU PerformanceCounter] (new; System.Diagnostics.PerformanceCounter)
+    └──requires──> [GPU PerformanceCounter] (new; "GPU Engine" category; see Pitfalls)
+    └──requires──> [Memory reading] (new; GlobalMemoryStatusEx P/Invoke or PerformanceCounter)
+    └──requires──> [WPF bar element] (new; ProgressBar or custom Border/Rectangle)
+    └──requires──> [Stats container element in XAML] (new; Grid or StackPanel rows)
 
-[Position persistence]
-    └──requires──> [Drag to reposition] (something to persist)
-    └──requires──> [JSON settings file] (new: System.Text.Json, no extra NuGet needed in .NET 10)
-    └──requires──> [Off-screen clamp on load]
-                       (new: SystemParameters.WorkArea or Screen.GetWorkingArea)
+[Stats container]
+    └──child-of──> [Existing root StackPanel/Grid] (appended below ShadowText+PhraseText)
+    └──visibility-controlled-by──> [Show/Hide toggle]
 
-[Font size selection]
-    └──requires──> [Right-click context menu] (already exists)
-    └──enhances──> [Right-click context menu] (adds a "Font Size" submenu with 3 items)
-    └──requires──> [JSON settings file] (shared with position persistence)
+[Show/Hide toggle]
+    └──requires──> [Stats submenu in ContextMenu] (new MenuItem with submenu)
+    └──persists-to──> [settings.json] (extend existing AppSettings record)
 
-[JSON settings file]
-    └──requires──> [Known file path] (Environment.SpecialFolder.LocalApplicationData + "FuzzyClock")
-    └──requires──> [Graceful missing-file handling] (first run: use defaults, no crash)
+[Update Interval selector]
+    └──requires──> [Stats submenu in ContextMenu] (same submenu as toggle)
+    └──persists-to──> [settings.json] (extend existing AppSettings record)
+    └──controls──> [DispatcherTimer.Interval]
+
+[settings.json extension]
+    └──requires──> [AppSettings record gains two new fields: statsVisible, statsInterval]
+    └──backward-compatible──> [existing Left/Top/FontSize fields must be unaffected]
+    └──default-on-missing-fields──> [statsVisible=false, statsInterval=3]
 ```
 
 ### Dependency Notes
 
-- **Position persistence and font-size persistence share one file.** The settings object should hold both `Left`, `Top`, and `FontSize`. Reading/writing once is simpler and avoids partial-save issues.
-- **SizeToContent interaction with font size.** The window already uses `SizeToContent="WidthAndHeight"`. Changing font size changes the window's ActualWidth/ActualHeight. After applying font size, `UpdateLayout()` must be called before re-positioning, exactly as `UpdatePhraseIfChanged()` already does. This dependency already has a working pattern in the codebase.
-- **PositionTopRight() must be retired or made conditional.** Currently `ContentRendered` unconditionally calls `PositionTopRight()`. With persistence, the startup flow becomes: (1) load settings, (2) apply font size, (3) apply saved position if valid, else fall back to top-right default. The existing `PositionTopRight()` becomes a fallback, not the primary path.
+- **Timer architecture.** The existing codebase uses a `DispatcherTimer` with a 10-second interval to call `UpdatePhraseIfChanged()`. The stats update timer is a SEPARATE timer — do not merge them. The stats timer interval is user-configurable (1s/3s/10s), while the phrase timer is always 10s. Keep them independent.
+- **First-sample warm-up.** `PerformanceCounter.NextValue()` for the CPU category (`"Processor"`, `"% Processor Time"`, instance `"_Total"`) returns 0 on the first call because it needs two samples to calculate a delta. Call `NextValue()` once at initialization (discard result), then start the timer. This ensures the first displayed value is meaningful.
+- **GPU counter availability.** The `"GPU Engine"` category exists on Windows 10+ with WDDM 2.0+ drivers. It has multiple instances (one per engine type per adapter). Aggregating to a single overall GPU % requires summing `"Utilization Percentage"` across `"engtype_3D"` (or `"_Total"`) instances. This is the most complex part of the feature — see PITFALLS.md for the fallback strategy.
+- **MemoryStatus.** The simplest approach for RAM % is `PerformanceCounter("Memory", "% Committed Bytes In Use", "")` which returns system-wide committed memory as a percentage. Alternatively, `GlobalMemoryStatusEx` via P/Invoke gives `dwMemoryLoad` directly as a 0–100 integer. The P/Invoke route is more reliable and slightly faster than instantiating a PerformanceCounter for memory.
+- **SizeToContent interaction.** When the stats panel is shown, the window grows vertically. When hidden (`Collapsed`), it shrinks back. The existing `SizeToContent="WidthAndHeight"` behavior handles this automatically. No manual height calculation is needed. However, growing the window downward might push it off-screen if the widget is near the bottom edge — re-run the clamping logic after toggling visibility.
+- **AppSettings record extension.** The existing `AppSettings` record (or class) gains `StatsVisible` (bool, default false) and `StatsInterval` (int, default 3). System.Text.Json deserializes missing fields to their default values for records with default parameters — no migration code needed if the record uses optional parameters with defaults.
+- **Context menu structure.** The existing menu has "Font Size" submenu and "Close". The new "Stats" submenu sits between Font Size and Close. The submenu structure:
+  ```
+  [ Font Size  ▶ ]
+  [ Stats      ▶ ]
+                  [ Show Stats   ✓ ]   ← IsCheckable, checked = visible
+                  [ ─────────────── ]
+                  [ Update Every  ▶ ]
+                                    [ 1 Second    ]
+                                    [ 3 Seconds  ✓ ]  ← checked = active
+                                    [ 10 Seconds   ]
+  [ ─────────────── ]
+  [ Close           ]
+  ```
 
 ---
 
-## Drag-to-Reposition: Detailed Behavior Specification
+## Data Source: CPU %
 
-### How DragMove Works in This Window
-
-`Window.DragMove()` is the standard WPF approach. It:
-- Requires the left mouse button to be pressed when called (throws `InvalidOperationException` otherwise)
-- Delegates to Win32's `SendMessage(WM_NCLBUTTONDOWN, HTCAPTION, ...)` internally
-- Takes over mouse capture for the duration of the drag
-- Updates `Window.Left` and `Window.Top` continuously as the user drags
-- Releases on mouse button up automatically
-
-**Hit-test precondition (critical for this project):** `DragMove()` only fires if the mouse is over a hit-testable surface. The existing window design already handles this correctly:
-- `Background="Transparent"` on `Window` would be transparent to hit-testing if not compensated
-- `Background="#01000000"` on the root `Grid` (alpha=1, barely visible) makes the entire bounding box hit-testable
-- The `ShadowText` TextBlock has `IsHitTestVisible="False"` (correct — shadow layer should not interfere)
-- No changes to XAML are needed to support dragging the transparent area around the text
-
-**Where to hook it:** Handle `MouseLeftButtonDown` on the root `Grid` or override `OnMouseLeftButtonDown` on the `Window`:
+**Source:** Windows Performance Counter
+**Category:** `"Processor"`
+**Counter:** `"% Processor Time"`
+**Instance:** `"_Total"` (sum across all cores / logical processors)
 
 ```csharp
-protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+var cpu = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+cpu.NextValue(); // warm-up call; returns 0; discard
+```
+
+**Behavior:** Returns 0–100 float. Call `NextValue()` each tick. Reads from PDH.
+**Availability:** Present on all Windows XP+ systems. HIGH confidence.
+**Source:** https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter
+
+---
+
+## Data Source: GPU %
+
+**Source:** Windows Performance Counter
+**Category:** `"GPU Engine"`
+**Counter:** `"Utilization Percentage"`
+**Instance:** varies — one instance per engine per adapter (e.g., `"pid_XXXX_luid_0x00000000_0x0000XXXX_phys_0_eng_0_engtype_3D"`)
+
+To get an aggregate "overall GPU %" without per-process filtering:
+1. Enumerate instances in the `"GPU Engine"` category.
+2. Filter to instances ending in `"_engtype_3D"` (the 3D/compute engine used by games and heavy workloads), OR use `"_engtype_VideoDecode"` + `"_engtype_VideoEncode"` for encode/decode.
+3. Sum `NextValue()` across all filtered instances, cap at 100%.
+
+**Simpler approach:** Use the `"_Total"` aggregate if available on the target machine. On many Windows 11 systems, `"_Total"` is an available instance. Check at runtime and fall back to manual aggregation if not present.
+
+**Availability:** Windows 10 (WDDM 2.0+). Not present on older Windows or systems without a WDDM GPU. The stats panel must handle this gracefully — if the category does not exist, show "GPU: N/A" and skip the counter. See PITFALLS.md for fallback strategy.
+**Confidence:** MEDIUM — behavior verified through community documentation and Windows Task Manager behavior; official Microsoft docs do not enumerate the exact instance name format.
+
+---
+
+## Data Source: Memory %
+
+**Source:** Win32 API P/Invoke
+**Function:** `GlobalMemoryStatusEx` in `kernel32.dll`
+**Field:** `MEMORYSTATUSEX.dwMemoryLoad` (0–100 integer, percentage of physical memory in use)
+
+```csharp
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+private class MEMORYSTATUSEX
 {
-    base.OnMouseLeftButtonDown(e);
-    DragMove();
+    public uint dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+    public uint dwMemoryLoad;
+    public ulong ullTotalPhys;
+    public ulong ullAvailPhys;
+    // ... remaining fields
 }
+
+[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+private static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
 ```
 
-This fires for any left-click anywhere in the bounding box, including the text and the transparent-but-hit-testable padding area.
-
-**Right-click menu conflict:** `DragMove()` is only called on `MouseLeftButtonDown`. Right-click for the context menu fires `MouseRightButtonDown` — these are separate event paths. No conflict.
-
-### Expected Drag UX
-
-- Widget moves fluidly with the cursor, no lag
-- No visual feedback is required (users expect drag of a transparent window to just work)
-- Widget can be placed anywhere on-screen, including partially off-screen
-- Drag does NOT auto-clamp during the drag; clamping is only applied at startup when restoring a saved position
-
-### Edge Cases
-
-| Case | Expected Behavior |
-|------|-------------------|
-| Drag initiated on text vs. transparent area | Same behavior — the `#01000000` Grid makes both hit-testable |
-| Drag toward screen edge / taskbar | Windows handles this; widget can overlap the taskbar (it is `Topmost=True`) |
-| Right-click during drag | Not reachable — drag takes mouse capture; right-click events don't fire until mouse is released |
-| Click on transparent padding area | Works — Grid background makes it hit-testable |
-| Drag on second monitor | Works — `DragMove()` handles virtual desktop coordinates natively |
+**Alternative:** `PerformanceCounter("Memory", "% Committed Bytes In Use", "")` gives committed bytes as %, which is a different (slightly higher) metric than physical RAM %. For a simple "RAM %" display that matches Task Manager, prefer `GlobalMemoryStatusEx.dwMemoryLoad`.
+**Availability:** All Windows versions; kernel32.dll P/Invoke is universally available.
+**Confidence:** HIGH — official Windows API documentation, verified 2026-02-25.
+**Source:** https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex
 
 ---
 
-## Position Persistence: Detailed Behavior Specification
+## WPF Layout: Bar + Label + Percentage
 
-### What to Save
-
-```json
-{
-  "left": 1420.0,
-  "top": 20.0,
-  "fontSize": 32
-}
-```
-
-`Window.Left` and `Window.Top` are in WPF logical units (1/96th inch, i.e., device-independent pixels). These should be saved as-is — they are already in a consistent coordinate system. Do not convert to physical pixels before saving.
-
-### When to Save
-
-- On `LocationChanged` event (fires continuously during drag) — use a debounce or only save on `MouseLeftButtonUp` after drag to avoid write-storm
-- Simplest safe option: save in a `LocationChanged` handler, but only write if the position has been stable for >500ms (timer-based debounce), OR save when the application exits (`Application.Exit` or `Window.Closing`)
-- Even simpler: override `OnMouseLeftButtonUp` to save after `DragMove()` completes; since `DragMove()` blocks until button release, the next statement after `DragMove()` runs exactly when the user drops the widget
-
-### Where to Save
-
-```
-%LOCALAPPDATA%\FuzzyClock\settings.json
-```
-
-In C#:
-```csharp
-var dir = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "FuzzyClock");
-Directory.CreateDirectory(dir); // no-op if already exists
-var path = Path.Combine(dir, "settings.json");
-```
-
-This location is:
-- User-scoped (survives app reinstall, does not require elevation)
-- Writable without UAC
-- Standard Windows convention for per-user app data
-- Separate from the app binary directory (avoid writing to Program Files)
-
-### Off-Screen Clamping
-
-**Why clamping is needed:** A saved position of `Left=3840, Top=20` is valid for a 4K monitor but renders the widget invisible after disconnecting that monitor. The user would have no way to retrieve the widget.
-
-**What "off-screen" means:** The saved `(Left, Top)` places the widget entirely outside all connected displays' combined working area, or so far into a corner that no usable region is visible.
-
-**Clamping strategy — minimum visible region:**
-
-```
-After loading Left/Top from file:
-1. Compute the widget's would-be Rect: new Rect(left, top, ActualWidth, ActualHeight)
-2. For each Screen in System.Windows.Forms.Screen.AllScreens:
-   Compute intersection of widget Rect with screen.WorkingArea
-3. If total intersection area >= threshold (e.g., 50×50 logical pixels):
-   Position is acceptable — apply it
-4. Else (widget would be off all screens or nearly so):
-   Fall back to PositionTopRight() on primary screen
-```
-
-**Simpler single-monitor approach (acceptable for v1.1):**
-Use `SystemParameters.WorkArea` (primary screen only) and clamp:
-
-```csharp
-var work = SystemParameters.WorkArea;
-double clampedLeft = Math.Max(work.Left, Math.Min(left, work.Right - ActualWidth));
-double clampedTop  = Math.Max(work.Top,  Math.Min(top,  work.Bottom - ActualHeight));
-```
-
-**Trade-off:** Simple clamp against primary screen is correct for single-monitor users and handles the most common off-screen case (monitor disconnected). Multi-monitor users who deliberately position the widget on a secondary display will have it moved to primary after a disconnect, which is the least-bad outcome (widget is always visible).
-
-**Recommendation for v1.1:** Use `SystemParameters.WorkArea` (WPF native, no WinForms reference needed). Add multi-monitor support (via `System.Windows.Forms.Screen.GetWorkingArea`) only if it becomes a reported pain point.
-
-### First Run (No Settings File)
-
-Load returns null/default. Apply defaults: `FontSize=32`, position = top-right (existing `PositionTopRight()` logic). Write the defaults to file after first `ContentRendered` so subsequent launches have a file to read.
-
-### Corrupted / Invalid Settings File
-
-Wrap the JSON read in try/catch. On any exception (malformed JSON, missing fields, out-of-range values), silently fall back to defaults and overwrite the file with defaults. Do not surface an error dialog — the widget should always start.
-
----
-
-## Font Size Selection: Detailed Behavior Specification
-
-### The Three Sizes
-
-| Option | Display Label | FontSize | Rationale |
-|--------|---------------|----------|-----------|
-| Small  | "Small (16pt)"  | 16 | Compact; good for high-density desktops |
-| Medium | "Medium (24pt)" | 24 | Default for most users; readable at arm's length |
-| Large  | "Large (32pt)"  | 32 | Current v1.0 default; good for high-DPI or distance viewing |
-
-The current v1.0 code hardcodes `FontSize="32"` on both TextBlocks. v1.1 makes this a user choice with 32pt as the default on first run.
-
-### Context Menu Structure
-
-Extend the existing right-click `ContextMenu` on the root `Grid`:
-
-```
-[ Close ]
-[ ─────────── ]
-[ Font Size  ▶ ]
-               [ Small (16pt)   ✓ ]   ← check mark on active size
-               [ Medium (24pt)    ]
-               [ Large (32pt)     ]
-```
-
-This uses WPF's native `MenuItem` → nested `MenuItem` submenu pattern:
+The recommended layout for a single stat row is a three-column Grid row:
 
 ```xml
-<MenuItem Header="Font Size">
-    <MenuItem x:Name="FontSmall"  Header="Small (16pt)"  IsCheckable="True" Click="FontSize_Click" Tag="16" />
-    <MenuItem x:Name="FontMedium" Header="Medium (24pt)" IsCheckable="True" Click="FontSize_Click" Tag="24" />
-    <MenuItem x:Name="FontLarge"  Header="Large (32pt)"  IsCheckable="True" Click="FontSize_Click" Tag="32" />
-</MenuItem>
+<!-- Example: one stat row -->
+<Grid Margin="0,2,0,0">
+    <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="35"/>       <!-- label: "CPU" -->
+        <ColumnDefinition Width="*"/>        <!-- bar: fills available width -->
+        <ColumnDefinition Width="35"/>       <!-- percentage: "45%" -->
+    </Grid.ColumnDefinitions>
+    <TextBlock Grid.Column="0" Text="CPU" Foreground="White" FontSize="11"
+               VerticalAlignment="Center"/>
+    <ProgressBar Grid.Column="1" x:Name="CpuBar" Minimum="0" Maximum="100"
+                 Value="45" Height="6" Margin="4,0"/>
+    <TextBlock Grid.Column="2" x:Name="CpuText" Text="45%"
+               Foreground="White" FontSize="11"
+               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+</Grid>
 ```
 
-**Radio-style mutual exclusion:** WPF `MenuItem` does not have a built-in `GroupName` like `RadioButton`. Implement it manually: in the `FontSize_Click` handler, set `IsChecked=false` on all three items, then set `IsChecked=true` on the clicked item.
+**Why Grid columns instead of StackPanel:** Columns guarantee alignment across all three rows. Label widths, bar widths, and percentage widths stay identical across CPU/GPU/MEM rows. A StackPanel of StackPanels would produce uneven layouts.
 
-### Applying Font Size
+**ProgressBar vs. custom Rectangle:**
+- `ProgressBar` is the correct WPF control for this purpose. It has built-in `Minimum`/`Maximum`/`Value` properties, supports data binding, and has a default horizontal fill visual.
+- Custom `Rectangle` or `Border` with `Width` binding requires manual width calculation relative to parent width. More code, no benefit.
+- The default `ProgressBar` template includes a glow animation for indeterminate state — this should be disabled by setting `IsIndeterminate="False"` (which is the default) and setting a flat style if the animated glow is unwanted.
+- Style the `ProgressBar` with a simple `ControlTemplate` if the system default aero theme looks out of place on the dark backdrop.
 
-```csharp
-double size = double.Parse((string)((MenuItem)sender).Tag);
-PhraseText.FontSize = size;
-ShadowText.FontSize = size;
-UpdateLayout();           // Required: SizeToContent makes ActualWidth stale
-RepositionAfterResize();  // Re-apply stored position (or PositionTopRight if no stored position)
-```
-
-The shadow TextBlock must receive the same FontSize as the primary, or the 2px offset shadow will misalign at different sizes.
-
-### Position After Font Size Change
-
-When font size changes, the window resizes (`SizeToContent="WidthAndHeight"`). If the window is currently positioned at the right or bottom edge of a screen, a size increase may push it off-screen. After applying a new font size, re-clamp `Left`/`Top` using the same clamping logic used at startup.
-
-**Do not automatically re-anchor to top-right.** The user may have dragged the widget to a custom position. Just clamp if the new size creates an off-screen condition.
-
-### Save on Font Size Change
-
-Save the updated settings immediately after applying the new font size. The user should not need to restart or close the app for the preference to be durable.
+**Confidence:** HIGH — official WPF ProgressBar documentation, verified 2026-02-25.
+**Source:** https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/progressbar
 
 ---
 
-## MVP Definition
+## MVP Definition for v1.2
 
-### Ship with v1.1
+### Ship with v1.2 (Active Requirements from PROJECT.md)
 
-All four are already committed in PROJECT.md as the active milestone requirements.
+- [ ] **STAT-01** — Stats panel shows CPU, GPU, and memory usage below the time phrase
+- [ ] **STAT-02** — Each stat displays as a horizontal bar + percentage text
+- [ ] **STAT-03** — Update interval (1s / 3s / 10s) is user-selectable via right-click submenu
+- [ ] **STAT-04** — Stats panel visibility (show/hide) is user-toggleable via right-click submenu
+- [ ] **STAT-05** — Stats visibility and update interval are persisted to settings.json and restored on launch
 
-- [ ] **Drag to reposition (WIN-04)** — `OnMouseLeftButtonDown` → `DragMove()`; no XAML changes needed
-- [ ] **Position restored on startup, clamped if off-screen (WIN-05)** — JSON file in LocalApplicationData; single-monitor WorkArea clamp
-- [ ] **Font size selector in right-click menu (DISP-05)** — "Font Size" submenu with 3 IsCheckable MenuItems; radio mutual exclusion in code-behind
-- [ ] **Font size persists (DISP-06)** — stored in the same JSON file as position
+### Explicitly Not in v1.2
 
-### Not in v1.1 (Confirmed Deferred)
-
-- [ ] **Auto-launch on Windows login (STRT-01)** — registry run key; explicitly deferred to v2+ in PROJECT.md
-- [ ] **Animated phrase transitions** — polish; does not affect positioning or font
-- [ ] **Multi-monitor smart positioning** — `Screen.GetWorkingArea`; acceptable to skip for v1.1
+- GPU temperature, CPU temperature, fan speeds (requires vendor libraries)
+- Per-process stats list (scope creep; use Task Manager)
+- Network / Disk I/O stats (deferred to v2+ if ever needed)
+- Bar color theming or custom color picker
+- Sparkline history graphs
+- Smooth bar animation (adds visual noise to actual readings)
 
 ---
 
-## Feature Prioritization Matrix
+## Complexity Assessment
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Drag to reposition | HIGH | LOW (3–5 lines of code) | P1 |
-| Position persistence + clamping | HIGH | LOW–MEDIUM (JSON file + clamp logic) | P1 |
-| Font size selector in menu | HIGH | LOW (XAML submenu + handler) | P1 |
-| Font size persistence | HIGH | LOW (reuse the same JSON write path) | P1 |
-| Drag cursor feedback | LOW | LOW | P3 — nice to have |
-| Save-on-drag-end (debounced) vs save-on-close | LOW | LOW | P2 — save-on-close is acceptable for v1.1 |
-| Multi-monitor clamping | MEDIUM | MEDIUM | P3 — defer unless reported |
+| Component | Complexity | Reason |
+|-----------|------------|--------|
+| CPU % counter | LOW | Standard PerformanceCounter; well-documented pattern |
+| Memory % via P/Invoke | LOW | Single P/Invoke call; `dwMemoryLoad` is a direct 0–100 integer |
+| GPU % counter | MEDIUM | Instance enumeration required; `"_Total"` may not exist; graceful fallback needed |
+| WPF bar layout | LOW | ProgressBar in Grid columns; standard WPF pattern |
+| Show/Hide toggle | LOW | Set `Visibility` on a container; same `IsCheckable` pattern already used |
+| Update interval selector | LOW | Restart `DispatcherTimer` with new `Interval`; same radio-check pattern already used |
+| Settings persistence | LOW | Two new fields in existing `AppSettings` record; no migration needed |
+| Window resize on show/hide | LOW | `SizeToContent="WidthAndHeight"` handles it automatically; add a clamp call after toggle |
 
 ---
 
 ## Sources
 
-- `Window.DragMove()` method: https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.dragmove (HIGH confidence — official docs, verified 2026-02-25)
-- `UIElement.IsHitTestVisible` + WPF hit testing: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/hit-testing-in-the-visual-layer (HIGH confidence — official docs, verified 2026-02-25)
-- `SystemParameters.WorkArea`: https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.workarea (HIGH confidence — official docs, verified 2026-02-25)
-- `Screen.GetWorkingArea()` for multi-monitor: https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.screen.getworkingarea (HIGH confidence — official docs, verified 2026-02-25)
-- `Window.Left` / `Window.Top` coordinate system: https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.left (HIGH confidence — official docs, verified 2026-02-25)
-- `MenuItem.IsChecked` / submenu patterns: https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.menuitem.ischecked (HIGH confidence — official docs, verified 2026-02-25)
-- `System.Text.Json` serialization: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/how-to (HIGH confidence — official docs, verified 2026-02-25)
-- `Environment.GetFolderPath(LocalApplicationData)`: https://learn.microsoft.com/en-us/dotnet/api/system.environment.getfolderpath (HIGH confidence — official docs, verified 2026-02-25)
-- Existing codebase: `C:/src/gsd1/FuzzyClock.App/MainWindow.xaml` and `MainWindow.xaml.cs` (HIGH confidence — first-party, read directly)
+- `PerformanceCounter` class: https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter (HIGH confidence — official docs, verified 2026-02-25)
+- `GlobalMemoryStatusEx` P/Invoke: https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex (HIGH confidence — official Win32 API docs, verified 2026-02-25)
+- WPF `ProgressBar` control: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/progressbar (HIGH confidence — official docs, verified 2026-02-25)
+- `MEMORYSTATUSEX.dwMemoryLoad` field: https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-memorystatusex (HIGH confidence — official Win32 API docs)
+- `"GPU Engine"` performance counter category: Community-verified against Windows Task Manager behavior on Windows 10/11; no single authoritative Microsoft doc enumerates all instance name patterns (MEDIUM confidence)
+- `ComputerInfo.TotalPhysicalMemory` / `AvailablePhysicalMemory`: https://learn.microsoft.com/en-us/dotnet/api/microsoft.visualbasic.devices.computerinfo (HIGH confidence — alternative RAM source, verified 2026-02-25)
+- Existing codebase: `C:/src/gsd1/FuzzyClock.App/MainWindow.xaml` and `MainWindow.xaml.cs` (HIGH confidence — first-party)
 
 ---
-*Feature research for: Fuzzy Clock v1.1 — drag/position-persist/font-size*
+
+*Feature research for: Fuzzy Clock v1.2 — system stats panel (CPU / GPU / MEM)*
 *Researched: 2026-02-25*

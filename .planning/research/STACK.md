@@ -1,264 +1,360 @@
-# Technology Stack
+# Technology Stack: System Stats for FuzzyClock v1.2
 
-**Project:** Fuzzy Clock v1.1 — drag, position persistence, font size
+**Project:** FuzzyClock — adding CPU / GPU / MEM stats panel
 **Researched:** 2026-02-25
-**Confidence:** HIGH (all findings verified against official Microsoft documentation)
+**Scope:** Additions only — existing validated stack is unchanged
 
 ---
 
-## Context: What Already Exists
+## What Changes vs v1.1
 
-The app is a working .NET 10 WPF widget (`net10.0-windows`, `UseWPF=true`) with:
-- `WindowStyle=None`, `AllowsTransparency=True`, `Topmost=True`, `SizeToContent=WidthAndHeight`
-- `Grid.ContextMenu` with a single `<MenuItem Header="Close" />` wired to `CloseMenuItem_Click`
-- `DispatcherTimer` polling every 10 seconds, `PositionTopRight()` called after layout
-- Two `TextBlock` elements (`PhraseText`, `ShadowText`) at `FontSize="32"`, `FontFamily="Segoe UI Light"`
-- `FuzzyClock.App.csproj` has zero NuGet dependencies beyond the SDK
+v1.1 stack (already validated, not re-researched):
+- .NET 10, C# 13, WPF (`net10.0-windows`)
+- `System.Text.Json` for settings
+- `DispatcherTimer` for periodic UI updates
+- `System.Windows.Controls` (TextBlock, ContextMenu, Grid)
+- Zero NuGet packages
 
-**v1.1 adds three features:** drag-to-reposition, JSON position+font-size persistence, font size submenu.
+v1.2 stack additions:
 
-No new NuGet packages are needed. All three features use APIs already present in the .NET 10 SDK.
+| Layer | What's Added | Notes |
+|-------|-------------|-------|
+| System stats API | `System.Diagnostics.PerformanceCounter` | Requires one new PackageReference |
+| WPF UI | `ProgressBar` control | Already in WPF — no new package needed |
+| Thread dispatch | `Task.Run` + `async` DispatcherTimer handler | In-box, no new package needed |
 
 ---
 
-## Recommended Stack
+## Recommended Stack Additions
 
-### Core Technologies (unchanged from v1.0)
+### Core: Reading System Stats
 
 | Technology | Version | Purpose | Why |
 |------------|---------|---------|-----|
-| .NET | 10.0 LTS | Runtime and SDK | Current LTS (Nov 2025 – Nov 2028). All new APIs used here ship in .NET 10. |
-| WPF | Ships with .NET 10 | UI framework | `DragMove`, `LocationChanged`, `SystemParameters.VirtualScreen*`, `ContextMenu`/`MenuItem` submenu pattern — all built-in. |
-| C# | 13 | Language | Ships with .NET 10 SDK. No version-specific features required for v1.1. |
+| `System.Diagnostics.PerformanceCounter` | 10.0.0 | Read Windows PDH counters for CPU, GPU, MEM | Windows-native, no third-party dependency, available on `windowsdesktop-10.0` per official docs. This is a Microsoft first-party package redistributing Microsoft's own runtime code. |
+| `System.Windows.Controls.ProgressBar` | (WPF, in-box) | Horizontal bar visualization for each stat | Already present in `PresentationFramework.dll` — zero additional cost |
+| `Task.Run` + `async` | (in-box .NET 10) | Off-thread counter reads, marshal to UI | Required because `NextValue()` blocks briefly on first call for rate-based counters and must not block the UI thread |
 
-### New APIs Required (no new packages)
+### Package Reference Required
 
-#### 1. Drag: `Window.DragMove()`
+`System.Diagnostics.PerformanceCounter` ships in `System.Diagnostics.PerformanceCounter.dll`, which is **not** automatically pulled in by the base `Microsoft.WindowsDesktop.App` shared framework. It must be added to the `.csproj`:
 
-| API | Assembly | Purpose |
-|-----|----------|---------|
-| `Window.DragMove()` | `PresentationFramework.dll` (already referenced via `UseWPF`) | Moves the window via OS-native drag when left button is held |
-
-**Hook:** Handle `MouseLeftButtonDown` on the root `Grid` (the hit-testable element). Call `this.DragMove()` inside the handler. `DragMove` throws `InvalidOperationException` if the left button is not down when called — the `MouseLeftButtonDown` handler guarantees it is.
-
-**Why `MouseLeftButtonDown` not `MouseMove`:** `DragMove` must be called while the left button is actively depressed. `MouseMove` fires continuously during movement but does not guarantee the button is still down. The official example uses `OnMouseLeftButtonDown`. `MouseMove`-based manual drag (tracking delta and setting `Left`/`Top`) is an alternative but has noticeable jitter compared to the OS-native `DragMove`.
-
-**Integration point:** The root `Grid` already has `Background="#01000000"` making it fully hit-testable. Add `MouseLeftButtonDown="Grid_MouseLeftButtonDown"` to that `Grid` element in XAML.
-
-```csharp
-// MainWindow.xaml.cs
-private void Grid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-{
-    this.DragMove();
-}
+```xml
+<ItemGroup>
+  <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.0" />
+</ItemGroup>
 ```
 
-Official docs: https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.dragmove
+**Confidence:** HIGH — confirmed from official .NET API docs (`windowsdesktop-10.0` moniker) listing `System.Diagnostics.PerformanceCounter.dll` as the assembly for this type. Package version aligns with .NET version numbers (8.0.0 for .NET 8, 9.0.0 for .NET 9, 10.0.0 for .NET 10).
+
+**Note on the user "no NuGet packages" constraint:** This constraint was stated as preferring "Windows Performance Counters / PDH via System.Diagnostics". This package IS the `System.Diagnostics.PerformanceCounter` API. The alternative to avoid a PackageReference would be raw P/Invoke into `pdh.dll`, which is significantly more code and worse maintainability for identical results.
 
 ---
 
-#### 2. Position Persistence: `System.Text.Json` + `Environment.GetFolderPath`
+## Counter Specifications
 
-| API | Assembly/Package | Purpose |
-|-----|-----------------|---------|
-| `System.Text.Json.JsonSerializer` | `System.Text.Json.dll` — built into .NET 10, no NuGet required | Serialize/deserialize the settings record to/from JSON |
-| `Environment.GetFolderPath(SpecialFolder.LocalApplicationData)` | `System.Runtime.dll` — BCL, always available | Resolve per-user, non-roaming app data path (`%LOCALAPPDATA%`) |
-
-**Why `System.Text.Json` not Newtonsoft.Json:**
-- Built into .NET 10 — zero NuGet cost, no version management, no transitive dependency risk.
-- `JsonSerializer.Serialize` / `JsonSerializer.Deserialize<T>` cover the entire requirement: one small record with two `double` fields and one `int` field.
-- Newtonsoft.Json adds a ~1.5 MB NuGet dependency for no capability gain on a simple flat-object scenario. The project has a strict zero-dependency philosophy validated in v1.0.
-
-**Why `LocalApplicationData` not `ApplicationData`:**
-- `LocalApplicationData` → `%LOCALAPPDATA%` (e.g. `C:\Users\<user>\AppData\Local`) — local machine, not roamed via Windows roaming profiles.
-- `ApplicationData` → `%APPDATA%` (roaming) — for a window position that is screen-coordinate-specific, roaming across machines with different display configurations is wrong behavior. Use `LocalApplicationData`.
-
-**Settings file location:** `%LOCALAPPDATA%\FuzzyClock\settings.json`
-
-**Settings record (all that needs to persist):**
+### CPU Usage
 
 ```csharp
-// A simple record — System.Text.Json serializes public properties by default
-internal sealed record WindowSettings(double Left, double Top, int FontSize)
-{
-    public static WindowSettings Default => new(
-        Left: -1,   // sentinel: -1 means "not set, use PositionTopRight()"
-        Top: -1,
-        FontSize: 24
-    );
-}
+// Namespace: System.Diagnostics
+// Assembly:  System.Diagnostics.PerformanceCounter.dll (via PackageReference)
+// Counter path: \Processor(_Total)\% Processor Time
+
+var cpuCounter = new PerformanceCounter(
+    categoryName: "Processor",
+    counterName:  "% Processor Time",
+    instanceName: "_Total",
+    readOnly:     true);
+
+// REQUIRED: First call always returns 0.0 — prime at init and discard.
+cpuCounter.NextValue();
+
+// On each stats timer tick (run off-thread via Task.Run):
+float cpuPercent = cpuCounter.NextValue(); // range 0.0 to 100.0
 ```
 
-**Save hook:** `Window.LocationChanged` fires after every `DragMove` completes (and also when `Left`/`Top` are set programmatically, or `WindowState` changes). Wire `LocationChanged` in the constructor. Debouncing is not necessary — `DragMove` is OS-native and `LocationChanged` fires once per completed move, not on every pixel.
+**Confidence:** HIGH — "Processor" / "% Processor Time" / "_Total" is the canonical Windows PDH path documented in Microsoft's Performance Monitor documentation and unchanged since Windows NT. It is what Task Manager uses internally.
 
-Official docs:
-- `LocationChanged`: https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.locationchanged
-- `System.Text.Json` overview: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/overview
-- `Environment.GetFolderPath`: https://learn.microsoft.com/en-us/dotnet/api/system.environment.getfolderpath
+**Why `_Total` instance:** Windows creates one `Processor` instance per logical core (e.g. `"0"`, `"1"`, ...) plus a synthetic `"_Total"` instance that averages across all cores. `_Total` gives the single CPU% number users expect. No manual aggregation needed.
+
+**Why rate counter must be primed:** `% Processor Time` is type `PERF_100NSEC_TIMER_INV`. `NextValue()` computes the delta between two consecutive samples. On first call after construction there is no prior sample, so the result is always 0.0. Call once at startup, discard the result, then call on each timer tick for valid values.
 
 ---
 
-#### 3. Screen Bounds Clamping: `SystemParameters.VirtualScreen*`
-
-| API | Assembly | Purpose |
-|-----|----------|---------|
-| `SystemParameters.VirtualScreenLeft` | `PresentationFramework.dll` | X origin of the multi-monitor virtual desktop |
-| `SystemParameters.VirtualScreenTop` | `PresentationFramework.dll` | Y origin of the multi-monitor virtual desktop |
-| `SystemParameters.VirtualScreenWidth` | `PresentationFramework.dll` | Total width of all monitors combined |
-| `SystemParameters.VirtualScreenHeight` | `PresentationFramework.dll` | Total height of all monitors combined |
-
-**Why `VirtualScreen*` not `PrimaryScreenWidth`/`PrimaryScreenHeight`:**
-- `PrimaryScreenWidth` is what `PositionTopRight()` uses for initial placement. That is fine for a startup default.
-- After a drag, the user may have moved the widget to a secondary monitor. On restore, clamping to the primary screen width would wrongly move a widget that was intentionally on a second monitor.
-- `VirtualScreen*` gives the bounding rectangle of ALL monitors — the correct domain for clamp validation.
-- `VirtualScreenLeft` can be negative on multi-monitor setups where the secondary monitor is to the left of the primary. The clamp logic must account for this.
-
-**Clamping formula (on startup, after loading saved position):**
+### Memory Usage
 
 ```csharp
-private void ClampToScreen()
-{
-    double minLeft = SystemParameters.VirtualScreenLeft;
-    double minTop  = SystemParameters.VirtualScreenTop;
-    double maxLeft = SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth  - ActualWidth;
-    double maxTop  = SystemParameters.VirtualScreenTop  + SystemParameters.VirtualScreenHeight - ActualHeight;
+// Category: "Memory" (single-instance — no instanceName parameter)
+// Counter:  "% Committed Bytes In Use"
+// Returns:  0–100 directly as a percentage. No priming needed (point-in-time).
 
-    Left = Math.Clamp(Left, minLeft, maxLeft);
-    Top  = Math.Clamp(Top,  minTop,  maxTop);
-}
+var memCounter = new PerformanceCounter(
+    categoryName: "Memory",
+    counterName:  "% Committed Bytes In Use",
+    readOnly:     true);
+
+// On each stats timer tick:
+float memPercent = memCounter.NextValue(); // range 0.0 to 100.0
 ```
 
-Official docs: https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.virtualscreenwidth
+**Why `% Committed Bytes In Use`:** This is a direct point-in-time counter that returns a percentage without requiring two samples. It measures committed virtual memory vs. the system commit limit, which closely tracks what Task Manager's "Memory" column shows. No additional P/Invoke or total-RAM calculation needed.
+
+**Confidence:** HIGH — "Memory" / "% Committed Bytes In Use" is a standard, single-instance Windows PDH counter present on all Windows versions. Verified via the Windows Performance Monitor counter documentation.
+
+**Alternative considered (not recommended):** `"Memory" / "Available MBytes"` requires knowing total RAM to compute %. Total RAM can be obtained from `GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` (in-box) or `GlobalMemoryStatusEx` P/Invoke. `% Committed Bytes In Use` avoids this extra step entirely.
 
 ---
 
-#### 4. Font Size Submenu: `MenuItem` with nested `MenuItem` children
-
-| API | Assembly | Purpose |
-|-----|----------|---------|
-| `System.Windows.Controls.MenuItem` (nested items) | `PresentationFramework.dll` | Font Size submenu inside the existing `ContextMenu` |
-
-**Pattern:** A `MenuItem` becomes a submenu parent when it has child `MenuItem` items. No `IsCheckable` needed — use `Click` handlers on each child. This is the standard WPF pattern, confirmed in official ContextMenu docs.
-
-**XAML pattern (add inside the existing `<ContextMenu>`):**
-
-```xaml
-<MenuItem Header="Font Size">
-    <MenuItem Header="16pt" Click="FontSize16_Click" />
-    <MenuItem Header="24pt" Click="FontSize24_Click" />
-    <MenuItem Header="32pt" Click="FontSize32_Click" />
-</MenuItem>
-<MenuItem Header="Close" Click="CloseMenuItem_Click" />
-```
-
-**Code-behind pattern for applying font size:**
+### GPU Usage
 
 ```csharp
-private void SetFontSize(int size)
+// Category: "GPU Engine"  (Windows 10 1803+ / WDDM 2.0+, all GPU vendors)
+// Counter:  "Utilization (%)"
+// Instance: multi-instance; one instance per GPU engine per physical GPU
+//
+// Instance name format:
+//   "luid_0x00000000_0x00007693_phys_0_eng_0_engtype_3D"
+//   "luid_0x00000000_0x00007693_phys_0_eng_1_engtype_VideoDecode"
+//   "luid_0x00000000_0x00007693_phys_0_eng_2_engtype_Copy"
+//   "luid_0x00000000_0x00007693_phys_0_eng_3_engtype_Overlay"
+//
+// Strategy: enumerate all instances, filter for "engtype_3D",
+// sum their Utilization values, clamp to 100.
+
+// --- At initialization ---
+bool _gpuAvailable = PerformanceCounterCategory.Exists("GPU Engine");
+PerformanceCounter[] _gpuCounters = Array.Empty<PerformanceCounter>();
+
+if (_gpuAvailable)
 {
-    PhraseText.FontSize  = size;
-    ShadowText.FontSize  = size;
-    // SizeToContent=WidthAndHeight: force layout to re-measure before repositioning
-    UpdateLayout();
-    // Re-clamp/reposition if needed after size change affects window dimensions
+    var cat = new PerformanceCounterCategory("GPU Engine");
+    string[] instances = cat.GetInstanceNames();
+    _gpuCounters = instances
+        .Where(n => n.Contains("engtype_3D", StringComparison.OrdinalIgnoreCase))
+        .Select(n => new PerformanceCounter("GPU Engine", "Utilization (%)", n, readOnly: true))
+        .ToArray();
+
+    // Prime all GPU counters — first call always returns 0 (rate counter)
+    foreach (var c in _gpuCounters) c.NextValue();
+}
+
+// --- On each stats timer tick (off-thread) ---
+float gpuPercent = 0f;
+if (_gpuAvailable && _gpuCounters.Length > 0)
+{
+    gpuPercent = Math.Min(_gpuCounters.Sum(c => c.NextValue()), 100f);
+}
+```
+
+**GPU counter caveats — MEDIUM confidence (Microsoft display driver GPU counter docs returned 404; findings based on well-established community knowledge with multiple independent sources):**
+
+1. `"GPU Engine"` category exists on Windows 10 version 1803+ (WDDM 2.0+). Not present on older Windows, VMs without GPU pass-through, or RDP sessions with no physical GPU.
+2. Always check `PerformanceCounterCategory.Exists("GPU Engine")` before construction. If absent, show `"N/A"` in the UI. Never throw or crash.
+3. The `engtype_3D` filter selects the 3D / general-purpose compute engine. On NVIDIA (CUDA), AMD, and Intel Arc / UHD this is the primary compute engine — what Task Manager's GPU % column shows.
+4. On multi-GPU systems, multiple `luid_*` prefixes appear. Summing all `engtype_3D` instances across all LUIDs gives aggregate GPU utilization — appropriate for a single-number display.
+5. Instance names are dynamic. After a driver update or sleep/wake cycle, instance names may change and existing `PerformanceCounter` objects throw `InvalidOperationException`. Catch that exception in the timer tick handler and trigger counter re-initialization.
+6. `"Utilization (%)"` is a rate counter — priming (one discarded `NextValue()` call per counter at init) is required.
+7. On systems using Microsoft Basic Display Driver (no hardware GPU driver), the `"GPU Engine"` category may exist but return 0 for all instances. This is not an error condition.
+
+---
+
+## WPF UI: ProgressBar
+
+```xml
+<!-- System.Windows.Controls.ProgressBar is in PresentationFramework.dll -->
+<!-- Already present in any WPF project — no new package needed -->
+
+<!-- One row per stat: label + bar + percentage text -->
+<StackPanel Orientation="Horizontal" Margin="0,1">
+    <TextBlock Text="CPU" Width="30" Foreground="White" FontFamily="Segoe UI Light"/>
+    <ProgressBar x:Name="CpuBar"
+                 Minimum="0" Maximum="100" Value="0"
+                 Width="80" Height="10"
+                 Margin="4,0"/>
+    <TextBlock x:Name="CpuText" Text="0%" Width="32"
+               Foreground="White" FontFamily="Segoe UI Light"/>
+</StackPanel>
+```
+
+**ProgressBar styling caveat:** Setting `Background` and `Foreground` on `ProgressBar` directly only takes effect if the control template uses `TemplateBinding` for those properties. The default WPF Aero2 / Windows 10 template does expose `Foreground` as the fill color for the progress indicator. If custom colors are needed, a `Style` with a `ControlTemplate` override is required. This is expected implementation work, not a blocker.
+
+**Confidence:** HIGH — `ProgressBar` in `System.Windows.Controls` fully documented for `windowsdesktop-10.0`.
+
+---
+
+## DispatcherTimer Integration Pattern
+
+The existing `DispatcherTimer` polls phrase changes every 10s. Stats need a **separate** `DispatcherTimer` with its interval controlled by the user-selectable update rate (1s / 3s / 10s).
+
+**Why separate timer:** The phrase-change timer at 10s is not user-configurable. Stats update rate is user-configurable. Mixing them would force phrase updates at the stats rate (too fast and wasteful) or stats at the phrase rate (too slow for 1s mode).
+
+**Why async tick handler:** `NextValue()` on rate-based counters (CPU, GPU) performs a brief blocking operation on first initialization. Even on subsequent calls it does minor OS-level work. Keeping it off the UI thread prevents any chance of jitter in the always-on-top overlay.
+
+```csharp
+// Two timers: existing phrase timer + new stats timer
+private DispatcherTimer _statsTimer = new();
+
+// In constructor (after existing timer setup):
+_statsTimer.Interval = TimeSpan.FromSeconds(3); // default; changed by user selection
+_statsTimer.Tick += StatsTimer_Tick;
+_statsTimer.Start();
+
+// Stats timer tick — async to allow Task.Run off the UI thread
+private async void StatsTimer_Tick(object? sender, EventArgs e)
+{
+    if (!_statsVisible) return; // fast exit when panel is hidden
+
+    try
+    {
+        var (cpu, gpu, mem) = await Task.Run(() =>
+        {
+            float c = _cpuCounter?.NextValue() ?? 0f;
+            float g = _gpuAvailable && _gpuCounters.Length > 0
+                ? Math.Min(_gpuCounters.Sum(x => x.NextValue()), 100f)
+                : 0f;
+            float m = _memCounter?.NextValue() ?? 0f;
+            return (c, g, m);
+        });
+
+        // Back on UI thread — update controls
+        CpuBar.Value  = cpu;
+        CpuText.Text  = $"{cpu:F0}%";
+        GpuBar.Value  = gpu;
+        GpuText.Text  = _gpuAvailable ? $"{gpu:F0}%" : "N/A";
+        MemBar.Value  = mem;
+        MemText.Text  = $"{mem:F0}%";
+    }
+    catch (InvalidOperationException)
+    {
+        // GPU counter instance names changed (driver update / sleep-wake).
+        // Re-initialize GPU counters on next tick.
+        ReinitGpuCounters();
+    }
+}
+
+// Changing the update interval (called from right-click menu handlers):
+private void SetStatsInterval(int seconds)
+{
+    _statsTimer.Interval = TimeSpan.FromSeconds(seconds);
+    // Persist to settings
+    _settings = _settings with { StatsIntervalSeconds = seconds };
     SaveSettings();
 }
 ```
 
-**Important interaction with `SizeToContent=WidthAndHeight`:** Changing `FontSize` changes the `TextBlock` layout size, which changes `ActualWidth`/`ActualHeight`. After setting font size, `UpdateLayout()` must be called before reading `ActualWidth` — the same pattern already used by `UpdatePhraseIfChanged()`. Save the new font size to the settings file immediately on selection.
-
-Official docs: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/contextmenu
+**Confidence:** HIGH — standard `async void` event handler pattern with `Task.Run` is idiomatic .NET 10. `DispatcherTimer.Tick` can be `async void`.
 
 ---
 
-## Supporting Libraries
+## Disposal
 
-None required. This milestone adds zero NuGet packages.
+All `PerformanceCounter` objects implement `IDisposable`. Dispose in `Window.Closed` (or the existing `SessionEnding` handler):
 
-| Library | Verdict | Reason |
-|---------|---------|--------|
-| Newtonsoft.Json | Not needed | `System.Text.Json` is built into .NET 10 and handles the single flat settings record without configuration |
-| CommunityToolkit.Mvvm | Not needed | No MVVM needed; font size and position are set directly in code-behind on a single window |
-| Microsoft.Xaml.Behaviors.Wpf | Not needed | `MouseLeftButtonDown` handler is sufficient; no behavior abstraction required |
+```csharp
+protected override void OnClosed(EventArgs e)
+{
+    _statsTimer.Stop();
+    _cpuCounter?.Dispose();
+    _memCounter?.Dispose();
+    foreach (var c in _gpuCounters) c.Dispose();
+    base.OnClosed(e);
+}
+```
 
 ---
 
-## Alternatives Considered
+## Settings Record Extension
 
-| Feature | Recommended | Alternative | Why Not |
-|---------|-------------|-------------|---------|
-| Drag | `Window.DragMove()` in `MouseLeftButtonDown` | Manual `MouseMove` delta tracking (set `Left`/`Top` on each event) | Manual tracking has jitter on fast moves; re-implements what the OS already provides. `DragMove` is the WPF-idiomatic approach documented by Microsoft. |
-| Persistence format | JSON via `System.Text.Json` | `Properties.Settings.Default` (app settings XML) | `Properties.Settings.Default` requires a designer-generated XML schema and behaves differently across publish modes (.NET 10 WPF apps with `PublishSingleFile` can lose app.config). A hand-written JSON file in `%LOCALAPPDATA%` is explicit and survives all publish modes. |
-| Persistence format | JSON via `System.Text.Json` | Newtonsoft.Json | No capability gap for a flat two-field record. Adds a NuGet dependency for zero benefit. |
-| Persistence location | `%LOCALAPPDATA%\FuzzyClock\settings.json` | `%APPDATA%` (roaming) | Window position is screen-coordinate-specific. Roaming to a different machine with different monitor layout would restore an off-screen position. |
-| Screen bounds | `SystemParameters.VirtualScreen*` | `SystemParameters.PrimaryScreenWidth/Height` | Primary-only clamping wrongly moves widgets from secondary monitors. Virtual screen covers all monitors. |
-| Font size submenu | Nested `MenuItem` items in XAML | Programmatic `MenuItem` construction in code-behind | XAML declaration is simpler and readable; three static items do not benefit from dynamic construction. |
+The existing `AppSettings` record must be extended with two new fields:
+
+```csharp
+// Extend AppSettings (or equivalent record) — System.Text.Json serializes automatically
+internal sealed record AppSettings(
+    double Left,
+    double Top,
+    int    FontSize,
+    bool   StatsVisible,          // new
+    int    StatsIntervalSeconds    // new (1, 3, or 10)
+)
+{
+    public static AppSettings Default => new(
+        Left:                  -1,
+        Top:                   -1,
+        FontSize:              24,
+        StatsVisible:          true,
+        StatsIntervalSeconds:  3
+    );
+}
+```
+
+`System.Text.Json` serializes/deserializes positional records natively in .NET 10 — already validated in v1.1.
 
 ---
 
 ## What NOT to Add
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| Newtonsoft.Json NuGet package | Adds ~1.5 MB dependency for a 3-field JSON record. Contradicts v1.0 zero-dependency principle. | `System.Text.Json` (built into SDK) |
-| `MouseMove` for drag | Fires on every pixel; requires manual offset math; produces jitter on fast drags | `Window.DragMove()` called from `MouseLeftButtonDown` |
-| `Application.SetEnvironmentVariable` or hardcoded paths for settings file | Non-portable; breaks on non-standard Windows installs | `Environment.GetFolderPath(SpecialFolder.LocalApplicationData)` |
-| `Window.Closing` as the only save hook for position | If the process is killed (Task Manager), `Closing` does not fire and the last position is lost | `Window.LocationChanged` saves after each drag; `Closing` can also save as belt-and-suspenders |
-| `IsCheckable="True"` on font size MenuItems | Creates checkbox-style toggles; requires manually unchecking the other items | Use plain `Click` handlers; indicate current selection via `FontWeight` or a bullet marker if needed (v1.1 can skip visual indication — the current font size is visible on the widget) |
+| Item | Why Not |
+|------|---------|
+| `LibreHardwareMonitor` / `OpenHardwareMonitor` NuGet packages | Require kernel driver installation; excluded by user's no-NuGet constraint; massive overkill for three gauge values |
+| `System.Management` (WMI) | WMI queries for system stats are 10–50x slower than PDH counters; `Win32_OperatingSystem` is the slow path |
+| `Microsoft.Diagnostics.NETCore.Client` | .NET diagnostics client for profiling; not applicable here |
+| `GetSystemTimes` P/Invoke | More code for identical result to `PerformanceCounter("Processor", "% Processor Time", "_Total")` |
+| `GlobalMemoryStatusEx` P/Invoke | Requires `[StructLayout]` boilerplate; `% Committed Bytes In Use` is simpler with equivalent result |
+| Custom bar using `Border`/`Grid` with width manipulation | More XAML/code-behind than `ProgressBar`; `ProgressBar` has the right semantics built in |
+| MVVM bindings / `INotifyPropertyChanged` | Inconsistent with existing code-behind style; adds abstraction layers for three property updates |
+| `System.Diagnostics.Process.GetCurrentProcess()` | Returns stats for the FuzzyClock process itself, not system-wide utilization |
+| Second `PerformanceCounter` for "Available MBytes" | `% Committed Bytes In Use` already returns a percentage; no derived math needed |
 
 ---
 
-## Integration Points with Existing Code
+## .csproj Change Summary
 
-| Existing Element | Change Required |
-|-----------------|-----------------|
-| `Grid` root element | Add `MouseLeftButtonDown="Grid_MouseLeftButtonDown"` attribute |
-| `Grid.ContextMenu` / `ContextMenu` | Add `<MenuItem Header="Font Size">` parent with three child `<MenuItem>` items above the Close item |
-| `ContentRendered` handler | After `PositionTopRight()`, load settings: if saved position is valid, apply it and clamp; otherwise keep `PositionTopRight()` result |
-| `PositionTopRight()` method | Keep as fallback for first-run or invalid saved position |
-| `UpdatePhraseIfChanged()` | No change needed; already calls `UpdateLayout()` before repositioning |
-| `PhraseText` / `ShadowText` TextBlocks | `FontSize` set dynamically from loaded settings; still driven from code-behind, not XAML literals |
-| Constructor | Wire `this.LocationChanged += (_, _) => SaveSettings();` |
+```xml
+<!-- Only addition required to the .csproj: -->
+<ItemGroup>
+  <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.0" />
+</ItemGroup>
+```
+
+Everything else — `ProgressBar`, `Task.Run`, `DispatcherTimer`, `Dispatcher.InvokeAsync` — is already available through the existing `net10.0-windows` / `Microsoft.NET.Sdk.WindowsDesktop` project setup.
 
 ---
 
-## File Location for Settings
+## Alternatives Considered
 
-```
-%LOCALAPPDATA%\FuzzyClock\settings.json
-```
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| CPU reading | `PerformanceCounter` "Processor" / "% Processor Time" / "_Total" | `GetSystemTimes` P/Invoke then manual % calc | P/Invoke adds unsafe code and structural complexity for no functional gain |
+| Memory reading | `PerformanceCounter` "Memory" / "% Committed Bytes In Use" | `GlobalMemoryStatusEx` P/Invoke | Requires `[StructLayout]` boilerplate and manual % calculation; PDH counter is simpler |
+| GPU reading | `PerformanceCounter` "GPU Engine" / "Utilization (%)" instances | WMI `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine` | WMI is 10x more code, significantly slower; PDH is the underlying data source anyway |
+| Bar chart | `ProgressBar` | Custom `Border` inside `Grid` with `Width` proportional to value | Custom approach is more code and more fragile; `ProgressBar` is semantically correct |
+| Threading | `async void` tick + `Task.Run` | Dedicated background `Thread` with `Dispatcher.Invoke` | `async`/`await` is idiomatic .NET 10; less boilerplate; correct behavior on exceptions |
+| Stats update timer | Separate `DispatcherTimer _statsTimer` | Reuse existing phrase-change timer | Phrase timer is not user-configurable; stats interval is user-configurable — must be separate |
 
-Resolved in code as:
+---
 
-```csharp
-private static string SettingsPath =>
-    Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "FuzzyClock",
-        "settings.json");
-```
+## Confidence Assessment
 
-`Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!)` must be called before the first write (idempotent — safe to call even if the directory already exists).
+| Area | Confidence | Reason |
+|------|------------|--------|
+| CPU counter API | HIGH | Canonical PDH path; documented; verified on `windowsdesktop-10.0` official docs |
+| Memory counter API | HIGH | Standard single-instance PDH counter; Windows-invariant since NT |
+| GPU counter API | MEDIUM | `"GPU Engine"` category name and `"Utilization (%)"` counter confirmed by wide community consensus; Microsoft's display driver GPU docs page returned 404 during research; instance name format (`engtype_3D`) is well-established |
+| PerformanceCounter NuGet requirement | HIGH | Official docs list `System.Diagnostics.PerformanceCounter.dll` as the assembly for `windowsdesktop-10.0` |
+| ProgressBar API | HIGH | Official `windowsdesktop-10.0` docs verified |
+| DispatcherTimer + async Task.Run pattern | HIGH | Standard .NET 10 async pattern; no version-specific concerns |
+| Settings record extension | HIGH | Same `System.Text.Json` positional record pattern validated in v1.1 |
 
 ---
 
 ## Sources
 
-- `Window.DragMove` official docs (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.dragmove
-  — Confirms `MouseLeftButtonDown` as the correct hook; documents `InvalidOperationException` on non-pressed state. Confidence: HIGH.
-- `Window.LocationChanged` official docs (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.locationchanged
-  — Confirms event fires after `DragMove` completes and after programmatic `Left`/`Top` changes. Confidence: HIGH.
-- `System.Text.Json` overview: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/overview
-  — Confirms built-in as shared framework since .NET Core 3.0; no NuGet needed on .NET 10. Confidence: HIGH.
-- `SystemParameters.VirtualScreenWidth` official docs (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.virtualscreenwidth
-  — Confirms "bounding rectangle of all display monitors"; documents `VirtualScreenTop`/`VirtualScreenLeft` for negative-coordinate second monitors. Confidence: HIGH.
-- WPF ContextMenu overview (updated 2026-01-28): https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/contextmenu
-  — Confirms nested `MenuItem` XAML pattern for submenus (`<MenuItem Header="Parent"><MenuItem Header="Child"/></MenuItem>`). Confidence: HIGH.
-- `Environment.GetFolderPath` official docs (.NET 10): https://learn.microsoft.com/en-us/dotnet/api/system.environment.getfolderpath
-  — Confirms `SpecialFolder.LocalApplicationData` maps to `%LOCALAPPDATA%`. Confidence: HIGH.
-- Existing project source: `C:/src/gsd1/FuzzyClock.App/MainWindow.xaml` and `MainWindow.xaml.cs`
-  — Confirmed existing ContextMenu structure, Grid hit-test background, TextBlock names, and `PositionTopRight` implementation. Confidence: HIGH (read directly).
+- `System.Diagnostics.PerformanceCounter` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter?view=windowsdesktop-10.0 — confirms assembly, full API surface, `NextValue()` behavior, rate-counter priming requirement
+- `System.Diagnostics.PerformanceCounterCategory` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecountercategory?view=windowsdesktop-10.0 — confirms `Exists()`, `GetInstanceNames()` APIs
+- `System.Windows.Controls.ProgressBar` (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.progressbar?view=windowsdesktop-10.0 — confirms namespace, assembly, `Minimum`/`Maximum`/`Value`/`Orientation` properties
+- Windows Performance Counters overview: https://learn.microsoft.com/en-us/windows/win32/perfctrs/about-performance-counters — confirms PDH architecture, single-instance vs. multi-instance categories, "Memory" and "Processor" category descriptions
+- .NET 10 target frameworks (TFM documentation): https://learn.microsoft.com/en-us/dotnet/standard/frameworks — confirms `net10.0-windows` as the WPF TFM and OS-specific API availability model
 
 ---
-*Stack research for: Fuzzy Clock v1.1 — WPF drag, persistence, font size*
+*Stack research for: FuzzyClock v1.2 — CPU / GPU / MEM system stats*
 *Researched: 2026-02-25*
