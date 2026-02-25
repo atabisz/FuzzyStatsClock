@@ -59,8 +59,14 @@ public partial class MainWindow : Window
                 Interval = TimeSpan.FromSeconds(_statsIntervalSeconds)
             };
             _statsTimer.Tick += (_, _) => UpdateStatsDisplay();
-            // Do NOT start _statsTimer here — StatsPanel is Collapsed by default.
-            // Phase 9 starts it via SetStatsVisible(true) when the user enables stats.
+            // Conditional timer start: ApplySettings() may have set StatsPanel to Visible
+            // (restored from settings.json), but _statsTimer didn't exist then. Start it now
+            // if the panel is already visible. If Collapsed, timer stays stopped.
+            if (StatsPanel.Visibility == Visibility.Visible)
+            {
+                _statsTimer.Start();
+                UpdateStatsDisplay();
+            }
         };
     }
 
@@ -84,7 +90,12 @@ public partial class MainWindow : Window
         }
 
         _statsIntervalSeconds = s.StatsIntervalSeconds;
-        // Note: StatsVisible wiring is deferred to Phase 9. StatsPanel Visibility is hardcoded in XAML.
+
+        // Apply stats visibility directly (NOT via SetStatsVisible — that calls UpdateLayout()+Clamp()
+        // which are unsafe before Show(), where ActualHeight is 0).
+        // _statsTimer is null here (created in ContentRendered). Timer start is handled
+        // in ContentRendered by checking panel visibility after _statsTimer is constructed.
+        StatsPanel.Visibility = s.StatsVisible ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>
@@ -93,7 +104,14 @@ public partial class MainWindow : Window
     /// </summary>
     internal void SaveSettings()
     {
-        SettingsService.Save(new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize });
+        SettingsService.Save(new AppSettings
+        {
+            Left = Left,
+            Top = Top,
+            FontSize = _currentFontSize,
+            StatsVisible = (StatsPanel.Visibility == Visibility.Visible),
+            StatsIntervalSeconds = _statsIntervalSeconds
+        });
     }
 
     /// <summary>
@@ -188,11 +206,66 @@ public partial class MainWindow : Window
         FontSmall.IsChecked  = (_currentFontSize == 16);
         FontMedium.IsChecked = (_currentFontSize == 24);
         FontLarge.IsChecked  = (_currentFontSize == 32);
+
+        MenuShowStats.IsChecked  = (StatsPanel.Visibility == Visibility.Visible);
+        MenuInterval1.IsChecked  = (_statsIntervalSeconds == 1);
+        MenuInterval3.IsChecked  = (_statsIntervalSeconds == 3);
+        MenuInterval10.IsChecked = (_statsIntervalSeconds == 10);
     }
 
     private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
     private void FontMedium_Click(object sender, RoutedEventArgs e) => ApplyFontSize(24);
     private void FontLarge_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(32);
+
+    private void MenuShowStats_Click(object sender, RoutedEventArgs e)
+        => SetStatsVisible(StatsPanel.Visibility != Visibility.Visible);
+
+    private void MenuInterval1_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(1);
+    private void MenuInterval3_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(3);
+    private void MenuInterval10_Click(object sender, RoutedEventArgs e) => SetStatsInterval(10);
+
+    private void SetStatsVisible(bool visible)
+    {
+        StatsPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+        if (visible)
+        {
+            _statsTimer?.Start();
+            UpdateStatsDisplay();  // immediate display — no blank panel flash on first show
+
+            // Re-clamp: showing StatsPanel increases window height by ~70px.
+            // SizeToContent=WidthAndHeight: ActualHeight is stale until layout runs.
+            UpdateLayout();
+            if (_hasUserPosition)
+            {
+                var clamped = SettingsService.Clamp(
+                    new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
+                    ActualWidth, ActualHeight);
+                Left = clamped.Left;
+                Top  = clamped.Top;
+            }
+        }
+        else
+        {
+            _statsTimer?.Stop();
+        }
+
+        SaveSettings();
+    }
+
+    private void SetStatsInterval(int seconds)
+    {
+        _statsIntervalSeconds = seconds;
+
+        bool wasRunning = _statsTimer?.IsEnabled ?? false;
+        _statsTimer?.Stop();
+        if (_statsTimer != null)
+            _statsTimer.Interval = TimeSpan.FromSeconds(seconds);
+        if (wasRunning)
+            _statsTimer?.Start();
+
+        SaveSettings();
+    }
 
     private void ApplyFontSize(int size)
     {
