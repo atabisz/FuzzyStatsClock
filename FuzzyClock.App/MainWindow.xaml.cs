@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using FuzzyClock.Core;
@@ -96,6 +97,11 @@ public partial class MainWindow : Window
         // _statsTimer is null here (created in ContentRendered). Timer start is handled
         // in ContentRendered by checking panel visibility after _statsTimer is constructed.
         StatsPanel.Visibility = s.StatsVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        // Apply row visibility directly (NOT via SetStatRowVisible — unsafe before Show()).
+        CpuRow.Visibility = s.CpuVisible ? Visibility.Visible : Visibility.Collapsed;
+        GpuRow.Visibility = s.GpuVisible ? Visibility.Visible : Visibility.Collapsed;
+        MemRow.Visibility = s.MemVisible ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>
@@ -110,7 +116,10 @@ public partial class MainWindow : Window
             Top = Top,
             FontSize = _currentFontSize,
             StatsVisible = (StatsPanel.Visibility == Visibility.Visible),
-            StatsIntervalSeconds = _statsIntervalSeconds
+            StatsIntervalSeconds = _statsIntervalSeconds,
+            CpuVisible = (CpuRow.Visibility == Visibility.Visible),
+            GpuVisible = (GpuRow.Visibility == Visibility.Visible),
+            MemVisible = (MemRow.Visibility == Visibility.Visible)
         });
     }
 
@@ -211,6 +220,10 @@ public partial class MainWindow : Window
         MenuInterval1.IsChecked  = (_statsIntervalSeconds == 1);
         MenuInterval3.IsChecked  = (_statsIntervalSeconds == 3);
         MenuInterval10.IsChecked = (_statsIntervalSeconds == 10);
+
+        MenuCpuVisible.IsChecked = (CpuRow.Visibility == Visibility.Visible);
+        MenuGpuVisible.IsChecked = (GpuRow.Visibility == Visibility.Visible);
+        MenuMemVisible.IsChecked = (MemRow.Visibility == Visibility.Visible);
     }
 
     private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
@@ -219,6 +232,15 @@ public partial class MainWindow : Window
 
     private void MenuShowStats_Click(object sender, RoutedEventArgs e)
         => SetStatsVisible(StatsPanel.Visibility != Visibility.Visible);
+
+    private void MenuCpuVisible_Click(object sender, RoutedEventArgs e)
+        => SetStatRowVisible(CpuRow, CpuRow.Visibility != Visibility.Visible);
+
+    private void MenuGpuVisible_Click(object sender, RoutedEventArgs e)
+        => SetStatRowVisible(GpuRow, GpuRow.Visibility != Visibility.Visible);
+
+    private void MenuMemVisible_Click(object sender, RoutedEventArgs e)
+        => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible);
 
     private void MenuInterval1_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(1);
     private void MenuInterval3_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(3);
@@ -263,6 +285,38 @@ public partial class MainWindow : Window
             _statsTimer.Interval = TimeSpan.FromSeconds(seconds);
         if (wasRunning)
             _statsTimer?.Start();
+
+        SaveSettings();
+    }
+
+    private void SetStatRowVisible(Grid row, bool visible)
+    {
+        row.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+        // Auto-collapse: if all three rows are now hidden and the stats panel is still visible,
+        // collapse the entire panel. One-way trigger — re-showing a row does NOT auto-show the panel.
+        if (!visible
+            && CpuRow.Visibility == Visibility.Collapsed
+            && GpuRow.Visibility == Visibility.Collapsed
+            && MemRow.Visibility == Visibility.Collapsed
+            && StatsPanel.Visibility == Visibility.Visible)
+        {
+            SetStatsVisible(false);
+        }
+
+        // Re-clamp on show: showing a row increases StatsPanel height.
+        if (visible && StatsPanel.Visibility == Visibility.Visible)
+        {
+            UpdateLayout();
+            if (_hasUserPosition)
+            {
+                var clamped = SettingsService.Clamp(
+                    new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
+                    ActualWidth, ActualHeight);
+                Left = clamped.Left;
+                Top  = clamped.Top;
+            }
+        }
 
         SaveSettings();
     }
