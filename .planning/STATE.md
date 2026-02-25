@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 after v1.2)
+See: .planning/PROJECT.md (updated 2026-02-26 after v1.3 milestone start)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.2 milestone complete — planning next milestone
+**Current focus:** v1.3 milestone — Individual Stat Visibility (Phase 10)
 
 ## Current Position
 
-Phase: milestone complete
-Plan: —
-Status: v1.2 milestone archived 2026-02-26
-Last activity: 2026-02-26 — v1.2 milestone complete — all 5 STAT requirements delivered and human-verified
+Phase: 10 (Individual Stat Row Visibility)
+Plan: planning
+Status: Phase 10 roadmapped — ready for plan-phase
+Last activity: 2026-02-26 — v1.3 milestone roadmap created; Phase 10 defined
 
-Progress: [########--] 75% (3/4 v1.2 phases complete — Phase 9 now done, v1.2 feature set delivered)
+Progress: [----------] 0% (0/1 v1.3 phases complete)
 
 ## Performance Metrics
 
@@ -88,6 +88,11 @@ Recent decisions affecting current work:
 - [Phase 09-01]: ContentRendered is the safe first point to conditionally start _statsTimer — _statsTimer does not exist during ApplySettings()
 - [Phase 09-01]: SetStatsInterval() uses Stop+set+Start pattern — updating DispatcherTimer.Interval on a running timer only takes effect after the current interval expires
 - [Phase 09-01]: Re-clamp on SetStatsVisible(true) guarded by _hasUserPosition=true — mirrors ApplyFontSize() pattern; no-position case uses PositionTopRight() which places widget at top-right where downward growth is safe
+- [v1.3 Roadmap]: All five v1.3 requirements (STAT-06 through STAT-10) fit into one phase (Phase 10) — three menu toggles, auto-collapse, persistence follow established patterns from Phase 9
+- [v1.3 Roadmap]: Click handlers read row Visibility (NOT IsChecked) to determine toggle direction — same pattern as MenuShowStats_Click; WPF IsCheckable auto-toggle is unreliable
+- [v1.3 Roadmap]: Auto-collapse logic: when last visible row is hidden AND StatsPanel is Visible, call SetStatsVisible(false) — inverse not needed (Show Stats re-enables panel, rows retain their visibility state)
+- [v1.3 Roadmap]: CpuVisible, GpuVisible, MemVisible bool fields added to AppSettings with default true — same init-property pattern as StatsVisible from Phase 6
+- [v1.3 Roadmap]: ApplySettings() sets each row Visibility directly (NOT via SetStatRowVisible) — same safety invariant as StatsPanel: SetStatRowVisible may call UpdateLayout() which is unsafe before Show()
 
 ### Pending Todos
 
@@ -95,11 +100,11 @@ None.
 
 ### Blockers/Concerns
 
-None — roadmap complete, research complete, ready to execute.
+None — roadmap complete, ready to execute Phase 10.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: 09-controls-persistence-and-edge-cases 09-01-PLAN.md — all tasks complete
+Stopped at: v1.3 roadmap creation — Phase 10 defined
 Resume file: None
-Next action: v1.2 feature set fully delivered — Phase 9 complete
+Next action: `/gsd:plan-phase 10` — plan Phase 10 implementation

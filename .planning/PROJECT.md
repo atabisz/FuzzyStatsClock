@@ -41,9 +41,13 @@ All v1.2 requirements delivered. Stats panel human-verified (all 6 behavioral ch
 - ✓ Stats panel visibility is user-toggleable via right-click Stats submenu (STAT-04) — v1.2
 - ✓ Stats visibility and update interval persist to settings.json and restore on launch (STAT-05) — v1.2
 
-### Active (v2+)
+### Active (v1.3)
 
-*(none — planning next milestone)*
+- [ ] STAT-06: User can toggle CPU row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
+- [ ] STAT-07: User can toggle GPU row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
+- [ ] STAT-08: User can toggle MEM row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
+- [ ] STAT-09: Hiding all three stats individually auto-collapses the stats panel (equivalent to turning Show Stats off)
+- [ ] STAT-10: Individual stat visibility (CPU/GPU/MEM) persists to settings.json and restores on launch
 
 ### Deferred (v2+)
 
@@ -106,4 +110,4 @@ All v1.2 requirements delivered. Stats panel human-verified (all 6 behavioral ch
 | Stop+set+Start for interval change | Updating DispatcherTimer.Interval on running timer only takes effect after current interval expires | ✓ Validated — immediate effect on interval change |
 
 ---
-*Last updated: 2026-02-26 after v1.2 milestone*
+*Last updated: 2026-02-26 after v1.3 milestone start*

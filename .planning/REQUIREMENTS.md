@@ -1,0 +1,58 @@
+# Requirements: Fuzzy Clock
+
+**Defined:** 2026-02-26
+**Core Value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
+
+## v1 Requirements
+
+Requirements for v1.3 release. Each maps to a roadmap phase.
+
+### Stats Visibility
+
+- [ ] **STAT-06**: User can toggle CPU row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
+- [ ] **STAT-07**: User can toggle GPU row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
+- [ ] **STAT-08**: User can toggle MEM row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
+- [ ] **STAT-09**: Hiding all three stats individually auto-collapses the stats panel (equivalent to turning Show Stats off)
+- [ ] **STAT-10**: Individual stat visibility (CPU/GPU/MEM) persists to settings.json and restores on launch
+
+## v2 Requirements
+
+Deferred to future release.
+
+### Window / Position
+
+- **STRT-01**: Auto-launch on Windows login (registry key)
+- **WIN-06**: Widget position persists per monitor (multi-monitor identity via screen handle)
+- **WIN-07**: Widget snaps to screen edges when dragged near them
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| System tray icon / settings UI | Keep it simple |
+| 24-hour format | Natural English implies 12-hour |
+| Click-through / no interaction | Incompatible with drag (kills DragMove() event delivery) |
+| Arbitrary font size input | 3-step ladder is sufficient |
+| Font family selector | Single clean font (Segoe UI Light) is part of the design |
+| Reset all stats to visible via Show Stats | Individual toggles are independent; simpler model |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| STAT-06 | Phase 10 | Pending |
+| STAT-07 | Phase 10 | Pending |
+| STAT-08 | Phase 10 | Pending |
+| STAT-09 | Phase 10 | Pending |
+| STAT-10 | Phase 10 | Pending |
+
+**Coverage:**
+- v1 requirements: 5 total
+- Mapped to phases: 5
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-02-26*
+*Last updated: 2026-02-26 after v1.3 milestone start*
