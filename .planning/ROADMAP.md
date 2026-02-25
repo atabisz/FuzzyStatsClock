@@ -68,7 +68,10 @@ Plans:
   2. The currently active font size is shown as checked in the menu each time it is opened
   3. Selecting a font size changes the phrase text size immediately, with no layout artifacts
   4. After closing and relaunching, the widget displays the font size that was last selected
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 05-01-PLAN.md — Add Font Size submenu to ContextMenu + ApplyFontSize() handler with re-clamp and save
 
 ## Progress
 
