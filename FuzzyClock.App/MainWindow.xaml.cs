@@ -31,7 +31,7 @@ public partial class MainWindow : Window
                 // ApplySettings() set the raw loaded position; ContentRendered adjusts it to
                 // stay within virtual screen bounds (handles monitor disconnect scenarios).
                 var clamped = SettingsService.Clamp(
-                    new AppSettings(Left, Top, _currentFontSize),
+                    new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
                     ActualWidth, ActualHeight);
                 Left = clamped.Left;
                 Top  = clamped.Top;
@@ -73,7 +73,7 @@ public partial class MainWindow : Window
     /// </summary>
     internal void SaveSettings()
     {
-        SettingsService.Save(new AppSettings(Left, Top, _currentFontSize));
+        SettingsService.Save(new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize });
     }
 
     /// <summary>
@@ -120,7 +120,7 @@ public partial class MainWindow : Window
             // Re-clamp after phrase change — SizeToContent may resize the window,
             // pushing it partially off-screen if positioned near an edge.
             var clamped = SettingsService.Clamp(
-                new AppSettings(Left, Top, _currentFontSize),
+                new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
                 ActualWidth, ActualHeight);
             Left = clamped.Left;
             Top  = clamped.Top;
@@ -163,7 +163,7 @@ public partial class MainWindow : Window
         if (_hasUserPosition)
         {
             var clamped = SettingsService.Clamp(
-                new AppSettings(Left, Top, _currentFontSize),
+                new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
                 ActualWidth, ActualHeight);
             Left = clamped.Left;
             Top  = clamped.Top;
