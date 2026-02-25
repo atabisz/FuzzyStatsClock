@@ -41,17 +41,23 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAT-01 | — | Pending |
-| STAT-02 | — | Pending |
-| STAT-03 | — | Pending |
-| STAT-04 | — | Pending |
-| STAT-05 | — | Pending |
+| STAT-01 | Phase 8 | Pending |
+| STAT-02 | Phase 8 | Pending |
+| STAT-03 | Phase 9 | Pending |
+| STAT-04 | Phase 9 | Pending |
+| STAT-05 | Phase 6 + Phase 9 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 5 total
-- Mapped to phases: 0
-- Unmapped: 5 (roadmapper will assign)
+- Mapped to phases: 5
+- Unmapped: 0
+
+**Phase assignments:**
+- Phase 6 (AppSettings Migration): STAT-05 persistence layer foundation
+- Phase 7 (StatsService): STAT-01 data layer
+- Phase 8 (XAML Layout and Stats Display): STAT-01 (visual display), STAT-02
+- Phase 9 (Controls, Persistence, and Edge Cases): STAT-03, STAT-04, STAT-05 (full round-trip)
 
 ---
 *Requirements defined: 2026-02-25*
-*Last updated: 2026-02-25 after initial definition*
+*Last updated: 2026-02-25 after v1.2 roadmap created — phase assignments added*

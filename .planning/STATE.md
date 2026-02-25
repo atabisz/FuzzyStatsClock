@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25 after v1.1)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.2 System Stats — defining requirements
+**Current focus:** v1.2 System Stats — roadmap created, ready to plan Phase 6
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 6 (AppSettings Migration) — not started
 Plan: —
-Status: Defining requirements for v1.2
-Last activity: 2026-02-25 — Milestone v1.2 System Stats started
+Status: Roadmap created, ready for plan-phase 6
+Last activity: 2026-02-25 — v1.2 roadmap created (4 phases: 6, 7, 8, 9)
 
-Progress: [##########] 100% (5/5 phases complete)
+Progress: [----------] 0% (0/4 v1.2 phases complete)
 
 ## Performance Metrics
 
@@ -63,20 +63,23 @@ Recent decisions affecting current work:
 - [Phase 05-01]: ContextMenu.Opened is single sync point for IsChecked — click handlers do NOT touch IsChecked, preventing double-toggle of WPF IsCheckable default
 - [Phase 05-01]: ApplyFontSize() separated from ApplySettings() — ApplyFontSize calls UpdateLayout()+SaveSettings() which are unsafe before window is shown
 - [Phase 05-01]: UpdateLayout() before Clamp() in ApplyFontSize() — same pattern as UpdatePhraseIfChanged(); font size change resizes window via SizeToContent
+- [v1.2 Roadmap]: AppSettings positional record must be converted to init-property record before any new fields are added — prevents JSON forward/backward compatibility issues and the zero-interval timer bug (StatsIntervalSeconds=0 from old JSON)
+- [v1.2 Roadmap]: Two independent DispatcherTimers — phrase timer (10s, not configurable) and stats timer (1s/3s/10s); never merge them
+- [v1.2 Roadmap]: Stats timer must stop when panel is hidden and start when shown — prevents wasted PDH reads on a widget that may run for days
+- [v1.2 Roadmap]: GPU counter is MEDIUM confidence — validate engtype_3D filter on physical hardware during Phase 7; implement _gpuAvailable=false fallback for VMs/RDP
+- [v1.2 Roadmap]: Fixed Width=180 on StatsPanel container prevents window-width jitter from SizeToContent=WidthAndHeight when percentage text length changes
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-- [Phase 4 - RESOLVED 04-02]: UpdatePhraseIfChanged() now guarded with _hasUserPosition flag — drag position no longer reset at 5-min boundaries
-- [Phase 4 - RESOLVED 04-02]: ContentRendered now guarded with _savedPositionLoaded — saved position not overwritten on launch
-- [Phase 4 - RESOLVED 04-02]: ApplySettings() called in App.xaml.cs after new MainWindow() but before Show() — safe assignment point for WindowStartupLocation.Manual
-- [Phase 4 - RESOLVED 04-02]: SessionEnding handler added in App.xaml.cs — covers log-off/shutdown save paths
+None — roadmap complete, research complete, ready to execute.
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: 05-01 COMPLETE — all tasks including human-verify approved; v1.1 fully shipped
+Stopped at: v1.2 roadmap created — 4 phases defined (Phase 6 through Phase 9)
 Resume file: None
+Next action: /gsd:plan-phase 6
