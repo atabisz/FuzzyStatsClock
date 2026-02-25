@@ -38,18 +38,17 @@ public static class SettingsService
     public static AppSettings Defaults() => new(-1, 20, 32);
 
     /// <summary>
-    /// Clamp Left/Top so at least MinVisible px of the window is within the virtual screen bounds.
+    /// Clamp Left/Top so the entire window is within the virtual screen bounds.
     /// Must be called after ActualWidth/ActualHeight are valid (ContentRendered or later).
     /// </summary>
     public static AppSettings Clamp(AppSettings s, double windowWidth, double windowHeight)
     {
-        const double MinVisible = 50;
         double vLeft   = SystemParameters.VirtualScreenLeft;
         double vTop    = SystemParameters.VirtualScreenTop;
         double vWidth  = SystemParameters.VirtualScreenWidth;
         double vHeight = SystemParameters.VirtualScreenHeight;
-        double left = Math.Clamp(s.Left, vLeft - windowWidth + MinVisible, vLeft + vWidth  - MinVisible);
-        double top  = Math.Clamp(s.Top,  vTop  - windowHeight + MinVisible, vTop  + vHeight - MinVisible);
+        double left = Math.Clamp(s.Left, vLeft, vLeft + vWidth  - windowWidth);
+        double top  = Math.Clamp(s.Top,  vTop,  vTop  + vHeight - windowHeight);
         return s with { Left = left, Top = top };
     }
 }
