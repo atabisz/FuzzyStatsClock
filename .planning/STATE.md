@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-25 after v1.1)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** v1.2 System Stats — defining requirements
 
 ## Current Position
 
-Phase: 5 of 5 (Font Size Selection + Persistence)
-Plan: 1 of 1 in current phase — COMPLETE
-Status: ALL PHASES COMPLETE — v1.1 shipped
-Last activity: 2026-02-25 — 05-01 all 3 tasks complete including human-verify (all 9 checks passed)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v1.2
+Last activity: 2026-02-25 — Milestone v1.2 System Stats started
 
 Progress: [##########] 100% (5/5 phases complete)
 

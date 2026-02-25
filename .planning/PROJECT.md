@@ -8,6 +8,16 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v1.2 System Stats
+
+**Goal:** The widget shows live CPU, GPU, and memory usage below the time phrase, with user-selectable update rate and toggle visibility, all persisted across restarts.
+
+**Target features:**
+- Stats panel (CPU / GPU / MEM horizontal bars + % text) below the time phrase
+- Update interval selector (1s / 3s / 10s) in right-click Stats submenu
+- Show/Hide stats toggle in right-click Stats submenu
+- Settings persisted to existing settings.json
+
 ## Current State
 
 **v1.1 shipped: 2026-02-25**
@@ -33,9 +43,13 @@ All v1.1 requirements delivered. Widget running, human-verified.
 - ✓ User can change font size (16/24/32pt) via right-click menu; current size shown as checked (DISP-05) — v1.1
 - ✓ Font size selection persists across restarts (DISP-06) — v1.1
 
-### Active
+### Active (v1.2)
 
-(None — planning next milestone)
+- [ ] Stats panel shows CPU, GPU, and memory usage below the time phrase (STAT-01)
+- [ ] Each stat displays as a horizontal bar + percentage text (STAT-02)
+- [ ] Update interval (1s / 3s / 10s) is user-selectable via right-click submenu (STAT-03)
+- [ ] Stats panel visibility (show/hide) is user-toggleable via right-click submenu (STAT-04)
+- [ ] Stats visibility and update interval are persisted to settings.json and restored on launch (STAT-05)
 
 ### Deferred (v2+)
 
@@ -90,4 +104,4 @@ All v1.1 requirements delivered. Widget running, human-verified.
 | ApplyFontSize() separate from ApplySettings() | ApplyFontSize() calls UpdateLayout()+SaveSettings() which are unsafe before Show() | ✓ Validated — startup safety invariant preserved |
 
 ---
-*Last updated: 2026-02-25 after v1.1 milestone complete*
+*Last updated: 2026-02-25 after v1.2 milestone started*
