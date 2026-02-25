@@ -12,7 +12,7 @@ Build a minimal C# WPF desktop widget that displays the current time as a fuzzy 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Phrase Engine** - Pure C# time-to-phrase logic with full bucket coverage and special cases
+- [x] **Phase 1: Phrase Engine** - Pure C# time-to-phrase logic with full bucket coverage and special cases
 - [ ] **Phase 2: Window Shell** - Transparent, frameless, always-on-top WPF window with close mechanism
 - [ ] **Phase 3: Integration** - Wire engine into window via timer; verify phrase updates and text legibility
 
@@ -30,8 +30,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Scaffold .NET solution: classlib + MSTest test project wired together
-- [ ] 01-02-PLAN.md — TDD cycle: write exhaustive bucket tests (RED), implement PhraseEngine.GetPhrase (GREEN), verify all edge cases
+- [x] 01-01-PLAN.md — Scaffold .NET solution: classlib + MSTest test project wired together
+- [x] 01-02-PLAN.md — TDD cycle: write exhaustive bucket tests (RED), implement PhraseEngine.GetPhrase (GREEN), verify all edge cases
 
 ### Phase 2: Window Shell
 **Goal**: A transparent, frameless, always-on-top WPF window floats on the desktop with a working close mechanism
@@ -62,6 +62,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Phrase Engine | 1/2 | In Progress|  |
+| 1. Phrase Engine | 2/2 | Complete   | 2026-02-25 |
 | 2. Window Shell | 0/? | Not started | - |
 | 3. Integration | 0/? | Not started | - |
