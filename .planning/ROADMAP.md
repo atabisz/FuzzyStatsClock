@@ -152,8 +152,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Add AppSettings fields + XAML row names and per-row menu items
-- [ ] 10-02-PLAN.md — Wire click handlers, checkmark sync, ApplySettings, SaveSettings, auto-collapse; human verify
+- [x] 10-01-PLAN.md — Add AppSettings fields + XAML row names and per-row menu items
+- [x] 10-02-PLAN.md — Wire click handlers, checkmark sync, ApplySettings, SaveSettings, auto-collapse; human verify
 
 ## Progress
 
@@ -168,7 +168,7 @@ Plans:
 | 7. StatsService | v1.2 | 1/1 | Complete | 2026-02-25 |
 | 8. XAML Layout and Stats Display | v1.2 | 2/2 | Complete | 2026-02-26 |
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 1/1 | Complete | 2026-02-26 |
-| 10. Individual Stat Row Visibility | v1.3 | 0/2 | Not started | - |
+| 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
 
 ---
-*Last updated: 2026-02-26 after v1.3 milestone roadmap created — Phase 10 added*
+*Last updated: 2026-02-26 after Phase 10 complete — v1.3 all requirements delivered*
