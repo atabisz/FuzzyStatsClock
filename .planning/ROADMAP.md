@@ -77,7 +77,7 @@ Plans:
 | 1. Phrase Engine | v1.0 | 2/2 | Complete | 2026-02-25 |
 | 2. Window Shell | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 3. Integration | v1.0 | 2/2 | Complete | 2026-02-25 |
-| 4. Settings + Drag + Position Persistence | 1/2 | In Progress|  | - |
+| 4. Settings + Drag + Position Persistence | 2/2 | Complete   | 2026-02-25 | - |
 | 5. Font Size Selection + Persistence | v1.1 | 0/? | Not started | - |
 
 ---

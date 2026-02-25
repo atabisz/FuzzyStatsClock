@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 4 of 5 (Settings + Drag + Position Persistence)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-25 — 04-01 complete (AppSettings + SettingsService created)
+Plan: 2 of 2 in current phase
+Status: At checkpoint — awaiting human verification (Task 3 of 04-02)
+Last activity: 2026-02-25 — 04-02 Tasks 1-2 complete; at checkpoint for human verification
 
 Progress: [###░░░░░░░] 30% (3/5 phases complete — v1.0 shipped; Phase 4 in progress)
 
@@ -30,10 +30,10 @@ Progress: [###░░░░░░░] 30% (3/5 phases complete — v1.0 shipped; 
 | 1. Phrase Engine | 2 | 4 min | 2 min |
 | 2. Window Shell | 3 | 3 min | 1 min |
 | 3. Integration | 2 | 7 min | 3.5 min |
-| 4. Settings + Drag (partial) | 1 | 2 min | 2 min |
+| 4. Settings + Drag (partial) | 2 | 5 min | 2.5 min |
 
 **Recent Trend:**
-- Last 8 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min)
+- Last 9 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (3 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -55,6 +55,8 @@ Recent decisions affecting current work:
 - [04-01]: System.Text.Json (not Newtonsoft.Json) — in-box .NET 10, handles plain positional records natively with zero NuGet cost
 - [04-01]: VirtualScreen* used (not PrimaryScreenWidth) — covers all monitors including negative-offset left-of-primary monitors
 - [04-01]: Atomic Save() via temp-file + File.Move(overwrite:true) prevents corrupt settings.json on mid-write crash
+- [Phase 04-02]: ApplySettings() must be called after new MainWindow() but before Show() — setting Left/Top in constructor can be silently reset by XAML parser
+- [Phase 04-02]: SessionEnding handler added as backup save for Windows log-off/shutdown since Window.Closing is not raised in those paths
 
 ### Pending Todos
 
@@ -62,13 +64,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 4]: UpdatePhraseIfChanged() unconditionally calls PositionTopRight() — must guard with _hasUserPosition flag or drag position is reset at 5-min boundaries (research: critical pitfall P2)
-- [Phase 4]: ContentRendered calls PositionTopRight() unconditionally — must guard so saved position is not overwritten on every launch (research: critical pitfall P3)
-- [Phase 4]: Window.Left/Top set in constructor can be silently reset by InitializeComponent() — apply saved position in App.xaml.cs after new MainWindow() but before Show() (research: pitfall P7)
-- [Phase 4]: Window.Closing not raised on session end — add SessionEnding handler as backup save path (research: pitfall P6)
+- [Phase 4 - RESOLVED 04-02]: UpdatePhraseIfChanged() now guarded with _hasUserPosition flag — drag position no longer reset at 5-min boundaries
+- [Phase 4 - RESOLVED 04-02]: ContentRendered now guarded with _savedPositionLoaded — saved position not overwritten on launch
+- [Phase 4 - RESOLVED 04-02]: ApplySettings() called in App.xaml.cs after new MainWindow() but before Show() — safe assignment point for WindowStartupLocation.Manual
+- [Phase 4 - RESOLVED 04-02]: SessionEnding handler added in App.xaml.cs — covers log-off/shutdown save paths
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 04-01-PLAN.md — AppSettings and SettingsService created, ready for 04-02 integration
+Stopped at: 04-02 Tasks 1-2 committed; at checkpoint:human-verify (Task 3) — awaiting user verification of drag, persistence, clamp, and no-snap behavior
 Resume file: None
