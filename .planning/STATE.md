@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 2 complete — Plan 02-03 complete (human visual verification), all 8 runtime checks passed, ready for Phase 3 (integration)
+**Current focus:** Phase 3 in progress — Plan 03-01 complete (PhraseEngine wired into MainWindow with DispatcherTimer, Border backdrop, and named ShadowText)
 
 ## Current Position
 
-Phase: 2 of 3 (Window Shell) — COMPLETE
-Plan: 3 of 3 in phase 2 — COMPLETE
-Status: Phase 2 complete — all plans verified
-Last activity: 2026-02-25 — Plan 02-03 complete: human visual verification passed all 8 checks (transparency, position, drop shadow, always-on-top, taskbar, Alt+Tab, right-click close, single instance)
+Phase: 3 of 3 (Integration) — IN PROGRESS
+Plan: 1 of 3 in phase 3 — COMPLETE
+Status: Phase 3 plan 1 complete — ready for Plan 03-02 (App.xaml.cs startup wiring)
+Last activity: 2026-02-25 — Plan 03-01 complete: MainWindow.xaml updated with Border backdrop + ShadowText; MainWindow.xaml.cs wired with DispatcherTimer polling PhraseEngine every 10s
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 83%
 
 ## Performance Metrics
 
@@ -29,9 +29,10 @@ Progress: [████████░░] 75%
 |-------|-------|-------|----------|
 | 1. Phrase Engine | 2 | 4 min | 2 min |
 | 2. Window Shell | 3 | 3 min | 1 min |
+| 3. Integration | 1 (of 3) | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min)
+- Last 6 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -61,6 +62,8 @@ Recent decisions affecting current work:
 - [02-02]: Hidden ToolWindow owner pattern: ShowInTaskbar=False alone does not suppress Alt+Tab entry
 - [02-03]: All 8 runtime behaviors confirmed by human inspection — implementation correct first time, no remediation needed
 - [02-03]: Manual offset TextBlock shadow approach confirmed visually effective for drop shadow legibility
+- [Phase 03-integration]: Border backdrop Background=#26000000 (15% black alpha) for phrase legibility on transparent overlay
+- [Phase 03-integration]: DispatcherTimer started in ContentRendered fires on UI thread; UpdatePhraseIfChanged calls UpdateLayout before PositionTopRight for SizeToContent accuracy
 
 ### Pending Todos
 
@@ -73,5 +76,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 02-03-PLAN.md — human visual verification passed all 8 checks, Phase 2 fully complete, ready for Phase 3 (integration)
+Stopped at: Completed 03-01-PLAN.md — PhraseEngine wired into MainWindow with DispatcherTimer, Border backdrop, named ShadowText; ready for 03-02 (App.xaml.cs startup wiring)
 Resume file: None

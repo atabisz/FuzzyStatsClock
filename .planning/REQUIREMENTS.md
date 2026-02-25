@@ -12,7 +12,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DISP-01**: App displays the current time as a fuzzy, poetic English phrase (e.g. "just a little after 11", "almost noon", "12 o'clock", "quarter past 3")
 - [x] **DISP-02**: Phrases map to 5-minute buckets — 12 distinct phrase slots per hour
 - [x] **DISP-03**: Exact noon shows "noon", exact midnight shows "midnight" (not "12 o'clock")
-- [ ] **DISP-04**: Phrase updates at each real 5-minute clock boundary (timer aligns to clock, not 5-min interval from launch)
+- [x] **DISP-04**: Phrase updates at each real 5-minute clock boundary (timer aligns to clock, not 5-min interval from launch)
 
 ### Window
 
@@ -55,7 +55,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISP-01 | Phase 1 | Complete |
 | DISP-02 | Phase 1 | Complete |
 | DISP-03 | Phase 1 | Complete |
-| DISP-04 | Phase 3 | Pending |
+| DISP-04 | Phase 3 | Complete |
 | WIN-01 | Phase 2 | Complete |
 | WIN-02 | Phase 2 | Complete |
 | WIN-03 | Phase 2 | Complete |
