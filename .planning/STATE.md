@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 5 of 5 (Font Size Selection + Persistence)
-Plan: 1 of 1 in current phase
-Status: 05-01 implementation complete — at checkpoint:human-verify (Task 3)
-Last activity: 2026-02-25 — 05-01 tasks 1 and 2 complete; awaiting human verification
+Plan: 1 of 1 in current phase — COMPLETE
+Status: ALL PHASES COMPLETE — v1.1 shipped
+Last activity: 2026-02-25 — 05-01 all 3 tasks complete including human-verify (all 9 checks passed)
 
-Progress: [#####░░░░░] 90% (4/5 phases complete + Phase 5 implementation done, pending human verify)
+Progress: [##########] 100% (5/5 phases complete)
 
 ## Performance Metrics
 
@@ -78,5 +78,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: 05-01 checkpoint:human-verify — tasks 1 and 2 committed; awaiting human verification of font size submenu
+Stopped at: 05-01 COMPLETE — all tasks including human-verify approved; v1.1 fully shipped
 Resume file: None

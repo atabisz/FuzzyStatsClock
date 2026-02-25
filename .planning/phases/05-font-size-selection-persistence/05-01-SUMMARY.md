@@ -53,10 +53,10 @@ completed: 2026-02-25
 
 ## Performance
 
-- **Duration:** 2 min
+- **Duration:** ~5 min (across two sessions including human verify)
 - **Started:** 2026-02-25T03:44:14Z
-- **Completed:** 2026-02-25T03:46:00Z
-- **Tasks:** 2 of 3 complete (Task 3 is human-verify checkpoint)
+- **Completed:** 2026-02-25
+- **Tasks:** 3 of 3 complete (all tasks including human-verify checkpoint approved)
 - **Files modified:** 2
 
 ## Accomplishments
@@ -64,6 +64,7 @@ completed: 2026-02-25
 - Added Font Size submenu (Small 16pt, Medium 24pt, Large 32pt) to the existing right-click ContextMenu in MainWindow.xaml
 - Implemented ContextMenu_Opened handler that syncs all three IsChecked states each time the menu opens — single sync point, no click-handler toggle interference
 - Implemented ApplyFontSize() with UpdateLayout() + conditional re-clamp + SaveSettings() — font size change survives restart and keeps widget on-screen near edges
+- Human verification confirmed all 9 behavioral checks passed: submenu visibility, checkmark sync, immediate apply, persistence after restart, and re-clamp near screen edges
 
 ## Task Commits
 
@@ -71,7 +72,7 @@ Each task was committed atomically:
 
 1. **Task 1: Add Font Size submenu to MainWindow.xaml ContextMenu** - `55202ef` (feat)
 2. **Task 2: Add ContextMenu_Opened handler, click handlers, and ApplyFontSize()** - `619861c` (feat)
-3. **Task 3: Human verify font size submenu** - pending checkpoint
+3. **Task 3: Human verify font size submenu** - checkpoint approved (all 9 checks passed, no code change)
 
 ## Files Created/Modified
 
@@ -100,9 +101,11 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- Both implementation tasks complete and building cleanly
-- Awaiting human verification (Task 3 checkpoint) to confirm submenu renders, checkmarks work, size applies immediately, persistence survives restart, and re-clamp keeps widget on-screen
-- Once Task 3 approved: Phase 5 complete, v1.1 ships
+Phase 5 is complete and human-verified. v1.1 ships:
+- v1.0: Phrase engine, transparent always-on-top window, live phrase updates, right-click Close
+- v1.1: Drag to reposition, position persistence, font size selection (Small/Medium/Large), font size persistence
+
+No further phases planned. All DISP requirements completed.
 
 ---
 *Phase: 05-font-size-selection-persistence*
