@@ -20,7 +20,12 @@
     <Grid Background="#01000000"
           MouseLeftButtonDown="Grid_MouseLeftButtonDown">
         <Grid.ContextMenu>
-            <ContextMenu>
+            <ContextMenu Opened="ContextMenu_Opened">
+                <MenuItem Header="Font Size">
+                    <MenuItem x:Name="FontSmall"  Header="Small (16pt)"  IsCheckable="True" Click="FontSmall_Click" />
+                    <MenuItem x:Name="FontMedium" Header="Medium (24pt)" IsCheckable="True" Click="FontMedium_Click" />
+                    <MenuItem x:Name="FontLarge"  Header="Large (32pt)"  IsCheckable="True" Click="FontLarge_Click" />
+                </MenuItem>
                 <MenuItem Header="Close" Click="CloseMenuItem_Click" />
             </ContextMenu>
         </Grid.ContextMenu>
