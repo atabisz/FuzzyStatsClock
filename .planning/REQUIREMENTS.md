@@ -16,9 +16,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Window
 
-- [ ] **WIN-01**: Window is frameless and transparent — text floats directly on the desktop with no background box
-- [ ] **WIN-02**: Window is always-on-top
-- [ ] **WIN-03**: User can right-click to close the application (required: Alt+F4 is removed by WindowStyle=None)
+- [x] **WIN-01**: Window is frameless and transparent — text floats directly on the desktop with no background box
+- [x] **WIN-02**: Window is always-on-top
+- [x] **WIN-03**: User can right-click to close the application (required: Alt+F4 is removed by WindowStyle=None)
 
 ## v2 Requirements
 
@@ -56,9 +56,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISP-02 | Phase 1 | Complete |
 | DISP-03 | Phase 1 | Complete |
 | DISP-04 | Phase 3 | Pending |
-| WIN-01 | Phase 2 | Pending |
-| WIN-02 | Phase 2 | Pending |
-| WIN-03 | Phase 2 | Pending |
+| WIN-01 | Phase 2 | Complete |
+| WIN-02 | Phase 2 | Complete |
+| WIN-03 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 7 total

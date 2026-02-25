@@ -45,7 +45,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Scaffold FuzzyClock.App WPF project: dotnet new wpf, add to solution, add Core reference
+- [x] 02-01-PLAN.md — Scaffold FuzzyClock.App WPF project: dotnet new wpf, add to solution, add Core reference
 - [ ] 02-02-PLAN.md — Implement transparent overlay: App.xaml/cs (Mutex + hidden owner), MainWindow.xaml/cs (transparency, positioning, close)
 - [ ] 02-03-PLAN.md — Human visual verification: confirm floating text, always-on-top, no taskbar/Alt+Tab, right-click close, single instance
 
@@ -68,5 +68,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Phrase Engine | 2/2 | Complete    | 2026-02-25 |
-| 2. Window Shell | 0/3 | Not started | - |
+| 2. Window Shell | 1/3 | In Progress | - |
 | 3. Integration | 0/? | Not started | - |
