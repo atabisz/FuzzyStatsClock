@@ -109,7 +109,11 @@ Plans:
   3. Percentage text values update at the default 3-second interval without the window changing width due to text length changes
   4. Widget renders identically to v1.1 when the stats panel is in its default Collapsed state (no layout shift, no width change)
   5. Right-click context menu shows a Stats submenu with Show Stats and Update Interval items (structure present, wiring deferred to Phase 9)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Restructure MainWindow.xaml (two-row Grid, StatsPanel, Stats ContextMenu entries) + wire StatsService + UpdateStatsDisplay + _statsTimer in MainWindow.xaml.cs
+- [ ] 08-02-PLAN.md — Temporarily force StatsPanel visible for live verification; human verify layout, bars, and context menu; revert to Collapsed default
 
 ### Phase 9: Controls, Persistence, and Edge Cases
 **Goal**: Stats show/hide and update interval are fully user-controllable, correctly persisted across restarts, and the widget handles startup, shutdown, and edge cases cleanly
@@ -135,8 +139,8 @@ Plans:
 | 5. Font Size Selection + Persistence | v1.1 | 1/1 | Complete | 2026-02-25 |
 | 6. AppSettings Migration | 1/1 | Complete   | 2026-02-25 | - |
 | 7. StatsService | 1/1 | Complete   | 2026-02-25 | - |
-| 8. XAML Layout and Stats Display | v1.2 | 0/? | Not started | - |
+| 8. XAML Layout and Stats Display | v1.2 | 0/2 | Not started | - |
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-25 after v1.2 roadmap created*
+*Last updated: 2026-02-25 after Phase 8 plans created*
