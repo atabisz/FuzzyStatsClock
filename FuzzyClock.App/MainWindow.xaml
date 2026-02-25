@@ -38,7 +38,8 @@
                                   BlurRadius="6"
                                   ShadowDepth="2"
                                   Opacity="0.8"
-                                  Direction="315" />
+                                  Direction="315"
+                                  RenderingBias="Quality" />
             </TextBlock.Effect>
         </TextBlock>
     </Grid>
