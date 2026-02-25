@@ -39,10 +39,20 @@ public partial class App : Application
         // Owner must be shown before setting as Owner for ownership to take effect
         hiddenOwner.Show();
 
+        // Load saved settings before creating MainWindow — position must be applied
+        // after new MainWindow() but before Show() (WindowStartupLocation.Manual requirement).
+        var settings = SettingsService.Load();
+
         var mainWindow = new MainWindow();
         mainWindow.Owner = hiddenOwner;
+        mainWindow.ApplySettings(settings);                     // before Show() — critical ordering
         mainWindow.SetInitialPhrase(PhraseEngine.GetPhrase(DateTime.Now));
         mainWindow.Show();
+
+        // Session-end backup save: Window.Closing is NOT raised on Windows log-off or shutdown.
+        // Application.SessionEnding covers those paths. Both Closing (in OnClosing) and
+        // SessionEnding call the same SaveSettings() method.
+        SessionEnding += (_, _) => (MainWindow as MainWindow)?.SaveSettings();
     }
 
     protected override void OnExit(ExitEventArgs e)

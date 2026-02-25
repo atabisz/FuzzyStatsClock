@@ -17,7 +17,8 @@
     <!-- Background="#01000000": alpha=1, RGB=black — near-transparent but hit-testable.
          A fully transparent (alpha=0) background has no hit-test surface, causing mouse
          events to pass through to windows below and breaking right-click. -->
-    <Grid Background="#01000000">
+    <Grid Background="#01000000"
+          MouseLeftButtonDown="Grid_MouseLeftButtonDown">
         <Grid.ContextMenu>
             <ContextMenu>
                 <MenuItem Header="Close" Click="CloseMenuItem_Click" />
