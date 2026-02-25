@@ -24,9 +24,22 @@
             </ContextMenu>
         </Grid.ContextMenu>
 
+        <!-- Shadow layer: manual offset copy — DropShadowEffect is unreliable on
+             AllowsTransparency windows (.NET 5+ GPU path disabled for layered HWNDs).
+             This always works regardless of rendering path. -->
+        <TextBlock Text="half past 3"
+                   FontFamily="Segoe UI Light"
+                   FontSize="32"
+                   Foreground="#BB000000"
+                   Margin="8"
+                   IsHitTestVisible="False">
+            <TextBlock.RenderTransform>
+                <TranslateTransform X="2" Y="2" />
+            </TextBlock.RenderTransform>
+        </TextBlock>
+
         <!-- PhraseText: static placeholder for Phase 2 — phrase engine wired in Phase 3.
-             DropShadowEffect provides visual definition to compensate for ClearType being
-             disabled by Windows DWM on transparent HWND surfaces. -->
+             DropShadowEffect kept as belt-and-suspenders; manual shadow above is primary. -->
         <TextBlock x:Name="PhraseText"
                    Text="half past 3"
                    FontFamily="Segoe UI Light"
