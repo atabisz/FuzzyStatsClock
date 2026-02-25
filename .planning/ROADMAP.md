@@ -53,7 +53,11 @@ Plans:
   3. If the saved position is off-screen (e.g. after disconnecting a monitor), the widget appears in a visible area instead of off-screen
   4. Position is saved immediately after each drag, not only when the app closes
   5. Phrase auto-updates at 5-minute boundaries do not snap the widget back to the top-right corner
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Create AppSettings record and SettingsService (JSON I/O, VirtualScreen clamp, atomic save)
+- [ ] 04-02-PLAN.md — Wire settings into App.xaml.cs + MainWindow.xaml.cs + MainWindow.xaml; drag handler; PositionTopRight guards; human verify
 
 ### Phase 5: Font Size Selection + Persistence
 **Goal**: Users can change the phrase font size and find their chosen size restored on every launch
@@ -73,8 +77,8 @@ Plans:
 | 1. Phrase Engine | v1.0 | 2/2 | Complete | 2026-02-25 |
 | 2. Window Shell | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 3. Integration | v1.0 | 2/2 | Complete | 2026-02-25 |
-| 4. Settings + Drag + Position Persistence | v1.1 | 0/? | Not started | - |
+| 4. Settings + Drag + Position Persistence | v1.1 | 0/2 | Not started | - |
 | 5. Font Size Selection + Persistence | v1.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-25 after v1.1 roadmap created*
+*Last updated: 2026-02-25 after Phase 4 plans created*
