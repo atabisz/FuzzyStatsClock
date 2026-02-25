@@ -94,7 +94,10 @@ Plans:
   2. CPU percent does not show a 0%-then-jump artifact on first read (counter primed during init)
   3. On a machine without a GPU or with GPU Engine category absent, GpuPercent returns a sentinel value and no exception is thrown
   4. StatsService.Dispose() releases all PerformanceCounter instances without error
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 07-01-PLAN.md — Create StatsService.cs (async init, primed counters, GPU multi-instance enumeration with fallback, IDisposable) + add System.Diagnostics.PerformanceCounter NuGet; verify via debug output
 
 ### Phase 8: XAML Layout and Stats Display
 **Goal**: The stats panel is visible below the time phrase, showing live CPU, GPU, and memory values updating at the default interval
