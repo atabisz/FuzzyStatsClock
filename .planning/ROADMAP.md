@@ -5,7 +5,7 @@
 - **v1.0 MVP** (2026-02-25) — Phrase engine, transparent WPF overlay, full integration. 3 phases, 7 plans. → [Archive](milestones/v1.0-ROADMAP.md)
 - **v1.1 Position + Font Size** (2026-02-25) — Drag reposition, position persistence, font size selector. 2 phases, 3 plans. → [Archive](milestones/v1.1-ROADMAP.md)
 - **v1.2 System Stats** (2026-02-26) — CPU / GPU / MEM stats panel, update interval selector, show/hide toggle, persistence. 4 phases, 5 plans. → [Archive](milestones/v1.2-ROADMAP.md)
-- **v1.3 Individual Stat Visibility** (in progress) — Per-row CPU/GPU/MEM visibility toggles, auto-collapse, persistence. 1 phase, 1 plan.
+- **v1.3 Individual Stat Visibility** (in progress) — Per-row CPU/GPU/MEM visibility toggles, auto-collapse, persistence. 1 phase, 2 plans.
 
 ## Phases
 
@@ -149,7 +149,11 @@ Plans:
   3. User can toggle MEM row visibility from the right-click Stats submenu; the checkmark reflects the actual MEM row visibility state every time the menu opens
   4. Hiding the last visible stat row automatically collapses the stats panel (equivalent to toggling Show Stats off); re-showing any row with Show Stats on makes it visible
   5. CPU, GPU, and MEM row visibility states survive a full app restart (close and relaunch restores each row to its last-chosen state)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Add AppSettings fields + XAML row names and per-row menu items
+- [ ] 10-02-PLAN.md — Wire click handlers, checkmark sync, ApplySettings, SaveSettings, auto-collapse; human verify
 
 ## Progress
 
@@ -164,7 +168,7 @@ Plans:
 | 7. StatsService | v1.2 | 1/1 | Complete | 2026-02-25 |
 | 8. XAML Layout and Stats Display | v1.2 | 2/2 | Complete | 2026-02-26 |
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 1/1 | Complete | 2026-02-26 |
-| 10. Individual Stat Row Visibility | v1.3 | 0/1 | Not started | - |
+| 10. Individual Stat Row Visibility | v1.3 | 0/2 | Not started | - |
 
 ---
 *Last updated: 2026-02-26 after v1.3 milestone roadmap created — Phase 10 added*
