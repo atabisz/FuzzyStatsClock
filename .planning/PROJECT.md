@@ -8,6 +8,16 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v1.1 Position + Font Size
+
+**Goal:** User can freely reposition the widget and choose a comfortable font size, with both preferences saved across restarts.
+
+**Target features:**
+- Free drag to any position on the desktop
+- Position saved to JSON file, restored on launch (clamp if off-screen)
+- Font size selector (16pt, 24pt, 32pt) in right-click menu
+- Font size saved to same JSON file, restored on launch
+
 ## Current State
 
 **v1.0 shipped: 2026-02-25**
@@ -34,10 +44,15 @@ All v1 requirements delivered across 3 phases. Widget running, human-verified.
 - 24-hour format — natural English implies 12-hour
 - Click-through / no interaction — user may need to move the widget
 
+### Active (v1.1)
+
+- [ ] User can drag widget to any position on the desktop (WIN-04)
+- [ ] Widget position restored on startup, clamped if off-screen (WIN-05)
+- [ ] User can change font size (16/24/32pt) via right-click menu (DISP-05)
+- [ ] Font size selection persists across restarts (DISP-06)
+
 ### Deferred (v2+)
 
-- WIN-04: Drag to reposition on the desktop
-- WIN-05: Persist window position across restarts (DPI/multi-monitor safe)
 - STRT-01: Auto-launch on Windows login (registry key)
 
 ## Context
@@ -67,4 +82,4 @@ All v1 requirements delivered across 3 phases. Widget running, human-verified.
 | Border backdrop #26000000 | 15% black alpha: readable on light wallpapers without obscuring desktop | Validated — semi-transparent dark backdrop works on both light and dark wallpapers |
 
 ---
-*Last updated: 2026-02-25 after v1.0 milestone completion*
+*Last updated: 2026-02-25 after v1.1 milestone started*

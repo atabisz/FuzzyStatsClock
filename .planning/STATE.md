@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 3 complete — Plan 03-02 complete (App.xaml.cs wired with SetInitialPhrase before Show(); human verification passed all 5 checks)
+**Current focus:** v1.1 — position control (drag + persist) + font size selection
 
 ## Current Position
 
-Phase: 3 of 3 (Integration) — COMPLETE
-Plan: 2 of 2 in phase 3 — COMPLETE
-Status: Phase 3 complete — all phases done; project complete
-Last activity: 2026-02-25 — Plan 03-02 complete: App.xaml.cs calls SetInitialPhrase before Show(); human-verified phrase correctness, legibility, position, updates, and width
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v1.1
+Last activity: 2026-02-25 — Milestone v1.1 started (position control + font size)
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
