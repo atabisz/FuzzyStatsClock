@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.1 — position control (drag + persist) + font size selection
+**Current focus:** v1.1 Phase 4 — Settings Infrastructure + Drag + Position Persistence
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements for v1.1
-Last activity: 2026-02-25 — Milestone v1.1 started (position control + font size)
+Phase: 4 of 5 (Settings + Drag + Position Persistence)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-02-25 — v1.1 roadmap created (Phases 4-5 defined)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [###░░░░░░░] 30% (3/5 phases complete — v1.0 shipped)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 7
 - Average duration: 1.5 min
 - Total execution time: 7 min
 
@@ -44,27 +44,12 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap]: Phrase engine built first (no WPF dependency); validates core logic before UI exists
-- [Roadmap]: Window shell built second (isolates three-way transparency constraint from logic)
-- [Roadmap]: Integration is Phase 3 (font/size/legibility decisions need actual phrase text on transparent background)
-- [Roadmap]: DISP-04 (timer/update cadence) placed in Phase 3 — requires both engine and window to exist
-- [01-01]: dotnet 10.0 SDK generates .slnx (new XML format) instead of .sln — functionally identical for all build/test commands
-- [01-01]: Placeholder files deleted immediately (Class1.cs, Test1.cs) to keep scaffold clean for TDD in Plan 02
-- [01-02]: :55 bucket upper bound set to 59 (not 57) so minutes 58-59 return "almost" rather than hitting a dead zone
-- [01-02]: Special cases detected via totalMinutes (Hour*60+Minute) before generic bucket dispatch
-- [01-02]: Assert.DoesNotContain/Contains preferred over Assert.IsFalse/IsTrue for MSTest4 compatibility
-- [02-01]: Template files (App.xaml, MainWindow.xaml, AssemblyInfo.cs) preserved as-is — Plan 02-02 will overwrite them; AssemblyInfo.cs contains ThemeInfo attribute required by WPF
-- [02-01]: No csproj properties added beyond dotnet CLI output — scaffold is minimal and correct
-- [02-02]: AllowsTransparency + WindowStyle=None + Background=Transparent must all be set in XAML — AllowsTransparency cannot be changed after window handle is created
-- [02-02]: Grid Background=#01000000 (alpha=1): fully transparent alpha=0 has no hit-test surface, breaking right-click
-- [02-02]: Application.Current.Shutdown() in close handler — not this.Close() — because hidden owner keeps process alive otherwise
-- [02-02]: ContentRendered for positioning — ActualWidth is 0 in constructor before SizeToContent layout pass completes
-- [02-02]: Hidden ToolWindow owner pattern: ShowInTaskbar=False alone does not suppress Alt+Tab entry
-- [02-03]: All 8 runtime behaviors confirmed by human inspection — implementation correct first time, no remediation needed
-- [02-03]: Manual offset TextBlock shadow approach confirmed visually effective for drop shadow legibility
-- [Phase 03-integration]: Border backdrop Background=#26000000 (15% black alpha) for phrase legibility on transparent overlay
-- [Phase 03-integration]: DispatcherTimer started in ContentRendered fires on UI thread; UpdatePhraseIfChanged calls UpdateLayout before PositionTopRight for SizeToContent accuracy
-- [03-02]: SetInitialPhrase inserted between Owner assignment and Show() — InitializeComponent has run (TextBlocks exist), window not yet visible, so first frame shows live phrase with no placeholder flash
+- [v1.0 Phase 02-02]: AllowsTransparency + WindowStyle=None + Background=Transparent must all be set in XAML
+- [v1.0 Phase 02-02]: Grid Background=#01000000 — fully transparent alpha=0 has no hit-test surface, breaking right-click
+- [v1.0 Phase 03-02]: UpdateLayout() before PositionTopRight() ensures correct SizeToContent repositioning
+- [v1.0 Phase 03-02]: SetInitialPhrase before Show() ensures first frame shows live phrase
+- [v1.1 Roadmap]: Phase 4 builds settings infrastructure + drag + position persistence together — they share the same JSON path and integration risks
+- [v1.1 Roadmap]: Phase 5 adds font size on top of Phase 4's JSON path — purely additive, no backward risk
 
 ### Pending Todos
 
@@ -72,10 +57,13 @@ None yet.
 
 ### Blockers/Concerns
 
-None — all concerns resolved during execution.
+- [Phase 4]: UpdatePhraseIfChanged() unconditionally calls PositionTopRight() — must guard with _hasUserPosition flag or drag position is reset at 5-min boundaries (research: critical pitfall P2)
+- [Phase 4]: ContentRendered calls PositionTopRight() unconditionally — must guard so saved position is not overwritten on every launch (research: critical pitfall P3)
+- [Phase 4]: Window.Left/Top set in constructor can be silently reset by InitializeComponent() — apply saved position in App.xaml.cs after new MainWindow() but before Show() (research: pitfall P7)
+- [Phase 4]: Window.Closing not raised on session end — add SessionEnding handler as backup save path (research: pitfall P6)
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 03-02-PLAN.md — App.xaml.cs wired with SetInitialPhrase before Show(); human verification passed; Phase 3 and project complete
+Stopped at: v1.1 roadmap created — Phase 4 and Phase 5 defined, ready to plan Phase 4
 Resume file: None

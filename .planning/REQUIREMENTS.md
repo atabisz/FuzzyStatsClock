@@ -48,16 +48,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WIN-04 | — | Pending |
-| WIN-05 | — | Pending |
-| DISP-05 | — | Pending |
-| DISP-06 | — | Pending |
+| WIN-04 | Phase 4 | Pending |
+| WIN-05 | Phase 4 | Pending |
+| DISP-05 | Phase 5 | Pending |
+| DISP-06 | Phase 5 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 4 total
-- Mapped to phases: 0
-- Unmapped: 4 ⚠
+- Mapped to phases: 4
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-25*
-*Last updated: 2026-02-25 after initial definition*
+*Last updated: 2026-02-25 after v1.1 roadmap created*
