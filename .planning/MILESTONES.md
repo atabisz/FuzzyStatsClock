@@ -44,3 +44,17 @@
 
 ---
 
+
+## v1.3 Individual Stat Visibility (Shipped: 2026-02-26)
+
+**Phases completed:** 1 phase (10), 2 plans
+
+**Key accomplishments:**
+- Added `CpuVisible`, `GpuVisible`, `MemVisible` bool fields to `AppSettings` with init-property pattern and `= true` defaults; `SettingsService.Defaults()` updated explicitly
+- Added `x:Name` to three stat row `Grid` elements in XAML; Stats submenu extended with Separator + three `IsCheckable` MenuItems (Show CPU / Show GPU / Show MEM)
+- `SetStatRowVisible()` helper wires Visibility, one-way auto-collapse (last hidden row triggers `SetStatsVisible(false)`), and re-clamp-on-show
+- Click handlers read row `Visibility` (not `IsChecked`) for reliable toggle direction — same pattern as `MenuShowStats_Click`
+- `ContextMenu_Opened` syncs all three new `IsChecked` values from row Visibility; `ApplySettings()` sets rows directly (safe before `Show()`); `SaveSettings()` persists all three fields — full round-trip verified
+
+---
+

@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Below the phrase, an optional stats panel shows live CPU, GPU, and memory usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle stats visibility, and all preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Below the phrase, an optional stats panel shows live CPU, GPU, and memory usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM) independently, and all preferences are saved across restarts.
 
 ## Core Value
 
@@ -10,17 +10,18 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v1.2 shipped: 2026-02-26**
+**v1.3 shipped: 2026-02-26**
 
-All v1.2 requirements delivered. Stats panel human-verified (all 6 behavioral checks passed).
+All v1.3 requirements delivered. Per-row visibility toggles human-verified (all 5 behavioral checks passed).
 
 - Stats panel: CPU / GPU / MEM horizontal bars + % text below the time phrase
+- Per-row visibility: Show CPU / Show GPU / Show MEM toggles in Stats submenu, auto-collapse when all hidden, persisted
 - Update interval: 1s / 3s / 10s via right-click Stats submenu, persisted
 - Stats visibility: show/hide toggle via right-click Stats submenu, persisted
 - Position persistence: drag to any position, saved immediately, restored on next launch
 - Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- 770 LOC C# / XAML
+- 1,056 LOC C# / XAML
 
 ## Requirements
 
@@ -40,14 +41,15 @@ All v1.2 requirements delivered. Stats panel human-verified (all 6 behavioral ch
 - ✓ Update interval (1s / 3s / 10s) is user-selectable via right-click Stats submenu (STAT-03) — v1.2
 - ✓ Stats panel visibility is user-toggleable via right-click Stats submenu (STAT-04) — v1.2
 - ✓ Stats visibility and update interval persist to settings.json and restore on launch (STAT-05) — v1.2
+- ✓ User can toggle CPU row visibility via right-click Stats submenu; checkmark reflects current state (STAT-06) — v1.3
+- ✓ User can toggle GPU row visibility via right-click Stats submenu; checkmark reflects current state (STAT-07) — v1.3
+- ✓ User can toggle MEM row visibility via right-click Stats submenu; checkmark reflects current state (STAT-08) — v1.3
+- ✓ Hiding all three stat rows auto-collapses the stats panel (one-way trigger) (STAT-09) — v1.3
+- ✓ Individual stat row visibility (CPU/GPU/MEM) persists to settings.json and restores on launch (STAT-10) — v1.3
 
-### Active (v1.3)
+### Active
 
-- [ ] STAT-06: User can toggle CPU row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
-- [ ] STAT-07: User can toggle GPU row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
-- [ ] STAT-08: User can toggle MEM row visibility via right-click Stats submenu; checkmark reflects current state each time menu opens
-- [ ] STAT-09: Hiding all three stats individually auto-collapses the stats panel (equivalent to turning Show Stats off)
-- [ ] STAT-10: Individual stat visibility (CPU/GPU/MEM) persists to settings.json and restores on launch
+(none — planning next milestone)
 
 ### Deferred (v2+)
 
@@ -62,6 +64,7 @@ All v1.2 requirements delivered. Stats panel human-verified (all 6 behavioral ch
 - Click-through / no interaction — incompatible with drag (kills DragMove() event delivery)
 - Arbitrary font size input — 3-step ladder is sufficient
 - Font family selector — single clean font (Segoe UI Light) is part of the design
+- Reset all stats to visible via Show Stats — individual toggles are independent; simpler model
 
 ## Context
 
@@ -108,6 +111,10 @@ All v1.2 requirements delivered. Stats panel human-verified (all 6 behavioral ch
 | Two independent DispatcherTimers | Phrase timer (10s, fixed) and stats timer (1s/3s/10s, configurable) must never share an interval | ✓ Validated — independent timers; interval changes don't affect phrase updates |
 | SetStatsVisible() separate from ApplySettings() | SetStatsVisible() calls UpdateLayout()+Clamp() — unsafe before Show() where ActualHeight=0 | ✓ Validated — ApplySettings() sets Visibility directly; ContentRendered owns timer start |
 | Stop+set+Start for interval change | Updating DispatcherTimer.Interval on running timer only takes effect after current interval expires | ✓ Validated — immediate effect on interval change |
+| Click handlers read row Visibility (not IsChecked) | WPF IsCheckable auto-toggles IsChecked before handler fires; Visibility is always correct state | ✓ Validated — same pattern as MenuShowStats_Click; reliable toggle direction |
+| Visibility.Collapsed (not Hidden) for hidden rows | Hidden preserves layout space in StackPanel, leaving visible vertical gap; Collapsed collapses entirely | ✓ Validated — no layout gap on hidden rows |
+| Auto-collapse is one-directional | Hiding last row collapses panel; showing a row does NOT auto-show panel — user controls panel via Show Stats | ✓ Validated — simpler model; no "Reset all stats" needed |
+| SetStatRowVisible() separate from ApplySettings() | SetStatRowVisible() calls UpdateLayout()+Clamp() — unsafe before Show() where ActualHeight=0 | ✓ Validated — ApplySettings() sets row Visibility directly; startup safety invariant preserved |
 
 ---
-*Last updated: 2026-02-26 after v1.3 milestone start*
+*Last updated: 2026-02-26 after v1.3 milestone shipped*

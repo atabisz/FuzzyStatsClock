@@ -2,10 +2,10 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 after v1.3 milestone start)
+See: .planning/PROJECT.md (updated 2026-02-26 after v1.3 shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.3 milestone — Individual Stat Visibility (Phase 10)
+**Current focus:** v1.3 shipped — planning next milestone
 
 ## Current Position
 
