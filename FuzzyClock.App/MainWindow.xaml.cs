@@ -8,6 +8,9 @@ namespace FuzzyClock.App;
 public partial class MainWindow : Window
 {
     private DispatcherTimer _timer = null!;
+    private DispatcherTimer _statsTimer = null!;
+    private StatsService _statsService = null!;
+    private int _statsIntervalSeconds = 3;   // default matches AppSettings.StatsIntervalSeconds default
     private int _currentFontSize = 32;
     private bool _savedPositionLoaded = false;
     private bool _hasUserPosition = false;
@@ -44,6 +47,18 @@ public partial class MainWindow : Window
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
             _timer.Tick += (_, _) => UpdatePhraseIfChanged();
             _timer.Start();
+
+            // Stats timer — independent from phrase timer (different interval, user-configurable)
+            // StatsService constructor starts Task.Run(Initialize) immediately; Refresh() is a safe
+            // no-op until initialization completes (~6s PDH cold start).
+            _statsService = new StatsService();
+            _statsTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(_statsIntervalSeconds)
+            };
+            _statsTimer.Tick += (_, _) => UpdateStatsDisplay();
+            // Do NOT start _statsTimer here — StatsPanel is Collapsed by default (StatsVisible=false).
+            // Phase 9 starts it via SetStatsVisible(true) when the user enables stats.
         };
     }
 
@@ -65,6 +80,9 @@ public partial class MainWindow : Window
             _savedPositionLoaded = true;
             _hasUserPosition = true;
         }
+
+        _statsIntervalSeconds = s.StatsIntervalSeconds;
+        // Note: StatsVisible wiring is deferred to Phase 9. StatsPanel Visibility is hardcoded in XAML.
     }
 
     /// <summary>
@@ -127,6 +145,28 @@ public partial class MainWindow : Window
         }
     }
 
+    private void UpdateStatsDisplay()
+    {
+        _statsService.Refresh();
+
+        CpuText.Text = $"{_statsService.CpuPercent:F0}%";
+        CpuBar.Width = CpuBarTrack.ActualWidth * (_statsService.CpuPercent / 100.0);
+
+        if (_statsService.GpuPercent < 0f)
+        {
+            GpuText.Text = "N/A";
+            GpuBar.Width = 0;
+        }
+        else
+        {
+            GpuText.Text = $"{_statsService.GpuPercent:F0}%";
+            GpuBar.Width = GpuBarTrack.ActualWidth * (_statsService.GpuPercent / 100.0);
+        }
+
+        MemText.Text = $"{_statsService.MemPercent:F0}%";
+        MemBar.Width = MemBarTrack.ActualWidth * (_statsService.MemPercent / 100.0);
+    }
+
     private void PositionTopRight()
     {
         const double Padding = 20.0;
@@ -173,6 +213,8 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        _statsTimer?.Stop();
+        _statsService?.Dispose();
         SaveSettings();
         base.OnClosing(e);
     }
