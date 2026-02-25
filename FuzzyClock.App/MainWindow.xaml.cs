@@ -57,6 +57,9 @@ public partial class MainWindow : Window
                 Interval = TimeSpan.FromSeconds(_statsIntervalSeconds)
             };
             _statsTimer.Tick += (_, _) => UpdateStatsDisplay();
+            // TEMPORARY: force visible for Phase 8 verification — revert after checkpoint approval
+            StatsPanel.Visibility = System.Windows.Visibility.Visible;
+            _statsTimer.Start();
             // Do NOT start _statsTimer here — StatsPanel is Collapsed by default (StatsVisible=false).
             // Phase 9 starts it via SetStatsVisible(true) when the user enables stats.
         };
