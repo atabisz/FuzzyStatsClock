@@ -26,36 +26,132 @@
                     <MenuItem x:Name="FontMedium" Header="Medium (24pt)" IsCheckable="True" Click="FontMedium_Click" />
                     <MenuItem x:Name="FontLarge"  Header="Large (32pt)"  IsCheckable="True" Click="FontLarge_Click" />
                 </MenuItem>
+                <MenuItem Header="Stats">
+                    <MenuItem x:Name="MenuShowStats"
+                              Header="Show Stats"
+                              IsCheckable="True" />
+                    <MenuItem Header="Update Interval">
+                        <MenuItem x:Name="MenuInterval1"  Header="1 second"   IsCheckable="True" />
+                        <MenuItem x:Name="MenuInterval3"  Header="3 seconds"  IsCheckable="True" />
+                        <MenuItem x:Name="MenuInterval10" Header="10 seconds" IsCheckable="True" />
+                    </MenuItem>
+                </MenuItem>
                 <MenuItem Header="Close" Click="CloseMenuItem_Click" />
             </ContextMenu>
         </Grid.ContextMenu>
 
-        <Border Background="#26000000"
-                CornerRadius="5"
-                Padding="6">
-            <Grid>
-                <!-- Shadow layer: manual offset copy — DropShadowEffect is unreliable on
-                     AllowsTransparency windows (.NET 5+ GPU path disabled for layered HWNDs).
-                     This always works regardless of rendering path. -->
-                <TextBlock x:Name="ShadowText"
-                           Text=""
-                           FontFamily="Segoe UI Light"
-                           FontSize="32"
-                           Foreground="#BB000000"
-                           IsHitTestVisible="False">
-                    <TextBlock.RenderTransform>
-                        <TranslateTransform X="2" Y="2" />
-                    </TextBlock.RenderTransform>
-                </TextBlock>
+        <!-- Two-row inner Grid: Row 0 = phrase display, Row 1 = stats panel -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-                <!-- PhraseText: live phrase wired in Phase 3 via SetInitialPhrase() and
-                     UpdatePhraseIfChanged(). Text is set in code-behind before Show(). -->
-                <TextBlock x:Name="PhraseText"
-                           Text=""
-                           FontFamily="Segoe UI Light"
-                           FontSize="32"
-                           Foreground="White" />
-            </Grid>
-        </Border>
+            <!-- Row 0: phrase display — unchanged from prior state -->
+            <Border Grid.Row="0"
+                    Background="#26000000"
+                    CornerRadius="5"
+                    Padding="6">
+                <Grid>
+                    <!-- Shadow layer: manual offset copy — DropShadowEffect is unreliable on
+                         AllowsTransparency windows (.NET 5+ GPU path disabled for layered HWNDs).
+                         This always works regardless of rendering path. -->
+                    <TextBlock x:Name="ShadowText"
+                               Text=""
+                               FontFamily="Segoe UI Light"
+                               FontSize="32"
+                               Foreground="#BB000000"
+                               IsHitTestVisible="False">
+                        <TextBlock.RenderTransform>
+                            <TranslateTransform X="2" Y="2" />
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+
+                    <!-- PhraseText: live phrase wired in Phase 3 via SetInitialPhrase() and
+                         UpdatePhraseIfChanged(). Text is set in code-behind before Show(). -->
+                    <TextBlock x:Name="PhraseText"
+                               Text=""
+                               FontFamily="Segoe UI Light"
+                               FontSize="32"
+                               Foreground="White" />
+                </Grid>
+            </Border>
+
+            <!-- Row 1: stats panel — default Collapsed.
+                 Width="180" prevents window-width jitter from SizeToContent=WidthAndHeight
+                 when percentage text length changes (e.g. "9%" vs "100%").
+                 Visibility=Collapsed (not Hidden) removes all layout space including margin.
+                 Phase 9 toggles Visibility and starts/stops _statsTimer. -->
+            <StackPanel x:Name="StatsPanel"
+                        Grid.Row="1"
+                        Width="180"
+                        Margin="0,4,0,0"
+                        Visibility="Collapsed">
+
+                <!-- CPU row -->
+                <Grid Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="35" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="CPU"
+                               Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               VerticalAlignment="Center" />
+                    <Border Grid.Column="1" x:Name="CpuBarTrack"
+                            Background="#40FFFFFF" CornerRadius="2" Height="8" VerticalAlignment="Center">
+                        <Border x:Name="CpuBar"
+                                HorizontalAlignment="Left" Background="White"
+                                CornerRadius="2" Height="8" Width="0" />
+                    </Border>
+                    <TextBlock Grid.Column="2" x:Name="CpuText"
+                               Text="0%" Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               TextAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- GPU row -->
+                <Grid Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="35" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="GPU"
+                               Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               VerticalAlignment="Center" />
+                    <Border Grid.Column="1" x:Name="GpuBarTrack"
+                            Background="#40FFFFFF" CornerRadius="2" Height="8" VerticalAlignment="Center">
+                        <Border x:Name="GpuBar"
+                                HorizontalAlignment="Left" Background="White"
+                                CornerRadius="2" Height="8" Width="0" />
+                    </Border>
+                    <TextBlock Grid.Column="2" x:Name="GpuText"
+                               Text="0%" Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               TextAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- MEM row -->
+                <Grid Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="35" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="MEM"
+                               Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               VerticalAlignment="Center" />
+                    <Border Grid.Column="1" x:Name="MemBarTrack"
+                            Background="#40FFFFFF" CornerRadius="2" Height="8" VerticalAlignment="Center">
+                        <Border x:Name="MemBar"
+                                HorizontalAlignment="Left" Background="White"
+                                CornerRadius="2" Height="8" Width="0" />
+                    </Border>
+                    <TextBlock Grid.Column="2" x:Name="MemText"
+                               Text="0%" Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               TextAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>
