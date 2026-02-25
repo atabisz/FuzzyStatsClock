@@ -141,6 +141,36 @@ public partial class MainWindow : Window
         Application.Current.Shutdown();
     }
 
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        FontSmall.IsChecked  = (_currentFontSize == 16);
+        FontMedium.IsChecked = (_currentFontSize == 24);
+        FontLarge.IsChecked  = (_currentFontSize == 32);
+    }
+
+    private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
+    private void FontMedium_Click(object sender, RoutedEventArgs e) => ApplyFontSize(24);
+    private void FontLarge_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(32);
+
+    private void ApplyFontSize(int size)
+    {
+        _currentFontSize    = size;
+        PhraseText.FontSize = size;
+        ShadowText.FontSize = size;
+        // Re-clamp: font size change resizes window (SizeToContent=WidthAndHeight).
+        // Must call UpdateLayout() before Clamp() — ActualWidth/ActualHeight are stale until layout runs.
+        UpdateLayout();
+        if (_hasUserPosition)
+        {
+            var clamped = SettingsService.Clamp(
+                new AppSettings(Left, Top, _currentFontSize),
+                ActualWidth, ActualHeight);
+            Left = clamped.Left;
+            Top  = clamped.Top;
+        }
+        SaveSettings();
+    }
+
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         SaveSettings();
