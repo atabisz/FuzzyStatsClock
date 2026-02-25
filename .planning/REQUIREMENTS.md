@@ -7,7 +7,7 @@
 
 ### Stats Panel
 
-- [ ] **STAT-01**: Stats panel shows CPU, GPU, and memory usage below the time phrase
+- [x] **STAT-01**: Stats panel shows CPU, GPU, and memory usage below the time phrase
 - [ ] **STAT-02**: Each stat displays as a horizontal bar + percentage text
 - [ ] **STAT-03**: Update interval (1s / 3s / 10s) is user-selectable via right-click Stats submenu
 - [ ] **STAT-04**: Stats panel visibility (show/hide) is user-toggleable via right-click Stats submenu
@@ -41,7 +41,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAT-01 | Phase 8 | Pending |
+| STAT-01 | Phase 8 | Complete |
 | STAT-02 | Phase 8 | Pending |
 | STAT-03 | Phase 9 | Pending |
 | STAT-04 | Phase 9 | Pending |

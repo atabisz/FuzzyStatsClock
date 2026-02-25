@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25 after v1.1)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.2 System Stats — Phase 6 complete, ready for Phase 7
+**Current focus:** v1.2 System Stats — Phase 7 Plan 01 complete (checkpoint awaiting human verify), ready for checkpoint approval
 
 ## Current Position
 
-Phase: 7 (Stats Data Layer) — not started
-Plan: —
-Status: Phase 6 complete, ready for plan-phase 7
-Last activity: 2026-02-25 — Phase 6 AppSettings Migration complete (1 plan)
+Phase: 7 (Stats Data Layer) — Plan 01 complete, at checkpoint
+Plan: 01 complete
+Status: Tasks 1-2 complete, Task 3 checkpoint:human-verify awaiting approval
+Last activity: 2026-02-25 — Phase 7 Plan 01 StatsService.cs complete, live counter values verified
 
-Progress: [##--------] 25% (1/4 v1.2 phases complete)
+Progress: [###-------] 37% (1.5/4 v1.2 phases complete)
 
 ## Performance Metrics
 
@@ -33,9 +33,10 @@ Progress: [##--------] 25% (1/4 v1.2 phases complete)
 | 4. Settings + Drag | 2 | 12 min | 6 min |
 | 5. Font Size | 1 | 2 min | 2 min |
 | 6. AppSettings Migration | 1 | 2 min | 2 min |
+| 7. Stats Data Layer | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min)
+- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 06-01]: Init-property record enables System.Text.Json partial deserialization of v1.1 settings.json without throwing
 - [Phase 06-01]: StatsIntervalSeconds <= 0 guard in Load() prevents zero-interval DispatcherTimer CPU spike from old or corrupted settings.json
 - [Phase 06-01]: StatsVisible and StatsIntervalSeconds omitted from MainWindow.xaml.cs SaveSettings() call sites — Phase 9 extends SaveSettings() when stats UI is wired
+- [Phase 07-statsservice]: GPU counter name is 'Utilization Percentage' (not 'Utilization %') — validated via typeperf on development machine
+- [Phase 07-statsservice]: PDH cold-start on this machine takes ~6s before _initialized=true; _initialized guard holds Refresh() as no-op until init completes — first Refresh() returns valid non-zero values
 
 ### Pending Todos
 
@@ -84,6 +87,6 @@ None — roadmap complete, research complete, ready to execute.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 06-appsettings-migration 06-01-PLAN.md
+Stopped at: 07-statsservice 07-01-PLAN.md — checkpoint:human-verify Task 3 awaiting approval
 Resume file: None
-Next action: /gsd:plan-phase 7
+Next action: Approve checkpoint Task 3, then /gsd:execute-phase 8
