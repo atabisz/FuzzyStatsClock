@@ -58,7 +58,11 @@ Plans:
   2. When the clock crosses a 5-minute bucket boundary, the displayed phrase updates within 30 seconds
   3. The phrase text is readable over both light and dark desktop wallpapers
   4. The widget does not drift — after hours of running, the displayed phrase still matches the current time bucket
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Wire PhraseEngine into MainWindow: Border backdrop, named ShadowText, DispatcherTimer poll, UpdatePhraseIfChanged with UpdateLayout
+- [ ] 03-02-PLAN.md — Set initial phrase in App.xaml.cs before Show(); human visual verification of live widget
 
 ## Progress
 
@@ -69,4 +73,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Phrase Engine | 2/2 | Complete    | 2026-02-25 |
 | 2. Window Shell | 3/3 | Complete    | 2026-02-25 |
-| 3. Integration | 0/? | Not started | - |
+| 3. Integration | 0/2 | Not started | - |
