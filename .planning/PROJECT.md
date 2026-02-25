@@ -2,32 +2,25 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Users can drag the widget anywhere on any monitor, choose a comfortable font size, and both preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Below the phrase, an optional stats panel shows live CPU, GPU, and memory usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle stats visibility, and all preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v1.2 System Stats
-
-**Goal:** The widget shows live CPU, GPU, and memory usage below the time phrase, with user-selectable update rate and toggle visibility, all persisted across restarts.
-
-**Target features:**
-- Stats panel (CPU / GPU / MEM horizontal bars + % text) below the time phrase
-- Update interval selector (1s / 3s / 10s) in right-click Stats submenu
-- Show/Hide stats toggle in right-click Stats submenu
-- Settings persisted to existing settings.json
-
 ## Current State
 
-**v1.1 shipped: 2026-02-25**
+**v1.2 shipped: 2026-02-26**
 
-All v1.1 requirements delivered. Widget running, human-verified.
+All v1.2 requirements delivered. Stats panel human-verified (all 6 behavioral checks passed).
 
-- Position persistence: drag to any position, saved immediately, restored on next launch with full-window clamping to visible area
-- Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted to same JSON file as position
+- Stats panel: CPU / GPU / MEM horizontal bars + % text below the time phrase
+- Update interval: 1s / 3s / 10s via right-click Stats submenu, persisted
+- Stats visibility: show/hide toggle via right-click Stats submenu, persisted
+- Position persistence: drag to any position, saved immediately, restored on next launch
+- Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- 582 LOC C# / 67 LOC XAML
+- 770 LOC C# / XAML
 
 ## Requirements
 
@@ -42,14 +35,15 @@ All v1.1 requirements delivered. Widget running, human-verified.
 - ✓ Widget position restored on startup, clamped if off-screen (WIN-05) — v1.1
 - ✓ User can change font size (16/24/32pt) via right-click menu; current size shown as checked (DISP-05) — v1.1
 - ✓ Font size selection persists across restarts (DISP-06) — v1.1
+- ✓ Stats panel shows CPU, GPU, and memory usage below the time phrase (STAT-01) — v1.2
+- ✓ Each stat displays as a horizontal bar + percentage text (STAT-02) — v1.2
+- ✓ Update interval (1s / 3s / 10s) is user-selectable via right-click Stats submenu (STAT-03) — v1.2
+- ✓ Stats panel visibility is user-toggleable via right-click Stats submenu (STAT-04) — v1.2
+- ✓ Stats visibility and update interval persist to settings.json and restore on launch (STAT-05) — v1.2
 
-### Active (v1.2)
+### Active (v2+)
 
-- [ ] Stats panel shows CPU, GPU, and memory usage below the time phrase (STAT-01)
-- [ ] Each stat displays as a horizontal bar + percentage text (STAT-02)
-- [ ] Update interval (1s / 3s / 10s) is user-selectable via right-click submenu (STAT-03)
-- [ ] Stats panel visibility (show/hide) is user-toggleable via right-click submenu (STAT-04)
-- [ ] Stats visibility and update interval are persisted to settings.json and restored on launch (STAT-05)
+*(none — planning next milestone)*
 
 ### Deferred (v2+)
 
@@ -102,6 +96,14 @@ All v1.1 requirements delivered. Widget running, human-verified.
 | Re-clamp after every phrase change | SizeToContent=WidthAndHeight resizes window on phrase update; near-edge positions shift off-screen | ✓ Validated — clamp in UpdatePhraseIfChanged() else branch fixes edge case |
 | ContextMenu_Opened for IsChecked sync | WPF toggles IsChecked on click when IsCheckable=True; sync in Opened avoids double-toggle | ✓ Validated — single sync point; click handlers never touch IsChecked |
 | ApplyFontSize() separate from ApplySettings() | ApplyFontSize() calls UpdateLayout()+SaveSettings() which are unsafe before Show() | ✓ Validated — startup safety invariant preserved |
+| AppSettings → init-property record | Positional record breaks JSON partial-deserialization on old settings.json; init-property enables safe forward/backward compat | ✓ Validated — v1.1 settings.json loads correctly with new fields defaulting |
+| StatsIntervalSeconds <= 0 guard in Load() | Zero-interval DispatcherTimer throws; corrupted settings.json could write 0 | ✓ Validated — clamped to default (3) on load |
+| PDH PerformanceCounter for stats | Native Windows, available in-box; PDH vs WMI: 10–50x faster for identical data | ✓ Validated — CPU/MEM reliable; GPU `engtype_3D` filter works on development machine |
+| _gpuAvailable fallback | GPU Engine PDH category absent on VMs/RDP; fallback to -1 sentinel → "N/A" display | ✓ Validated — clean fallback; no exceptions in VM environments |
+| StatsBarTrackWidth geometry constant | `CpuBarTrack.ActualWidth` returns 0 while StatsPanel is Collapsed; `180-35-36=109` constant is always correct | ✓ Validated — fixed zero-width bar bug; bars immediately visible on first show |
+| Two independent DispatcherTimers | Phrase timer (10s, fixed) and stats timer (1s/3s/10s, configurable) must never share an interval | ✓ Validated — independent timers; interval changes don't affect phrase updates |
+| SetStatsVisible() separate from ApplySettings() | SetStatsVisible() calls UpdateLayout()+Clamp() — unsafe before Show() where ActualHeight=0 | ✓ Validated — ApplySettings() sets Visibility directly; ContentRendered owns timer start |
+| Stop+set+Start for interval change | Updating DispatcherTimer.Interval on running timer only takes effect after current interval expires | ✓ Validated — immediate effect on interval change |
 
 ---
-*Last updated: 2026-02-25 after v1.2 milestone started*
+*Last updated: 2026-02-26 after v1.2 milestone*

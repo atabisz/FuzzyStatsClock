@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-25 after v1.1)
+See: .planning/PROJECT.md (updated 2026-02-26 after v1.2)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.2 System Stats — Phase 9 Plan 01 complete — stats controls fully wired, persistence round-trip verified; v1.2 feature set complete
+**Current focus:** v1.2 milestone complete — planning next milestone
 
 ## Current Position
 
-Phase: 9 (Controls Persistence and Edge Cases) — plan 01 complete
-Plan: 01 complete
-Status: All tasks complete (Task 1 auto + Task 2 human-verify), 2026-02-26
-Last activity: 2026-02-26 — Phase 9 Plan 01 complete — stats show/hide toggle, interval selector (1s/3s/10s), and persistence round-trip all human-verified; all 6 behavioral checks passed
+Phase: milestone complete
+Plan: —
+Status: v1.2 milestone archived 2026-02-26
+Last activity: 2026-02-26 — v1.2 milestone complete — all 5 STAT requirements delivered and human-verified
 
 Progress: [########--] 75% (3/4 v1.2 phases complete — Phase 9 now done, v1.2 feature set delivered)
 

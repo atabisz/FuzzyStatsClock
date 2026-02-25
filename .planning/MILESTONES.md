@@ -30,3 +30,17 @@
 
 ---
 
+
+## v1.2 System Stats (Shipped: 2026-02-26)
+
+**Phases completed:** 4 phases (6–9), 5 plans
+
+**Key accomplishments:**
+- AppSettings migrated to init-property record with `StatsVisible`/`StatsIntervalSeconds` fields; zero-interval guard prevents CPU spike from corrupted settings.json
+- StatsService reads CPU, GPU, and MEM from Windows PDH counters on a background thread; GPU multi-instance `engtype_3D` enumeration with `_gpuAvailable` fallback for VMs/RDP; ~6s async init with `_initialized` guard ensuring no UI thread blocking
+- Stats panel XAML: two-row grid, fixed `Width=180` on StatsPanel container (prevents jitter from SizeToContent when % text length changes), three labeled rows with horizontal bars and % text; geometry-constant bar widths (109px = 180 − 35 − 36) replacing `ActualWidth` dependency that caused zero-width bars on Collapsed→Visible transition
+- Stats show/hide toggle (`MenuShowStats_Click` reads `StatsPanel.Visibility`, not `IsChecked`) and 1s/3s/10s interval selector via right-click Stats submenu; all four menu checkmarks synced in `ContextMenu_Opened` on every menu open
+- Full persistence round-trip: `SaveSettings`/`ApplySettings` extended with stats fields; `ContentRendered` conditionally starts `_statsTimer` if settings restored `StatsVisible=true`; `SetStatsVisible(true)` calls `UpdateLayout()+Clamp()` to prevent off-screen push when showing stats near bottom edge
+
+---
+
