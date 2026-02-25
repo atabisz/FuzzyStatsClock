@@ -24,36 +24,32 @@
             </ContextMenu>
         </Grid.ContextMenu>
 
-        <!-- Shadow layer: manual offset copy — DropShadowEffect is unreliable on
-             AllowsTransparency windows (.NET 5+ GPU path disabled for layered HWNDs).
-             This always works regardless of rendering path. -->
-        <TextBlock Text="half past 3"
-                   FontFamily="Segoe UI Light"
-                   FontSize="32"
-                   Foreground="#BB000000"
-                   Margin="8"
-                   IsHitTestVisible="False">
-            <TextBlock.RenderTransform>
-                <TranslateTransform X="2" Y="2" />
-            </TextBlock.RenderTransform>
-        </TextBlock>
+        <Border Background="#26000000"
+                CornerRadius="5"
+                Padding="6">
+            <Grid>
+                <!-- Shadow layer: manual offset copy — DropShadowEffect is unreliable on
+                     AllowsTransparency windows (.NET 5+ GPU path disabled for layered HWNDs).
+                     This always works regardless of rendering path. -->
+                <TextBlock x:Name="ShadowText"
+                           Text=""
+                           FontFamily="Segoe UI Light"
+                           FontSize="32"
+                           Foreground="#BB000000"
+                           IsHitTestVisible="False">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform X="2" Y="2" />
+                    </TextBlock.RenderTransform>
+                </TextBlock>
 
-        <!-- PhraseText: static placeholder for Phase 2 — phrase engine wired in Phase 3.
-             DropShadowEffect kept as belt-and-suspenders; manual shadow above is primary. -->
-        <TextBlock x:Name="PhraseText"
-                   Text="half past 3"
-                   FontFamily="Segoe UI Light"
-                   FontSize="32"
-                   Foreground="White"
-                   Margin="8">
-            <TextBlock.Effect>
-                <DropShadowEffect Color="Black"
-                                  BlurRadius="6"
-                                  ShadowDepth="2"
-                                  Opacity="0.8"
-                                  Direction="315"
-                                  RenderingBias="Quality" />
-            </TextBlock.Effect>
-        </TextBlock>
+                <!-- PhraseText: live phrase wired in Phase 3 via SetInitialPhrase() and
+                     UpdatePhraseIfChanged(). Text is set in code-behind before Show(). -->
+                <TextBlock x:Name="PhraseText"
+                           Text=""
+                           FontFamily="Segoe UI Light"
+                           FontSize="32"
+                           Foreground="White" />
+            </Grid>
+        </Border>
     </Grid>
 </Window>
