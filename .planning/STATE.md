@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.1 Phase 4 — Settings Infrastructure + Drag + Position Persistence
+**Current focus:** v1.1 Phase 5 — Font Size Selection + Persistence
 
 ## Current Position
 
-Phase: 4 of 5 (Settings + Drag + Position Persistence)
-Plan: 2 of 2 in current phase
-Status: At checkpoint — awaiting human verification (Task 3 of 04-02)
-Last activity: 2026-02-25 — 04-02 Tasks 1-2 complete; at checkpoint for human verification
+Phase: 5 of 5 (Font Size Selection + Persistence)
+Plan: 0 of ? in current phase
+Status: Phase 4 complete — ready to begin Phase 5
+Last activity: 2026-02-25 — 04-02 complete; human verification approved; Phase 4 done
 
-Progress: [###░░░░░░░] 30% (3/5 phases complete — v1.0 shipped; Phase 4 in progress)
+Progress: [####░░░░░░] 80% (4/5 phases complete — v1.0 shipped; Phase 4 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 1.5 min
-- Total execution time: 9 min
+- Total plans completed: 9
+- Average duration: 2.9 min
+- Total execution time: 26 min
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [###░░░░░░░] 30% (3/5 phases complete — v1.0 shipped; 
 | 1. Phrase Engine | 2 | 4 min | 2 min |
 | 2. Window Shell | 3 | 3 min | 1 min |
 | 3. Integration | 2 | 7 min | 3.5 min |
-| 4. Settings + Drag (partial) | 2 | 5 min | 2.5 min |
+| 4. Settings + Drag | 2 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 9 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (3 min)
+- Last 10 plans: 01-01 (2 min), 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -57,6 +57,8 @@ Recent decisions affecting current work:
 - [04-01]: Atomic Save() via temp-file + File.Move(overwrite:true) prevents corrupt settings.json on mid-write crash
 - [Phase 04-02]: ApplySettings() must be called after new MainWindow() but before Show() — setting Left/Top in constructor can be silently reset by XAML parser
 - [Phase 04-02]: SessionEnding handler added as backup save for Windows log-off/shutdown since Window.Closing is not raised in those paths
+- [Phase 04-02]: ContentRendered is the safe deferral point for clamping — ActualWidth/ActualHeight are 0 until first layout pass with SizeToContent=WidthAndHeight
+- [Phase 04-02]: Re-clamp after every phrase change — SizeToContent=WidthAndHeight resizes window on phrase update; widget near right/bottom edge can be pushed off-screen
 
 ### Pending Todos
 
@@ -72,5 +74,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: 04-02 Tasks 1-2 committed; at checkpoint:human-verify (Task 3) — awaiting user verification of drag, persistence, clamp, and no-snap behavior
+Stopped at: Completed 04-02-PLAN.md — Phase 4 done; ready to begin Phase 5 (font size)
 Resume file: None
