@@ -13,7 +13,7 @@ Build a minimal C# WPF desktop widget that displays the current time as a fuzzy 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Phrase Engine** - Pure C# time-to-phrase logic with full bucket coverage and special cases
-- [ ] **Phase 2: Window Shell** - Transparent, frameless, always-on-top WPF window with close mechanism
+- [x] **Phase 2: Window Shell** - Transparent, frameless, always-on-top WPF window with close mechanism
 - [ ] **Phase 3: Integration** - Wire engine into window via timer; verify phrase updates and text legibility
 
 ## Phase Details
@@ -47,7 +47,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Scaffold FuzzyClock.App WPF project: dotnet new wpf, add to solution, add Core reference
 - [x] 02-02-PLAN.md — Implement transparent overlay: App.xaml/cs (Mutex + hidden owner), MainWindow.xaml/cs (transparency, positioning, close)
-- [ ] 02-03-PLAN.md — Human visual verification: confirm floating text, always-on-top, no taskbar/Alt+Tab, right-click close, single instance
+- [x] 02-03-PLAN.md — Human visual verification: confirm floating text, always-on-top, no taskbar/Alt+Tab, right-click close, single instance
 
 ### Phase 3: Integration
 **Goal**: The widget displays the correct fuzzy time phrase on the desktop, updates when the phrase changes, and is legible on any wallpaper
@@ -68,5 +68,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Phrase Engine | 2/2 | Complete    | 2026-02-25 |
-| 2. Window Shell | 2/3 | In Progress | - |
+| 2. Window Shell | 3/3 | Complete    | 2026-02-25 |
 | 3. Integration | 0/? | Not started | - |
