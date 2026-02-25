@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "dgSpecHash": "rsgTLPmHGbs=",
+  "success": true,
+  "projectFilePath": "C:\\src\\gsd1\\FuzzyClock.App\\FuzzyClock.App.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\altab\\.nuget\\packages\\system.diagnostics.performancecounter\\10.0.0\\system.diagnostics.performancecounter.10.0.0.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1510",
+      "level": "Warning",
+      "message": "PackageReference System.Diagnostics.PerformanceCounter will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary.",
+      "projectPath": "C:\\src\\gsd1\\FuzzyClock.App\\FuzzyClock.App.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\src\\gsd1\\FuzzyClock.App\\FuzzyClock.App.csproj",
+      "libraryId": "System.Diagnostics.PerformanceCounter",
+      "targetGraphs": [
+        "net10.0-windows7.0"
+      ]
+    }
+  ]
+}

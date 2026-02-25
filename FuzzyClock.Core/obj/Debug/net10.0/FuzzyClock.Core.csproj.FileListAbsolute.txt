@@ -1,0 +1,11 @@
+C:\src\gsd1\FuzzyClock.Core\bin\Debug\net10.0\FuzzyClock.Core.deps.json
+C:\src\gsd1\FuzzyClock.Core\bin\Debug\net10.0\FuzzyClock.Core.dll
+C:\src\gsd1\FuzzyClock.Core\bin\Debug\net10.0\FuzzyClock.Core.pdb
+C:\src\gsd1\FuzzyClock.Core\obj\Debug\net10.0\FuzzyClock.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\src\gsd1\FuzzyClock.Core\obj\Debug\net10.0\FuzzyClock.Core.AssemblyInfoInputs.cache
+C:\src\gsd1\FuzzyClock.Core\obj\Debug\net10.0\FuzzyClock.Core.AssemblyInfo.cs
+C:\src\gsd1\FuzzyClock.Core\obj\Debug\net10.0\FuzzyClock.Core.csproj.CoreCompileInputs.cache
+C:\src\gsd1\FuzzyClock.Core\obj\Debug\net10.0\FuzzyClock.Core.dll
+C:\src\gsd1\FuzzyClock.Core\obj\Debug\net10.0\refint\FuzzyClock.Core.dll
+C:\src\gsd1\FuzzyClock.Core\obj\Debug\net10.0\FuzzyClock.Core.pdb
+C:\src\gsd1\FuzzyClock.Core\obj\Debug\net10.0\ref\FuzzyClock.Core.dll
