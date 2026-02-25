@@ -1,0 +1,55 @@
+// Sources:
+//   Environment.SpecialFolder: https://learn.microsoft.com/en-us/dotnet/api/system.environment.specialfolder
+//   System.Text.Json: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/overview
+//   SystemParameters.VirtualScreen*: https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.virtualscreenwidth
+//   File.Move overwrite: .NET 3.0+ BCL
+using System.IO;
+using System.Text.Json;
+using System.Windows;
+
+namespace FuzzyClock.App;
+
+public static class SettingsService
+{
+    private static readonly string FilePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "FuzzyClock", "settings.json");
+
+    public static AppSettings Load()
+    {
+        try
+        {
+            if (!File.Exists(FilePath)) return Defaults();
+            var json = File.ReadAllText(FilePath);
+            return JsonSerializer.Deserialize<AppSettings>(json) ?? Defaults();
+        }
+        catch { return Defaults(); }
+    }
+
+    public static void Save(AppSettings s)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+        string tempPath = FilePath + ".tmp";
+        File.WriteAllText(tempPath, JsonSerializer.Serialize(s));
+        File.Move(tempPath, FilePath, overwrite: true);
+    }
+
+    // Left = -1: sentinel for "no saved position"
+    public static AppSettings Defaults() => new(-1, 20, 32);
+
+    /// <summary>
+    /// Clamp Left/Top so at least MinVisible px of the window is within the virtual screen bounds.
+    /// Must be called after ActualWidth/ActualHeight are valid (ContentRendered or later).
+    /// </summary>
+    public static AppSettings Clamp(AppSettings s, double windowWidth, double windowHeight)
+    {
+        const double MinVisible = 50;
+        double vLeft   = SystemParameters.VirtualScreenLeft;
+        double vTop    = SystemParameters.VirtualScreenTop;
+        double vWidth  = SystemParameters.VirtualScreenWidth;
+        double vHeight = SystemParameters.VirtualScreenHeight;
+        double left = Math.Clamp(s.Left, vLeft - windowWidth + MinVisible, vLeft + vWidth  - MinVisible);
+        double top  = Math.Clamp(s.Top,  vTop  - windowHeight + MinVisible, vTop  + vHeight - MinVisible);
+        return s with { Left = left, Top = top };
+    }
+}
