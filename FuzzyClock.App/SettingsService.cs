@@ -44,7 +44,8 @@ public static class SettingsService
     public static AppSettings Defaults() => new()
     {
         Left = -1, Top = 20, FontSize = 32,
-        StatsVisible = false, StatsIntervalSeconds = 3
+        StatsVisible = false, StatsIntervalSeconds = 3,
+        CpuVisible = true, GpuVisible = true, MemVisible = true
     };
 
     /// <summary>

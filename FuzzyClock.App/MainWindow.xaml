@@ -31,6 +31,19 @@
                               Header="Show Stats"
                               IsCheckable="True"
                               Click="MenuShowStats_Click" />
+                    <Separator />
+                    <MenuItem x:Name="MenuCpuVisible"
+                              Header="Show CPU"
+                              IsCheckable="True"
+                              Click="MenuCpuVisible_Click" />
+                    <MenuItem x:Name="MenuGpuVisible"
+                              Header="Show GPU"
+                              IsCheckable="True"
+                              Click="MenuGpuVisible_Click" />
+                    <MenuItem x:Name="MenuMemVisible"
+                              Header="Show MEM"
+                              IsCheckable="True"
+                              Click="MenuMemVisible_Click" />
                     <MenuItem Header="Update Interval">
                         <MenuItem x:Name="MenuInterval1"  Header="1 second"   IsCheckable="True" Click="MenuInterval1_Click" />
                         <MenuItem x:Name="MenuInterval3"  Header="3 seconds"  IsCheckable="True" Click="MenuInterval3_Click" />
@@ -90,7 +103,7 @@
                         Visibility="Collapsed">
 
                 <!-- CPU row -->
-                <Grid Margin="0,2,0,0">
+                <Grid x:Name="CpuRow" Margin="0,2,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="35" />
                         <ColumnDefinition Width="*" />
@@ -111,7 +124,7 @@
                 </Grid>
 
                 <!-- GPU row -->
-                <Grid Margin="0,2,0,0">
+                <Grid x:Name="GpuRow" Margin="0,2,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="35" />
                         <ColumnDefinition Width="*" />
@@ -132,7 +145,7 @@
                 </Grid>
 
                 <!-- MEM row -->
-                <Grid Margin="0,2,0,0">
+                <Grid x:Name="MemRow" Margin="0,2,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="35" />
                         <ColumnDefinition Width="*" />

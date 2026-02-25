@@ -8,5 +8,8 @@ public record AppSettings
     public int    FontSize             { get; init; } = 32;
     public bool   StatsVisible         { get; init; } = false;
     public int    StatsIntervalSeconds { get; init; } = 3;
+    public bool   CpuVisible           { get; init; } = true;
+    public bool   GpuVisible           { get; init; } = true;
+    public bool   MemVisible           { get; init; } = true;
 }
 // Left = -1 is the sentinel for "no saved position — use PositionTopRight() fallback"
