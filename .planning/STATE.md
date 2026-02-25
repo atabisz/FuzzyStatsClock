@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25 after v1.1)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.2 System Stats — Phase 7 complete, ready for Phase 8 (XAML Layout and Stats Display)
+**Current focus:** v1.2 System Stats — Phase 8 Plan 01 complete, ready for Phase 8 Plan 02 (human verify)
 
 ## Current Position
 
-Phase: 7 (Stats Data Layer) — Plan 01 complete, human-verify checkpoint approved
+Phase: 8 (XAML Layout and Stats Display) — Plan 01 complete
 Plan: 01 complete
-Status: All tasks complete (Tasks 1-3), checkpoint approved 2026-02-25
-Last activity: 2026-02-25 — Phase 7 Plan 01 complete, human checkpoint approved, ready for Phase 8
+Status: All tasks complete (Tasks 1-2), 2026-02-26
+Last activity: 2026-02-26 — Phase 8 Plan 01 complete — two-row Grid layout, StatsPanel with 9 named elements, Stats ContextMenu, UpdateStatsDisplay(), _statsTimer wired but not started
 
-Progress: [###-------] 37% (1.5/4 v1.2 phases complete)
+Progress: [####------] 50% (2/4 v1.2 phases complete)
 
 ## Performance Metrics
 
@@ -34,9 +34,10 @@ Progress: [###-------] 37% (1.5/4 v1.2 phases complete)
 | 5. Font Size | 1 | 2 min | 2 min |
 | 6. AppSettings Migration | 1 | 2 min | 2 min |
 | 7. Stats Data Layer | 1 | 3 min | 3 min |
+| 8. XAML Layout and Stats Display | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min)
+- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -75,6 +76,10 @@ Recent decisions affecting current work:
 - [Phase 06-01]: StatsVisible and StatsIntervalSeconds omitted from MainWindow.xaml.cs SaveSettings() call sites — Phase 9 extends SaveSettings() when stats UI is wired
 - [Phase 07-statsservice]: GPU counter name is 'Utilization Percentage' (not 'Utilization %') — validated via typeperf on development machine
 - [Phase 07-statsservice]: PDH cold-start on this machine takes ~6s before _initialized=true; _initialized guard holds Refresh() as no-op until init completes — first Refresh() returns valid non-zero values
+- [Phase 08-01]: _statsTimer created in ContentRendered but NOT started — StatsPanel is Collapsed by default, Phase 9 owns start/stop lifecycle to prevent wasted PDH reads
+- [Phase 08-01]: UpdateStatsDisplay() handles GpuPercent < 0f sentinel with N/A text and zero bar width — same sentinel from Phase 7 StatsService
+- [Phase 08-01]: ApplySettings() reads _statsIntervalSeconds = s.StatsIntervalSeconds — StatsVisible wiring deferred to Phase 9 (StatsPanel Visibility hardcoded in XAML)
+- [Phase 08-01]: OnClosing disposes _statsService before SaveSettings() — ensures PDH counters released before settings write
 
 ### Pending Todos
 
@@ -86,7 +91,7 @@ None — roadmap complete, research complete, ready to execute.
 
 ## Session Continuity
 
-Last session: 2026-02-25
-Stopped at: 07-statsservice 07-01-PLAN.md — all tasks complete, checkpoint approved
+Last session: 2026-02-26
+Stopped at: 08-xaml-layout-and-stats-display 08-01-PLAN.md — all tasks complete
 Resume file: None
-Next action: /gsd:execute-phase 8 (XAML Layout and Stats Display)
+Next action: /gsd:execute-phase 8 (Phase 8 Plan 02 — human verify layout)
