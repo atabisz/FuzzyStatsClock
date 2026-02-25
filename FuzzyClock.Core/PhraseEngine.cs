@@ -2,6 +2,10 @@ namespace FuzzyClock.Core;
 
 public static class PhraseEngine
 {
+    private static readonly string[] HourWords =
+        ["", "one", "two", "three", "four", "five", "six",
+             "seven", "eight", "nine", "ten", "eleven", "twelve"];
+
     // Bucket table: each entry is (upperBound inclusive, template).
     // Walk in order; return the first match where minute <= upperBound.
     // {h}  = current hour in 12-hour format (1–12)
@@ -43,8 +47,8 @@ public static class PhraseEngine
             if (minute <= upperBound)
             {
                 return template
-                    .Replace("{h}",  hour12.ToString())
-                    .Replace("{h1}", nextHour12.ToString());
+                    .Replace("{h}",  HourWords[hour12])
+                    .Replace("{h1}", HourWords[nextHour12]);
             }
         }
 
