@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25 after v1.1)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.2 System Stats — Phase 8 Plan 01 complete, ready for Phase 8 Plan 02 (human verify)
+**Current focus:** v1.2 System Stats — Phase 8 complete (both plans done), ready for Phase 9 (stats toggle and persistence)
 
 ## Current Position
 
-Phase: 8 (XAML Layout and Stats Display) — Plan 01 complete
-Plan: 01 complete
-Status: All tasks complete (Tasks 1-2), 2026-02-26
-Last activity: 2026-02-26 — Phase 8 Plan 01 complete — two-row Grid layout, StatsPanel with 9 named elements, Stats ContextMenu, UpdateStatsDisplay(), _statsTimer wired but not started
+Phase: 8 (XAML Layout and Stats Display) — both plans complete
+Plan: 02 complete
+Status: All tasks complete (Tasks 1-3 across both plans), 2026-02-26
+Last activity: 2026-02-26 — Phase 8 Plan 02 complete — human-verified live stats display, Collapsed state identical to v1.1, Stats context menu structure confirmed; temporary verification code reverted
 
-Progress: [####------] 50% (2/4 v1.2 phases complete)
+Progress: [#####-----] 50% (2/4 v1.2 phases complete — Phase 8 now fully done)
 
 ## Performance Metrics
 
@@ -34,10 +34,10 @@ Progress: [####------] 50% (2/4 v1.2 phases complete)
 | 5. Font Size | 1 | 2 min | 2 min |
 | 6. AppSettings Migration | 1 | 2 min | 2 min |
 | 7. Stats Data Layer | 1 | 3 min | 3 min |
-| 8. XAML Layout and Stats Display | 1 | 3 min | 3 min |
+| 8. XAML Layout and Stats Display | 2 | 8 min | 4 min |
 
 **Recent Trend:**
-- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min)
+- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min), 08-02 (5 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -80,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 08-01]: UpdateStatsDisplay() handles GpuPercent < 0f sentinel with N/A text and zero bar width — same sentinel from Phase 7 StatsService
 - [Phase 08-01]: ApplySettings() reads _statsIntervalSeconds = s.StatsIntervalSeconds — StatsVisible wiring deferred to Phase 9 (StatsPanel Visibility hardcoded in XAML)
 - [Phase 08-01]: OnClosing disposes _statsService before SaveSettings() — ensures PDH counters released before settings write
+- [Phase 08-02]: Human verified all five checks pass — live bars, proportional widths, Collapsed=v1.1 identity, Stats submenu, no layout shift
+- [Phase 08-02]: Temporary-force-visible pattern used for visual checkpoint — add, human-verify, revert atomically in separate commit
 
 ### Pending Todos
 
@@ -92,6 +94,6 @@ None — roadmap complete, research complete, ready to execute.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: 08-xaml-layout-and-stats-display 08-01-PLAN.md — all tasks complete
+Stopped at: 08-xaml-layout-and-stats-display 08-02-PLAN.md — all tasks complete
 Resume file: None
-Next action: /gsd:execute-phase 8 (Phase 8 Plan 02 — human verify layout)
+Next action: /gsd:execute-phase 9 (Phase 9 — stats toggle wiring and persistence)

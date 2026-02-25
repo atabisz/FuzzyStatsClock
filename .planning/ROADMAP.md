@@ -66,7 +66,7 @@ Plans:
 
 - [x] **Phase 6: AppSettings Migration** — Convert AppSettings to init-property record, add StatsVisible + StatsIntervalSeconds fields, guard against zero-interval on old JSON (completed 2026-02-25)
 - [x] **Phase 7: StatsService** — New StatsService.cs with async init, CPU counter priming, GPU multi-instance enumeration, IDisposable (completed 2026-02-25)
-- [x] **Phase 8: XAML Layout and Stats Display** — Grid RowDefinitions, StatsPanel with fixed Width, three stat rows (label + bar + % text), UpdateStatsDisplay wired to DispatcherTimer (Plan 01 complete 2026-02-26; Plan 02 pending human verify)
+- [x] **Phase 8: XAML Layout and Stats Display** — Grid RowDefinitions, StatsPanel with fixed Width, three stat rows (label + bar + % text), UpdateStatsDisplay wired to DispatcherTimer; human-verified live bars, Collapsed state = v1.1 identity, Stats context menu confirmed (completed 2026-02-26)
 - [ ] **Phase 9: Controls, Persistence, and Edge Cases** — SetStatsVisible, SetStatsInterval, ContextMenu_Opened sync, ApplySettings new fields, OnClosing disposal order
 
 ## Phase Details
@@ -113,7 +113,7 @@ Plans:
 
 Plans:
 - [x] 08-01-PLAN.md — Restructure MainWindow.xaml (two-row Grid, StatsPanel, Stats ContextMenu entries) + wire StatsService + UpdateStatsDisplay + _statsTimer in MainWindow.xaml.cs
-- [ ] 08-02-PLAN.md — Temporarily force StatsPanel visible for live verification; human verify layout, bars, and context menu; revert to Collapsed default
+- [x] 08-02-PLAN.md — Temporarily force StatsPanel visible for live verification; human verify layout, bars, and context menu; revert to Collapsed default
 
 ### Phase 9: Controls, Persistence, and Edge Cases
 **Goal**: Stats show/hide and update interval are fully user-controllable, correctly persisted across restarts, and the widget handles startup, shutdown, and edge cases cleanly
@@ -139,8 +139,8 @@ Plans:
 | 5. Font Size Selection + Persistence | v1.1 | 1/1 | Complete | 2026-02-25 |
 | 6. AppSettings Migration | 1/1 | Complete   | 2026-02-25 | - |
 | 7. StatsService | 1/1 | Complete   | 2026-02-25 | - |
-| 8. XAML Layout and Stats Display | v1.2 | 1/2 | In progress | - |
+| 8. XAML Layout and Stats Display | v1.2 | 2/2 | Complete | 2026-02-26 |
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-26 after Phase 8 Plan 01 complete*
+*Last updated: 2026-02-26 after Phase 8 Plan 02 complete — Phase 8 fully done*
