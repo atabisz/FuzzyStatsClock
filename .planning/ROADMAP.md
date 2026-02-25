@@ -126,7 +126,10 @@ Plans:
   4. Showing the stats panel after it was hidden does not push the widget partially off-screen on any monitor edge
   5. Stats timer stops when the panel is hidden and resumes when shown (no background PDH reads while stats are hidden)
   6. App closes cleanly with no exceptions: stats timer is stopped before StatsService is disposed
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md — Wire Click handlers, ContextMenu_Opened stats checkmarks, SetStatsVisible with re-clamp, SetStatsInterval with live timer update, extend SaveSettings/ApplySettings, conditional ContentRendered timer start; human verify all 6 checks
 
 ## Progress
 
@@ -140,7 +143,7 @@ Plans:
 | 6. AppSettings Migration | 1/1 | Complete   | 2026-02-25 | - |
 | 7. StatsService | 1/1 | Complete   | 2026-02-25 | - |
 | 8. XAML Layout and Stats Display | v1.2 | 2/2 | Complete | 2026-02-26 |
-| 9. Controls, Persistence, and Edge Cases | v1.2 | 0/? | Not started | - |
+| 9. Controls, Persistence, and Edge Cases | v1.2 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-02-26 after Phase 8 Plan 02 complete — Phase 8 fully done*
+*Last updated: 2026-02-26 after Phase 9 planned — 1 plan created*
