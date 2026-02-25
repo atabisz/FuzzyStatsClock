@@ -11,6 +11,8 @@ public partial class MainWindow : Window
     private DispatcherTimer _statsTimer = null!;
     private StatsService _statsService = null!;
     private int _statsIntervalSeconds = 3;   // default matches AppSettings.StatsIntervalSeconds default
+    // StatsPanel.Width(180) - label column(35) - text column(36) = 109
+    private const double StatsBarTrackWidth = 109.0;
     private int _currentFontSize = 32;
     private bool _savedPositionLoaded = false;
     private bool _hasUserPosition = false;
@@ -150,7 +152,7 @@ public partial class MainWindow : Window
         _statsService.Refresh();
 
         CpuText.Text = $"{_statsService.CpuPercent:F0}%";
-        CpuBar.Width = CpuBarTrack.ActualWidth * (_statsService.CpuPercent / 100.0);
+        CpuBar.Width = StatsBarTrackWidth * (_statsService.CpuPercent / 100.0);
 
         if (_statsService.GpuPercent < 0f)
         {
@@ -160,11 +162,11 @@ public partial class MainWindow : Window
         else
         {
             GpuText.Text = $"{_statsService.GpuPercent:F0}%";
-            GpuBar.Width = GpuBarTrack.ActualWidth * (_statsService.GpuPercent / 100.0);
+            GpuBar.Width = StatsBarTrackWidth * (_statsService.GpuPercent / 100.0);
         }
 
         MemText.Text = $"{_statsService.MemPercent:F0}%";
-        MemBar.Width = MemBarTrack.ActualWidth * (_statsService.MemPercent / 100.0);
+        MemBar.Width = StatsBarTrackWidth * (_statsService.MemPercent / 100.0);
     }
 
     private void PositionTopRight()
