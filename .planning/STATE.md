@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25 after v1.1)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.2 System Stats — Phase 8 complete (both plans done), ready for Phase 9 (stats toggle and persistence)
+**Current focus:** v1.2 System Stats — Phase 9 Plan 01 complete — stats controls fully wired, persistence round-trip verified; v1.2 feature set complete
 
 ## Current Position
 
-Phase: 8 (XAML Layout and Stats Display) — both plans complete
-Plan: 02 complete
-Status: All tasks complete (Tasks 1-3 across both plans), 2026-02-26
-Last activity: 2026-02-26 — Phase 8 Plan 02 complete — human-verified live stats display, Collapsed state identical to v1.1, Stats context menu structure confirmed; temporary verification code reverted
+Phase: 9 (Controls Persistence and Edge Cases) — plan 01 complete
+Plan: 01 complete
+Status: All tasks complete (Task 1 auto + Task 2 human-verify), 2026-02-26
+Last activity: 2026-02-26 — Phase 9 Plan 01 complete — stats show/hide toggle, interval selector (1s/3s/10s), and persistence round-trip all human-verified; all 6 behavioral checks passed
 
-Progress: [#####-----] 50% (2/4 v1.2 phases complete — Phase 8 now fully done)
+Progress: [########--] 75% (3/4 v1.2 phases complete — Phase 9 now done, v1.2 feature set delivered)
 
 ## Performance Metrics
 
@@ -35,9 +35,10 @@ Progress: [#####-----] 50% (2/4 v1.2 phases complete — Phase 8 now fully done)
 | 6. AppSettings Migration | 1 | 2 min | 2 min |
 | 7. Stats Data Layer | 1 | 3 min | 3 min |
 | 8. XAML Layout and Stats Display | 2 | 8 min | 4 min |
+| 9. Controls Persistence and Edge Cases | 1 | 15 min | 15 min |
 
 **Recent Trend:**
-- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min), 08-02 (5 min)
+- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min), 08-02 (5 min), 09-01 (15 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -82,6 +83,11 @@ Recent decisions affecting current work:
 - [Phase 08-01]: OnClosing disposes _statsService before SaveSettings() — ensures PDH counters released before settings write
 - [Phase 08-02]: Human verified all five checks pass — live bars, proportional widths, Collapsed=v1.1 identity, Stats submenu, no layout shift
 - [Phase 08-02]: Temporary-force-visible pattern used for visual checkpoint — add, human-verify, revert atomically in separate commit
+- [Phase 09-01]: MenuShowStats_Click reads StatsPanel.Visibility (NOT IsChecked) to determine toggle direction — WPF IsCheckable auto-toggles IsChecked before handler fires, making it unreliable
+- [Phase 09-01]: ApplySettings() sets StatsPanel.Visibility directly (NOT via SetStatsVisible) — SetStatsVisible calls UpdateLayout()+Clamp() which are unsafe before Show() where ActualHeight is 0
+- [Phase 09-01]: ContentRendered is the safe first point to conditionally start _statsTimer — _statsTimer does not exist during ApplySettings()
+- [Phase 09-01]: SetStatsInterval() uses Stop+set+Start pattern — updating DispatcherTimer.Interval on a running timer only takes effect after the current interval expires
+- [Phase 09-01]: Re-clamp on SetStatsVisible(true) guarded by _hasUserPosition=true — mirrors ApplyFontSize() pattern; no-position case uses PositionTopRight() which places widget at top-right where downward growth is safe
 
 ### Pending Todos
 
@@ -94,6 +100,6 @@ None — roadmap complete, research complete, ready to execute.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: 08-xaml-layout-and-stats-display 08-02-PLAN.md — all tasks complete
+Stopped at: 09-controls-persistence-and-edge-cases 09-01-PLAN.md — all tasks complete
 Resume file: None
-Next action: /gsd:execute-phase 9 (Phase 9 — stats toggle wiring and persistence)
+Next action: v1.2 feature set fully delivered — Phase 9 complete

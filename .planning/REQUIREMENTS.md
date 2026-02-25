@@ -9,8 +9,8 @@
 
 - [x] **STAT-01**: Stats panel shows CPU, GPU, and memory usage below the time phrase
 - [x] **STAT-02**: Each stat displays as a horizontal bar + percentage text
-- [ ] **STAT-03**: Update interval (1s / 3s / 10s) is user-selectable via right-click Stats submenu
-- [ ] **STAT-04**: Stats panel visibility (show/hide) is user-toggleable via right-click Stats submenu
+- [x] **STAT-03**: Update interval (1s / 3s / 10s) is user-selectable via right-click Stats submenu
+- [x] **STAT-04**: Stats panel visibility (show/hide) is user-toggleable via right-click Stats submenu
 - [x] **STAT-05**: Stats visibility and update interval persist to settings.json and restore on launch
 
 ## v2+ Requirements
@@ -43,8 +43,8 @@
 |-------------|-------|--------|
 | STAT-01 | Phase 8 | Complete |
 | STAT-02 | Phase 8 | Complete |
-| STAT-03 | Phase 9 | Pending |
-| STAT-04 | Phase 9 | Pending |
+| STAT-03 | Phase 9 | Complete |
+| STAT-04 | Phase 9 | Complete |
 | STAT-05 | Phase 6 + Phase 9 | Complete |
 
 **Coverage:**
