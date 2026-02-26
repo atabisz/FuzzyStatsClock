@@ -127,7 +127,7 @@ Plans:
 ### v2.0 Visual Identity (Phases 18-21) — IN PROGRESS
 
 - [x] **Phase 18: AppSettings Schema Extension** — Add AccentColor (hex string, default #FFFFFFFF) and Opacity (double, default 1.0) fields with backward-compat init defaults and load-time guards; schema locked for Phases 19-21 (completed 2026-02-27)
-- [ ] **Phase 19: Window Opacity** — Opacity submenu (25/50/75/100%), scroll wheel adjustment (10% increments, 0.10 floor), Window.Opacity applied to entire widget window, persisted and restored
+- [x] **Phase 19: Window Opacity** — Opacity submenu (25/50/75/100%), scroll wheel adjustment (10% increments, 0.10 floor), Window.Opacity applied to entire widget window, persisted and restored (completed 2026-02-27)
 - [ ] **Phase 20: Accent Color Presets** — ApplyTheme() covering all 14+ accent elements, Theme submenu with 5 named presets, checkmark sync in ContextMenu_Opened, ContentRendered ordering constraint enforced, persisted as hex string
 - [ ] **Phase 21: Custom Color Picker** — UseWindowsForms=true in csproj, Win32Window HWND owner helper, ColorDialog integration, custom color persists as hex, no preset checkmark when custom active
 
@@ -339,8 +339,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 19-01-PLAN.md — Add Opacity submenu XAML and implement runtime opacity logic (presets + scroll wheel + persistence)
-- [ ] 19-02-PLAN.md — Human verify all four Phase 19 success criteria
+- [x] 19-01-PLAN.md — Add Opacity submenu XAML and implement runtime opacity logic (presets + scroll wheel + persistence)
+- [x] 19-02-PLAN.md — Human verify all four Phase 19 success criteria
 
 ### Phase 20: Accent Color Presets
 **Goal**: Users can choose from five named color presets and see the chosen accent color applied instantly and consistently across every colored element in the widget, persisted across restarts
@@ -387,9 +387,9 @@ Plans:
 | 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
 | 17. Context-Aware Font Size Menu | v1.9 | 2/2 | Complete | 2026-02-26 |
 | 18. AppSettings Schema Extension | v2.0 | Complete    | 2026-02-26 | 2026-02-27 |
-| 19. Window Opacity | 1/2 | In Progress|  | - |
+| 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 20. Accent Color Presets | v2.0 | 0/? | Not started | - |
 | 21. Custom Color Picker | v2.0 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-27 — Phase 18 complete; AppSettings schema locked with AccentColor and Opacity fields*
+*Last updated: 2026-02-27 — Phase 19 complete; window opacity control (menu presets + scroll wheel) human-verified*
