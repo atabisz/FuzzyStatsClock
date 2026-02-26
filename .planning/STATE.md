@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-26 — v1.9 Context-Aware Menus miles
 ## Current Position
 
 Phase: 17 of 17 (Context-Aware Font Size Menu)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-26 — v1.9 roadmap created; Phase 17 defined
+Plan: 1 of 1 in current phase
+Status: Complete
+Last activity: 2026-02-26 — Phase 17 Plan 01 complete (MENU-01 shipped)
 
-Progress: [░░░░░░░░░░] 0% (v1.9: 0/TBD plans complete)
+Progress: [██████████] 100% (v1.9: 1/1 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19 (v1.0 through v1.8)
-- Average duration: 2.7 min
-- Total execution time: 55 min
+- Total plans completed: 20 (v1.0 through v1.9)
+- Average duration: 2.8 min
+- Total execution time: 56 min
 
 **By Phase:**
 
@@ -42,9 +42,10 @@ Progress: [░░░░░░░░░░] 0% (v1.9: 0/TBD plans complete)
 | 14. Hover Backdrop + Drag Pause | 1 | 5 min | 5 min |
 | 15. Unconditional Hover Backdrop | 1 | 5 min | 5 min |
 | 16. Dial Face Decorations | 2 | 4 min | 2 min |
+| 17. Context-Aware Font Size Menu | 1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 14-01 (5 min), 15-01 (5 min), 16-01 (3 min), 16-02 (1 min)
+- Last 5 plans: 15-01 (5 min), 16-01 (3 min), 16-02 (1 min), 17-01 (1 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -54,11 +55,11 @@ Progress: [░░░░░░░░░░] 0% (v1.9: 0/TBD plans complete)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions relevant to Phase 17:
+Recent decisions relevant to current state:
 
-- Phase 16 DIAL-09 pattern: MenuDialFace.Visibility controlled from ContextMenu_Opened and SetDialMode in code-behind; same pattern applies to MenuFontSize in Phase 17
-- Phase 16 decorations: SetDialMode() is the canonical hook for mode-conditional menu visibility; Phase 17 must hook into the same SetDialMode() call
-- ContextMenu_Opened is the sync point for all IsChecked states; Phase 17 adds MenuFontSize.Visibility sync there
+- Phase 16 DIAL-09 pattern: MenuDialFace.Visibility controlled from ContextMenu_Opened and SetDialMode in code-behind
+- Phase 17 MENU-01 pattern: MenuFontSize.Visibility = inverse of DIAL-09 (dialMode ? Collapsed : Visible); synced in same two hooks
+- ApplySettings() never touches menu item visibility — menus only exist post-Show(); font size preference (_currentFontSize) unchanged by mode switches
 
 ### Pending Todos
 
@@ -71,6 +72,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: v1.9 roadmap created — Phase 17 defined and ready to plan
+Stopped at: Completed 17-01-PLAN.md — Phase 17 complete, v1.9 milestone shipped
 Resume file: None
-Next action: /gsd:plan-phase 17
+Next action: None — v1.9 complete

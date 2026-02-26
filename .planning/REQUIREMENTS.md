@@ -9,7 +9,7 @@ Requirements for the v1.9 Context-Aware Menus milestone.
 
 ### Menu
 
-- [ ] **MENU-01**: Font Size submenu is hidden from the context menu when dial mode is active; it reappears when switching back to phrase mode
+- [x] **MENU-01**: Font Size submenu is hidden from the context menu when dial mode is active; it reappears when switching back to phrase mode
 
 ## Future Requirements
 
@@ -37,7 +37,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MENU-01 | Phase 17 | Pending |
+| MENU-01 | Phase 17 | Complete |
 
 **Coverage:**
 - v1.9 requirements: 1 total
