@@ -68,6 +68,9 @@ public partial class MainWindow : Window
                 _statsTimer.Start();
                 UpdateStatsDisplay();
             }
+
+            this.MouseEnter += Window_MouseEnter;
+            this.MouseLeave += Window_MouseLeave;
         };
     }
 
