@@ -10,22 +10,24 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v1.6 shipped: 2026-02-26**
+**v1.8 shipped: 2026-02-26**
 
-All v1.6 requirements delivered. Dial mode human-verified (all 5 DIAL criteria passed).
+All v1.8 requirements delivered. Unconditional hover backdrop and dial face decorations human-verified.
 
-- Dial mode: right-click "Dial Mode" toggles between phrase text and minimal analog dial (hour + minute hands, no face); persists across restarts
-- Dial hands: white 2px Lines, center (40,40), hour 25px, minute 35px; analog trig (X2=40+L×sin θ, Y2=40−L×cos θ); driven by existing 10s phrase timer
-- Hover fast-refresh: mouse over widget → stats update at 0.5s cadence; mouse leave → restores configured rate; no-op when stats panel hidden
+- Hover backdrop: widget background becomes ~35% black semi-transparent on any hover (regardless of stats visibility); clears immediately on mouse leave
+- Dial face decorations: in dial mode, Show Hour Ticks (12 lines), Show Minute Marks (60 dots), Show Hour Numbers (1–12) independently toggled via Dial Face submenu; all persisted; submenu hidden in phrase mode
+- Drag pause: stat updates freeze during DragMove(), resume immediately on release
+- Dial mode: right-click "Dial Mode" toggles between phrase text and minimal analog dial (hour + minute hands, no face); persists
+- Hover fast-refresh: mouse over widget → stats update at 0.5s cadence; restores configured rate on leave; no-op when stats hidden
 - Stats panel: CPU / GPU / MEM / PAG horizontal bars + % text below the time phrase or dial
-- Per-row visibility: Show CPU / Show GPU / Show MEM / Show PAG toggles in Stats submenu, auto-collapse when all four hidden, persisted
-- PAG row: paging file % usage via PDH "Paging File"/"% Usage"/"_Total"; "N/A" displayed when pagefile unavailable
+- Per-row visibility: Show CPU / Show GPU / Show MEM / Show PAG toggles, auto-collapse when all hidden, persisted
+- PAG row: paging file % usage via PDH "Paging File"/"% Usage"/"_Total"; "N/A" when pagefile unavailable
 - Update interval: 1s / 3s / 10s via right-click Stats submenu, persisted
 - Stats visibility: show/hide toggle via right-click Stats submenu, persisted
 - Position persistence: drag to any position, saved immediately, restored on next launch
 - Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~1,240 LOC C# / XAML
+- ~1,380 LOC C# / XAML
 
 ## Requirements
 
@@ -71,13 +73,13 @@ All v1.6 requirements delivered. Dial mode human-verified (all 5 DIAL criteria p
 - ✓ BACK-03: When the stats panel is hidden, the widget background is always fully transparent regardless of hover state — v1.7 (superseded in v1.8 by BACK-04)
 - ✓ DRAG-01: While dragging the widget, stats updates pause; they resume immediately when the drag completes — v1.7
 
-### Active (v1.8)
+### Validated (v1.8)
 
-- [ ] BACK-04: Widget background becomes semi-transparent (~35% black) on hover regardless of stats panel visibility; always clears on mouse leave
-- [ ] DIAL-06: In dial mode, user can toggle hour tick marks (12 short lines at hour positions) via right-click submenu; persisted
-- [ ] DIAL-07: In dial mode, user can toggle minute marks (60 small dots at minute positions) via right-click submenu; persisted
-- [ ] DIAL-08: In dial mode, user can toggle hour number labels (1–12) at hour positions via right-click submenu; persisted
-- [ ] DIAL-09: Dial face decoration menu options are hidden when in phrase mode; visible only when dial mode is active
+- ✓ BACK-04: Widget background becomes semi-transparent (~35% black) on hover regardless of stats panel visibility; always clears on mouse leave — v1.8
+- ✓ DIAL-06: In dial mode, user can toggle hour tick marks (12 short lines at hour positions) via right-click submenu; persisted — v1.8
+- ✓ DIAL-07: In dial mode, user can toggle minute marks (60 small dots at minute positions) via right-click submenu; persisted — v1.8
+- ✓ DIAL-08: In dial mode, user can toggle hour number labels (1–12) at hour positions via right-click submenu; persisted — v1.8
+- ✓ DIAL-09: Dial face decoration menu options are hidden when in phrase mode; visible only when dial mode is active — v1.8
 
 ### Deferred (v2+)
 
@@ -154,6 +156,14 @@ All v1.6 requirements delivered. Dial mode human-verified (all 5 DIAL criteria p
 | No zero-guard for DialMode bool in Load() | Bool false has no dangerous zero-equivalent (unlike StatsIntervalSeconds=0 which spikes the timer) | ✓ Validated — bool field safe without guard; consistent with other bool AppSettings fields |
 | ApplySettings() sets DialCanvas Visibility directly (not via SetDialMode) | SetDialMode() calls SaveSettings() — unsafe before Show() where settings are being applied, not changed | ✓ Validated — same pre-Show() safety invariant as StatsPanel and stat rows |
 | Existing 10s phrase timer drives UpdateDialDisplay() | Hands only change visually on the minute; 10s polling is sufficient — no second timer needed | ✓ Validated — dial updates correctly at sub-minute poll rate; no extra timer complexity |
+| ContentBorder named Border element | Allows code-behind to set Background dynamically without XAML binding or triggers | ✓ Validated — clean code-behind pattern; no XAML binding overhead |
+| Alpha 0x59 (35%) for hover backdrop | Visible on both light and dark wallpapers without obscuring desktop content | ✓ Validated — noticeable but unobtrusive on any wallpaper |
+| Window_MouseLeave clears backdrop before stats guard | Prevents stale backdrop if stats hidden while mouse is hovering | ✓ Validated — unconditional clear in MouseLeave is the correct invariant |
+| Backdrop assignment before StatsPanel guard in MouseEnter | Backdrop is a general hover affordance (not stats-specific); decoupled from stats visibility | ✓ Validated — BACK-04: backdrop always shows on hover regardless of stats state |
+| Decoration elements created once, Visibility-toggled | Creating/removing 84 elements per toggle is expensive; create-once-toggle pattern avoids re-layout cost | ✓ Validated — instant toggle response; no layout jitter |
+| Decoration defaults false | Preserves minimal Phase 13 dial appearance for existing users when upgrading from v1.6/v1.7 | ✓ Validated — no settings migration needed; new fields JSON-default safely |
+| MenuDialFace.Visibility controlled from code-behind only | XAML cannot know startup DialMode state; code-behind in ContextMenu_Opened and SetDialMode always correct | ✓ Validated — submenu correctly hidden/shown on first menu open after any mode switch |
+| InitDialDecorations() in ContentRendered after UpdateDialDisplay() | Elements must exist before visibility applied; hand positions set first avoids visual flash | ✓ Validated — correct ordering; no null-element errors; no initial flash |
 
 ---
-*Last updated: 2026-02-26 — v1.8 Dial Enhancement milestone started; v1.7 requirements moved to Validated*
+*Last updated: 2026-02-26 — v1.8 Dial Enhancement milestone shipped; all v1.8 requirements validated*

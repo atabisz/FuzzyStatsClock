@@ -99,3 +99,30 @@
 
 ---
 
+
+## v1.7 Visual Polish (Shipped: 2026-02-26)
+
+**Phases completed:** 1 phase (14), 1 plan
+
+**Key accomplishments:**
+- Removed hardcoded `#26000000` Border background; widget background is now fully transparent by default
+- `Window_MouseEnter` sets `ContentBorder.Background` to `#59000000` (~35% black) when stats panel is visible (BACK-01/02)
+- `Window_MouseLeave` clears backdrop unconditionally before the stats guard — prevents stale backdrop if stats hidden mid-hover (BACK-03 edge case)
+- `Grid_MouseLeftButtonDown` guards `DragMove()` with `statsTimerWasRunning` stop/start — stat values freeze during drag, resume on release (DRAG-01)
+
+---
+
+
+## v1.8 Dial Enhancement (Shipped: 2026-02-26)
+
+**Phases completed:** 2 phases (15–16), 3 plans
+
+**Key accomplishments:**
+- Hover backdrop decoupled from stats panel — `ContentBorder.Background` assignment moved before `StatsPanel.Visibility` guard in `Window_MouseEnter`; backdrop always shows on hover regardless of stats visibility (BACK-04)
+- `InitDialDecorations()` creates 84 canvas elements once (12 tick `Line`s at R=31–36, 60 minute `Ellipse` dots at R=35, 12 hour number `TextBlock`s at R=25); toggled via `Visibility` with no re-layout cost
+- `Dial Face` right-click submenu (`MenuDialFace`) with three `IsCheckable` items: Show Hour Ticks / Show Minute Marks / Show Hour Numbers; DIAL-09 hides submenu in phrase mode, restores in dial mode
+- All three decoration preferences persisted to `settings.json` via new `AppSettings` bool init-properties (default `false` — preserves minimal dial for existing users)
+- All five success criteria (DIAL-06/07/08/09 + persistence + phrase-mode round-trip) human-verified on first attempt
+
+---
+
