@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Below the phrase, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, and all preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Below the phrase, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Hovering the mouse over the widget accelerates the stats update rate to 0.5s for a quick peek; moving the mouse away restores the configured rate. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, and all preferences are saved across restarts.
 
 ## Core Value
 
@@ -10,10 +10,11 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v1.4 shipped: 2026-02-26**
+**v1.5 shipped: 2026-02-26**
 
-All v1.4 requirements delivered. PAG stat row human-verified (all 5 behavioral checks passed).
+All v1.5 requirements delivered. Hover fast-refresh human-verified (all 4 behavioral checks passed).
 
+- Hover fast-refresh: mouse over widget → stats update at 0.5s cadence; mouse leave → restores configured rate; no-op when stats panel hidden
 - Stats panel: CPU / GPU / MEM / PAG horizontal bars + % text below the time phrase
 - Per-row visibility: Show CPU / Show GPU / Show MEM / Show PAG toggles in Stats submenu, auto-collapse when all four hidden, persisted
 - PAG row: paging file % usage via PDH "Paging File"/"% Usage"/"_Total"; "N/A" displayed when pagefile unavailable
@@ -22,7 +23,7 @@ All v1.4 requirements delivered. PAG stat row human-verified (all 5 behavioral c
 - Position persistence: drag to any position, saved immediately, restored on next launch
 - Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~1,135 LOC C# / XAML
+- ~1,155 LOC C# / XAML
 
 ## Requirements
 
@@ -52,12 +53,13 @@ All v1.4 requirements delivered. PAG stat row human-verified (all 5 behavioral c
 - ✓ Hiding all four stat rows (CPU/GPU/MEM/PAG) auto-collapses the stats panel (STAT-13) — v1.4
 - ✓ PAG row visibility persists to settings.json and restores on launch (STAT-14) — v1.4
 - ✓ When paging file is disabled or unavailable, PAG row shows "N/A" with no exception thrown (STAT-15) — v1.4
+- ✓ When the mouse enters the widget and the stats panel is visible, the stats refresh rate switches to 0.5s (HVRF-01) — v1.5
+- ✓ When the mouse leaves the widget, the stats refresh rate returns to the user's configured interval (1s/3s/10s) (HVRF-02) — v1.5
+- ✓ When the stats panel is hidden, mouse hover has no effect on the stats timer (HVRF-03) — v1.5
 
-### Active (v1.5)
+### Active
 
-- [ ] HVRF-01: When the mouse enters the widget and the stats panel is visible, the stats refresh rate switches to 0.5s
-- [ ] HVRF-02: When the mouse leaves the widget, the stats refresh rate returns to the user's configured interval (1s/3s/10s)
-- [ ] HVRF-03: When the stats panel is hidden, mouse hover has no effect on the stats timer
+*(No active requirements — v1.5 shipped. Start `/gsd:new-milestone` to define v1.6.)*
 
 ### Deferred (v2+)
 
@@ -126,6 +128,10 @@ All v1.4 requirements delivered. PAG stat row human-verified (all 5 behavioral c
 | 4-param PerformanceCounter for Paging File | "Paging File" is a multi-instance PDH category; 3-param (string,string,bool) constructor throws InvalidOperationException | ✓ Validated — 4-param PerformanceCounter("Paging File","% Usage","_Total",readOnly:true) works correctly |
 | No priming for PAG counter | "% Usage" is a ratio counter (PERF_RAW_FRACTION), returns valid data on first NextValue() — unlike CPU/GPU rate counters | ✓ Validated — first read returns accurate value; no priming call needed |
 | Double guard for no-pagefile | PerformanceCounterCategory.Exists() may return true even when pagefile is disabled (category registered but no instances); try/catch is the essential guard | ✓ Validated — -1f sentinel correctly set when counter construction fails |
+| Window_MouseEnter guard 2 checks !_statsTimer.IsEnabled | Defensive: do not interfere if timer is already stopped when panel is visible | ✓ Validated — correct behavior on panel-visible-but-timer-stopped edge case |
+| Window_MouseLeave omits IsEnabled guard | If panel is visible but timer somehow stopped, restoring interval and restarting is still correct | ✓ Validated — correct recovery behavior |
+| Hover handlers wire in ContentRendered (not XAML) | _statsTimer must exist before handlers can fire; ContentRendered is after construction; zero XAML changes required | ✓ Validated — no null-timer risk; no XAML touch |
+| _statsIntervalSeconds read-only in hover handlers | Source of truth for user's configured rate; hover must not overwrite persistence or interval selector state | ✓ Validated — interval selector checkmarks unchanged after hover cycles |
 
 ---
-*Last updated: 2026-02-26 after v1.4 milestone shipped*
+*Last updated: 2026-02-26 after v1.5 milestone shipped*

@@ -72,3 +72,16 @@
 
 ---
 
+
+## v1.5 Hover Fast-Refresh (Shipped: 2026-02-26)
+
+**Phases completed:** 1 phase (12), 1 plan
+
+**Key accomplishments:**
+- `Window_MouseEnter` handler switches `_statsTimer` to 0.5s cadence via Stop+set+Start when stats panel is visible (HVRF-01)
+- `Window_MouseLeave` handler restores `_statsTimer` to `_statsIntervalSeconds` via Stop+set+Start on mouse leave (HVRF-02)
+- Both handlers guard on `StatsPanel.Visibility == Visible` — hover has no effect when stats panel is hidden (HVRF-03)
+- Event subscriptions wired in `ContentRendered` lambda after `_statsTimer` construction — zero XAML changes, `_statsIntervalSeconds` never written by hover
+
+---
+

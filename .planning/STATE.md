@@ -2,10 +2,10 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 after v1.4 shipped)
+See: .planning/PROJECT.md (updated 2026-02-26 after v1.5 shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.5 milestone — Hover Fast-Refresh (Phase 12) — COMPLETE
+**Current focus:** v1.5 archived — planning next milestone
 
 ## Current Position
 
@@ -50,7 +50,7 @@ Progress: [##########] 100% (phase 12 complete, 1/1 plans)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+Recent decisions from v1.5 (full log in PROJECT.md):
 
 - [v1.0 Phase 02-02]: AllowsTransparency + WindowStyle=None + Background=Transparent must all be set in XAML
 - [v1.0 Phase 02-02]: Grid Background=#01000000 — fully transparent alpha=0 has no hit-test surface, breaking right-click
@@ -124,6 +124,6 @@ None — v1.5 complete and archived.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 12-01-PLAN.md — phase 12 and v1.5 milestone complete, human-verified PASS
+Stopped at: v1.5 milestone archived — MILESTONES.md, PROJECT.md, ROADMAP.md, STATE.md updated, git tag v1.5
 Resume file: None
-Next action: No planned phases. Start new milestone planning if desired.
+Next action: /gsd:new-milestone
