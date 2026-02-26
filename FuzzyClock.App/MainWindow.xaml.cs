@@ -242,6 +242,8 @@ public partial class MainWindow : Window
     private void MenuMemVisible_Click(object sender, RoutedEventArgs e)
         => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible);
 
+    private void MenuPagVisible_Click(object sender, RoutedEventArgs e) { }  // stub — wired in Plan 11-02
+
     private void MenuInterval1_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(1);
     private void MenuInterval3_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(3);
     private void MenuInterval10_Click(object sender, RoutedEventArgs e) => SetStatsInterval(10);

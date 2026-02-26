@@ -44,6 +44,10 @@
                               Header="Show MEM"
                               IsCheckable="True"
                               Click="MenuMemVisible_Click" />
+                    <MenuItem x:Name="MenuPagVisible"
+                              Header="Show PAG"
+                              IsCheckable="True"
+                              Click="MenuPagVisible_Click" />
                     <MenuItem Header="Update Interval">
                         <MenuItem x:Name="MenuInterval1"  Header="1 second"   IsCheckable="True" Click="MenuInterval1_Click" />
                         <MenuItem x:Name="MenuInterval3"  Header="3 seconds"  IsCheckable="True" Click="MenuInterval3_Click" />
@@ -161,6 +165,27 @@
                                 CornerRadius="2" Height="8" Width="0" />
                     </Border>
                     <TextBlock Grid.Column="2" x:Name="MemText"
+                               Text="0%" Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               TextAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- PAG row -->
+                <Grid x:Name="PagRow" Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="35" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="PAG"
+                               Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               VerticalAlignment="Center" />
+                    <Border Grid.Column="1" x:Name="PagBarTrack"
+                            Background="#40FFFFFF" CornerRadius="2" Height="8" VerticalAlignment="Center">
+                        <Border x:Name="PagBar"
+                                HorizontalAlignment="Left" Background="White"
+                                CornerRadius="2" Height="8" Width="0" />
+                    </Border>
+                    <TextBlock Grid.Column="2" x:Name="PagText"
                                Text="0%" Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
                                TextAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
