@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26 after v1.4 shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.4 complete — planning next milestone
+**Current focus:** v1.5 milestone — Hover Fast-Refresh (Phase 12)
 
 ## Current Position
 
-Phase: 11 — PAG Stat Row (complete)
+Phase: 12 — Hover Fast-Refresh
 Plan: —
-Status: v1.4 milestone archived — ready for next milestone
-Last activity: 2026-02-26 — v1.4 archived (Phase 11 complete, git tagged)
+Status: Roadmap created, ready to plan Phase 12
+Last activity: 2026-02-26 — v1.5 milestone started
 
-Progress: [##########] 100% (all phases complete)
+Progress: [----------] 0% (phase 12 not started)
 
 ## Performance Metrics
 
@@ -118,4 +118,4 @@ None — v1.4 complete and archived.
 Last session: 2026-02-26
 Stopped at: v1.4 milestone archived — Phase 11 complete, git tagged v1.4
 Resume file: None
-Next action: /gsd:new-milestone
+Next action: /gsd:plan-phase 12

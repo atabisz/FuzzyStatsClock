@@ -53,9 +53,11 @@ All v1.4 requirements delivered. PAG stat row human-verified (all 5 behavioral c
 - ✓ PAG row visibility persists to settings.json and restores on launch (STAT-14) — v1.4
 - ✓ When paging file is disabled or unavailable, PAG row shows "N/A" with no exception thrown (STAT-15) — v1.4
 
-### Active
+### Active (v1.5)
 
-None — no next milestone defined yet.
+- [ ] HVRF-01: When the mouse enters the widget and the stats panel is visible, the stats refresh rate switches to 0.5s
+- [ ] HVRF-02: When the mouse leaves the widget, the stats refresh rate returns to the user's configured interval (1s/3s/10s)
+- [ ] HVRF-03: When the stats panel is hidden, mouse hover has no effect on the stats timer
 
 ### Deferred (v2+)
 
