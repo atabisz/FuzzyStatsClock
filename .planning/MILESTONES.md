@@ -126,3 +126,14 @@
 
 ---
 
+
+## v1.9 Context-Aware Menus (Shipped: 2026-02-26)
+
+**Phases completed:** 1 phase (17), 2 plans
+
+**Key accomplishments:**
+- Applied DIAL-09 inverse pattern to Font Size submenu: `MenuFontSize.Visibility = _dialMode ? Collapsed : Visible` wired in `ContextMenu_Opened` and `SetDialMode()` — Font Size submenu hidden in dial mode, restored in phrase mode (MENU-01)
+- All four MENU-01 success criteria human-verified: phrase-mode presence, dial-mode absence, restore-on-return, font size preference preserved
+
+---
+

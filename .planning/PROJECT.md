@@ -8,21 +8,14 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v1.9 Context-Aware Menus
-
-**Goal:** Hide irrelevant menu items depending on the active display mode.
-
-**Target features:**
-- Font Size submenu hidden when in dial mode (mirrors Dial Face hidden in phrase mode)
-
 ## Current State
 
-**v1.8 shipped: 2026-02-26**
+**v1.9 shipped: 2026-02-26**
 
-All v1.8 requirements delivered. Unconditional hover backdrop and dial face decorations human-verified.
+All v1.9 requirements delivered. Font Size submenu context-awareness human-verified.
 
-- Hover backdrop: widget background becomes ~35% black semi-transparent on any hover (regardless of stats visibility); clears immediately on mouse leave
-- Dial face decorations: in dial mode, Show Hour Ticks (12 lines), Show Minute Marks (60 dots), Show Hour Numbers (1–12) independently toggled via Dial Face submenu; all persisted; submenu hidden in phrase mode
+- Context-aware menus: Font Size submenu hidden in dial mode; Dial Face submenu hidden in phrase mode — right-click menu shows only relevant controls for the active display mode
+- ~4,870 LOC C# / XAML
 - Drag pause: stat updates freeze during DragMove(), resume immediately on release
 - Dial mode: right-click "Dial Mode" toggles between phrase text and minimal analog dial (hour + minute hands, no face); persists
 - Hover fast-refresh: mouse over widget → stats update at 0.5s cadence; restores configured rate on leave; no-op when stats hidden
@@ -88,11 +81,15 @@ All v1.8 requirements delivered. Unconditional hover backdrop and dial face deco
 - ✓ DIAL-08: In dial mode, user can toggle hour number labels (1–12) at hour positions via right-click submenu; persisted — v1.8
 - ✓ DIAL-09: Dial face decoration menu options are hidden when in phrase mode; visible only when dial mode is active — v1.8
 
+### Validated (v1.9)
+
+- ✓ MENU-01: Font Size submenu is hidden from the context menu when dial mode is active; reappears when switching to phrase mode — v1.9
+
 ### Active
 
-<!-- Current scope — v1.9 Context-Aware Menus -->
+<!-- Next milestone requirements go here -->
 
-- [ ] MENU-01: Font Size submenu is hidden from the context menu when dial mode is active; reappears when switching to phrase mode
+(None — planning next milestone)
 
 ### Deferred (v2+)
 
@@ -177,6 +174,7 @@ All v1.8 requirements delivered. Unconditional hover backdrop and dial face deco
 | Decoration defaults false | Preserves minimal Phase 13 dial appearance for existing users when upgrading from v1.6/v1.7 | ✓ Validated — no settings migration needed; new fields JSON-default safely |
 | MenuDialFace.Visibility controlled from code-behind only | XAML cannot know startup DialMode state; code-behind in ContextMenu_Opened and SetDialMode always correct | ✓ Validated — submenu correctly hidden/shown on first menu open after any mode switch |
 | InitDialDecorations() in ContentRendered after UpdateDialDisplay() | Elements must exist before visibility applied; hand positions set first avoids visual flash | ✓ Validated — correct ordering; no null-element errors; no initial flash |
+| MenuFontSize.Visibility inverse of DIAL-09 | Font Size is phrase-mode-only; dial mode has no use for font size since DialCanvas size is fixed | ✓ Validated — MENU-01: dialMode ? Collapsed : Visible; synced in ContextMenu_Opened and SetDialMode |
 
 ---
-*Last updated: 2026-02-26 — v1.9 Context-Aware Menus milestone started*
+*Last updated: 2026-02-26 after v1.9 milestone*

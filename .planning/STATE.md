@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 — v1.9 Context-Aware Menus milestone started)
+See: .planning/PROJECT.md (updated 2026-02-26 after v1.9 milestone)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.9 Context-Aware Menus — Phase 17 complete, milestone shipped
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 17 of 17 (Context-Aware Font Size Menu)
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-02-26 — Phase 17 Plan 02 complete (MENU-01 human-verified, v1.9 milestone closed)
+Phase: —
+Plan: —
+Status: Milestone v1.9 archived — planning next milestone
+Last activity: 2026-02-26 — v1.9 Context-Aware Menus archived
 
 Progress: [██████████] 100% (v1.9: 2/2 plans complete)
 
