@@ -45,7 +45,8 @@ public static class SettingsService
     {
         Left = -1, Top = 20, FontSize = 32,
         StatsVisible = false, StatsIntervalSeconds = 3,
-        CpuVisible = true, GpuVisible = true, MemVisible = true
+        CpuVisible = true, GpuVisible = true, MemVisible = true,
+        PagVisible = true
     };
 
     /// <summary>
