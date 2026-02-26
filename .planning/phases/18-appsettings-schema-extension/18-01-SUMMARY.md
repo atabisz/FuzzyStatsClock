@@ -106,3 +106,12 @@ Pending todos (from STATE.md) still open:
 ---
 *Phase: 18-appsettings-schema-extension*
 *Completed: 2026-02-27*
+
+## Self-Check: PASSED
+
+- FOUND: FuzzyClock.App/AppSettings.cs
+- FOUND: FuzzyClock.App/SettingsService.cs
+- FOUND: .planning/phases/18-appsettings-schema-extension/18-01-SUMMARY.md
+- FOUND commit: f68061c (feat: add AccentColor and Opacity fields to AppSettings record)
+- FOUND commit: ff05684 (feat: update SettingsService Defaults() and add Load() guards)
+- FOUND commit: 1f020f7 (docs: complete AppSettings schema extension plan)
