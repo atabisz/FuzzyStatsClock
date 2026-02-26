@@ -58,6 +58,21 @@
                           Header="Dial Mode"
                           IsCheckable="True"
                           Click="MenuDialMode_Click" />
+                <MenuItem x:Name="MenuDialFace"
+                          Header="Dial Face">
+                    <MenuItem x:Name="MenuShowHourTicks"
+                              Header="Show Hour Ticks"
+                              IsCheckable="True"
+                              Click="MenuShowHourTicks_Click" />
+                    <MenuItem x:Name="MenuShowMinuteDots"
+                              Header="Show Minute Marks"
+                              IsCheckable="True"
+                              Click="MenuShowMinuteDots_Click" />
+                    <MenuItem x:Name="MenuShowHourNumbers"
+                              Header="Show Hour Numbers"
+                              IsCheckable="True"
+                              Click="MenuShowHourNumbers_Click" />
+                </MenuItem>
                 <MenuItem Header="Close" Click="CloseMenuItem_Click" />
             </ContextMenu>
         </Grid.ContextMenu>

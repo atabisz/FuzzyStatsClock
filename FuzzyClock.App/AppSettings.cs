@@ -13,5 +13,8 @@ public record AppSettings
     public bool   MemVisible           { get; init; } = true;
     public bool   PagVisible           { get; init; } = true;
     public bool   DialMode             { get; init; } = false;
+    public bool   ShowHourTicks        { get; init; } = false;
+    public bool   ShowMinuteDots       { get; init; } = false;
+    public bool   ShowHourNumbers      { get; init; } = false;
 }
 // Left = -1 is the sentinel for "no saved position — use PositionTopRight() fallback"
