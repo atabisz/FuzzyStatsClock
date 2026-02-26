@@ -96,6 +96,12 @@ Plans:
 
 </details>
 
+### 🚧 v1.6 Dial Mode (In Progress)
+
+**Milestone Goal:** Users can switch to a minimal analog dial (hour + minute hands only, no face) via the right-click menu, with the choice persisted across restarts and the stats panel unaffected.
+
+- [ ] **Phase 13: Dial Mode** — AppSettings.DialMode field + XAML DialCanvas with hour/minute Line elements + context menu toggle + wiring + persistence + human verify
+
 ## Phase Details
 
 ### Phase 6: AppSettings Migration
@@ -201,6 +207,25 @@ Plans:
   4. The user's configured interval (1s/3s/10s) is preserved after hover — hover does not overwrite the persisted setting nor alter what the interval selector shows
 **Plans**: 1 plan
 
+Plans:
+- [x] 12-01-PLAN.md — Wire Window_MouseEnter/Window_MouseLeave in ContentRendered lambda; Stop+set+Start pattern on _statsTimer; guard on StatsPanel.Visibility; _statsIntervalSeconds read-only in hover handlers; human verify all 4 checks
+
+### Phase 13: Dial Mode
+**Goal**: Users can switch between the fuzzy phrase display and a minimal analog dial (hour and minute hands only, no face) via the right-click menu, with the selected mode persisted across restarts and the stats panel unaffected
+**Depends on**: Phase 12
+**Requirements**: DIAL-01, DIAL-02, DIAL-03, DIAL-04, DIAL-05
+**Success Criteria** (what must be TRUE):
+  1. Right-clicking the widget reveals a "Dial Mode" menu item; clicking it toggles between phrase mode and dial mode, and the checkmark reflects the current mode every time the menu opens
+  2. In dial mode, the widget shows two white lines (hour hand shorter, minute hand longer) on a transparent background with no clock face, circle, or numbers
+  3. The hour and minute hands point to the correct positions for the current time, and hands visibly update to a new position when the minute changes
+  4. The stats panel (when enabled) appears below the dial in dial mode, exactly as it does below the phrase in phrase mode
+  5. Closing and relaunching the widget restores the last-selected clock mode (phrase or dial) without requiring the user to re-select it
+**Plans**: 2 plans
+
+Plans:
+- [ ] 13-01: AppSettings.DialMode init-property + XAML DialCanvas with HourHand/MinuteHand Line elements + MenuDialMode IsCheckable MenuItem in context menu
+- [ ] 13-02: Wire MenuDialMode_Click toggle, ApplySettings/SaveSettings DialMode field, UpdateDialDisplay() hand angle trig, phrase timer drives dial updates, ContentRendered initial draw, ContextMenu_Opened checkmark sync; human verify all 5 checks
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -217,6 +242,7 @@ Plans:
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
+| 13. Dial Mode | v1.6 | 0/2 | Not started | - |
 
 ---
-*Last updated: 2026-02-26 — v1.5 milestone complete, Phase 12 shipped*
+*Last updated: 2026-02-26 — v1.6 milestone roadmap created (Phase 13: Dial Mode)*
