@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-27 after v2.0 milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.0 Visual Identity — Phase 18: AppSettings Schema Extension
+**Current focus:** v2.0 Visual Identity — Phase 19: Window Opacity
 
 ## Current Position
 
-Phase: 18 — AppSettings Schema Extension
+Phase: 19 — Window Opacity
 Plan: 01 complete
-Status: Phase complete
-Last activity: 2026-02-27 — Phase 18 complete; AppSettings schema extended with AccentColor and Opacity
+Status: In Progress (1/2 plans complete)
+Last activity: 2026-02-27 — Phase 19 Plan 01 complete; opacity control (menu presets + scroll wheel) implemented
 
-Progress: [██░░░░░░░░] 25% (v2.0: 1/4 phases)
+Progress: [███░░░░░░░] 37% (v2.0: 1.5/4 phases)
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [██░░░░░░░░] 25% (v2.0: 1/4 phases)
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 19-window-opacity P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,12 +69,14 @@ Recent decisions relevant to current state:
 - v2.0 brush pattern: always use new SolidColorBrush(_accentColor) — never mutate Brushes.* static instances (they are frozen and throw on mutation)
 - v2.0 opacity scroll: use PreviewMouseWheel (not MouseWheel) on frameless transparent windows — MouseWheel is silently dropped without prior keyboard focus
 - v2.0 custom picker: ColorDialog requires HWND owner via WindowInteropHelper — without it the dialog renders behind Topmost=True WPF window
+- [Phase 19-window-opacity]: PreviewMouseWheel (not MouseWheel) confirmed for frameless transparent windows — MouseWheel silently dropped without keyboard focus
+- [Phase 19-window-opacity]: ApplySettings() uses direct field+property assignment for opacity (not SetOpacity()) to avoid redundant SaveSettings() at startup
 
 ### Pending Todos
 
 - Settle on canonical preset color hex values before Phase 20 implementation (FEATURES.md is the design authority — Ice Blue varies across research files)
 - Confirm whether row label text (CPU/GPU/MEM/PAG) follows accent color or stays white (ARCHITECTURE.md leaves them white; confirm before Phase 20)
-- Confirm opacity floor behavior: scroll wheel floor = 0.10, preset menu floor = 0.25; document in Phase 19 plan
+- ~~Confirm opacity floor behavior: scroll wheel floor = 0.10, preset menu floor = 0.25; document in Phase 19 plan~~ (DONE: Phase 19-01 implements and documents both floors)
 
 ### Blockers/Concerns
 
@@ -82,6 +85,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 18-appsettings-schema-extension/18-01-PLAN.md
+Stopped at: Completed 19-window-opacity/19-01-PLAN.md
 Resume file: None
-Next action: /gsd:plan-phase 19
+Next action: Execute 19-window-opacity/19-02-PLAN.md

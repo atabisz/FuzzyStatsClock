@@ -16,9 +16,9 @@ Requirements for v2.0 Visual Identity milestone. Each maps to roadmap phases.
 
 ### Opacity
 
-- [ ] **OPAC-01**: User can set widget opacity to 25%, 50%, 75%, or 100% via a right-click Opacity submenu; current level shown as checked
-- [ ] **OPAC-02**: User can adjust widget opacity in 10% increments by scrolling the mouse wheel over the widget
-- [ ] **OPAC-03**: Opacity applies to the entire widget window (phrase, dial, stats panel, hover backdrop)
+- [x] **OPAC-01**: User can set widget opacity to 25%, 50%, 75%, or 100% via a right-click Opacity submenu; current level shown as checked
+- [x] **OPAC-02**: User can adjust widget opacity in 10% increments by scrolling the mouse wheel over the widget
+- [x] **OPAC-03**: Opacity applies to the entire widget window (phrase, dial, stats panel, hover backdrop)
 - [x] **OPAC-04**: Opacity setting persists to settings.json and restores on launch
 
 ## Future Requirements
@@ -62,9 +62,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | THEME-02 | Phase 21 | Pending |
 | THEME-03 | Phase 20 | Pending |
 | THEME-04 | Phase 18 | Complete |
-| OPAC-01 | Phase 19 | Pending |
-| OPAC-02 | Phase 19 | Pending |
-| OPAC-03 | Phase 19 | Pending |
+| OPAC-01 | Phase 19 | Complete |
+| OPAC-02 | Phase 19 | Complete |
+| OPAC-03 | Phase 19 | Complete |
 | OPAC-04 | Phase 18 | Complete |
 
 **Coverage:**
