@@ -301,7 +301,7 @@ Plans:
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
 | 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
 | 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
-| 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
+| 16. Dial Face Decorations | v1.8 | Complete    | 2026-02-26 | 2026-02-26 |
 
 ---
 *Last updated: 2026-02-26 — Phase 16 complete (DIAL-06/07/08/09 human-verified); v1.8 Dial Enhancement milestone closed*
