@@ -10,7 +10,8 @@
 - **v1.5 Hover Fast-Refresh** (2026-02-26) — Mouse-hover accelerates stats to 0.5s cadence; leave restores configured rate; guarded when stats hidden. 1 phase, 1 plan. → [Archive](milestones/v1.5-ROADMAP.md)
 - **v1.6 Dial Mode** (2026-02-26) — Minimal analog dial (hour + minute hands, no face) toggle via right-click menu; persisted; stats panel unaffected. 1 phase, 2 plans. → [Archive](milestones/v1.6-ROADMAP.md)
 - **v1.7 Visual Polish** (2026-02-26) — Hover backdrop (semi-transparent when stats visible), drag pause. 1 phase, 1 plan. → [Archive](milestones/v1.7-ROADMAP.md)
-- **v1.8 Dial Enhancement** (2026-02-26) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases, 3 plans.
+- **v1.8 Dial Enhancement** (2026-02-26) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases, 3 plans. → [Archive](milestones/v1.8-ROADMAP.md)
+- **v1.9 Context-Aware Menus** (in progress) — Font Size submenu hidden in dial mode; reappears in phrase mode. 1 phase, TBD plans.
 
 ## Phases
 
@@ -114,6 +115,10 @@ Plans:
 
 - [x] **Phase 15: Unconditional Hover Backdrop** — Moved ContentBorder.Background assignment before StatsPanel.Visibility guard in Window_MouseEnter; backdrop now shows on hover unconditionally; BACK-04 human-verified (completed 2026-02-26)
 - [x] **Phase 16: Dial Face Decorations** — XAML geometry for hour tick marks, minute dots, and hour number labels on DialCanvas; AppSettings bool fields; Dial submenu with three IsCheckable items; menu items hidden in phrase mode; persistence; DIAL-06, DIAL-07, DIAL-08, DIAL-09 (completed 2026-02-26)
+
+### v1.9 Context-Aware Menus (Phase 17)
+
+- [ ] **Phase 17: Context-Aware Font Size Menu** — Font Size submenu hidden when dial mode is active; reappears when switching to phrase mode; mirrors the DIAL-09 pattern established in Phase 16
 
 ## Phase Details
 
@@ -282,6 +287,17 @@ Plans:
 - [x] 16-01-PLAN.md — Add AppSettings fields (ShowHourTicks/ShowMinuteDots/ShowHourNumbers); XAML Dial Face submenu; InitDialDecorations() + toggle methods + full wiring in MainWindow.xaml.cs
 - [x] 16-02-PLAN.md — Human verify all five DIAL-06/07/08/09 success criteria
 
+### Phase 17: Context-Aware Font Size Menu
+**Goal**: The right-click menu shows only relevant size controls for the active display mode — Font Size submenu hidden in dial mode and restored when switching to phrase mode
+**Depends on**: Phase 16
+**Requirements**: MENU-01
+**Success Criteria** (what must be TRUE):
+  1. In phrase mode, the Font Size submenu is present in the right-click context menu and functions normally (Small / Medium / Large items visible, checkmark on active size)
+  2. Switching to dial mode via the right-click "Dial Mode" item causes the Font Size submenu to disappear from the menu on the next and all subsequent menu opens
+  3. Switching back to phrase mode causes the Font Size submenu to reappear in the menu on the next open
+  4. Font size preference is preserved across mode switches — switching to dial mode and back to phrase mode shows the same font size as before
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -301,7 +317,8 @@ Plans:
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
 | 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
 | 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
-| 16. Dial Face Decorations | v1.8 | Complete    | 2026-02-26 | 2026-02-26 |
+| 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
+| 17. Context-Aware Font Size Menu | v1.9 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-02-26 — Phase 16 complete (DIAL-06/07/08/09 human-verified); v1.8 Dial Enhancement milestone closed*
+*Last updated: 2026-02-26 — v1.9 Context-Aware Menus roadmap created; Phase 17 added*

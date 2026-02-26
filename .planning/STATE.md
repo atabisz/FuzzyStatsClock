@@ -2,24 +2,24 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 — v1.8 Dial Enhancement milestone complete)
+See: .planning/PROJECT.md (updated 2026-02-26 — v1.9 Context-Aware Menus milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.8 Dial Enhancement — COMPLETE (Phase 16 plan 2/2 done)
+**Current focus:** v1.9 Context-Aware Menus — Phase 17 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-26 — Milestone v1.9 started
+Phase: 17 of 17 (Context-Aware Font Size Menu)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-02-26 — v1.9 roadmap created; Phase 17 defined
 
-Progress: [##########] 100% (v1.8: 2/2 phases complete, all plans done)
+Progress: [░░░░░░░░░░] 0% (v1.9: 0/TBD plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 19 (v1.0 through v1.8)
 - Average duration: 2.7 min
 - Total execution time: 55 min
 
@@ -54,22 +54,11 @@ Progress: [##########] 100% (v1.8: 2/2 phases complete, all plans done)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions (Phase 16 plan 02 complete — v1.8 closed):
+Recent decisions relevant to Phase 17:
 
-- Phase 14 scope: Remove hardcoded #26000000 from Border; transparent by default; #59000000 on hover+stats-visible; driven by existing MouseEnter/MouseLeave handlers
-- Phase 14 drag pause: Stop _statsTimer before DragMove(), restart after, only when timer was running
-- Alpha 0x59 (89/255 ≈ 35%) chosen for backdrop — visible on both light and dark wallpapers without obscuring content
-- Window_MouseLeave always restores Transparent regardless of StatsPanel.Visibility — prevents stale backdrop if stats are hidden mid-hover
-- Phase 15 BACK-04: Backdrop is a general hover affordance (not stats-specific) — moved before StatsPanel.Visibility guard; guard retained only for _statsTimer fast-refresh block
-- Phase 16 decorations default false — preserves minimal dial for existing users without settings migration
-- Decoration elements created once (84 total) and Visibility-toggled, not add/remove — avoids re-layout cost on toggle
-- MenuDialFace.Visibility not set in XAML — code-behind controls it in both ContextMenu_Opened and SetDialMode
-- Phase 16-02: All five dial face criteria passed human verification on first attempt — no rework needed
-
-### v1.8 Roadmap Decisions
-
-- Phase 15 (BACK-04): Remove the `StatsPanel.Visibility == Visible` guard from `Window_MouseEnter` backdrop logic only — MouseLeave unconditional clear is already correct; 1-2 line change
-- Phase 16 (DIAL-06/07/08/09): All four requirements grouped — XAML geometry (ticks/dots/numbers), AppSettings bool fields, Dial Face submenu with three IsCheckable items, DIAL-09 mode-conditional menu visibility; natural single delivery boundary
+- Phase 16 DIAL-09 pattern: MenuDialFace.Visibility controlled from ContextMenu_Opened and SetDialMode in code-behind; same pattern applies to MenuFontSize in Phase 17
+- Phase 16 decorations: SetDialMode() is the canonical hook for mode-conditional menu visibility; Phase 17 must hook into the same SetDialMode() call
+- ContextMenu_Opened is the sync point for all IsChecked states; Phase 17 adds MenuFontSize.Visibility sync there
 
 ### Pending Todos
 
@@ -82,6 +71,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 16-02-PLAN.md — dial face decorations human-verified (DIAL-06/07/08/09 all pass); v1.8 milestone complete
+Stopped at: v1.9 roadmap created — Phase 17 defined and ready to plan
 Resume file: None
-Next action: v1.9 planning (if desired) — project is at a clean milestone boundary
+Next action: /gsd:plan-phase 17
