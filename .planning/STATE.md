@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 — v1.7 Visual Polish roadmap created)
+See: .planning/PROJECT.md (updated 2026-02-26 — v1.8 Dial Enhancement milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.7 Visual Polish — Phase 14 Hover Backdrop + Drag Pause
+**Current focus:** v1.8 Dial Enhancement — defining requirements
 
 ## Current Position
 
-Phase: 14 of 14 (Hover Backdrop + Drag Pause)
-Plan: 1 of 1 in current phase
-Status: Complete
-Last activity: 2026-02-26 — Phase 14 complete (14-01 human-verified PASS)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-26 — Milestone v1.8 started (always-on hover backdrop + dial face options)
 
-Progress: [##########] 100% (all phases complete — v1.7 shipped)
+Progress: [----------] 0% (new milestone)
 
 ## Performance Metrics
 
@@ -70,6 +70,6 @@ None — v1.6 complete and archived.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 14-01-PLAN.md — Phase 14 complete, v1.7 Visual Polish shipped
+Stopped at: v1.8 milestone started — requirements defined, roadmap pending
 Resume file: None
-Next action: Plan next milestone or archive v1.7
+Next action: /gsd:plan-phase [N]

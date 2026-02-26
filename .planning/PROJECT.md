@@ -64,12 +64,20 @@ All v1.6 requirements delivered. Dial mode human-verified (all 5 DIAL criteria p
 - ✓ The stats panel remains visible below the dial when stats are enabled (DIAL-04) — v1.6
 - ✓ The selected clock mode (phrase/dial) persists to settings.json and restores on launch (DIAL-05) — v1.6
 
-### Active (v1.7)
+### Validated (v1.7)
 
-- [ ] BACK-01: When the stats panel is visible and the mouse is over the widget, a semi-transparent backdrop (~35% black alpha) appears behind the widget
-- [ ] BACK-02: When the mouse leaves the widget (and stats are visible), the backdrop returns to fully transparent
-- [ ] BACK-03: When the stats panel is hidden, the widget background is always fully transparent regardless of hover state
-- [ ] DRAG-01: While dragging the widget, stats updates pause; they resume immediately when the drag completes
+- ✓ BACK-01: When the stats panel is visible and the mouse is over the widget, a semi-transparent backdrop (~35% black alpha) appears behind the widget — v1.7
+- ✓ BACK-02: When the mouse leaves the widget, the backdrop returns to fully transparent — v1.7
+- ✓ BACK-03: When the stats panel is hidden, the widget background is always fully transparent regardless of hover state — v1.7 (superseded in v1.8 by BACK-04)
+- ✓ DRAG-01: While dragging the widget, stats updates pause; they resume immediately when the drag completes — v1.7
+
+### Active (v1.8)
+
+- [ ] BACK-04: Widget background becomes semi-transparent (~35% black) on hover regardless of stats panel visibility; always clears on mouse leave
+- [ ] DIAL-06: In dial mode, user can toggle hour tick marks (12 short lines at hour positions) via right-click submenu; persisted
+- [ ] DIAL-07: In dial mode, user can toggle minute marks (60 small dots at minute positions) via right-click submenu; persisted
+- [ ] DIAL-08: In dial mode, user can toggle hour number labels (1–12) at hour positions via right-click submenu; persisted
+- [ ] DIAL-09: Dial face decoration menu options are hidden when in phrase mode; visible only when dial mode is active
 
 ### Deferred (v2+)
 
@@ -148,4 +156,4 @@ All v1.6 requirements delivered. Dial mode human-verified (all 5 DIAL criteria p
 | Existing 10s phrase timer drives UpdateDialDisplay() | Hands only change visually on the minute; 10s polling is sufficient — no second timer needed | ✓ Validated — dial updates correctly at sub-minute poll rate; no extra timer complexity |
 
 ---
-*Last updated: 2026-02-26 — v1.7 Visual Polish milestone started*
+*Last updated: 2026-02-26 — v1.8 Dial Enhancement milestone started; v1.7 requirements moved to Validated*
