@@ -242,7 +242,7 @@ Plans:
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
-| 13. Dial Mode | 2/2 | Complete   | 2026-02-26 | - |
+| 13. Dial Mode | 2/2 | Complete    | 2026-02-26 | - |
 
 ---
 *Last updated: 2026-02-26 — v1.6 milestone roadmap created (Phase 13: Dial Mode)*
