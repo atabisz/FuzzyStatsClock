@@ -12,5 +12,6 @@ public record AppSettings
     public bool   GpuVisible           { get; init; } = true;
     public bool   MemVisible           { get; init; } = true;
     public bool   PagVisible           { get; init; } = true;
+    public bool   DialMode             { get; init; } = false;
 }
 // Left = -1 is the sentinel for "no saved position — use PositionTopRight() fallback"
