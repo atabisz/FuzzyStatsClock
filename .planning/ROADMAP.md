@@ -6,6 +6,7 @@
 - **v1.1 Position + Font Size** (2026-02-25) — Drag reposition, position persistence, font size selector. 2 phases, 3 plans. → [Archive](milestones/v1.1-ROADMAP.md)
 - **v1.2 System Stats** (2026-02-26) — CPU / GPU / MEM stats panel, update interval selector, show/hide toggle, persistence. 4 phases, 5 plans. → [Archive](milestones/v1.2-ROADMAP.md)
 - **v1.3 Individual Stat Visibility** (2026-02-26) — Per-row CPU/GPU/MEM visibility toggles, auto-collapse, persistence. 1 phase, 2 plans. → [Archive](milestones/v1.3-ROADMAP.md)
+- **v1.4 PAG Stat Row** (in progress) — Paging file % usage as fourth stat row, visibility toggle, persistence. 1 phase, 2 plans.
 
 ## Phases
 
@@ -158,6 +159,22 @@ Plans:
 - [x] 10-01-PLAN.md — Add AppSettings fields + XAML row names and per-row menu items
 - [x] 10-02-PLAN.md — Wire click handlers, checkmark sync, ApplySettings, SaveSettings, auto-collapse; human verify
 
+### Phase 11: PAG Stat Row
+**Goal**: Users can see paging file usage as a fourth stat row, toggle its visibility independently, and find that preference persisted across restarts, with graceful handling when paging is unavailable
+**Depends on**: Phase 10
+**Requirements**: STAT-11, STAT-12, STAT-13, STAT-14, STAT-15
+**Success Criteria** (what must be TRUE):
+  1. PAG row appears below MEM row in the stats panel, showing a horizontal bar and a percentage text value that tracks real paging file usage
+  2. User can toggle PAG row visibility from the right-click Stats submenu; the checkmark reflects the actual PAG row visibility state every time the menu opens
+  3. Hiding all four stat rows (CPU, GPU, MEM, PAG) automatically collapses the stats panel
+  4. PAG row visibility survives a full app restart (close and relaunch restores the last-chosen state)
+  5. When paging file is disabled or the PDH counter is unavailable, the PAG row displays "N/A" with no exception thrown
+**Plans**: 2 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Add AppSettings.PagVisible + StatsService.PagPercent (PDH "Paging File"/"% Usage"/"_Total", -1 sentinel) + XAML PagRow Grid (x:Name, below MemRow) + MenuPagVisible MenuItem (IsCheckable)
+- [ ] 11-02-PLAN.md — Wire MenuPagVisible_Click + UpdateStatsDisplay PAG display + ContextMenu_Opened PAG checkmark + ApplySettings PAG row + SaveSettings PAG field + fix SetStatRowVisible auto-collapse to include PagRow; human verify
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -172,6 +189,7 @@ Plans:
 | 8. XAML Layout and Stats Display | v1.2 | 2/2 | Complete | 2026-02-26 |
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 1/1 | Complete | 2026-02-26 |
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
+| 11. PAG Stat Row | v1.4 | 0/2 | Not started | - |
 
 ---
-*Last updated: 2026-02-26 after Phase 10 complete — v1.3 all requirements delivered*
+*Last updated: 2026-02-26 after v1.4 roadmap created — Phase 11 defined*

@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-26 after v1.3 shipped)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 11 — PAG Stat Row
 Plan: —
-Status: Defining requirements for v1.4
-Last activity: 2026-02-26 — Milestone v1.4 started (PAG stat row)
+Status: Roadmap created, ready to plan Phase 11
+Last activity: 2026-02-26 — v1.4 roadmap created (Phase 11 defined)
 
 Progress: [----------] 0% (phase 11 not started)
 
@@ -93,6 +93,10 @@ Recent decisions affecting current work:
 - [v1.3 Roadmap]: Auto-collapse logic: when last visible row is hidden AND StatsPanel is Visible, call SetStatsVisible(false) — inverse not needed (Show Stats re-enables panel, rows retain their visibility state)
 - [v1.3 Roadmap]: CpuVisible, GpuVisible, MemVisible bool fields added to AppSettings with default true — same init-property pattern as StatsVisible from Phase 6
 - [v1.3 Roadmap]: ApplySettings() sets each row Visibility directly (NOT via SetStatRowVisible) — same safety invariant as StatsPanel: SetStatRowVisible may call UpdateLayout() which is unsafe before Show()
+- [v1.4 Roadmap]: PagPercent read from PDH "Paging File" / "% Usage" / "_Total" instance; -1 sentinel if counter category absent or unavailable — same fallback pattern as _gpuAvailable
+- [v1.4 Roadmap]: AppSettings.PagVisible bool field (default true) added with init-property pattern — same as CpuVisible/GpuVisible/MemVisible from Phase 10
+- [v1.4 Roadmap]: SetStatRowVisible() auto-collapse check must include PagRow in the all-hidden condition — currently only checks CpuRow/GpuRow/MemRow
+- [v1.4 Roadmap]: Plan 11-01 is autonomous (data + XAML + settings field); Plan 11-02 has human checkpoint (wiring + auto-collapse fix + verify)
 
 ### Pending Todos
 
@@ -100,11 +104,11 @@ None.
 
 ### Blockers/Concerns
 
-None — roadmap complete, ready to execute Phase 10.
+None — roadmap complete, ready to plan Phase 11.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Milestone v1.4 started — requirements defined, roadmap pending
+Stopped at: v1.4 roadmap created — Phase 11 defined, ready to plan
 Resume file: None
 Next action: /gsd:plan-phase 11
