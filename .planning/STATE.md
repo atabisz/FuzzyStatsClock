@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26 after v1.3 shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.3 shipped — planning next milestone
+**Current focus:** v1.4 milestone — PAG stat row (Phase 11)
 
 ## Current Position
 
-Phase: 10 (Individual Stat Row Visibility)
-Plan: 02 complete
-Status: Complete — all v1.3 requirements delivered, human-verified
-Last activity: 2026-02-26 — Plan 10-02 complete: click handlers, auto-collapse, persistence; all 5 checks passed
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v1.4
+Last activity: 2026-02-26 — Milestone v1.4 started (PAG stat row)
 
-Progress: [##########] 100% (phase 10 complete)
+Progress: [----------] 0% (phase 11 not started)
 
 ## Performance Metrics
 
@@ -105,6 +105,6 @@ None — roadmap complete, ready to execute Phase 10.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 10 complete — all 5 human-verify checks passed (d29233e, f8f41e9)
+Stopped at: Milestone v1.4 started — requirements defined, roadmap pending
 Resume file: None
-Next action: /gsd:complete-milestone 1.3 to archive v1.3
+Next action: /gsd:plan-phase 11

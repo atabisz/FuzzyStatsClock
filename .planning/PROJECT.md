@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Below the phrase, an optional stats panel shows live CPU, GPU, and memory usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM) independently, and all preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Below the phrase, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, and all preferences are saved across restarts.
 
 ## Core Value
 
@@ -47,9 +47,13 @@ All v1.3 requirements delivered. Per-row visibility toggles human-verified (all 
 - ✓ Hiding all three stat rows auto-collapses the stats panel (one-way trigger) (STAT-09) — v1.3
 - ✓ Individual stat row visibility (CPU/GPU/MEM) persists to settings.json and restores on launch (STAT-10) — v1.3
 
-### Active
+### Active (v1.4)
 
-(none — planning next milestone)
+- [ ] STAT-11: PAG row appears in stats panel below MEM row, showing % paging file usage as horizontal bar + percentage text
+- [ ] STAT-12: User can toggle PAG row visibility via right-click Stats submenu; checkmark reflects actual PAG row state each time menu opens
+- [ ] STAT-13: Hiding all four stat rows (CPU/GPU/MEM/PAG) auto-collapses the stats panel
+- [ ] STAT-14: PAG row visibility persists to settings.json and restores on launch
+- [ ] STAT-15: When paging file is disabled or unavailable, PAG row shows "N/A" with no exception thrown
 
 ### Deferred (v2+)
 
@@ -117,4 +121,4 @@ All v1.3 requirements delivered. Per-row visibility toggles human-verified (all 
 | SetStatRowVisible() separate from ApplySettings() | SetStatRowVisible() calls UpdateLayout()+Clamp() — unsafe before Show() where ActualHeight=0 | ✓ Validated — ApplySettings() sets row Visibility directly; startup safety invariant preserved |
 
 ---
-*Last updated: 2026-02-26 after v1.3 milestone shipped*
+*Last updated: 2026-02-26 after v1.4 milestone start*
