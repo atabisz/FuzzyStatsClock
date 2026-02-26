@@ -27,6 +27,16 @@ public static class SettingsService
             // maximum rate, causing a CPU spike. Replace with the safe default.
             if (loaded.StatsIntervalSeconds <= 0)
                 loaded = loaded with { StatsIntervalSeconds = Defaults().StatsIntervalSeconds };
+            // NEW: Opacity guard — prevents invisible-widget regression on v1.9 upgrade
+            // (C# double type default is 0.0; "Opacity":0.0 in malformed JSON or an explicit
+            // zero written by a future bug would make the widget fully transparent with no
+            // way to recover without deleting settings.json)
+            if (loaded.Opacity <= 0.0)
+                loaded = loaded with { Opacity = Defaults().Opacity };
+            // NEW: AccentColor guard — prevents NullReferenceException in ColorConverter.ConvertFromString
+            // (protects against "AccentColor":null or "AccentColor":"" in a manually edited settings file)
+            if (string.IsNullOrWhiteSpace(loaded.AccentColor))
+                loaded = loaded with { AccentColor = Defaults().AccentColor };
             return loaded;
         }
         catch { return Defaults(); }
@@ -46,7 +56,9 @@ public static class SettingsService
         Left = -1, Top = 20, FontSize = 32,
         StatsVisible = false, StatsIntervalSeconds = 3,
         CpuVisible = true, GpuVisible = true, MemVisible = true,
-        PagVisible = true, DialMode = false
+        PagVisible = true, DialMode = false,
+        AccentColor = "#FFFFFFFF",
+        Opacity = 1.0
     };
 
     /// <summary>
