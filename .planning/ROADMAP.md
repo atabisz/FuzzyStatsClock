@@ -336,7 +336,11 @@ Plans:
   2. Clicking an opacity preset immediately changes the widget's visual transparency — phrase text, dial hands, stats bars, hover backdrop, and all widget content fade uniformly to the selected level
   3. Scrolling the mouse wheel over the widget adjusts opacity in 10% increments; scrolling down reduces opacity and scrolling up increases it; the widget never becomes fully invisible (floor of 10%)
   4. Opacity applied via the scroll wheel persists across restarts — closing and relaunching the widget restores the scroll-adjusted opacity, not just the last preset-menu value
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 19-01-PLAN.md — Add Opacity submenu XAML and implement runtime opacity logic (presets + scroll wheel + persistence)
+- [ ] 19-02-PLAN.md — Human verify all four Phase 19 success criteria
 
 ### Phase 20: Accent Color Presets
 **Goal**: Users can choose from five named color presets and see the chosen accent color applied instantly and consistently across every colored element in the widget, persisted across restarts
@@ -383,7 +387,7 @@ Plans:
 | 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
 | 17. Context-Aware Font Size Menu | v1.9 | 2/2 | Complete | 2026-02-26 |
 | 18. AppSettings Schema Extension | v2.0 | Complete    | 2026-02-26 | 2026-02-27 |
-| 19. Window Opacity | v2.0 | 0/? | Not started | - |
+| 19. Window Opacity | v2.0 | 0/2 | Not started | - |
 | 20. Accent Color Presets | v2.0 | 0/? | Not started | - |
 | 21. Custom Color Picker | v2.0 | 0/? | Not started | - |
 
