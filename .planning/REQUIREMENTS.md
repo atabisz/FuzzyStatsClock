@@ -13,10 +13,10 @@ Requirements for v1.8 release. Each maps to a roadmap phase.
 
 ### Dial Face
 
-- [ ] **DIAL-06**: In dial mode, user can show/hide hour tick marks (12 short lines at each hour position) via right-click submenu; persisted across restarts
-- [ ] **DIAL-07**: In dial mode, user can show/hide minute marks (60 small dots at each minute position) via right-click submenu; persisted across restarts
-- [ ] **DIAL-08**: In dial mode, user can show/hide hour number labels (1–12 at each hour position) via right-click submenu; persisted across restarts
-- [ ] **DIAL-09**: Dial face decoration menu options are hidden when in phrase mode; they appear in the context menu only when dial mode is active
+- [x] **DIAL-06**: In dial mode, user can show/hide hour tick marks (12 short lines at each hour position) via right-click submenu; persisted across restarts
+- [x] **DIAL-07**: In dial mode, user can show/hide minute marks (60 small dots at each minute position) via right-click submenu; persisted across restarts
+- [x] **DIAL-08**: In dial mode, user can show/hide hour number labels (1–12 at each hour position) via right-click submenu; persisted across restarts
+- [x] **DIAL-09**: Dial face decoration menu options are hidden when in phrase mode; they appear in the context menu only when dial mode is active
 
 ## v2 Requirements
 
@@ -46,10 +46,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BACK-04 | Phase 15 | Complete |
-| DIAL-06 | Phase 16 | Pending |
-| DIAL-07 | Phase 16 | Pending |
-| DIAL-08 | Phase 16 | Pending |
-| DIAL-09 | Phase 16 | Pending |
+| DIAL-06 | Phase 16 | Complete |
+| DIAL-07 | Phase 16 | Complete |
+| DIAL-08 | Phase 16 | Complete |
+| DIAL-09 | Phase 16 | Complete |
 
 **Coverage:**
 - v1 requirements: 5 total

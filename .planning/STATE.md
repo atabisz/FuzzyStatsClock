@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-26 — v1.8 Dial Enhancement mileston
 ## Current Position
 
 Phase: 16 — Dial Face Decorations
-Plan: 0 of 2 in current phase
-Status: Ready to execute
-Last activity: 2026-02-26 — Phase 16 planned (2 plans, verification passed)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-26 — 16-01 complete (dial face decorations: ticks, dots, hour numbers + Dial Face submenu)
 
-Progress: [#####-----] 50% (v1.8: 1/2 phases)
+Progress: [######----] 60% (v1.8: 1/2 phases, plan 1/2)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: 2.7 min
-- Total execution time: 51 min
+- Total execution time: 54 min
 
 **By Phase:**
 
@@ -41,9 +41,10 @@ Progress: [#####-----] 50% (v1.8: 1/2 phases)
 | 13. Dial Mode | 2 | 8 min | 4 min |
 | 14. Hover Backdrop + Drag Pause | 1 | 5 min | 5 min |
 | 15. Unconditional Hover Backdrop | 1 | 5 min | 5 min |
+| 16. Dial Face Decorations (partial) | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 13-01 (3 min), 13-02 (5 min), 14-01 (5 min), 15-01 (5 min)
+- Last 5 plans: 13-02 (5 min), 14-01 (5 min), 15-01 (5 min), 16-01 (3 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -53,13 +54,16 @@ Progress: [#####-----] 50% (v1.8: 1/2 phases)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions (Phase 15 complete):
+Recent decisions (Phase 16 plan 01 complete):
 
 - Phase 14 scope: Remove hardcoded #26000000 from Border; transparent by default; #59000000 on hover+stats-visible; driven by existing MouseEnter/MouseLeave handlers
 - Phase 14 drag pause: Stop _statsTimer before DragMove(), restart after, only when timer was running
 - Alpha 0x59 (89/255 ≈ 35%) chosen for backdrop — visible on both light and dark wallpapers without obscuring content
 - Window_MouseLeave always restores Transparent regardless of StatsPanel.Visibility — prevents stale backdrop if stats are hidden mid-hover
 - Phase 15 BACK-04: Backdrop is a general hover affordance (not stats-specific) — moved before StatsPanel.Visibility guard; guard retained only for _statsTimer fast-refresh block
+- Phase 16 decorations default false — preserves minimal dial for existing users without settings migration
+- Decoration elements created once (84 total) and Visibility-toggled, not add/remove — avoids re-layout cost on toggle
+- MenuDialFace.Visibility not set in XAML — code-behind controls it in both ContextMenu_Opened and SetDialMode
 
 ### v1.8 Roadmap Decisions
 
@@ -77,6 +81,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 16 planned — 2 plans (16-01 auto, 16-02 human checkpoint), verification passed
+Stopped at: Completed 16-01-PLAN.md — dial face decorations implemented (ticks, dots, numbers, submenu)
 Resume file: None
-Next action: /gsd:execute-phase 16
+Next action: /gsd:execute-phase 16 (plan 02 — human verification checkpoint)
