@@ -1,457 +1,389 @@
 # Pitfalls Research
 
-**Domain:** WPF transparent frameless overlay — CPU/GPU/MEM stats panel (v1.2 additions)
+**Domain:** WPF transparent frameless overlay — color theming and opacity control (v2.0 additions)
 **Project:** Fuzzy Clock
-**Researched:** 2026-02-25
+**Researched:** 2026-02-27
 **Confidence:** HIGH — all critical claims verified against official Microsoft docs and existing source code
 
 ---
 
-> **Scope note:** This document covers pitfalls specific to adding CPU/GPU/memory Performance Counter stats and a WPF bar panel to the existing transparent WPF overlay. The prior v1.0 pitfalls (transparency, ClearType, software rendering, DispatcherTimer, hit-testing, DPI, multiple instances, Topmost) and v1.1 pitfalls (DragMove, position persistence, SizeToContent + font size, JSON save safety) are documented in prior PITFALLS.md files and not duplicated here. This document focuses exclusively on v1.2 concerns and how they interact with the already-shipped v1.1 constraints.
+> **Scope note:** This document covers pitfalls specific to adding color themes and opacity control to the existing AllowsTransparency=True, WindowStyle=None WPF overlay widget. Prior milestone pitfalls (performance counters, DispatcherTimer, SizeToContent layout, AllowsTransparency software rendering, DragMove, JSON persistence) are documented in prior PITFALLS.md versions and are not repeated here except where they directly interact with the v2.0 changes.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause silent wrong behavior, crashes, or resource leaks.
+Mistakes that cause silent wrong behavior, crashes, or make the feature non-functional.
 
 ---
 
-### Pitfall 1: First `NextValue()` Call on CPU PerformanceCounter Always Returns 0
+### Pitfall 1: Window.Opacity Multiplies With AllowsTransparency Transparency — Setting 0.5 Does Not Mean 50% Visible
 
 **What goes wrong:**
-The `Processor` performance counter category uses a rate-based counter type (`PERF_100NSEC_TIMER_INV`). The first call to `NextValue()` returns `0.0f` because the counter needs two samples to calculate a rate — it has no "previous" sample on the first call. If the stats panel is shown immediately on startup, the CPU bar renders as empty (0%) and then jumps to a real value on the second tick. More importantly, if startup initialization code uses the first `NextValue()` result to decide whether the counter is working, it will incorrectly conclude the counter returned nothing.
+The window already uses `AllowsTransparency="True"` with `Background="Transparent"` and content elements that have semi-transparent fills (e.g., `ContentBorder` uses `#59000000` = 35% alpha black on hover). When `Window.Opacity` is set to, say, 0.5, the Windows compositing layer applies the opacity multiplicatively over the entire layered HWND — including the already-transparent parts. This means:
+
+- A region that was 100% opaque white text becomes 50% visible (correct).
+- A region that was already 35% alpha black (the hover backdrop) becomes 17.5% visible — the backdrop nearly disappears.
+- A region that was alpha=1 (near-transparent grid background `#01000000`) becomes effectively invisible.
+
+The interaction is not additive ("show 50% of the widget") — it is multiplicative over every pixel including transparent ones. Users setting opacity to 25% will find the hover backdrop is effectively gone.
 
 **Why it happens:**
-Rate counters (`% Processor Time`) compute the percentage from the delta between two readings taken at different times. The first reading establishes the baseline; only the second and subsequent readings produce a meaningful value. This is documented behavior: "To obtain performance data for counters that required an initial or previous value for performing the necessary calculation, call the `NextValue` method twice."
+`Window.Opacity` sets the `LWA_ALPHA` flag on the layered HWND via `SetLayeredWindowAttributes`. This applies a uniform alpha multiplier to the entire composited surface. The WPF software-rendered surface for an `AllowsTransparency` window already contains per-pixel alpha from the XAML visual tree. Windows then multiplies the HWND-level alpha on top. Source: https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency (remarks on layered windows).
 
 **Consequences:**
-- CPU bar shows 0% on first tick after startup — then snaps to real value on second tick. This looks like a brief glitch.
-- If the stats service initializes counters synchronously on the UI thread during startup (which blocks for the first read), the 0 result is correctly discarded by the second read, but the blocking is a UI freeze risk (see Pitfall 3).
-- If initialization code treats `0` return as "counter unavailable" and falls back to an error state, stats will never appear.
+- At `Window.Opacity = 0.25`, the hover backdrop (35% alpha) effectively vanishes. The user has no visual indication that hover is active — and more importantly, the stats bars become very hard to read.
+- At `Window.Opacity = 0.25`, the grid hit-test background (`#01000000`) becomes alpha=0.25% — effectively zero — which eliminates mouse event delivery to the transparent window region. Right-click and drag will stop working.
+- The near-zero hit-test background `#01000000` was specifically chosen to be non-zero for hit-testing (documented in MainWindow.xaml comment). Multiplying that alpha by 0.25 takes it to 0.0025 — still non-zero, but the Win32 layered window documentation does not guarantee hit-testing below a threshold. In practice, very low HWND-level opacity degrades mouse-event delivery on some Windows versions.
 
-**Prevention:**
-Create counters during app startup or service initialization, call `NextValue()` once immediately to prime the counter (discard the result), and start updating the UI only after the second tick:
+**How to avoid:**
+Use `Window.Opacity` only for values ≥ 0.25 as the minimum preset. Document that 0.25 is the floor and note the hit-test risk. Test right-click and drag at every opacity preset before shipping. If opacity below 0.25 is ever needed, the alternative is reducing the alpha on the WPF content elements themselves (the TextBlocks, bars, etc.) rather than the HWND-level opacity — but that requires per-element changes instead of a single window property.
 
-```csharp
-// Initialize and discard first sample — it's always 0 for rate counters
-_cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-_cpuCounter.NextValue();  // prime — result is always 0, discard it
+Do not reduce the grid hit-test background `#01000000` as part of opacity work; it must remain `#01000000` or higher to preserve mouse-event delivery regardless of `Window.Opacity`.
 
-// After first DispatcherTimer tick, NextValue() returns a real value
-```
+**Warning signs:**
+- Right-click stops working at the lowest opacity setting.
+- Drag stops working (window immediately drops out of DragMove) at 25% opacity.
+- Hover backdrop becomes invisible at lower opacity settings.
 
-**Detection:**
-- CPU bar always shows 0% for the first 1 second after launch, then jumps to a real value.
-- CPU reads 0 in logging even when the machine is clearly loaded.
-
-**Phase to address:** Phase introducing stats service initialization.
+**Phase to address:** Opacity persistence and presets phase — test all presets before marking done.
 
 ---
 
-### Pitfall 2: AppSettings Positional Record — New Fields Default to 0/false When Old settings.json Is Loaded
+### Pitfall 2: Scroll Wheel on Transparent/Frameless Window — MouseWheel May Not Fire, PreviewMouseWheel Required
 
 **What goes wrong:**
-`AppSettings` is currently `record AppSettings(double Left, double Top, int FontSize)`. Adding new fields for stats (e.g., `bool StatsVisible` and `int StatsIntervalSeconds`) extends the positional record:
+The widget is `WindowStyle=None, AllowsTransparency=True, ResizeMode=NoResize`. Mouse wheel events on transparent WPF windows are subject to focus and hit-test restrictions that do not apply to normal WPF windows:
 
-```csharp
-// New record after v1.2 additions
-record AppSettings(double Left, double Top, int FontSize, bool StatsVisible, int StatsIntervalSeconds);
-```
-
-An existing v1.1 `settings.json` contains only `{"Left":…, "Top":…, "FontSize":…}`. When `System.Text.Json` deserializes this into the new record, the missing constructor parameters `StatsVisible` and `StatsIntervalSeconds` receive their **C# type defaults**: `false` and `0`.
-
-`StatsIntervalSeconds = 0` is a bug: constructing `new DispatcherTimer { Interval = TimeSpan.FromSeconds(0) }` creates a zero-interval timer that fires as fast as the message loop allows, potentially hammering `NextValue()` thousands of times per second and consuming significant CPU. It also causes `PerformanceCounter.NextValue()` to be called faster than Windows updates the counters (the PDH layer updates at ~1Hz), producing meaningless constant readings.
-
-`StatsVisible = false` means stats are hidden on first launch after upgrade — the user will see no stats and may not know the feature exists.
+1. `MouseWheel` (bubbling) only fires if the element under the cursor has a valid hit-test surface and keyboard focus. A frameless, always-on-top, click-through-like window may not have keyboard focus at the time the user scrolls over it.
+2. `PreviewMouseWheel` (tunneling, fired at the Window level before elements) is more reliable for frameless overlays because it fires as long as the window has logical mouse capture — which happens while the mouse is within the window bounds (the `#01000000` background ensures the hit-test surface is present).
+3. The ContextMenu steals focus. If the user closes the context menu and immediately scrolls, the window may not have focus yet and `MouseWheel` is silently dropped.
 
 **Why it happens:**
-Prior to .NET 9, System.Text.Json treats all constructor parameters as optional during deserialization. Missing JSON fields silently use the default value for the parameter type. The official docs confirm: "Prior to .NET 9, constructor-based deserialization treated all constructor parameters as optional." .NET 10 preserves this behavior unless `RespectRequiredConstructorParameters = true` is explicitly set (which this project does not set). Source: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/required-properties
+`MouseWheel` is a routed bubbling event. It requires the element to be focused or under the mouse with a valid hit-test surface. WPF dispatches `MouseWheel` from the element that has mouse capture or from the element at the current mouse position, but only if that element is hit-testable and the window is the active foreground window. A frameless `Topmost=True` overlay is always on top but is not always the active foreground window — especially after the user interacted with another application.
 
-**Consequences:**
-- `StatsIntervalSeconds = 0` → `DispatcherTimer` fires at maximum rate → CPU spike → performance counter spam → bad readings.
-- `StatsVisible = false` → stats never appear on first launch after upgrade, even though the feature is enabled by default.
-- `FontSize` is already in the JSON, so it is correctly restored. Only the new fields are affected.
+Using `PreviewMouseWheel` at the `Window` level intercepts the event during the tunnel phase before it reaches any element that might not handle it, and it fires even when no child element is focused.
 
-**Prevention:**
-`SettingsService.Defaults()` already exists and returns safe defaults. The fix is to apply defaults for any field that received a type-default value. There are two approaches:
-
-**Approach A (recommended): Guard in `SettingsService.Load()` after deserialization**
+**How to avoid:**
+Register `PreviewMouseWheel` on the `Window` (not `Grid` or `ContextMenu`):
 
 ```csharp
-public static AppSettings Load()
+// In ContentRendered (same pattern as MouseEnter/MouseLeave):
+this.PreviewMouseWheel += Window_PreviewMouseWheel;
+
+private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
 {
-    try
+    // e.Delta > 0 = scroll up = increase opacity; < 0 = decrease
+    int steps = e.Delta / 120;  // each notch = 120 units
+    double newOpacity = Math.Clamp(this.Opacity + steps * 0.10, 0.25, 1.0);
+    this.Opacity = newOpacity;
+    SaveSettings();
+    e.Handled = true;  // prevent scroll from propagating to window below
+}
+```
+
+Set `e.Handled = true` to prevent the scroll event from leaking to the desktop or windows behind the overlay.
+
+**Warning signs:**
+- Scroll wheel has no effect when the widget is not the most recently clicked window.
+- Scroll wheel works only after the user clicks the widget first.
+- Scroll wheel works in Visual Studio debug but not in production (debugger keeps focus on the window).
+
+**Phase to address:** Opacity scroll wheel phase — use `PreviewMouseWheel` from the start.
+
+---
+
+### Pitfall 3: WPF Has No Built-In Color Picker Dialog — Windows.Forms ColorDialog Requires Additional Setup in WPF .NET 10
+
+**What goes wrong:**
+There is no `ColorDialog` in WPF's `System.Windows` namespace. The only ready-made system color picker is `System.Windows.Forms.ColorDialog`. Using it from a WPF .NET 10 application requires:
+
+1. Adding `<UseWindowsForms>true</UseWindowsForms>` to the `.csproj` (or using the `Microsoft.WindowsDesktop.App.WindowsForms` ref assembly).
+2. Calling `ShowDialog()` without a WPF `IWin32Window` owner — which means the dialog appears without a logical owner, potentially appearing behind the WPF window.
+3. Converting the result: `System.Drawing.Color` (Windows.Forms) must be converted to `System.Windows.Media.Color` (WPF). They are different types with different channel representations.
+
+The most common mistake is calling `colorDialog.ShowDialog()` without setting an owner HWND, then finding the dialog appears behind the always-on-top WPF widget.
+
+**Why it happens:**
+`System.Windows.Forms.ColorDialog.ShowDialog()` accepts a `System.Windows.Forms.IWin32Window` owner. WPF windows do not implement this interface. To pass the WPF window as an owner, the HWND must be obtained via `PresentationSource.FromVisual(this).RootVisual` and wrapped in a helper. Without an owner, Windows places the dialog at an arbitrary Z-order position — typically below a `Topmost=True` WPF window.
+
+**How to avoid:**
+Use a Win32 HWND helper to pass the WPF window as the owner:
+
+```csharp
+// Helper: wrap WPF Window HWND as IWin32Window for WinForms dialogs
+private class Win32Window : System.Windows.Forms.IWin32Window
+{
+    public IntPtr Handle { get; }
+    public Win32Window(IntPtr handle) => Handle = handle;
+}
+
+private void OpenColorPicker()
+{
+    var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+    using var dlg = new System.Windows.Forms.ColorDialog();
+    dlg.AllowFullOpen = true;
+    dlg.FullOpen = true;
+    dlg.Color = System.Drawing.Color.FromArgb(
+        _accentColor.A, _accentColor.R, _accentColor.G, _accentColor.B);
+
+    if (dlg.ShowDialog(new Win32Window(hwnd)) == System.Windows.Forms.DialogResult.OK)
     {
-        if (!File.Exists(FilePath)) return Defaults();
-        var json = File.ReadAllText(FilePath);
-        var loaded = JsonSerializer.Deserialize<AppSettings>(json) ?? Defaults();
-        // Apply safe defaults for fields that were absent in older settings files.
-        // StatsIntervalSeconds = 0 means the field was missing; use default (1s).
-        return loaded with
-        {
-            StatsIntervalSeconds = loaded.StatsIntervalSeconds > 0
-                ? loaded.StatsIntervalSeconds : Defaults().StatsIntervalSeconds,
-            StatsVisible = /* no correction needed; false-on-first-launch is a policy decision */
-                loaded.StatsVisible
-        };
+        var c = dlg.Color;
+        _accentColor = System.Windows.Media.Color.FromArgb(c.A, c.R, c.G, c.B);
+        ApplyAccentColor();
+        SaveSettings();
     }
-    catch { return Defaults(); }
 }
 ```
 
-**Approach B: Give new parameters default values in the record definition**
-
-Positional records do not support default parameter values in the standard positional syntax. Adding defaults requires the non-positional form or a secondary constructor. This breaks the `with` expression pattern used in `SettingsService.Clamp()` and complicates `System.Text.Json` handling. Approach A is simpler and localizes the migration logic in one place.
-
-**Warning signs:**
-- CPU fan spins up immediately after installing v1.2 on a machine that had v1.1 settings.json.
-- Stats panel does not appear even though `StatsVisible` default is intended to be `true`.
-- `DispatcherTimer.Interval` is `TimeSpan.Zero` in the debugger.
-
-**Phase to address:** Phase introducing `AppSettings` changes — must be addressed before any code reads `StatsIntervalSeconds` from settings.
-
----
-
-### Pitfall 3: PerformanceCounter Initialization Blocks the UI Thread
-
-**What goes wrong:**
-`PerformanceCounter` constructors and the first `NextValue()` call make Win32 PDH (Performance Data Helper) calls that can take 200–500ms on some machines, especially:
-- On cold start when the PDH cache is not populated.
-- When the `GPU Engine` category has many instances (a machine with multiple GPUs and many running D3D processes can have dozens of instances to enumerate).
-- When Windows Defender or UAC intercepts the registry read that backs Performance Counters.
-
-If `new PerformanceCounter(...)` is called in `App.xaml.cs OnStartup()` or in the `MainWindow` constructor on the UI thread, the application freezes visibly for up to half a second before the first frame is rendered.
-
-**Why it happens:**
-`PerformanceCounter` initialization reads from HKLM registry keys and mapped memory. This is synchronous I/O on the calling thread. There is no async variant.
-
-**Consequences:**
-- Visible freeze on startup (white window or blank before first frame).
-- In severe cases (corrupted PDH counters, slow registry), can take several seconds.
-
-**Prevention:**
-Initialize `PerformanceCounter` objects on a background thread via `Task.Run()`, then marshal the timer-tick reads back to the Dispatcher. The stats panel shows a loading state (e.g., "---") until initialization completes:
-
-```csharp
-// In StatsService constructor or Initialize():
-Task.Run(() =>
-{
-    _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-    _cpuCounter.NextValue();  // prime — always 0, discard
-    _memCounter = new PerformanceCounter("Memory", "% Committed Bytes In Use");
-    _memCounter.NextValue();  // prime
-    _gpuCounters = BuildGpuCounters(); // may enumerate many instances
-    _initialized = true;
-});
-
-// Timer tick reads only proceed when _initialized is true:
-private void OnStatsTick(object? sender, EventArgs e)
-{
-    if (!_initialized) return;
-    // ... read counters ...
-}
-```
-
-**Warning signs:**
-- App takes noticeably longer to show first frame after v1.2 is installed.
-- Startup hang is intermittent (depends on PDH cache state).
-
-**Phase to address:** Phase introducing stats service — initialize async from the start; do not optimize later.
-
----
-
-### Pitfall 4: GPU Counter Category Is Multi-Instance — Single Instance Name Reads Only One Engine
-
-**What goes wrong:**
-GPU usage is exposed through the `GPU Engine` performance counter category, counter name `Utilization Percentage`. Unlike the CPU counter (`Processor` category, `_Total` instance), the GPU Engine category has one instance **per engine per adapter per process**. Instance names look like:
-
-```
-pid_1234_luid_0x00000000_0x0000C45F_phys_0_eng_0_engtype_3D
-pid_1234_luid_0x00000000_0x0000C45F_phys_0_eng_1_engtype_Copy
-pid_5678_luid_0x00000000_0x0000C45F_phys_0_eng_0_engtype_VideoDecode
-```
-
-Creating a single `PerformanceCounter` for one of these instances reads only that process's use of that specific engine. This does not represent total GPU utilization.
-
-**Why it happens:**
-Windows exposes GPU utilization at the per-process per-engine level, not as a system-wide total. Unlike CPU (`_Total` is a real aggregate instance), there is no `_Total` instance for `GPU Engine`. Enumerating all instances and summing them gives a gross aggregate, but the correct approach is to enumerate, filter by engine type (typically "3D" for render workload), and sum across all processes for that engine type — then divide by the engine count to normalize.
-
-**Consequences:**
-- GPU bar shows a low constant value (only reading one process/engine).
-- GPU bar shows > 100% if summing without normalization.
-- `InvalidOperationException` if the instance name that was captured at startup is later removed (process exits, GPU resets).
-
-**Prevention:**
-Enumerate all instances of `GPU Engine` at each timer tick (or cache them and refresh periodically), filter for the engine type of interest, sum `Utilization Percentage`, and clamp to [0, 100]:
-
-```csharp
-private static float ReadGpuUtilization()
-{
-    try
-    {
-        var cat = new PerformanceCounterCategory("GPU Engine");
-        string[] instanceNames = cat.GetInstanceNames();
-        float total = 0f;
-        int engineCount = 0;
-        foreach (var name in instanceNames.Where(n => n.Contains("engtype_3D")))
-        {
-            using var c = new PerformanceCounter("GPU Engine", "Utilization Percentage", name, readOnly: true);
-            c.NextValue(); // prime
-            // First reading is 0 — value is meaningful only after two reads
-            // In practice, for tick-based reading, call NextValue() once per tick
-            total += c.NextValue();
-            engineCount++;
-        }
-        return engineCount > 0 ? Math.Min(total / engineCount, 100f) : 0f;
-    }
-    catch { return 0f; }
-}
-```
-
-Note: Creating and priming counters on every tick is expensive. Cache the counter objects and only refresh instance names if `InvalidOperationException` is thrown (instance disappeared).
-
-**Warning signs:**
-- GPU bar shows a constant low value (2–5%) regardless of actual GPU load.
-- GPU bar shows 200%+ during a 3D workload.
-- `InvalidOperationException: Instance does not exist` in output window.
-
-**Phase to address:** Phase introducing GPU counter reading.
-
----
-
-### Pitfall 5: PerformanceCounter Objects Are Not Disposed — Handle Leak on App Lifetime
-
-**What goes wrong:**
-`PerformanceCounter` implements `IDisposable`. Each instance holds an unmanaged handle to the Windows PDH data provider. If counters are created but never disposed — whether at app close, timer interval change, or show/hide toggle — the handles accumulate. For a personal-use widget that runs for days without restart, this may cause PDH provider exhaustion or prevent the counter category from being refreshed.
-
-More specifically: if the update interval changes from 1s to 10s (user changes the setting), and new `PerformanceCounter` objects are allocated without disposing the old ones, the leak compounds each time the user changes the interval.
-
-**Why it happens:**
-`PerformanceCounter` inherits from `Component`, which holds unmanaged resources. The GC will eventually call the finalizer, but this is non-deterministic. Finalizer-based cleanup of PDH handles can race with Windows service restarts or machine sleep/resume cycles.
-
-**Prevention:**
-Keep counter references as fields. Dispose them explicitly in a dedicated `DisposeCounters()` method. Call this method before creating new counters (interval change) and in `OnClosing`/`SessionEnding`:
-
-```csharp
-private void DisposeCounters()
-{
-    _cpuCounter?.Dispose(); _cpuCounter = null;
-    _memCounter?.Dispose(); _memCounter = null;
-    foreach (var c in _gpuCounters) c?.Dispose();
-    _gpuCounters = [];
-}
-```
-
-**Warning signs:**
-- Handle count in Task Manager climbs slowly over hours of use.
-- `InvalidOperationException` when reading counters after machine sleep/resume (handle stale).
-- Counters stop updating after several interval changes in one session.
-
-**Phase to address:** Phase introducing stats service — implement Dispose from the start; do not add it as a patch.
-
----
-
-### Pitfall 6: SizeToContent=WidthAndHeight — Stats Bars Need Fixed Width or the Window Grows Unpredictably
-
-**What goes wrong:**
-The existing window has `SizeToContent=WidthAndHeight`. The window width is currently determined by the phrase text. Adding a stats panel below the phrase introduces additional content whose width must be explicitly constrained. If the stats bars are defined with `Width="Auto"` or no explicit width, their width is determined by their content (percentage text + bar proportions). As the percentage changes (e.g., CPU goes from "3%" to "100%"), the text width changes slightly, which causes the bar container to resize, which causes the window to resize on every stats tick. At 1-second intervals this produces visible window-width jitter.
-
-Additionally: the stats panel may be **wider** than the phrase text for small font sizes (16pt "past" is narrow). In this case the window width is driven by the stats bars, not the phrase. This is correct behavior for `SizeToContent`, but it means the phrase text appears left-aligned against a wider backdrop — the layout must accommodate this intentionally, not accidentally.
-
-**Why it happens:**
-`SizeToContent=WidthAndHeight` sizes the window to the bounding box of all content. If any child element's desired size changes, the window resizes on the next layout pass. A `DispatcherTimer` tick that updates percentage text triggers a layout pass on the next `Dispatcher` frame.
-
-**Prevention:**
-Give the stats panel a **fixed `Width`** equal to a value wide enough for all label + bar combinations. A value of 160–200px covers all common cases. Do not use `Auto`:
+Also add to `.csproj`:
 
 ```xml
-<!-- Stats panel: fixed width prevents window-width jitter on every stats tick -->
-<StackPanel x:Name="StatsPanel" Width="180" Visibility="Collapsed">
-    <!-- CPU / GPU / MEM rows -->
-</StackPanel>
+<UseWindowsForms>true</UseWindowsForms>
 ```
 
-The phrase text `TextBlock` sits in a `Grid` cell whose width is now driven by `Max(phraseWidth, 180)` due to `SizeToContent`. This is correct — the window is as wide as the widest element and does not jitter.
-
 **Warning signs:**
-- Window visibly changes width every second when stats are visible and CPU usage is near a threshold (e.g., 9% → 10% changes text width).
-- Widget position drifts slightly on each tick because `Left` does not change but `ActualWidth` does (the right edge moves while the left edge is anchored).
+- `System.Windows.Forms` types not available — missing `<UseWindowsForms>true</UseWindowsForms>`.
+- Color dialog appears behind the widget — missing HWND owner.
+- Color is always black after selection — `System.Drawing.Color` not converted to `System.Windows.Media.Color`.
 
-**Phase to address:** Phase introducing stats XAML layout — must be established at layout time, not patched later.
+**Phase to address:** Custom color picker phase — set up Windows Forms interop and HWND owner from the start.
 
 ---
 
-### Pitfall 7: Second DispatcherTimer Tick Accumulates if Stats Are Toggled Hide/Show Rapidly
+### Pitfall 4: Shared Static Brushes From Brushes Class Are Frozen — Cannot Be Modified
 
 **What goes wrong:**
-The existing `_timer` (10s phrase timer) is created once in `ContentRendered` and never recreated. If the stats timer is implemented as a separate `DispatcherTimer` that is stopped when stats are hidden and restarted when stats are shown, rapid toggling (e.g., the user opens and closes the context menu quickly) can leave multiple timer instances running if the stop/start logic has a race condition.
+The existing code uses `System.Windows.Media.Brushes.White` and `System.Windows.Media.Brushes.Transparent` (from the static `Brushes` class) for element colors. These are pre-frozen `SolidColorBrush` instances. When applying the accent color, the code must not attempt to modify these shared instances — it must create new `SolidColorBrush` instances.
 
-`DispatcherTimer` dispatches on the UI thread, so there is no concurrency issue in the traditional sense — but `timer.IsEnabled = true` after `timer.IsEnabled = false` followed by `timer.IsEnabled = true` again (from a re-entrance in `ContextMenu_Opened`) can lead to the timer running at double frequency if a new timer is created instead of toggling the existing one.
-
-**Why it happens:**
-`DispatcherTimer` ticks queue on the UI message loop. If a new `DispatcherTimer` is created and started without stopping the previous one, both timers fire. Since `DispatcherTimer` is a WPF type without an implicit per-instance singleton guarantee, two distinct instances are two separate timer sources.
-
-**Prevention:**
-Use a single `DispatcherTimer` instance for stats. Toggle it with `_statsTimer.Start()` and `_statsTimer.Stop()` (not by recreating it). Create the timer once (e.g., in the stats service constructor or in `ContentRendered`). Do not create a new timer on each show/hide toggle:
+The failure mode:
 
 ```csharp
-// Correct: single instance, toggled
-_statsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(_statsIntervalSeconds) };
-_statsTimer.Tick += OnStatsTick;
-// To show: _statsTimer.Start();
-// To hide: _statsTimer.Stop();
-// To change interval: _statsTimer.Stop(); _statsTimer.Interval = ...; _statsTimer.Start();
+// BUG: Brushes.White is frozen — throws InvalidOperationException
+PhraseText.Foreground = Brushes.White;
+((SolidColorBrush)PhraseText.Foreground).Color = Colors.Amber; // throws
 ```
 
-**Warning signs:**
-- Stats update twice per second when interval is set to 1s after toggling show/hide a few times.
-- CPU usage from the widget itself climbs when stats are toggled repeatedly.
+Or more subtly — storing a reference to `Brushes.White` in a field and then trying to change its color:
 
-**Phase to address:** Phase introducing stats panel visibility toggle.
+```csharp
+private SolidColorBrush _accentBrush = Brushes.White; // frozen brush stored as field
+_accentBrush.Color = newColor; // InvalidOperationException at runtime
+```
+
+**Why it happens:**
+All brushes returned by the `System.Windows.Media.Brushes` static class (e.g., `Brushes.White`, `Brushes.Transparent`) are frozen `SolidColorBrush` instances shared across the application. Attempting to set their `Color` property throws `InvalidOperationException: Cannot modify a frozen object`. Source: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/freezable-objects-overview
+
+**How to avoid:**
+Always create a new `SolidColorBrush` when applying the accent color. Do not take a reference to a `Brushes.*` static and attempt to modify it. For performance, apply the new brush to all elements in a single `ApplyAccentColor()` call:
+
+```csharp
+private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
+
+private void ApplyAccentColor()
+{
+    var brush = new System.Windows.Media.SolidColorBrush(_accentColor);
+    // Do NOT freeze here — the brush is applied to multiple elements
+    // and must remain modifiable for future accent changes.
+    PhraseText.Foreground = brush;
+    ShadowText.Foreground = ... // shadow uses a darker version, not the same brush
+    HourHand.Stroke = brush;
+    MinuteHand.Stroke = brush;
+    // Stats bars: create a separate brush instance per element or share one unfrozen brush
+    CpuBar.Background = brush;
+    // etc.
+}
+```
+
+Note: Do not freeze the accent brush if it will be reused across multiple elements and changed later. A frozen brush assigned to one element can be re-assigned to other elements safely (frozen brushes are shareable), but cannot be modified. Since the accent color will change when the user picks a new color, do not freeze the accent brush.
+
+**Warning signs:**
+- `InvalidOperationException: Cannot modify a frozen object` when first applying a color theme.
+- The existing `Brushes.White` in XAML assignments continues to work (XAML brushes from `Brushes.*` are not the same as ones created in code), but code-behind brush references throw.
+
+**Phase to address:** Accent color application phase — establish the `ApplyAccentColor()` pattern before any element-level color assignment.
 
 ---
 
-### Pitfall 8: AllowsTransparency + WPF Bar Rendering — Avoid DropShadowEffect, LinearGradientBrush Performance
+### Pitfall 5: AppSettings Backward Compat — New Color/Opacity Fields Default to 0 for Existing JSON
 
 **What goes wrong:**
-The existing widget already has `AllowsTransparency="True"`, which disables the hardware-accelerated GPU rendering path for the layered HWND (documented behavior in .NET 5+; the project's `KEY DECISIONS` table confirms DropShadowEffect was already worked around). The stats bar `Rectangle` or `Border` elements are additional visual tree nodes rendered in this software path.
+Adding `AccentColor` (stored as a hex string like `"#FFFFFFFF"`) and `Opacity` (stored as a `double`) to the `AppSettings` record follows the existing init-property pattern. However, `double`'s type default is `0.0` — which would set the window to completely invisible (`Window.Opacity = 0`). A `string?`'s type default is `null`.
 
-Two specific mistakes make performance worse than necessary:
-1. **`DropShadowEffect` on bar elements** — the same limitation that broke the phrase shadow applies to bars. A `DropShadowEffect` on a `Rectangle` in an `AllowsTransparency` window silently renders as flat (no shadow) in .NET 10.
-2. **`LinearGradientBrush` with many stops** — software rendering with gradient brushes is significantly slower than solid-color fills, especially when the window is in the non-hardware path. A simple flat `SolidColorBrush` renders identically to the eye for a 1px-tall bar.
+When an existing `settings.json` (v1.9, without AccentColor/Opacity fields) is deserialized into the new `AppSettings` record:
+- `Opacity` is missing from JSON → deserializes as `0.0` → `Window.Opacity = 0` → invisible widget.
+- `AccentColor` is missing from JSON → deserializes as `null` → `Color.FromArgb(null)` → `NullReferenceException` or wrong color.
 
 **Why it happens:**
-`AllowsTransparency="True"` forces the window to render as a layered (WS_EX_LAYERED) window. On .NET 5+, WPF disables hardware-accelerated rendering for layered windows because the DWM composition model changed. All WPF rendering for this window falls back to software rasterization.
+`System.Text.Json` with init-property records treats absent JSON fields as using the property's **init default value** (the value in the `= X` initializer). This is safe IF the initializer is correct. If the property is declared as:
 
-**Consequences:**
-- Bars render correctly but slowly if `DropShadowEffect` or complex brushes are used.
-- Noticeable CPU usage increase from software-rasterizing gradient bars at 1-second update frequency.
-- `DropShadowEffect` silently produces no shadow — developer wastes time debugging "why the shadow doesn't work" (same experience the team had with PhraseText in v1.0).
-
-**Prevention:**
-Use only solid-color `SolidColorBrush` fills for bar elements. Use a simple `Grid` with two `Rectangle` layers (fill + background track) rather than a `ProgressBar` control (which uses `ControlTemplate` with multiple visual elements including potential effects). No `DropShadowEffect` anywhere in the visual tree:
-
-```xml
-<!-- Bar row — software-rendering-safe, flat colors only -->
-<Grid Height="6" Margin="0,1">
-    <Rectangle Fill="#44FFFFFF" />  <!-- track background -->
-    <Rectangle x:Name="CpuBar" Fill="#CCFFFFFF" HorizontalAlignment="Left" Width="0" />
-</Grid>
+```csharp
+public double Opacity { get; init; } = 1.0;  // safe — default is visible
+public string AccentColor { get; init; } = "#FFFFFFFF";  // safe — default is white
 ```
 
-Set `Width` programmatically to `panelWidth * (value / 100.0)`.
+...then absent fields correctly default to these values. The existing project already uses this init-property pattern (confirmed in `AppSettings.cs`). The pitfall is forgetting to supply a sensible init default and leaving the C# type default (0.0, null) in place.
+
+**How to avoid:**
+Declare the new fields with correct init defaults:
+
+```csharp
+public double Opacity    { get; init; } = 1.0;           // full opacity — safe default
+public string AccentColor { get; init; } = "#FFFFFFFF";   // white — matches existing XAML
+```
+
+Also add guards in `SettingsService.Load()` for the same reason the `StatsIntervalSeconds` guard exists — protect against corrupt or partially-written JSON:
+
+```csharp
+if (loaded.Opacity <= 0.0 || loaded.Opacity > 1.0)
+    loaded = loaded with { Opacity = 1.0 };
+if (string.IsNullOrWhiteSpace(loaded.AccentColor))
+    loaded = loaded with { AccentColor = "#FFFFFFFF" };
+```
 
 **Warning signs:**
-- CPU usage from `FuzzyClock.App` is measurably higher than expected when stats panel is visible.
-- Stats bars appear flat (no gradient visible) even though a gradient was specified.
-- Same `DropShadowEffect` investigation pattern as the v1.0 PhraseText shadow issue.
+- Widget is invisible after upgrading to v2.0 from v1.9 — `Opacity = 0` from missing field.
+- `NullReferenceException` when parsing accent color from settings.
 
-**Phase to address:** Phase introducing stats XAML layout — establish flat rendering from the start.
+**Phase to address:** AppSettings extension phase — must be done before any `Opacity` or `AccentColor` reading.
+
+---
+
+### Pitfall 6: Dial Hand and Decoration Brushes Are Set Via Code-Behind Using Brushes.White — Must Switch to Per-Field References
+
+**What goes wrong:**
+The current `InitDialDecorations()` and dial hand setup in XAML both use `Brushes.White` as the stroke/fill. When implementing the accent color, all of these must be switched to use the current accent brush. The danger is missing elements — there are 12 hour tick `Line` elements, 60 minute dot `Ellipse` elements, 12 hour number `TextBlock` elements, plus the two hand `Line` elements. A partial switch (updating the hands but forgetting the tick marks, or vice versa) produces a visually inconsistent dial where some elements are white and others follow the accent color.
+
+The minute dots (`Ellipse.Fill = Brushes.White`) and tick marks (`Line.Stroke = Brushes.White`) are created in `InitDialDecorations()`. If the accent color is applied after `InitDialDecorations()` runs, it must iterate all three element lists (`_hourTickElements`, `_minuteDotElements`, `_hourNumberElements`) in addition to the XAML-defined hand elements.
+
+**Why it happens:**
+`InitDialDecorations()` hardcodes `Brushes.White` for the decoration elements. There is no data binding or style resource that would automatically update these when the accent color changes. Each element requires an explicit property assignment.
+
+**How to avoid:**
+`ApplyAccentColor()` must iterate all four groups: XAML hands, tick lines, minute dots, hour number TextBlocks. Use a single method called both at startup (after `InitDialDecorations()`) and whenever the color changes:
+
+```csharp
+private void ApplyAccentColor()
+{
+    var brush = new SolidColorBrush(_accentColor);
+    // XAML-defined elements
+    PhraseText.Foreground = brush;
+    HourHand.Stroke = brush;
+    MinuteHand.Stroke = brush;
+    // Stats bars: create separate brush or reuse
+    foreach (var b in new[] { CpuBar, GpuBar, MemBar, PagBar })
+        b.Background = brush;
+    // Code-behind decoration elements
+    foreach (var el in _hourTickElements)   el.Stroke = brush;
+    foreach (var el in _minuteDotElements)  el.Fill   = brush;
+    foreach (var el in _hourNumberElements) el.Foreground = brush;
+}
+```
+
+Note: `ShadowText.Foreground` should NOT use the accent color directly — it is an offset shadow and should remain a dark semi-transparent color to remain readable against any accent. Applying the accent color to the shadow TextBlock inverts the readability contract.
+
+**Warning signs:**
+- Hour/minute hands update to the new accent color but tick marks remain white.
+- Minute dots remain white in some presets but not others (only applied during `InitDialDecorations()`, not on color change).
+- Shadow text changes to the accent color and becomes invisible on light wallpapers.
+
+**Phase to address:** Accent color application phase — establish complete `ApplyAccentColor()` covering all elements before implementing individual preset selection.
 
 ---
 
 ## Moderate Pitfalls
 
-Issues that produce wrong behavior but are straightforward to fix once identified.
+Issues that produce wrong but recoverable behavior.
 
 ---
 
-### Pitfall 9: Memory Counter — "Available MBytes" vs "% Committed Bytes In Use"
+### Pitfall 7: Stats Bar Track Background Is Semi-Transparent White (#40FFFFFF) — Accent Color on Bar Track Creates Muddy Look
 
 **What goes wrong:**
-The memory stat is displayed as a percentage bar. Two commonly used counters serve different purposes:
-- `Memory` / `Available MBytes`: reports raw available bytes, not a percentage. To convert to a percentage, the total physical RAM must be known. `GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` provides this but adds GC pressure if called frequently.
-- `Memory` / `% Committed Bytes In Use`: reports committed virtual memory as a percentage of the commit limit. This is a legitimate percentage counter and requires no additional math. However, it reflects commit (virtual allocation) usage, not physical RAM pressure.
+The stats bar track is currently `Background="#40FFFFFF"` (25% white). When the accent color is non-white (e.g., Amber `#FFFFB300`), applying the accent color to both the fill bar AND the track creates a muddy overlay: the track tint blends with whatever is behind the window. Most visually consistent result: keep the track as a fixed semi-transparent neutral (`#40FFFFFF`) and apply the accent only to the fill bar. Some implementations accidentally apply the accent to the track as well.
 
-Using `Available MBytes` and computing a percentage incorrectly (e.g., dividing by 100 instead of by total RAM) produces a percentage that is always above 99% or is nonsensical.
+**How to avoid:**
+Apply accent color only to fill bars (`CpuBar`, `GpuBar`, `MemBar`, `PagBar`) and text. Leave bar track borders (`CpuBarTrack`, etc.) as fixed `#40FFFFFF`. The track is purely structural and should remain neutral.
 
-**Prevention:**
-Use `Memory` / `% Committed Bytes In Use` directly — it returns a float percentage [0, 100] requiring no conversion. This is the counter shown in Task Manager's "Memory" column when viewing commit charge. Accept that it measures commit, not physical. The bar reads high on machines with large page files even when physical RAM is available — this is correct and expected behavior for this counter. Document the choice in a comment.
-
-**Phase to address:** Phase introducing memory counter reading.
+**Phase to address:** Accent color application phase.
 
 ---
 
-### Pitfall 10: Context Menu "Stats" Submenu — IsChecked Sync Must Follow ContextMenu_Opened Pattern
+### Pitfall 8: PreviewMouseWheel e.Handled = True Prevents ContextMenu From Receiving Scroll
 
 **What goes wrong:**
-v1.1 established the pattern for font-size menu checkmarks: sync all `IsChecked` states in `ContextMenu_Opened`, never in the click handlers. The new stats submenu adds:
-- `Show Stats` (toggle) — `IsCheckable="True"`, must reflect `_statsVisible`
-- `1s / 3s / 10s` interval items — must reflect `_statsIntervalSeconds`
+If `PreviewMouseWheel` is handled on the Window and `e.Handled = true` is set unconditionally, the context menu (which is a separate Win32 popup HWND) will not receive scroll events when it is open. This is benign — the context menu has no scrollable content. But if `e.Handled = true` is set and the scroll happens while the ContextMenu is open, the scroll is silently swallowed, which could confuse users. The ContextMenu is a separate HWND so `PreviewMouseWheel` on the main window does not fire while the context menu is open anyway — but this should be verified in testing.
 
-If the click handler for `Show Stats` calls `item.IsChecked = !item.IsChecked` (manual toggle), it double-toggles because `IsCheckable="True"` already toggled `IsChecked` before the click handler runs. This is the same bug documented in v1.0's context menu pitfall: `ContextMenu_Opened` is the single correct sync point.
+**How to avoid:**
+Only suppress the scroll (set `e.Handled = true`) when the scroll actually adjusts opacity. This is already the natural behavior — if the event handler processes the scroll, it sets `Handled = true`; if the context menu is open (which is a different HWND and the Window's PreviewMouseWheel won't fire), this is a non-issue. No special guard is needed but it should be noted in a comment.
 
-**Prevention:**
-Follow the existing v1.1 pattern exactly. In `ContextMenu_Opened`:
+**Phase to address:** Opacity scroll wheel phase.
+
+---
+
+### Pitfall 9: ColorDialog Returns System.Drawing.Color — Conversion to System.Windows.Media.Color Is Error-Prone
+
+**What goes wrong:**
+`System.Windows.Forms.ColorDialog.Color` returns `System.Drawing.Color`. `System.Windows.Media.Color` is the WPF type. They have different channel representations:
+- `System.Drawing.Color`: `A`, `R`, `G`, `B` are bytes (0–255), accessed as `.A`, `.R`, `.G`, `.B`.
+- `System.Windows.Media.Color`: `A`, `R`, `G`, `B` are bytes (0–255), accessed as `.A`, `.R`, `.G`, `.B`.
+
+The channel byte values are the same, but the types are incompatible at the type-system level. The conversion is straightforward, but forgetting to do it causes a compilation error. More subtle: `System.Drawing.Color.White` has `.A = 255` (fully opaque), but the WPF `Colors.White` also has `.A = 255`. The alpha channel from `ColorDialog` is always 255 (the Windows color picker does not expose alpha selection). This means custom colors picked by the user are always fully opaque — the alpha must be preserved as 255 from the dialog, not overridden.
+
+**How to avoid:**
+Perform the explicit conversion immediately after `ShowDialog` returns:
 
 ```csharp
-StatsShowItem.IsChecked   = _statsVisible;
-StatsInterval1s.IsChecked  = (_statsIntervalSeconds == 1);
-StatsInterval3s.IsChecked  = (_statsIntervalSeconds == 3);
-StatsInterval10s.IsChecked = (_statsIntervalSeconds == 10);
+var sd = dlg.Color;  // System.Drawing.Color
+_accentColor = System.Windows.Media.Color.FromArgb(sd.A, sd.R, sd.G, sd.B);
 ```
 
-In click handlers: update the backing field and apply the change, never touch `IsChecked` directly.
+Do not attempt implicit cast — it will not compile. Do not assume `System.Drawing.Color` and `System.Windows.Media.Color` are interchangeable.
 
-**Phase to address:** Phase introducing stats context menu.
+Store the accent color as a `System.Windows.Media.Color` field, not as `System.Drawing.Color`, because WPF brush construction requires the WPF type.
+
+**Phase to address:** Custom color picker phase.
 
 ---
 
-### Pitfall 11: GPU Engine Category May Not Exist on All Machines
+### Pitfall 10: Persisting AccentColor as Hex String — Color.Parse vs ColorConverter
 
 **What goes wrong:**
-The `GPU Engine` performance counter category is present on Windows 10 version 1709+ when a WDDM 2.x driver is installed. On virtual machines (RDP sessions, VMs with basic display drivers), Hyper-V without enhanced session, or very old hardware with legacy drivers, the category does not exist. `new PerformanceCounterCategory("GPU Engine")` throws `InvalidOperationException: Category does not exist` if the category is absent.
+`System.Windows.Media.Color` is not directly serializable by `System.Text.Json`. Two approaches exist:
+1. Store as hex string `"#AARRGGBB"` — simple and human-readable in settings.json.
+2. Store as four separate `byte` fields (`AccentA`, `AccentR`, `AccentG`, `AccentB`) — verbose.
 
-**Prevention:**
-Wrap all GPU counter initialization in a try/catch. If the category does not exist, set GPU value to `float.NaN` (or a sentinel) and render the GPU bar as `---` or grayed out:
+Approach 1 (hex string) requires parsing on load. `System.Windows.Media.ColorConverter` can parse `"#RRGGBB"` and `"#AARRGGBB"` strings. However, `Color.FromArgb` does not accept a hex string — it requires four separate bytes. The parsing pattern is:
 
 ```csharp
-private bool _gpuAvailable = false;
+// Parse from hex string stored in settings.json
+var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(loaded.AccentColor);
+```
 
-private void InitGpuCounters()
+A common mistake is using `System.Drawing.ColorTranslator.FromHtml()` (Windows.Forms API) when `ColorConverter` from WPF is available and does not require the Forms reference. Another mistake is forgetting to handle `null` returns from `ConvertFromString()` when the stored string is malformed.
+
+**How to avoid:**
+Use `System.Windows.Media.ColorConverter` in WPF code. Wrap in try/catch and fall back to white on any parse failure:
+
+```csharp
+private static System.Windows.Media.Color ParseAccentColor(string hex)
 {
     try
     {
-        if (!PerformanceCounterCategory.Exists("GPU Engine"))
-        {
-            _gpuAvailable = false;
-            return;
-        }
-        // ... enumerate instances ...
-        _gpuAvailable = true;
+        return (System.Windows.Media.Color)
+            System.Windows.Media.ColorConverter.ConvertFromString(hex);
     }
-    catch { _gpuAvailable = false; }
+    catch
+    {
+        return System.Windows.Media.Colors.White;
+    }
 }
 ```
 
-**Phase to address:** Phase introducing GPU counter reading — defensive from day one.
+Store as 8-digit ARGB hex (`#FFFFFFFF`) to preserve full alpha, even though the Windows.Forms color picker always returns alpha=255. This future-proofs the format.
 
----
-
-### Pitfall 12: Stats Visibility = Hidden Does Not Stop Counter Reads (Wasted CPU)
-
-**What goes wrong:**
-When stats are hidden (`StatsPanel.Visibility = Collapsed`), the stats timer continues to fire and `PerformanceCounter.NextValue()` continues to be called. This is unnecessary CPU usage for a widget that the user chose to hide. While the individual counter reads are cheap (~0.01ms each), calling them at 1s intervals for hours is wasteful when no output is displayed.
-
-**Prevention:**
-When stats are hidden, stop the stats timer (`_statsTimer.Stop()`). When stats are shown, restart the timer and prime the counters once (discard the 0 return from the first CPU read):
-
-```csharp
-private void SetStatsVisible(bool visible)
-{
-    _statsVisible = visible;
-    StatsPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-    if (visible) _statsTimer.Start();
-    else         _statsTimer.Stop();
-    SaveSettings();
-}
-```
-
-**Warning signs:**
-- Task Manager shows `FuzzyClock.App` using ~0.5% CPU continuously even with stats hidden.
-
-**Phase to address:** Phase introducing stats panel visibility toggle.
+**Phase to address:** AppSettings extension and settings load/save phase.
 
 ---
 
@@ -459,50 +391,53 @@ private void SetStatsVisible(bool visible)
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Don't prime CPU counter on startup | Simpler init | CPU bar shows 0% for first second — looks broken | Never — two-line fix |
-| Don't guard `StatsIntervalSeconds` for 0 in `Load()` | No migration code needed | Zero-interval timer on upgrade from v1.1 — CPU spike | Never |
-| Initialize counters on UI thread | Simpler code | Startup freeze up to 500ms | Never — use Task.Run |
-| Fixed GPU instance name at startup | Simpler code | Crashes when GPU process exits, instance disappears | Never |
-| Skip Dispose on PerformanceCounter | Simpler teardown | Handle leak, stale handles after sleep/resume | Never |
-| `Width="Auto"` on stats bar | Less XAML | Window-width jitter every second | Never |
-| `DropShadowEffect` on bar elements | Easier shadow | Silently renders flat in AllowsTransparency windows | Never |
-| New `DispatcherTimer` on each interval change | Simpler interval change | Double-firing if not stopped first | Never |
-| Continue stats timer when panel is hidden | Simpler toggle | Continuous CPU drain when user hides stats | Never |
+| Apply accent only to PhraseText and hands, skip decorations | Less code in v2.0 | Dial mode shows inconsistent colors — tick marks remain white | Never — all elements must be updated |
+| Use `Window.Opacity` below 0.25 presets | User can make widget more translucent | Hit-test surface becomes unreliable; right-click and drag may fail | Never |
+| Store accent color as separate R/G/B bytes in AppSettings | No parsing logic needed | settings.json is harder to read and edit manually | Never — hex string with ColorConverter is cleaner |
+| Apply accent color directly without `ApplyAccentColor()` helper | Less indirection | Color changes scattered across code; easy to miss elements | Never |
+| Use `MouseWheel` instead of `PreviewMouseWheel` | Slightly simpler event name | Scroll wheel is dropped when widget does not have focus | Never |
+| Open ColorDialog without Win32 HWND owner | Less setup code | Dialog appears behind the always-on-top WPF widget | Never |
+| Assign `Brushes.White` reference to a field for later mutation | Looks like reuse | `InvalidOperationException` when `.Color` is set | Never — always create a new SolidColorBrush |
+| Skip backward compat guard for `Opacity = 0.0` | No migration code | Widget invisible on first launch after upgrade from v1.9 | Never |
 
 ---
 
 ## Integration Gotchas
 
-How the new v1.2 features interact with existing v1.1 code.
+How v2.0 changes interact with existing v1.9 code.
 
 | Integration Point | Common Mistake | Correct Approach |
 |-------------------|----------------|------------------|
-| `AppSettings` positional record + new fields | New `bool/int` fields default to `false/0` on old JSON | Guard in `SettingsService.Load()`: apply `Defaults()` values when new fields are at their type default |
-| `SizeToContent=WidthAndHeight` + stats bars | `Width="Auto"` on bars causes window-width jitter on every stats tick | Fixed `Width` on the stats panel container |
-| `AllowsTransparency` + bar rendering | `DropShadowEffect` or complex brushes on bar elements | Flat `SolidColorBrush` only; same principle as phrase shadow workaround |
-| Existing `ContextMenu_Opened` pattern + stats menu items | Setting `IsChecked` in click handler (double-toggle) | Sync all stats menu `IsChecked` states in `ContextMenu_Opened` only |
-| Two `DispatcherTimer` instances | Stats timer fires at wrong rate after interval change (old timer not stopped) | Single timer instance; `Stop()` → update `Interval` → `Start()` |
-| `OnClosing`/`SessionEnding` + counter Dispose | Counters not disposed on app close | Call `DisposeCounters()` in `OnClosing` and/or `SessionEnding` |
-| Stats panel hidden + timer running | Timer continues reading counters when panel is not visible | `Stop()` timer when hiding panel; `Start()` when showing |
-| CPU counter + first-read zero | First `NextValue()` returns 0 for rate counters | Prime (discard) first read during initialization; start UI updates on second read |
-| GPU Engine category + missing category | `InvalidOperationException` on VMs or headless machines | Wrap all GPU category access in try/catch; render "---" when unavailable |
+| `InitDialDecorations()` + accent color | Decorations created with `Brushes.White` and never updated | Call `ApplyAccentColor()` after `InitDialDecorations()` in `ContentRendered`; include all decoration lists in `ApplyAccentColor()` |
+| `ContentRendered` startup sequence + color | `ApplyAccentColor()` called before `InitDialDecorations()` creates decoration elements | Order: (1) `UpdateDialDisplay()`, (2) `InitDialDecorations()`, (3) `ApplyAccentColor()` |
+| `ShadowText.Foreground` + accent color | Applying accent to the shadow TextBlock inverts readability | `ShadowText` keeps its fixed dark semi-transparent brush; only `PhraseText` gets the accent |
+| `AppSettings` record + `Opacity` field | `double` type default is `0.0` — missing field means invisible widget | Init default `= 1.0` plus load-time guard |
+| `AppSettings` record + `AccentColor` field | `string` type default is `null` — missing field means null-ref on parse | Init default `= "#FFFFFFFF"` plus load-time null/empty guard |
+| `Window.Opacity` + `AllowsTransparency` | Opacity multiplies over per-pixel alpha — hover backdrop nearly disappears at 25% | Document the interaction; 25% is the minimum preset; test each preset |
+| `PreviewMouseWheel` + context menu | Scroll while context menu is open (context menu is a separate HWND, so WPF PreviewMouseWheel does not fire during it) | No special handling needed, but verify in testing |
+| `System.Windows.Forms.ColorDialog` + WPF | Dialog appears behind `Topmost=True` window without HWND owner | Use `WindowInteropHelper(this).Handle` wrapped in `IWin32Window` adapter |
+| `System.Drawing.Color` (WinForms) + `SolidColorBrush` (WPF) | Direct use of `System.Drawing.Color` in WPF brush constructor | Convert to `System.Windows.Media.Color.FromArgb(A, R, G, B)` |
+| `ContextMenu_Opened` + opacity/color menu items | Color theme checkmarks not synced on open | Add accent color and opacity sync to `ContextMenu_Opened` following existing checkmark pattern |
+| `ApplySettings()` (before `Show()`) + `Window.Opacity` | `ApplySettings` is called before `Show()` — `Window.Opacity` assignment before `Show()` is safe | No exception risk; WPF allows `Opacity` to be set before window is shown |
+| `SaveSettings()` + new fields | `SaveSettings()` constructs a new `AppSettings` record — must include `Opacity` and `AccentColor` | Add both fields to the `new AppSettings { ... }` in `SaveSettings()` |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **CPU counter primed:** `NextValue()` called once during initialization and result discarded. UI updates start on second tick.
-- [ ] **AppSettings backward compat:** `SettingsService.Load()` guards against `StatsIntervalSeconds = 0` (old JSON). Value coerced to default before use.
-- [ ] **Counter initialization async:** `new PerformanceCounter(...)` called on `Task.Run()` background thread, not on UI thread.
-- [ ] **GPU counters enumerated per-tick or cached with refresh:** No hard-coded instance name from startup. `InvalidOperationException` from disappeared instance caught and handled.
-- [ ] **All PerformanceCounter objects disposed:** `Dispose()` called in `OnClosing` and before recreating counters on interval change.
-- [ ] **Stats bar `Width` is fixed:** Stats panel container has explicit `Width`, not `Auto`. Window does not jitter on stats update.
-- [ ] **No DropShadowEffect on stats bars:** Flat `SolidColorBrush` fills only.
-- [ ] **Single `DispatcherTimer` for stats:** Timer is reused, not recreated. Interval change does `Stop()` → set `Interval` → `Start()`.
-- [ ] **Stats timer stopped when panel hidden:** `_statsTimer.Stop()` in `SetStatsVisible(false)`. `_statsTimer.Start()` in `SetStatsVisible(true)`.
-- [ ] **GPU category availability check:** `PerformanceCounterCategory.Exists("GPU Engine")` checked before instantiation. Graceful fallback when absent.
-- [ ] **Memory counter choice documented:** Using `% Committed Bytes In Use` (not `Available MBytes`) — is a percentage, requires no conversion.
-- [ ] **Stats menu IsChecked sync in `ContextMenu_Opened`:** Show/Hide and interval checkmarks set there, not in click handlers.
+- [ ] **Opacity presets tested:** 25%, 50%, 75%, 100% presets applied via menu; right-click and drag verified at 25%.
+- [ ] **Scroll wheel works without prior click:** User can scroll opacity without clicking the widget first (`PreviewMouseWheel` not `MouseWheel`).
+- [ ] **All dial elements updated:** `ApplyAccentColor()` covers PhraseText, HourHand, MinuteHand, all `_hourTickElements`, all `_minuteDotElements`, all `_hourNumberElements`, all stat fill bars.
+- [ ] **ShadowText not affected:** Shadow TextBlock keeps its fixed dark brush; accent color is not applied to it.
+- [ ] **Bar tracks not affected:** `CpuBarTrack`, `GpuBarTrack`, etc. keep `#40FFFFFF`; only fill bars get accent color.
+- [ ] **Startup order correct:** `ApplyAccentColor()` called after `InitDialDecorations()` in `ContentRendered`.
+- [ ] **Backward compat verified:** Existing v1.9 settings.json loaded; widget appears at full opacity with white accent (defaults applied).
+- [ ] **ColorDialog has HWND owner:** Dialog does not appear behind the widget; visible on screen above the overlay.
+- [ ] **Color conversion explicit:** `System.Drawing.Color` → `System.Windows.Media.Color` conversion is explicit, not implicit.
+- [ ] **AccentColor persisted as hex:** settings.json contains `"AccentColor":"#FFFFFFFF"`-style value; round-trip parse verified.
+- [ ] **Opacity persisted:** settings.json contains `"Opacity":0.75`-style value; widget starts at same opacity after restart.
+- [ ] **Frozen brush not mutated:** No attempt to modify `Brushes.White` or other static brushes; always `new SolidColorBrush(color)`.
+- [ ] **UseWindowsForms in .csproj:** Added if ColorDialog is used; no compile error.
 
 ---
 
@@ -510,13 +445,15 @@ How the new v1.2 features interact with existing v1.1 code.
 
 | Phase Topic | Likely Pitfall | Mitigation |
 |-------------|---------------|------------|
-| StatsService / counter initialization | CPU counter first-read = 0; UI thread block | Initialize async (Task.Run); prime and discard first CPU read |
-| AppSettings record extension | New fields default to 0/false on old JSON | Guard in `SettingsService.Load()` for `StatsIntervalSeconds <= 0` |
-| Stats XAML layout | SizeToContent window-width jitter; DropShadowEffect failure | Fixed `Width` on panel; flat brush only |
-| GPU counter reading | Per-engine multi-instance confusion; missing category on VMs | Enumerate + filter + aggregate; try/catch around category access |
-| Stats show/hide toggle | Double-timer, timer running while hidden | Single timer instance; stop on hide, start on show |
-| Context menu stats submenu | IsChecked double-toggle from IsCheckable | Sync in `ContextMenu_Opened` only (follow v1.1 pattern) |
-| Counter teardown | Handle leak, stale handles after sleep | Dispose in OnClosing/SessionEnding; Dispose before recreating |
+| AppSettings extension (AccentColor + Opacity) | `double Opacity` defaults to `0.0` on upgrade — invisible widget | Init default `= 1.0`; load-time guard `if (Opacity <= 0) reset to 1.0` |
+| AppSettings extension (AccentColor + Opacity) | `string AccentColor` defaults to `null` on upgrade — NullReferenceException | Init default `= "#FFFFFFFF"`; load-time null/empty guard |
+| AccentColor application to all elements | Decoration elements not in XAML — must iterate code-behind lists | `ApplyAccentColor()` iterates `_hourTickElements`, `_minuteDotElements`, `_hourNumberElements` |
+| AccentColor startup ordering | `ApplyAccentColor()` called before `InitDialDecorations()` creates elements | Always order: UpdateDialDisplay → InitDialDecorations → ApplyAccentColor in ContentRendered |
+| Opacity presets via context menu | `Window.Opacity` multiplies with per-pixel alpha — hover backdrop degrades | Document interaction; enforce 0.25 minimum; test each preset visually |
+| Opacity scroll wheel | `MouseWheel` dropped without focus | Use `PreviewMouseWheel` on Window; set `e.Handled = true` |
+| Custom color picker | ColorDialog behind Topmost widget | HWND owner via `WindowInteropHelper`; `UseWindowsForms` in .csproj |
+| Custom color picker | `System.Drawing.Color` not converted | Explicit `Color.FromArgb(sd.A, sd.R, sd.G, sd.B)` conversion |
+| AccentColor persistence | `ColorConverter` parse failure on malformed hex | try/catch in `ParseAccentColor()` helper; fallback to white |
 
 ---
 
@@ -524,15 +461,14 @@ How the new v1.2 features interact with existing v1.1 code.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| CPU counter always shows 0 | LOW | Add `_cpuCounter.NextValue()` prime call during init; discard result |
-| Stats interval is 0 on upgrade | LOW | Add guard in `SettingsService.Load()`; rebuild |
-| Startup freeze from counter init | MEDIUM | Move `new PerformanceCounter(...)` to `Task.Run()`; add loading state to stats panel |
-| GPU shows wrong value | MEDIUM | Enumerate all `GPU Engine` instances; filter `engtype_3D`; sum; normalize |
-| Handle leak from undisposed counters | LOW | Add `DisposeCounters()` method; call in `OnClosing` |
-| Window-width jitter | LOW | Set fixed `Width` on stats panel container |
-| DropShadowEffect on bars (invisible shadow) | LOW | Replace with flat `SolidColorBrush`; no effects |
-| Double-timer on interval change | LOW | Ensure `Stop()` before changing `Interval`, then `Start()` |
-| GPU throws on VM/no GPU | LOW | Wrap `PerformanceCounterCategory.Exists()` check; `_gpuAvailable = false` fallback |
+| Widget invisible after upgrade (Opacity=0) | LOW | Add init default `= 1.0` to Opacity field; add load-time guard in Load() |
+| Right-click / drag broken at 25% opacity | LOW | Test at all presets; enforce 0.25 minimum; document the limitation |
+| Scroll wheel not working without focus | LOW | Replace `MouseWheel` with `PreviewMouseWheel` on Window |
+| ColorDialog appears behind widget | LOW | Add `WindowInteropHelper(this).Handle` wrapped in IWin32Window adapter |
+| Dial decorations still white after color change | LOW | Add all three decoration lists to `ApplyAccentColor()` |
+| Shadow text becomes visible-wrong color | LOW | Guard `ShadowText` from accent application; keep fixed dark brush |
+| `InvalidOperationException` on frozen brush | LOW | Replace `_accentBrush = Brushes.White` with `new SolidColorBrush(Colors.White)` |
+| AccentColor parse fails from corrupted settings | LOW | Add `ParseAccentColor()` try/catch returning white as fallback |
 
 ---
 
@@ -540,17 +476,17 @@ How the new v1.2 features interact with existing v1.1 code.
 
 | Source | URL | Confidence |
 |--------|-----|------------|
-| PerformanceCounter.NextValue — "call twice for rate counters" | https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter.nextvalue | HIGH |
-| PerformanceCounter implements IDisposable | https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter | HIGH |
-| System.Text.Json — positional record constructor parameters treated as optional before .NET 9 | https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/required-properties | HIGH |
-| DispatcherTimer — interval, Start, Stop | https://learn.microsoft.com/en-us/dotnet/api/system.windows.threading.dispatchertimer | HIGH |
-| WPF SizeToContent=WidthAndHeight | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.sizetocontent | HIGH |
-| AllowsTransparency — layered HWND, hardware acceleration disabled for effects | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency | HIGH |
-| PerformanceCounterCategory.Exists — check before instantiating | https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecountercategory.exists | HIGH |
-| GPU Engine performance counter category (WDDM 2.x, Windows 10 1709+) — instance name format, Utilization Percentage counter | Community-documented (multiple sources: Stack Overflow, GitHub issues); exact instance name format confirmed by running `typeperf "\GPU Engine(*)\Utilization Percentage"` | MEDIUM |
-| Existing project source — AppSettings record definition, SettingsService.Load/Defaults, MainWindow AllowsTransparency, existing ContextMenu_Opened pattern | Read directly from `c:/src/gsd1/FuzzyClock.App/AppSettings.cs`, `SettingsService.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs` | HIGH |
+| Window.AllowsTransparency — layered HWND, LWA_ALPHA interaction with per-pixel alpha | https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency | HIGH |
+| UIElement.Opacity — dependency property, applies uniformly, 0 still receives input | https://learn.microsoft.com/en-us/dotnet/api/system.windows.uielement.opacity?view=windowsdesktop-10.0 | HIGH |
+| Freezable Objects Overview — SolidColorBrush.Freeze(), InvalidOperationException on modification | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/freezable-objects-overview | HIGH |
+| SolidColorBrush — IsFrozen, Freeze(), Clone(), Brushes static class provides frozen instances | https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.solidcolorbrush?view=windowsdesktop-10.0 | HIGH |
+| System.Windows.Forms.ColorDialog — ShowDialog(IWin32Window), Color property, AllowFullOpen | https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.colordialog?view=windowsdesktop-10.0 | HIGH |
+| WPF common system dialog boxes — no built-in WPF color picker; Open/Save/Print only | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-common-system-dialog-box | HIGH |
+| System.Text.Json init-property record deserialization — absent fields use init default value | Verified from existing AppSettings.cs pattern and prior PITFALLS.md v1.2 research | HIGH |
+| PreviewMouseWheel vs MouseWheel on frameless transparent windows — tunneling vs bubbling | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/input/routed-events-overview (tunneling/bubbling) | MEDIUM — specific frameless window behavior verified from codebase pattern (MouseEnter/Leave wired in ContentRendered) |
+| Existing project source — MainWindow.xaml (Grid #01000000 hit-test comment), AppSettings.cs init-property pattern, ContentRendered ordering, ContextMenu_Opened checkmark pattern | Read directly from C:\src\FuzzyStatsClock project files | HIGH |
 
 ---
 
-*Pitfalls research for: WPF transparent overlay — v1.2 CPU/GPU/MEM stats panel + Performance Counters*
-*Researched: 2026-02-25*
+*Pitfalls research for: WPF transparent overlay — v2.0 color theming and opacity control*
+*Researched: 2026-02-27*

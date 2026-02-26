@@ -1,17 +1,17 @@
 # Project Research Summary
 
-**Project:** FuzzyClock v1.2 — System Stats Panel (CPU / GPU / MEM)
-**Domain:** WPF transparent desktop widget — Windows Performance Counter integration
-**Researched:** 2026-02-25
-**Confidence:** HIGH (CPU/MEM/Architecture/Pitfalls); MEDIUM (GPU counter instance naming)
+**Project:** FuzzyClock v2.0 — Color Themes and Opacity Control
+**Domain:** WPF transparent frameless desktop overlay widget (additive milestone)
+**Researched:** 2026-02-27
+**Confidence:** HIGH
 
 ## Executive Summary
 
-FuzzyClock v1.2 adds a CPU, GPU, and memory usage panel below the existing time-phrase display. All research agrees on a minimal-dependency approach: one new NuGet package (`System.Diagnostics.PerformanceCounter` v10.0.0) provides CPU and GPU reading via Windows PDH counters; memory percentage comes from the same package via `% Committed Bytes In Use`. The WPF `ProgressBar` control (already in-box) provides the bar visualization, and a new `DispatcherTimer` (separate from the existing phrase timer) drives updates at the user-selected 1s/3s/10s rate. The existing code-behind style is preserved throughout — no MVVM, no additional abstraction layers.
+FuzzyClock v2.0 is a well-scoped additive milestone on top of a validated, stable v1.9 codebase. The two features — accent color theming and widget opacity control — are implemented entirely through WPF's existing APIs (`SolidColorBrush`, `UIElement.Opacity`, `MouseWheelEventArgs`) plus one csproj-level change (`UseWindowsForms=true`) to enable the native Win32 color picker. No new NuGet packages are required. All stack additions live in `PresentationCore.dll` (already a dependency) or in the `Microsoft.WindowsDesktop.App` runtime that any WPF project already references. The recommended approach is to build in four sequential steps — AppSettings schema first, then opacity, then accent color presets, then the custom color picker — each independently verifiable before the next begins.
 
-The recommended architecture introduces one new file (`StatsService.cs`) and modifies three existing ones (`AppSettings.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs`). The `AppSettings` positional record must be converted to an init-property record to allow forward and backward JSON compatibility when new fields are added. The inner `Grid` inside the existing `Border` gains an explicit `RowDefinitions` split: Row 0 for the existing phrase text, Row 1 for the stats panel. A fixed `Width` (180px recommended) on the stats panel container prevents window-width jitter from `SizeToContent=WidthAndHeight`.
+The architecture is minimal and deliberate. Only three files change: `AppSettings.cs` (two new fields), `MainWindow.xaml` (two new submenus), and `MainWindow.xaml.cs` (new fields, one new method, extended lifecycle hooks). The existing code-behind pattern — no MVVM, no data binding, direct property assignment from event handlers — is the correct and consistent approach for this widget. The central implementation decision is the `ApplyTheme()` helper method, which must cover all 14+ accent-colored elements in a single call used at both startup and runtime. Missing even one element produces a visible inconsistency that users will immediately notice.
 
-The top risk is the interplay between several initialization-order constraints that are each individually simple but must all be handled correctly together: the CPU counter must be primed on a background thread (not the UI thread) and its first result discarded; GPU counters must enumerate instances at runtime and gracefully fall back when the `GPU Engine` category is absent; and the `AppSettings` load path must guard against `StatsIntervalSeconds = 0` from an old settings file, which would cause a zero-interval timer firing thousands of times per second. All of these are low-cost fixes but become expensive bugs if they reach production.
+The top risks for this milestone are well-understood and preventable. The ordering constraint in `ContentRendered` (decoration lists must be populated before `ApplyTheme()` is called) is the most subtle correctness issue. The `PreviewMouseWheel` vs `MouseWheel` choice and the `ColorDialog` HWND owner requirement are the two implementation-level traps most likely to cause regressions in production that do not manifest in the debugger. With these three issues addressed up front, the milestone is low-risk and can be implemented confidently in order.
 
 ---
 
@@ -19,206 +19,135 @@ The top risk is the interplay between several initialization-order constraints t
 
 ### Recommended Stack
 
-The v1.2 stack is a minimal addition on top of the validated v1.1 foundation (.NET 10, C# 13, WPF `net10.0-windows`, `System.Text.Json`, `DispatcherTimer`, zero third-party packages). Only one new package is required.
+v2.0 requires one csproj property change and zero new NuGet packages. All APIs are in-box on `net10.0-windows`. The only addition to `FuzzyClock.App.csproj` is `<UseWindowsForms>true</UseWindowsForms>`, which unlocks `System.Windows.Forms.ColorDialog` without adding any package reference.
 
-**Core technologies:**
-- `System.Diagnostics.PerformanceCounter` (NuGet v10.0.0): reads Windows PDH counters for CPU and GPU — the Windows-native, no-vendor-dependency path that Task Manager itself uses internally
-- `System.Windows.Controls.ProgressBar` (in-box WPF): horizontal bar visualization with built-in `Minimum`/`Maximum`/`Value` semantics — no custom drawing required; alternatively, two nested `Border` elements (track + fill) are preferred given the `AllowsTransparency` rendering constraints
-- `Task.Run` + `async void` DispatcherTimer tick (in-box .NET 10): off-thread counter reads to prevent any UI thread blocking during PDH calls
+**Core technologies added:**
+- `System.Windows.Media.SolidColorBrush(Color)` — paints all accent-colored elements; existing code already constructs these directly; one new `ApplyTheme()` call covers all 14+ elements — already in `PresentationCore.dll`
+- `UIElement.Opacity` (on Window) — single property assignment fades the entire layered HWND including all child content; range 0.0–1.0; minimum enforced at 0.10 for scroll wheel, 0.25 as lowest menu preset — already in `PresentationCore.dll`
+- `PreviewMouseWheel` event + `MouseWheelEventArgs.Delta` — scroll wheel opacity adjustment; `PreviewMouseWheel` (not `MouseWheel`) is required on frameless transparent windows to fire without prior focus — already in `PresentationCore.dll`
+- `System.Windows.Forms.ColorDialog` — native Win32 `ChooseColor` dialog; zero implementation cost; requires `UseWindowsForms=true` and an HWND owner wrapper via `WindowInteropHelper` — in `System.Windows.Forms.dll`, unlocked by csproj flag
+- `System.Windows.Media.ColorConverter.ConvertFromString()` — parses `#RRGGBB`/`#AARRGGBB` hex strings at settings load time; wrap in try/catch and fall back to white — already in `PresentationCore.dll`
 
-**Counter specifications (verified confidence noted):**
-- CPU: `"Processor"` / `"% Processor Time"` / `"_Total"` — canonical, Windows NT+, unchanged — HIGH confidence
-- MEM: `"Memory"` / `"% Committed Bytes In Use"` — single-instance, returns [0,100] directly, no math needed — HIGH confidence
-- GPU: `"GPU Engine"` / `"Utilization (%)"` — multi-instance, filter `engtype_3D`, sum across all LUIDs, clamp to 100 — MEDIUM confidence (instance name format not formally documented by Microsoft)
+**AppSettings schema additions (two fields only):**
+- `public string AccentColor { get; init; } = "#FFFFFFFF"` — hex string, not Color struct (`System.Text.Json` cannot natively serialize the WPF Color struct without a custom converter)
+- `public double Opacity { get; init; } = 1.0` — double type default is 0.0; the init default of 1.0 is essential for backward compat with v1.9 settings files
 
-**What not to use:** WMI (`System.Management`) is 10–50x slower than PDH for the same data. `LibreHardwareMonitor` / `OpenHardwareMonitor` require kernel driver installation. P/Invoke into `pdh.dll` directly would be more code for identical results. `Microsoft.VisualBasic.Devices.ComputerInfo` adds a VB runtime dependency unnecessarily. MVVM / `INotifyPropertyChanged` adds abstraction layers for three property updates in a code-behind project.
-
-**Single `.csproj` change required:**
-```xml
-<PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.0" />
-```
-
-See `STACK.md` for full counter code samples, disposal patterns, and alternatives considered.
-
----
+See `.planning/research/STACK.md` for full API detail, preset color values table, alternatives considered, and version compatibility matrix.
 
 ### Expected Features
 
-The five v1.2 requirements are all LOW complexity individually. GPU counter enumeration is the only MEDIUM-complexity component.
+All eight v2.0 features are table stakes for a color/opacity feature in a desktop widget. None are optional. The complexity across all eight is LOW to LOW-MEDIUM — this is a shallow, wide implementation rather than a deep architectural change.
 
-**Must have (table stakes — users will treat absence as a bug):**
-- Three labeled stat rows (CPU / GPU / MEM) each with a horizontal bar and percentage text
-- Live update on a configurable timer (1s / 3s / 10s); 3s is the default
-- Show/Hide toggle that persists across restarts; stats hidden by default on first run
-- Update interval persisted across restarts
-- Bars show no 0%-then-jump artifact on startup (counter priming required)
-- Window resizes cleanly when panel is shown/hidden (`Collapsed` + `SizeToContent` handles this automatically)
+**Must have (table stakes — all v2.0):**
+- `THEME-01` — 5 named preset color themes (White, Amber, Ice Blue, Green, Hello Kitty Pink) in right-click "Theme" submenu; active preset shown as checkmarked
+- `THEME-02` — "Custom Color..." entry in Theme submenu opens system color picker dialog; custom color persists across restarts
+- `THEME-03` — Accent color applies immediately and consistently to all accent-colored elements: phrase text, dial hands, dial decorations (ticks/dots/numbers), all stats bars, all stats percentage text
+- `THEME-04` — Theme selection persists to `settings.json` as a hex string and restores on launch
+- `OPAC-01` — 25%/50%/75%/100% opacity presets in right-click "Opacity" submenu; active value shown as checkmarked
+- `OPAC-02` — Scroll wheel adjusts opacity in 10% increments; minimum 10% (never fully invisible); opacity change persists
+- `OPAC-03` — Opacity applies to the entire window via `Window.Opacity`
+- `OPAC-04` — Opacity setting persists to `settings.json` and restores on launch
 
-**Should have (differentiators — nice for v1.2, not blocking):**
-- Bar color changes at thresholds (green/yellow/red) — MEDIUM complexity; not required for v1.2
+**Behavioral expectations (unstated but immediately noticed if wrong):**
+- Color and opacity changes are instant with no animation
+- Bar track (`#40FFFFFF`) stays neutral white; only fill bars get accent color
+- Shadow text (`ShadowText`) always remains dark (`#BB000000`); it must never receive the accent color
+- Checkmarks in both submenus follow the existing `ContextMenu_Opened` sync pattern (same as Font Size and Update Interval)
+- Theme submenu is not mode-conditional; it appears in both phrase mode and dial mode (unlike Font Size which hides in dial mode)
 
-**Defer to v2+:**
-- GPU VRAM %, per-core CPU graphs, historical sparklines — HIGH complexity or require vendor libraries
-- Network/Disk I/O stats — scope expansion beyond v1.2
-- GPU/CPU temperature — requires vendor-specific DLLs (NVAPI, ADL), not available as PDH counters
+**Explicitly deferred (not in v2.0):**
+- Per-element color overrides
+- Live preview while dragging the color picker
+- Opacity below 10%
+- Smooth opacity animation or easing
+- System accent color sync
+- Settings screen or second window
 
-**Anti-features (refuse if requested):**
-- GPU temperature, CPU temperature, fan speeds — wrong library surface for this widget
-- Per-process CPU list — that is Task Manager, not a widget
-- Click stats row to open Resource Monitor — conflicts with drag behavior
-- Custom color themes / settings screen — violates the widget's no-settings-screens philosophy
-
-**Context menu structure:**
-```
-[ Font Size  > ]
-[ Stats      > ]
-                [ Show Stats  (checkable) ]
-                [ ─────────── ]
-                [ Update Interval > ]
-                                    [ 1 second  ]
-                                    [ 3 seconds (default, checked) ]
-                                    [ 10 seconds ]
-[ ────────── ]
-[ Close ]
-```
-
-See `FEATURES.md` for the full feature dependency graph and data source specifications.
-
----
+See `.planning/research/FEATURES.md` for full dependency map, anti-feature analysis, and complexity breakdown per component.
 
 ### Architecture Approach
 
-The v1.2 architecture layers cleanly on v1.1 with no component removals. Three files are modified and one new file is added. `SettingsService.cs`, `App.xaml.cs`, and `FuzzyClock.Core` are untouched.
+v2.0 is an additive change to three files. The architectural pattern is: two new private fields (`_accentColor: Color`, `_windowOpacity: double`), one new helper method (`ApplyTheme()`), and targeted extensions to four existing lifecycle methods (`ApplySettings`, `ContentRendered`, `SaveSettings`, `ContextMenu_Opened`). No components are added; no existing components are restructured; `SettingsService.cs`, `App.xaml.cs`, `StatsService.cs`, and `FuzzyClock.Core` are unchanged.
 
-**Major components:**
+**Major components and their v2.0 changes:**
+1. `AppSettings.cs` — two new init-property fields; backward-compatible via init defaults + load-time guards
+2. `MainWindow.xaml` — two new submenus (Theme with 6 items, Opacity with 4 items); `PreviewMouseWheel` event wired on Window element
+3. `MainWindow.xaml.cs` — `ApplyTheme()` covers 14+ elements; `Window_PreviewMouseWheel` handler; 9 preset click handlers; `SetOpacity()` helper; extensions to `ApplySettings`, `ContentRendered`, `SaveSettings`, `ContextMenu_Opened`
 
-1. `StatsService.cs` (new) — owns the three `PerformanceCounter` instances, exposes `CpuPercent` / `GpuPercent` / `MemPercent` properties, implements `IDisposable`. Single-responsibility; no WPF references.
-2. `AppSettings.cs` (modified) — gains `bool StatsVisible` and `int StatsInterval` fields; converted from positional record to init-property record for JSON forward/backward compatibility.
-3. `MainWindow.xaml` (modified) — inner `Grid` gains explicit `RowDefinitions`; Row 1 hosts `StatsPanel` (`StackPanel`, `Visibility="Collapsed"` default, `Width="180"` fixed); Stats submenu added to `ContextMenu`.
-4. `MainWindow.xaml.cs` (modified) — adds `_statsTimer` (separate `DispatcherTimer`), `SetStatsVisible()`, `SetStatsInterval()`, `UpdateStatsDisplay()`; extends `ApplySettings()`, `SaveSettings()`, `OnClosing()`, and `ContextMenu_Opened()`.
+**Critical ordering constraint in `ContentRendered`:**
 
-**Key patterns to follow:**
-- Two independent timers: phrase timer (10s, not configurable) and stats timer (1s/3s/10s, user-configurable). Never merge them.
-- Stop-then-dispose order: stop `_statsTimer` before calling `_statsService.Dispose()` in `OnClosing`.
-- Single `DispatcherTimer` instance for stats: toggle with `Start()`/`Stop()`, never recreate on interval change. Interval change: `Stop()` → set `Interval` → `Start()`.
-- Bar fill width computed from track `Border.ActualWidth`, not from `Window.ActualWidth`.
-- No `UpdateLayout()` in the stats tick — only in `SetStatsVisible()` after panel visibility changes.
-- `ContextMenu_Opened` is the single sync point for all `IsChecked` states (established v1.1 pattern, extended here).
-- Counter initialization on `Task.Run()` background thread; UI updates on DispatcherTimer tick (already on UI thread).
+The startup sequence must be: `UpdateDialDisplay()` → `InitDialDecorations()` → `ApplyTheme()`. The decoration element lists (`_hourTickElements`, `_minuteDotElements`, `_hourNumberElements`) are empty until `InitDialDecorations()` runs. `ApplySettings()` (called before `Show()`) must only set `_accentColor` from the parsed hex string — it must NOT call `ApplyTheme()`. Calling `ApplyTheme()` from `ApplySettings()` silently skips all dial decoration elements at startup, producing white decorations even when a non-white theme was saved.
 
-**Suggested build order (each step independently verifiable):**
-1. AppSettings record migration (init-property record + new fields + Load() guard)
-2. StatsService (no UI — verify values via debug output before touching XAML)
-3. XAML stats panel structure (verify widget renders identically to v1.1 with panel Collapsed)
-4. Code-behind stats display (UpdateStatsDisplay wired to timer)
-5. Show/Hide toggle (SetStatsVisible + timer coupling + SaveSettings)
-6. Update interval selector (SetStatsInterval + ContextMenu_Opened sync)
-7. Edge-case cleanup (disposal, upgrade path, off-screen clamp with taller window)
+**Theme checkmark sync pattern:** Drive `IsChecked` from the `_accentColor` field in `ContextMenu_Opened()` by hex-string comparison against the five preset constants. Do not maintain a separate `_currentThemeName` field — that introduces secondary state that can diverge from `_accentColor`.
 
-See `ARCHITECTURE.md` for full XAML samples, data flow diagrams, and 5 annotated anti-patterns.
-
----
+See `.planning/research/ARCHITECTURE.md` for complete method signatures, full data flow diagrams, XAML structures, and five annotated anti-patterns.
 
 ### Critical Pitfalls
 
-All critical pitfalls carry LOW or MEDIUM recovery cost, but several must be addressed at the correct build step or they silently corrupt behavior.
+1. **Window.Opacity multiplies with AllowsTransparency per-pixel alpha** — `Window.Opacity = 0.25` takes the hover backdrop from 35% effective alpha to ~9%, and risks degrading the `#01000000` hit-test sentinel. Test right-click and drag at every opacity preset. Minimum preset is 25%; scroll wheel floor is 10% but below 25% is a documented degradation zone.
 
-1. **CPU counter first `NextValue()` always returns 0** — call `NextValue()` once during initialization, discard the result; start the UI timer only after the second call. Failure mode: CPU bar shows 0% on first tick, then jumps to the real value.
+2. **PreviewMouseWheel required, not MouseWheel** — `MouseWheel` (bubbling) is silently dropped on frameless transparent windows when the widget does not have keyboard focus. Use `PreviewMouseWheel` (tunneling at Window level). Set `e.Handled = true` to prevent scroll leaking to windows below. This is a production regression that typically does not appear in debugger sessions.
 
-2. **`AppSettings` positional record + new `int` field defaults to 0 on old JSON** — `StatsIntervalSeconds = 0` creates a zero-interval `DispatcherTimer` that fires thousands of times per second, spiking CPU. Guard in `SettingsService.Load()`: if `StatsIntervalSeconds <= 0`, replace with `Defaults().StatsIntervalSeconds`. Must be done in the AppSettings phase, before any timer construction code.
+3. **ApplyTheme() must not be called from ApplySettings()** — `ApplySettings()` runs before `Show()`, before `InitDialDecorations()` has populated the decoration element lists. Calling `ApplyTheme()` early silently skips all ticks, dots, and number elements. Fix: `ApplySettings()` sets `_accentColor` only; `ContentRendered` calls `ApplyTheme()` after `InitDialDecorations()`.
 
-3. **PerformanceCounter initialization blocks the UI thread** — PDH cold-start reads can take 200–500ms on some machines. Initialize all counters inside `Task.Run()`, keep a `_initialized` flag, and skip stats ticks until initialization is complete.
+4. **ColorDialog must have an HWND owner** — Without a `WindowInteropHelper`-based HWND wrapper passed to `ShowDialog()`, the dialog renders behind the `Topmost=True` WPF window. The dialog opens but is inaccessible to the user. Use `new Win32Window(new WindowInteropHelper(this).Handle)` as the owner argument.
 
-4. **GPU `Engine` category is multi-instance — reading one instance gives wrong results** — enumerate all instances, filter for `engtype_3D`, sum `Utilization (%)` values, clamp to 100. Cache the counter objects; catch `InvalidOperationException` (instance disappeared after driver update or sleep/wake) and re-enumerate. On machines without the `GPU Engine` category, set `_gpuAvailable = false` and show "N/A".
+5. **AppSettings backward compat: Opacity field defaults to 0.0 without an init default** — C#'s type default for `double` is 0.0. A `settings.json` from v1.9 (missing the Opacity field) produces `Opacity = 0.0` on deserialization, making the widget fully transparent on first launch after upgrade. Declare `public double Opacity { get; init; } = 1.0` and add a load-time guard `if (Opacity <= 0.0) reset to 1.0`.
 
-5. **`SizeToContent=WidthAndHeight` + `Width="Auto"` on stats bars causes window-width jitter every second** — set a fixed `Width="180"` on the `StatsPanel` container. Percentage text width changes (e.g., "9%" to "10%") then affect only inner layout, not window width.
+6. **Static brushes from Brushes class are frozen and cannot be mutated** — `Brushes.White` and similar static instances from `System.Windows.Media.Brushes` are pre-frozen `SolidColorBrush` objects. Attempting to set `.Color` on them throws `InvalidOperationException`. Always use `new SolidColorBrush(_accentColor)` — never store a `Brushes.*` reference and try to mutate it.
 
-6. **`AllowsTransparency=True` + `DropShadowEffect` on bar elements silently renders flat** — use only flat `SolidColorBrush` fills. Same constraint that drove the phrase-shadow workaround in v1.0; applies equally to bar elements.
-
-7. **Double `DispatcherTimer` from recreating on each interval change** — use a single `_statsTimer` instance; change interval via `Stop()` → set `Interval` → `Start()`.
-
-8. **Stats timer keeps running when panel is hidden** — stop `_statsTimer` in `SetStatsVisible(false)`; start it in `SetStatsVisible(true)`. Continuous counter reads when nothing is displayed waste CPU on a widget that may run for days.
-
-See `PITFALLS.md` for all 12 pitfalls with detection symptoms, prevention code, and recovery steps.
+See `.planning/research/PITFALLS.md` for 10 pitfalls with code examples, detection symptoms, and the complete "looks done but isn't" verification checklist (13 items).
 
 ---
 
 ## Implications for Roadmap
 
-All research converges on a 4-phase implementation. The ordering is driven by hard dependencies: settings shape must be stable before any new field is read, the service must exist before UI can display data, XAML elements must exist before code-behind can reference them by name.
+Based on combined research, the build order is established by two hard dependencies: AppSettings schema must be stable before any field is read or written; and `ApplyTheme()` must be validated on preset colors before the custom color picker adds WinForms interop complexity. The suggested phase structure is four phases, totaling roughly 8 development features across them.
 
-### Phase 1: AppSettings Migration and Settings Plumbing
+### Phase 1: AppSettings Schema Extension
 
-**Rationale:** Every subsequent phase reads or writes `StatsVisible` and `StatsInterval`. The record conversion is the foundation. The zero-interval timer bug (Pitfall 2) can only be prevented here, and the fix is one guard clause in `SettingsService.Load()`.
+**Rationale:** All other phases read from or write to `AppSettings`. The schema must be locked first. This phase has zero UI surface and is fully testable in isolation via round-trip JSON tests.
+**Delivers:** `AccentColor` (string, hex, default `#FFFFFFFF`) and `Opacity` (double, default `1.0`) fields in `AppSettings`; updated `SettingsService.Defaults()`; load-time guards for both fields in `SettingsService.Load()`; verified backward compat with a v1.9 `settings.json` (fields absent, defaults applied).
+**Addresses:** THEME-04 (partial persistence infrastructure), OPAC-04 (partial persistence infrastructure)
+**Avoids:** Pitfall 5 (Opacity=0 invisible widget on upgrade), null AccentColor NullReferenceException on parse
 
-**Delivers:** `AppSettings` converted to init-property record with `StatsVisible` and `StatsInterval` fields; `SettingsService.Load()` guard for `StatsIntervalSeconds <= 0`; round-trip test confirming old v1.1 JSON loads with correct defaults for new fields.
+### Phase 2: Window Opacity — Presets and Scroll Wheel
 
-**Addresses (FEATURES):** STAT-05 (settings persistence and restoration)
+**Rationale:** Opacity is the simpler of the two features (no element enumeration, no color parsing — just a single `this.Opacity` double assignment). Validating the `ApplySettings`/`SaveSettings` extension pattern and the `PreviewMouseWheel` event plumbing on this simpler feature before the more complex accent color wiring reduces risk and establishes patterns that Phase 3 reuses.
+**Delivers:** Opacity submenu (25/50/75/100%); `Window_PreviewMouseWheel` scroll handler with 10% step and 0.10 floor; `SetOpacity()` helper; `_windowOpacity` field; opacity applied from `ApplySettings()`; opacity persisted in `SaveSettings()`; checkmarks synced in `ContextMenu_Opened()`; all four presets tested including right-click and drag verification at 25%.
+**Addresses:** OPAC-01, OPAC-02, OPAC-03, OPAC-04
+**Avoids:** Pitfall 1 (Window.Opacity/AllowsTransparency multiplication — test at every preset), Pitfall 2 (use `PreviewMouseWheel`, not `MouseWheel`)
 
-**Avoids (PITFALLS):** Pitfall 2 (zero-interval timer from old JSON), JSON backward-compatibility issue
+### Phase 3: Accent Color — Preset Themes
 
-**Research flag:** Standard pattern — no additional research needed. Init-property record migration and `System.Text.Json` default behavior are fully documented at HIGH confidence.
+**Rationale:** Preset color selection validates `ApplyTheme()` across all 14+ elements and the complete startup ordering constraint before the custom picker adds WinForms interop. Each preset is one click handler; the infrastructure is identical for all five. Verifying that all elements update consistently (including dial decorations, stats bars, and stats text) is the highest-complexity task in the milestone.
+**Delivers:** `ApplyTheme()` covering PhraseText, HourHand, MinuteHand, all three decoration element lists (`_hourTickElements`, `_minuteDotElements`, `_hourNumberElements`), all four stats bars (`CpuBar`/`GpuBar`/`MemBar`/`PagBar`) and percentage TextBlocks; Theme submenu with 5 named presets (no Custom yet); `_accentColor` field; accent parsed and stored from `ApplySettings()`; `ApplyTheme()` called in `ContentRendered` after `InitDialDecorations()`; accent persisted as `#RRGGBB` hex in `SaveSettings()`; checkmarks synced in `ContextMenu_Opened()` via hex comparison; bar tracks and ShadowText confirmed excluded from accent application.
+**Addresses:** THEME-01, THEME-03, THEME-04
+**Avoids:** Pitfall 3 (ContentRendered ordering — must call ApplyTheme() after InitDialDecorations()), Pitfall 4 (frozen brush mutation — always use `new SolidColorBrush(_accentColor)`), Pitfall 6 (missing dial decoration elements in ApplyTheme())
 
----
+### Phase 4: Custom Color Picker
 
-### Phase 2: StatsService — Counter Initialization and Data Refresh
-
-**Rationale:** `StatsService` is the only component with meaningful technical complexity (GPU multi-instance enumeration, async init, `IDisposable` pattern). Implementing and verifying it in isolation, with debug output but no UI, prevents counter logic bugs from being confused with layout bugs later.
-
-**Delivers:** `StatsService.cs` with async initialization via `Task.Run()`, CPU counter priming, GPU instance enumeration with `engtype_3D` filter and `InvalidOperationException` recovery, `% Committed Bytes In Use` memory reading, and `IDisposable` cleanup. Verified via debug output showing non-zero plausible values that track real system load.
-
-**Addresses (FEATURES):** STAT-01 data layer (CPU / GPU / MEM readings), STAT-03 data polling
-
-**Avoids (PITFALLS):** Pitfall 1 (CPU first-read = 0), Pitfall 3 (UI thread block on init), Pitfall 4 (GPU single-instance wrong value), Pitfall 5 (handle leak from undisposed counters), Pitfall 11 (GPU category absent on VM/RDP)
-
-**Research flag:** GPU instance enumeration is MEDIUM confidence. The `engtype_3D` filter and aggregation approach is well-established in community sources but not formally documented by Microsoft. During this phase, run `typeperf "\GPU Engine(*)\Utilization Percentage"` on the target machine to confirm live instance names. Validate on a VM or RDP session to confirm the `_gpuAvailable = false` fallback path works without throwing.
-
----
-
-### Phase 3: XAML Layout and Stats Display
-
-**Rationale:** XAML elements must exist (with their `x:Name` attributes) before code-behind can reference them. This phase establishes the visual structure and the bar-fill calculation approach, and must get the `SizeToContent` interaction and rendering constraints right from the start.
-
-**Delivers:** Inner `Grid` with explicit `RowDefinitions`; `StatsPanel` (`StackPanel`, `Width="180"`, `Visibility="Collapsed"`) with three stat rows (label + bar track + fill indicator + percentage `TextBlock`); Stats `ContextMenu` parent with Show Stats and Update Interval submenu structure; `UpdateStatsDisplay()` method wired to `_statsTimer`; bars showing live values at the default 3s interval.
-
-**Addresses (FEATURES):** STAT-01 (visual display), STAT-02 (bar + percentage text)
-
-**Avoids (PITFALLS):** Pitfall 6 (window-width jitter — fixed `Width="180"`), Pitfall 8 (`AllowsTransparency` + flat brush only, no `DropShadowEffect`), Anti-Pattern 4 (no `UpdateLayout()` in stats tick), Anti-Pattern 5 (bar width from track `ActualWidth`, not window `ActualWidth`)
-
-**Research flag:** Standard pattern — WPF `Grid`, `StackPanel`, `Border` layout is fully documented. One decision to make at first render: use two nested `Border` elements (track + fill) rather than `ProgressBar`, since `ProgressBar`'s default Aero2 template may require a `ControlTemplate` override to look correct against the dark semi-transparent backdrop. This avoids a styling rabbit hole.
-
----
-
-### Phase 4: Controls, Persistence, and Edge Cases
-
-**Rationale:** The show/hide toggle and interval selector depend on both the settings plumbing (Phase 1) and the stats display (Phase 3). Deferring them to a final phase allows each control path to be validated end-to-end against a working display.
-
-**Delivers:** `SetStatsVisible()` with timer start/stop, `UpdateLayout()` + re-clamp after visibility change; `SetStatsInterval()` with single-timer Stop/Interval-change/Start sequence; `ContextMenu_Opened` sync for all new `IsChecked` states; `ApplySettings()` reading both new fields; verified persistence across restarts; verified `OnClosing` disposal order (timer stop before service dispose).
-
-**Addresses (FEATURES):** STAT-03 (interval selector), STAT-04 (show/hide toggle), STAT-05 (full persistence)
-
-**Avoids (PITFALLS):** Pitfall 7 (double timer on rapid toggle), Pitfall 9 (memory counter choice documented), Pitfall 10 (`IsChecked` sync in `ContextMenu_Opened` only, not click handlers), Pitfall 12 (timer stopped when panel hidden)
-
-**Research flag:** Standard pattern — all control logic follows the established v1.1 font-size menu pattern exactly. `DispatcherTimer` start/stop/interval-change behavior is HIGH confidence from official docs. No additional research needed.
-
----
+**Rationale:** WinForms interop is an independent dependency (one csproj flag, one helper class, one dialog call). Building it last keeps the three prior phases free of the WinForms reference and isolates any interop issues to this phase alone.
+**Delivers:** `<UseWindowsForms>true</UseWindowsForms>` in csproj; `Win32Window : IWin32Window` helper class; `MenuThemeCustom_Click` using `System.Windows.Forms.ColorDialog` with HWND owner via `WindowInteropHelper`; explicit `System.Drawing.Color` to `System.Windows.Media.Color.FromArgb(A,R,G,B)` conversion; custom color persists as hex in `settings.json`; no preset checkmark appears when a custom color is active.
+**Addresses:** THEME-02
+**Avoids:** Pitfall 3 (ColorDialog behind Topmost window — HWND owner required), Pitfall 9 (System.Drawing.Color not converted to System.Windows.Media.Color)
 
 ### Phase Ordering Rationale
 
-- Phase 1 before all: `AppSettings` shape must be stable — every other phase reads or writes from it, and the zero-interval timer guard must exist before any timer construction code is written.
-- Phase 2 before Phase 3: `UpdateStatsDisplay()` calls `_statsService.Refresh()` — the service must exist and produce verified values before any UI references it.
-- Phase 3 before Phase 4: `SetStatsVisible()` and `SetStatsInterval()` reference named XAML elements (`StatsPanel`, `_statsTimer`) that are created in Phase 3.
-- Phase 4 last: control wiring and edge cases are clean-up on a fully working feature.
+- AppSettings first because both runtime phases (opacity and color) read and write it — no feature can be tested without the schema in place, and the backward-compat guards must exist before any field is ever read.
+- Opacity before accent color because it exercises the same extension points (ApplySettings, SaveSettings, ContextMenu_Opened, a new event handler) with lower complexity, validating the pattern before color wiring adds element enumeration and the startup ordering constraint.
+- Accent color presets before custom picker because five preset click handlers validate `ApplyTheme()` exhaustively; the custom picker merely supplies a user-chosen color to the same `ApplyTheme()` call.
+- This order matches the "Suggested Build Order" in ARCHITECTURE.md (Steps 1–4), which was derived from the same dependency analysis independently.
 
 ### Research Flags
 
-Phases needing implementation-time validation:
-- **Phase 2 (StatsService / GPU):** GPU counter instance format is MEDIUM confidence. Validate on physical hardware with a discrete GPU — GPU% should track Task Manager's GPU column. Test the `_gpuAvailable = false` path on a VM or RDP session.
+All four phases have HIGH-confidence, working code examples already in the research files. No phase requires `/gsd:research-phase`.
 
-Phases with standard patterns (no additional research needed):
-- **Phase 1 (AppSettings):** Init-property record + `System.Text.Json` defaults — HIGH confidence, official docs.
-- **Phase 3 (XAML Layout):** WPF layout primitives — HIGH confidence, fully documented.
-- **Phase 4 (Controls/Persistence):** Follows established v1.1 patterns exactly — HIGH confidence.
+Phases with standard, well-documented patterns:
+- **Phase 1 (AppSettings):** Init-property record + `System.Text.Json` is established in this project since v1.1; pattern fully validated by prior milestones.
+- **Phase 2 (Opacity):** `UIElement.Opacity` and `PreviewMouseWheel` are both confirmed in official docs; the `PreviewMouseWheel` pitfall is already documented with working mitigation code.
+- **Phase 3 (Color presets):** `SolidColorBrush`, `ColorConverter`, and the element assignment pattern are all documented in ARCHITECTURE.md with a complete `ApplyTheme()` method body ready for implementation.
+- **Phase 4 (Custom picker):** `WindowInteropHelper` + `IWin32Window` adapter pattern and `ColorDialog` setup are fully specified in PITFALLS.md with a working code example.
 
 ---
 
@@ -226,45 +155,44 @@ Phases with standard patterns (no additional research needed):
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | CPU and MEM counter paths canonical since Windows NT. One required NuGet package confirmed via official `windowsdesktop-10.0` assembly docs. GPU counter approach widely confirmed by community; Microsoft display driver GPU counter docs returned 404 during research. |
-| Features | HIGH | All 5 MVP requirements (STAT-01 through STAT-05) are LOW-MEDIUM complexity. Anti-features and defer list are well-reasoned and internally consistent with the widget's design philosophy. |
-| Architecture | HIGH | Component boundaries are clean. Build order has explicit dependency rationale with each step independently verifiable. JSON compatibility issue identified and solved. All 5 anti-patterns documented with concrete alternatives. |
-| Pitfalls | HIGH | 12 pitfalls documented. All 8 critical pitfalls (1–8) verified against official docs or first-party source. GPU instance name format (Pitfall 4) carries MEDIUM confidence due to absence of formal Microsoft documentation. |
+| Stack | HIGH | All APIs confirmed in official windowsdesktop-10.0 and net-10.0 docs; no NuGet unknowns; one LOW-confidence item is the preset color RGB aesthetic values (author-specified, not API facts) |
+| Features | HIGH | Based on first-party codebase inspection + official WPF docs; all 8 v2.0 features are precisely scoped with dependency maps; no feature ambiguity |
+| Architecture | HIGH | Complete method signatures, data flow diagrams, and startup ordering constraint rigorously analyzed; five anti-patterns documented with explanations; XAML structure specified |
+| Pitfalls | HIGH | 10 pitfalls (6 critical, 4 moderate) documented; all critical ones have working mitigation code; sources are official docs or first-party codebase review |
 
 **Overall confidence: HIGH**
 
 ### Gaps to Address
 
-- **GPU instance name format:** The `engtype_3D` filter string and per-process-per-engine instance naming convention are confirmed by wide community consensus but not by a single authoritative Microsoft document. During Phase 2, run `typeperf "\GPU Engine(*)\Utilization Percentage"` on the target machine to confirm live instance names before finalizing the enumeration logic.
+- **Preset color hex values are inconsistent across research files** — STACK.md, FEATURES.md, and ARCHITECTURE.md list slightly different hex values for the five presets (e.g., Ice Blue is `#FF99D9EA` in STACK.md but `#FF00BFFF` in FEATURES.md). These are aesthetic choices with no single authoritative value. Recommendation: treat FEATURES.md as the design authority for preset colors and use its values in implementation. Settle on the canonical set before coding Phase 3.
 
-- **ProgressBar vs. custom Border for bars:** The ARCHITECTURE research recommends using two nested `Border` elements (track + fill) instead of `ProgressBar` to avoid a `ControlTemplate` override needed for the dark backdrop. This should be decided at first render in Phase 3, not designed in advance.
+- **Opacity floor: 0.10 (scroll) vs 0.25 (preset menu)** — FEATURES.md and STACK.md specify `Math.Clamp(..., 0.10, 1.0)` for scroll wheel, while PITFALLS.md warns that hit-test reliability degrades below 0.25 and recommends 0.25 as the practical minimum for menu presets. This is internally consistent on close reading (scroll floor = 0.10 with a documented caveat; menu floor = 0.25) but should be made explicit in Phase 2 acceptance criteria to prevent confusion.
 
-- **AppSettings record conversion approach:** ARCHITECTURE.md recommends converting to an init-property record (cleaner long-term). PITFALLS.md shows that a guard in `SettingsService.Load()` alone is sufficient as a simpler alternative. Both are valid. The implementation team should pick one approach in Phase 1 and commit to it. The init-property record conversion is the recommended choice since it prevents the entire class of missing-field issues for all future additions.
+- **Stats label text coloring (CPU/GPU/MEM/PAG row labels)** — ARCHITECTURE.md notes this as an open design decision: "Row label text (CPU/GPU/MEM/PAG) can stay white or follow accent." The `ApplyTheme()` method body in ARCHITECTURE.md leaves row labels white. This should be confirmed as a deliberate design choice before Phase 3 implementation begins.
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- `System.Diagnostics.PerformanceCounter` class (`windowsdesktop-10.0`): https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter?view=windowsdesktop-10.0 — assembly, `NextValue()` behavior, rate-counter priming, `IDisposable`
-- `System.Diagnostics.PerformanceCounterCategory` class (`windowsdesktop-10.0`): https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecountercategory?view=windowsdesktop-10.0 — `Exists()`, `GetInstanceNames()`
-- `System.Windows.Controls.ProgressBar` (`windowsdesktop-10.0`): https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.progressbar?view=windowsdesktop-10.0 — namespace, assembly, `Minimum`/`Maximum`/`Value`
-- `GlobalMemoryStatusEx` Win32 API: https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex — `dwMemoryLoad` field (0–100 integer); alternative to the PDH memory counter
-- `System.Text.Json` immutability / positional record deserialization: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/immutability — positional record constructor parameters are optional (type defaults used when missing)
-- `System.Text.Json` required properties: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/required-properties — confirms .NET 10 behavior for missing constructor parameters
-- `DispatcherTimer` class: https://learn.microsoft.com/en-us/dotnet/api/system.windows.threading.dispatchertimer — `Interval`, `Start()`, `Stop()`
-- `Window.AllowsTransparency` — layered HWND, hardware acceleration disabled: https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency
-- `PerformanceCounterCategory.Exists`: https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecountercategory.exists
-- Windows Performance Counters overview: https://learn.microsoft.com/en-us/windows/win32/perfctrs/about-performance-counters — PDH architecture, single vs. multi-instance categories
-- Existing codebase (`c:/src/gsd1/FuzzyClock.App/`): `AppSettings.cs`, `SettingsService.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs` — confirmed existing patterns, record shape, ContextMenu structure
+- `C:/src/FuzzyStatsClock/FuzzyClock.App/MainWindow.xaml` and `MainWindow.xaml.cs` — first-party codebase, inspected 2026-02-27
+- `C:/src/FuzzyStatsClock/FuzzyClock.App/AppSettings.cs` — first-party codebase, inspected 2026-02-27
+- https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.color?view=windowsdesktop-10.0 — `Color.FromArgb`, `FromRgb`, A/R/G/B properties, `PresentationCore.dll`
+- https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.solidcolorbrush?view=windowsdesktop-10.0 — `SolidColorBrush(Color)` constructor, `IsFrozen`, `Freeze()`
+- https://learn.microsoft.com/en-us/dotnet/api/system.windows.uielement.opacity?view=windowsdesktop-10.0 — range 0.0–1.0, AllowsTransparency interaction, input delivery at opacity=0
+- https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.mousewheeleventargs?view=windowsdesktop-10.0 — `Delta`, sign convention (positive = scroll up)
+- https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.mouse.mousewheeldeltaforoneline?view=windowsdesktop-10.0 — `const int = 120`
+- https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.colordialog?view=windowsdesktop-10.0 — `ShowDialog(IWin32Window)`, `Color` property, `AllowFullOpen`, `System.Windows.Forms.dll`
+- https://learn.microsoft.com/en-us/dotnet/api/system.drawing.color?view=net-10.0 — A/R/G/B byte properties, `System.Drawing.Primitives.dll`
+- https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props-desktop — `UseWindowsForms=true` + `UseWPF=true` coexistence in same project
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/freezable-objects-overview — `Freeze()`, `InvalidOperationException` on frozen brush mutation, `Brushes.*` static instances are pre-frozen
+- https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency — `LWA_ALPHA` layered window interaction with per-pixel alpha
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-common-system-dialog-box — WPF has no built-in color picker dialog
 
 ### Secondary (MEDIUM confidence)
-
-- GPU Performance Counters driver documentation: https://learn.microsoft.com/en-us/windows-hardware/drivers/display/gpu-performance-counters — category existence confirmed; exact instance name format not fully enumerated
-- `"GPU Engine"` / `"Utilization Percentage"` instance name format (`engtype_3D`, LUID prefix, per-process-per-engine structure): community-documented via Stack Overflow, GitHub issues, and `typeperf` command output; consistent across multiple independent sources; no single authoritative Microsoft document
+- `System.Text.Json` init-property record deserialization with absent fields defaulting to init values — inferred from existing `AppSettings.cs` pattern validated across v1.1–v1.9; consistent with prior project behavior
+- `PreviewMouseWheel` vs `MouseWheel` on frameless transparent windows — inferred from WPF routed events tunneling/bubbling model; specific frameless window focus behavior confirmed from existing `MouseEnter`/`MouseLeave` wiring pattern in the codebase (ContentRendered wire-up pattern)
 
 ---
-
-*Research completed: 2026-02-25*
+*Research completed: 2026-02-27*
 *Ready for roadmap: yes*

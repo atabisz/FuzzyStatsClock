@@ -1,335 +1,262 @@
-# Technology Stack: System Stats for FuzzyClock v1.2
+# Technology Stack: v2.0 Visual Identity
 
-**Project:** FuzzyClock — adding CPU / GPU / MEM stats panel
-**Researched:** 2026-02-25
+**Project:** FuzzyClock — color themes and opacity control
+**Researched:** 2026-02-27
 **Scope:** Additions only — existing validated stack is unchanged
+**Confidence:** HIGH
 
 ---
 
-## What Changes vs v1.1
+## What Changes vs v1.9
 
-v1.1 stack (already validated, not re-researched):
+v1.9 stack (already validated, not re-researched):
 - .NET 10, C# 13, WPF (`net10.0-windows`)
-- `System.Text.Json` for settings
+- `System.Text.Json` for settings persistence
 - `DispatcherTimer` for periodic UI updates
-- `System.Windows.Controls` (TextBlock, ContextMenu, Grid)
-- Zero NuGet packages
+- `System.Windows.Controls` (TextBlock, ContextMenu, Grid, Border)
+- `System.Windows.Shapes` (Line, Ellipse)
+- `System.Diagnostics.PerformanceCounter` (NuGet 10.0.0)
+- Code-behind pattern — no MVVM, no data bindings
 
-v1.2 stack additions:
+v2.0 stack additions:
 
-| Layer | What's Added | Notes |
-|-------|-------------|-------|
-| System stats API | `System.Diagnostics.PerformanceCounter` | Requires one new PackageReference |
-| WPF UI | `ProgressBar` control | Already in WPF — no new package needed |
-| Thread dispatch | `Task.Run` + `async` DispatcherTimer handler | In-box, no new package needed |
+| Layer | What's Added | csproj Change |
+|-------|-------------|---------------|
+| WPF color API | `System.Windows.Media.Color` + `SolidColorBrush` | None — already in PresentationCore.dll |
+| WPF opacity API | `UIElement.Opacity` (inherited by Window) | None — already in PresentationCore.dll |
+| Scroll wheel input | `UIElement.MouseWheel` event + `MouseWheelEventArgs.Delta` | None — already in PresentationCore.dll |
+| Custom color picker | `System.Windows.Forms.ColorDialog` | `<UseWindowsForms>true</UseWindowsForms>` |
+| Color type bridge | `System.Drawing.Color` (R/G/B/A) → `System.Windows.Media.Color.FromArgb` | None — System.Drawing.Primitives.dll is in-box |
 
 ---
 
 ## Recommended Stack Additions
 
-### Core: Reading System Stats
+### Core Technologies
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `System.Diagnostics.PerformanceCounter` | 10.0.0 | Read Windows PDH counters for CPU, GPU, MEM | Windows-native, no third-party dependency, available on `windowsdesktop-10.0` per official docs. This is a Microsoft first-party package redistributing Microsoft's own runtime code. |
-| `System.Windows.Controls.ProgressBar` | (WPF, in-box) | Horizontal bar visualization for each stat | Already present in `PresentationFramework.dll` — zero additional cost |
-| `Task.Run` + `async` | (in-box .NET 10) | Off-thread counter reads, marshal to UI | Required because `NextValue()` blocks briefly on first call for rate-based counters and must not block the UI thread |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `System.Windows.Media.Color` (struct) | (WPF in-box, windowsdesktop-10.0) | Represent the single accent color value in memory and in AppSettings serialization | Native WPF color type — direct input to `SolidColorBrush`; `Color.FromArgb(255, r, g, b)` is the canonical construction path; serializable as 4 bytes for JSON persistence |
+| `System.Windows.Media.SolidColorBrush` | (WPF in-box, windowsdesktop-10.0) | Paint all colored elements at runtime — TextBlock.Foreground, Line.Stroke, Ellipse.Fill/Stroke, Border.Background fill | The only WPF brush type needed for solid single-color painting; `new SolidColorBrush(color)` one-liner integrates directly into existing code-behind pattern; already used in the project for backdrop logic |
+| `UIElement.Opacity` (double, 0.0–1.0) | (WPF in-box, windowsdesktop-10.0, inherited from UIElement) | Apply widget-level transparency to the entire window | Window inherits `UIElement.Opacity`; setting `this.Opacity = 0.75` on the MainWindow applies transparency across all content simultaneously with no per-element work; works correctly with `AllowsTransparency=True` |
+| `UIElement.MouseWheel` event + `MouseWheelEventArgs.Delta` | (WPF in-box, windowsdesktop-10.0) | Detect scroll wheel input to adjust opacity in 10% increments | Already available on `Window` via UIElement; `e.Delta / Mouse.MouseWheelDeltaForOneLine` normalizes detent counts (1 standard notch = Delta 120 = 1 detent); sign convention: positive = scroll up = increase opacity |
+| `System.Windows.Forms.ColorDialog` | (WinForms in-box, windowsdesktop-10.0) | Custom color picker dialog — standard Windows color chooser that returns user-selected RGB | The native Win32 `ChooseColor` dialog; zero dependencies; familiar to users; returns `System.Drawing.Color` which converts to `System.Windows.Media.Color` with one `FromArgb` call; no NuGet required — only a csproj property change |
 
-### Package Reference Required
+### WPF API Detail: SolidColorBrush Application
 
-`System.Diagnostics.PerformanceCounter` ships in `System.Diagnostics.PerformanceCounter.dll`, which is **not** automatically pulled in by the base `Microsoft.WindowsDesktop.App` shared framework. It must be added to the `.csproj`:
-
-```xml
-<ItemGroup>
-  <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.0" />
-</ItemGroup>
-```
-
-**Confidence:** HIGH — confirmed from official .NET API docs (`windowsdesktop-10.0` moniker) listing `System.Diagnostics.PerformanceCounter.dll` as the assembly for this type. Package version aligns with .NET version numbers (8.0.0 for .NET 8, 9.0.0 for .NET 9, 10.0.0 for .NET 10).
-
-**Note on the user "no NuGet packages" constraint:** This constraint was stated as preferring "Windows Performance Counters / PDH via System.Diagnostics". This package IS the `System.Diagnostics.PerformanceCounter` API. The alternative to avoid a PackageReference would be raw P/Invoke into `pdh.dll`, which is significantly more code and worse maintainability for identical results.
-
----
-
-## Counter Specifications
-
-### CPU Usage
+The existing code-behind already constructs `SolidColorBrush` objects directly (see `Window_MouseEnter` backdrop logic). The same pattern applies to accent color:
 
 ```csharp
-// Namespace: System.Diagnostics
-// Assembly:  System.Diagnostics.PerformanceCounter.dll (via PackageReference)
-// Counter path: \Processor(_Total)\% Processor Time
+// In code-behind: create brush from stored Color value
+var brush = new SolidColorBrush(_accentColor);
 
-var cpuCounter = new PerformanceCounter(
-    categoryName: "Processor",
-    counterName:  "% Processor Time",
-    instanceName: "_Total",
-    readOnly:     true);
+// Apply to phrase text
+PhraseText.Foreground = brush;
 
-// REQUIRED: First call always returns 0.0 — prime at init and discard.
-cpuCounter.NextValue();
+// Apply to dial hands (Line.Stroke) and decoration elements
+HourHand.Stroke   = brush;
+MinuteHand.Stroke = brush;
+foreach (var tick in _hourTickElements)   tick.Stroke = brush;
+foreach (var dot  in _minuteDotElements)  dot.Fill   = brush;
+foreach (var tb   in _hourNumberElements) tb.Foreground = brush;
 
-// On each stats timer tick (run off-thread via Task.Run):
-float cpuPercent = cpuCounter.NextValue(); // range 0.0 to 100.0
+// Apply to stats bars (Border.Background) and label text
+CpuBar.Background  = brush;
+CpuText.Foreground = brush;
+// ... repeat for GPU/MEM/PAG rows
 ```
 
-**Confidence:** HIGH — "Processor" / "% Processor Time" / "_Total" is the canonical Windows PDH path documented in Microsoft's Performance Monitor documentation and unchanged since Windows NT. It is what Task Manager uses internally.
+**Why one brush instance reused across elements:** `SolidColorBrush` is a `Freezable`. When you assign the same instance to multiple properties, WPF holds a reference in each DependencyProperty. Creating a fresh `new SolidColorBrush(_accentColor)` per element call is acceptable (WPF does not require frozen brushes for code-behind assignment), but using a single instance is cleaner and avoids allocation churn on theme change.
 
-**Why `_Total` instance:** Windows creates one `Processor` instance per logical core (e.g. `"0"`, `"1"`, ...) plus a synthetic `"_Total"` instance that averages across all cores. `_Total` gives the single CPU% number users expect. No manual aggregation needed.
+**Confidence:** HIGH — `SolidColorBrush(Color)` constructor and `PresentationCore.dll` assembly confirmed via official windowsdesktop-10.0 docs.
 
-**Why rate counter must be primed:** `% Processor Time` is type `PERF_100NSEC_TIMER_INV`. `NextValue()` computes the delta between two consecutive samples. On first call after construction there is no prior sample, so the result is always 0.0. Call once at startup, discard the result, then call on each timer tick for valid values.
+### WPF API Detail: Color Storage and Serialization
 
----
-
-### Memory Usage
+`System.Windows.Media.Color` is a value type (struct). Store the accent color as a single `Color` field in `AppSettings`:
 
 ```csharp
-// Category: "Memory" (single-instance — no instanceName parameter)
-// Counter:  "% Committed Bytes In Use"
-// Returns:  0–100 directly as a percentage. No priming needed (point-in-time).
-
-var memCounter = new PerformanceCounter(
-    categoryName: "Memory",
-    counterName:  "% Committed Bytes In Use",
-    readOnly:     true);
-
-// On each stats timer tick:
-float memPercent = memCounter.NextValue(); // range 0.0 to 100.0
+// AppSettings record — new fields for v2.0
+public string AccentColorHex  { get; init; } = "#FFFFFFFF";  // ARGB hex string
+public double WindowOpacity   { get; init; } = 1.0;
 ```
 
-**Why `% Committed Bytes In Use`:** This is a direct point-in-time counter that returns a percentage without requiring two samples. It measures committed virtual memory vs. the system commit limit, which closely tracks what Task Manager's "Memory" column shows. No additional P/Invoke or total-RAM calculation needed.
-
-**Confidence:** HIGH — "Memory" / "% Committed Bytes In Use" is a standard, single-instance Windows PDH counter present on all Windows versions. Verified via the Windows Performance Monitor counter documentation.
-
-**Alternative considered (not recommended):** `"Memory" / "Available MBytes"` requires knowing total RAM to compute %. Total RAM can be obtained from `GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` (in-box) or `GlobalMemoryStatusEx` P/Invoke. `% Committed Bytes In Use` avoids this extra step entirely.
-
----
-
-### GPU Usage
+**Why persist as hex string, not four separate bytes:** `System.Text.Json` serializes `System.Windows.Media.Color` as an object with multiple fields (A, R, G, B, ScA, ScR, ScG, ScB) by default. A single `#AARRGGBB` hex string is more compact, human-readable in the JSON file, forward-compatible, and trivially round-tripped:
 
 ```csharp
-// Category: "GPU Engine"  (Windows 10 1803+ / WDDM 2.0+, all GPU vendors)
-// Counter:  "Utilization (%)"
-// Instance: multi-instance; one instance per GPU engine per physical GPU
-//
-// Instance name format:
-//   "luid_0x00000000_0x00007693_phys_0_eng_0_engtype_3D"
-//   "luid_0x00000000_0x00007693_phys_0_eng_1_engtype_VideoDecode"
-//   "luid_0x00000000_0x00007693_phys_0_eng_2_engtype_Copy"
-//   "luid_0x00000000_0x00007693_phys_0_eng_3_engtype_Overlay"
-//
-// Strategy: enumerate all instances, filter for "engtype_3D",
-// sum their Utilization values, clamp to 100.
+// Save: Color → hex string
+string hex = $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
 
-// --- At initialization ---
-bool _gpuAvailable = PerformanceCounterCategory.Exists("GPU Engine");
-PerformanceCounter[] _gpuCounters = Array.Empty<PerformanceCounter>();
-
-if (_gpuAvailable)
-{
-    var cat = new PerformanceCounterCategory("GPU Engine");
-    string[] instances = cat.GetInstanceNames();
-    _gpuCounters = instances
-        .Where(n => n.Contains("engtype_3D", StringComparison.OrdinalIgnoreCase))
-        .Select(n => new PerformanceCounter("GPU Engine", "Utilization (%)", n, readOnly: true))
-        .ToArray();
-
-    // Prime all GPU counters — first call always returns 0 (rate counter)
-    foreach (var c in _gpuCounters) c.NextValue();
-}
-
-// --- On each stats timer tick (off-thread) ---
-float gpuPercent = 0f;
-if (_gpuAvailable && _gpuCounters.Length > 0)
-{
-    gpuPercent = Math.Min(_gpuCounters.Sum(c => c.NextValue()), 100f);
-}
+// Load: hex string → Color
+// Use ColorConverter (System.Windows.Media) or manual parse:
+var c = (Color)ColorConverter.ConvertFromString(hex);
+// Or: Color.FromArgb(a, r, g, b) after parsing hex manually
 ```
 
-**GPU counter caveats — MEDIUM confidence (Microsoft display driver GPU counter docs returned 404; findings based on well-established community knowledge with multiple independent sources):**
+`System.Windows.Media.ColorConverter` (in `PresentationCore.dll`) handles all standard WPF color string formats including `#AARRGGBB` — no custom parsing needed.
 
-1. `"GPU Engine"` category exists on Windows 10 version 1803+ (WDDM 2.0+). Not present on older Windows, VMs without GPU pass-through, or RDP sessions with no physical GPU.
-2. Always check `PerformanceCounterCategory.Exists("GPU Engine")` before construction. If absent, show `"N/A"` in the UI. Never throw or crash.
-3. The `engtype_3D` filter selects the 3D / general-purpose compute engine. On NVIDIA (CUDA), AMD, and Intel Arc / UHD this is the primary compute engine — what Task Manager's GPU % column shows.
-4. On multi-GPU systems, multiple `luid_*` prefixes appear. Summing all `engtype_3D` instances across all LUIDs gives aggregate GPU utilization — appropriate for a single-number display.
-5. Instance names are dynamic. After a driver update or sleep/wake cycle, instance names may change and existing `PerformanceCounter` objects throw `InvalidOperationException`. Catch that exception in the timer tick handler and trigger counter re-initialization.
-6. `"Utilization (%)"` is a rate counter — priming (one discarded `NextValue()` call per counter at init) is required.
-7. On systems using Microsoft Basic Display Driver (no hardware GPU driver), the `"GPU Engine"` category may exist but return 0 for all instances. This is not an error condition.
+**Confidence:** HIGH — `Color.FromArgb(byte, byte, byte, byte)` and `ColorConverter` confirmed in official windowsdesktop-10.0 docs.
 
----
+### WPF API Detail: Window.Opacity
 
-## WPF UI: ProgressBar
-
-```xml
-<!-- System.Windows.Controls.ProgressBar is in PresentationFramework.dll -->
-<!-- Already present in any WPF project — no new package needed -->
-
-<!-- One row per stat: label + bar + percentage text -->
-<StackPanel Orientation="Horizontal" Margin="0,1">
-    <TextBlock Text="CPU" Width="30" Foreground="White" FontFamily="Segoe UI Light"/>
-    <ProgressBar x:Name="CpuBar"
-                 Minimum="0" Maximum="100" Value="0"
-                 Width="80" Height="10"
-                 Margin="4,0"/>
-    <TextBlock x:Name="CpuText" Text="0%" Width="32"
-               Foreground="White" FontFamily="Segoe UI Light"/>
-</StackPanel>
-```
-
-**ProgressBar styling caveat:** Setting `Background` and `Foreground` on `ProgressBar` directly only takes effect if the control template uses `TemplateBinding` for those properties. The default WPF Aero2 / Windows 10 template does expose `Foreground` as the fill color for the progress indicator. If custom colors are needed, a `Style` with a `ControlTemplate` override is required. This is expected implementation work, not a blocker.
-
-**Confidence:** HIGH — `ProgressBar` in `System.Windows.Controls` fully documented for `windowsdesktop-10.0`.
-
----
-
-## DispatcherTimer Integration Pattern
-
-The existing `DispatcherTimer` polls phrase changes every 10s. Stats need a **separate** `DispatcherTimer` with its interval controlled by the user-selectable update rate (1s / 3s / 10s).
-
-**Why separate timer:** The phrase-change timer at 10s is not user-configurable. Stats update rate is user-configurable. Mixing them would force phrase updates at the stats rate (too fast and wasteful) or stats at the phrase rate (too slow for 1s mode).
-
-**Why async tick handler:** `NextValue()` on rate-based counters (CPU, GPU) performs a brief blocking operation on first initialization. Even on subsequent calls it does minor OS-level work. Keeping it off the UI thread prevents any chance of jitter in the always-on-top overlay.
+`Window.Opacity` is `UIElement.Opacity` — no Window-specific override exists. It is a `double` dependency property with default 1.0 and expected range 0.0–1.0:
 
 ```csharp
-// Two timers: existing phrase timer + new stats timer
-private DispatcherTimer _statsTimer = new();
+// Set from menu (25/50/75/100% presets):
+this.Opacity = 0.75;
 
-// In constructor (after existing timer setup):
-_statsTimer.Interval = TimeSpan.FromSeconds(3); // default; changed by user selection
-_statsTimer.Tick += StatsTimer_Tick;
-_statsTimer.Start();
+// Set from scroll wheel (10% steps, clamped to 0.1–1.0):
+this.Opacity = Math.Clamp(this.Opacity + (e.Delta > 0 ? 0.10 : -0.10), 0.1, 1.0);
+```
 
-// Stats timer tick — async to allow Task.Run off the UI thread
-private async void StatsTimer_Tick(object? sender, EventArgs e)
+**Interaction with AllowsTransparency:** The widget already has `AllowsTransparency="True"` and `Background="Transparent"`. `UIElement.Opacity` works correctly on `AllowsTransparency` windows — it applies a global alpha multiplier to the entire layered window HWND. This is distinct from per-pixel alpha (controlled by element backgrounds). Result: setting `Opacity=0.5` makes all content — phrase text, dial hands, stats bars, and the semi-transparent backdrop — uniformly half-opaque. This is the intended widget-level opacity behavior.
+
+**Minimum opacity guard:** Do not allow 0.0 opacity. At 0.0, the window is invisible but still captures mouse events, making it impossible for the user to interact with. Clamp minimum to 0.1 (10%).
+
+**Confidence:** HIGH — `UIElement.Opacity` property type, range, and assembly confirmed in official windowsdesktop-10.0 docs; AllowsTransparency interaction verified in official WPF window documentation.
+
+### WPF API Detail: Scroll Wheel Normalization
+
+```csharp
+// Wire in ContentRendered (same pattern as MouseEnter/MouseLeave):
+this.MouseWheel += Window_MouseWheel;
+
+private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
 {
-    if (!_statsVisible) return; // fast exit when panel is hidden
-
-    try
-    {
-        var (cpu, gpu, mem) = await Task.Run(() =>
-        {
-            float c = _cpuCounter?.NextValue() ?? 0f;
-            float g = _gpuAvailable && _gpuCounters.Length > 0
-                ? Math.Min(_gpuCounters.Sum(x => x.NextValue()), 100f)
-                : 0f;
-            float m = _memCounter?.NextValue() ?? 0f;
-            return (c, g, m);
-        });
-
-        // Back on UI thread — update controls
-        CpuBar.Value  = cpu;
-        CpuText.Text  = $"{cpu:F0}%";
-        GpuBar.Value  = gpu;
-        GpuText.Text  = _gpuAvailable ? $"{gpu:F0}%" : "N/A";
-        MemBar.Value  = mem;
-        MemText.Text  = $"{mem:F0}%";
-    }
-    catch (InvalidOperationException)
-    {
-        // GPU counter instance names changed (driver update / sleep-wake).
-        // Re-initialize GPU counters on next tick.
-        ReinitGpuCounters();
-    }
-}
-
-// Changing the update interval (called from right-click menu handlers):
-private void SetStatsInterval(int seconds)
-{
-    _statsTimer.Interval = TimeSpan.FromSeconds(seconds);
-    // Persist to settings
-    _settings = _settings with { StatsIntervalSeconds = seconds };
+    // Mouse.MouseWheelDeltaForOneLine = 120 (one standard detent)
+    // e.Delta is a multiple of 120 for standard mice
+    // Positive = scroll up = increase opacity; negative = decrease
+    double step = 0.10 * Math.Sign(e.Delta);
+    this.Opacity = Math.Clamp(this.Opacity + step, 0.1, 1.0);
     SaveSettings();
 }
 ```
 
-**Confidence:** HIGH — standard `async void` event handler pattern with `Task.Run` is idiomatic .NET 10. `DispatcherTimer.Tick` can be `async void`.
+`Mouse.MouseWheelDeltaForOneLine` is a `const int = 120` in `PresentationCore.dll`. One standard mouse wheel detent produces exactly Delta=120 (or -120). Using `Math.Sign(e.Delta)` rather than dividing by 120 means one step per physical notch regardless of high-resolution wheel variations — correct for a 10%-per-notch opacity adjustment.
 
----
+**Confidence:** HIGH — `Mouse.MouseWheelDeltaForOneLine = 120` confirmed in official windowsdesktop-10.0 docs; sign convention (positive = away from user = scroll up) confirmed in `MouseWheelEventArgs` docs.
 
-## Disposal
+### Supporting Library: System.Windows.Forms.ColorDialog
 
-All `PerformanceCounter` objects implement `IDisposable`. Dispose in `Window.Closed` (or the existing `SessionEnding` handler):
+`System.Windows.Forms.ColorDialog` wraps the native Win32 `ChooseColor` common dialog. It opens the standard Windows color picker that users recognize from Paint, Office, and other applications.
+
+**Assembly:** `System.Windows.Forms.dll`
+**csproj change required:** Add `<UseWindowsForms>true</UseWindowsForms>` to the `<PropertyGroup>`. This can coexist with `<UseWPF>true</UseWPF>` — the .NET Desktop SDK documentation explicitly supports both flags in the same project.
 
 ```csharp
-protected override void OnClosed(EventArgs e)
+// In custom color picker menu handler:
+private void MenuCustomColor_Click(object sender, RoutedEventArgs e)
 {
-    _statsTimer.Stop();
-    _cpuCounter?.Dispose();
-    _memCounter?.Dispose();
-    foreach (var c in _gpuCounters) c.Dispose();
-    base.OnClosed(e);
+    var dlg = new System.Windows.Forms.ColorDialog
+    {
+        FullOpen    = true,   // Show custom color panel expanded by default
+        Color       = System.Drawing.Color.FromArgb(
+                          _accentColor.A, _accentColor.R,
+                          _accentColor.G, _accentColor.B)
+    };
+
+    if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+    {
+        // Convert System.Drawing.Color → System.Windows.Media.Color
+        var sd = dlg.Color;
+        ApplyAccentColor(
+            System.Windows.Media.Color.FromArgb(sd.A, sd.R, sd.G, sd.B));
+    }
 }
 ```
 
----
+**Color type bridge:** `ColorDialog.Color` returns `System.Drawing.Color` (from `System.Drawing.Primitives.dll`, in-box). Converting to `System.Windows.Media.Color` requires `Color.FromArgb(sd.A, sd.R, sd.G, sd.B)` — four bytes, no math. `System.Drawing.Primitives.dll` is pulled in automatically with `UseWindowsForms=true`; it does not need a separate NuGet package.
 
-## Settings Record Extension
-
-The existing `AppSettings` record must be extended with two new fields:
-
-```csharp
-// Extend AppSettings (or equivalent record) — System.Text.Json serializes automatically
-internal sealed record AppSettings(
-    double Left,
-    double Top,
-    int    FontSize,
-    bool   StatsVisible,          // new
-    int    StatsIntervalSeconds    // new (1, 3, or 10)
-)
-{
-    public static AppSettings Default => new(
-        Left:                  -1,
-        Top:                   -1,
-        FontSize:              24,
-        StatsVisible:          true,
-        StatsIntervalSeconds:  3
-    );
-}
-```
-
-`System.Text.Json` serializes/deserializes positional records natively in .NET 10 — already validated in v1.1.
+**Confidence:** HIGH — `System.Windows.Forms.ColorDialog` existence in `windowsdesktop-10.0` confirmed; `UseWindowsForms` + `UseWPF` coexistence confirmed in official .NET Desktop SDK MSBuild docs.
 
 ---
 
-## What NOT to Add
-
-| Item | Why Not |
-|------|---------|
-| `LibreHardwareMonitor` / `OpenHardwareMonitor` NuGet packages | Require kernel driver installation; excluded by user's no-NuGet constraint; massive overkill for three gauge values |
-| `System.Management` (WMI) | WMI queries for system stats are 10–50x slower than PDH counters; `Win32_OperatingSystem` is the slow path |
-| `Microsoft.Diagnostics.NETCore.Client` | .NET diagnostics client for profiling; not applicable here |
-| `GetSystemTimes` P/Invoke | More code for identical result to `PerformanceCounter("Processor", "% Processor Time", "_Total")` |
-| `GlobalMemoryStatusEx` P/Invoke | Requires `[StructLayout]` boilerplate; `% Committed Bytes In Use` is simpler with equivalent result |
-| Custom bar using `Border`/`Grid` with width manipulation | More XAML/code-behind than `ProgressBar`; `ProgressBar` has the right semantics built in |
-| MVVM bindings / `INotifyPropertyChanged` | Inconsistent with existing code-behind style; adds abstraction layers for three property updates |
-| `System.Diagnostics.Process.GetCurrentProcess()` | Returns stats for the FuzzyClock process itself, not system-wide utilization |
-| Second `PerformanceCounter` for "Available MBytes" | `% Committed Bytes In Use` already returns a percentage; no derived math needed |
-
----
-
-## .csproj Change Summary
+## csproj Change Summary
 
 ```xml
 <!-- Only addition required to the .csproj: -->
-<ItemGroup>
-  <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.0" />
-</ItemGroup>
+<PropertyGroup>
+  <UseWPF>true</UseWPF>
+  <UseWindowsForms>true</UseWindowsForms>   <!-- ADD THIS LINE -->
+</PropertyGroup>
 ```
 
-Everything else — `ProgressBar`, `Task.Run`, `DispatcherTimer`, `Dispatcher.InvokeAsync` — is already available through the existing `net10.0-windows` / `Microsoft.NET.Sdk.WindowsDesktop` project setup.
+No new NuGet packages. `System.Diagnostics.PerformanceCounter` at 10.0.0 is unchanged.
+
+---
+
+## AppSettings Record Extension
+
+The existing `AppSettings` init-property record must be extended with two new fields:
+
+```csharp
+// v2.0 additions to AppSettings record
+public string AccentColorHex { get; init; } = "#FFFFFFFF";  // default: White
+public double WindowOpacity  { get; init; } = 1.0;          // default: fully opaque
+```
+
+`System.Text.Json` serializes/deserializes `string` and `double` init-property fields natively — same pattern validated in v1.1 through v1.9. No attributes needed. Old settings.json files without these fields will load them as defaults (White accent, 100% opacity) — forward-compatible.
+
+`AccentColorHex` default `"#FFFFFFFF"` matches the current hardcoded `Foreground="White"` on all TextBlock/Line/Ellipse/Border elements in XAML, ensuring zero visual change for existing users on first upgrade.
+
+---
+
+## Preset Color Values
+
+The 5 built-in presets as `#AARRGGBB` hex strings (alpha = FF = fully opaque):
+
+| Preset Name | Hex Value | R, G, B |
+|-------------|-----------|---------|
+| White | `#FFFFFFFF` | 255, 255, 255 |
+| Amber | `#FFFFBF00` | 255, 191, 0 |
+| Ice Blue | `#FF99D9EA` | 153, 217, 234 |
+| Green | `#FF57F287` | 87, 242, 135 |
+| Hello Kitty Pink | `#FFFF85C2` | 255, 133, 194 |
+
+These values are embedded directly in the menu click handlers — no enum or dictionary required. The `ApplyAccentColor(Color)` method handles all element updates regardless of source (preset or custom picker).
+
+**Color selection rationale:** All presets are light-to-mid-tone colors that remain legible against the semi-transparent dark backdrop (#26000000 = 15% black) and against light wallpapers. Avoid dark colors (low contrast against the near-transparent background) and highly saturated pure primaries (eye strain at small font sizes).
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| CPU reading | `PerformanceCounter` "Processor" / "% Processor Time" / "_Total" | `GetSystemTimes` P/Invoke then manual % calc | P/Invoke adds unsafe code and structural complexity for no functional gain |
-| Memory reading | `PerformanceCounter` "Memory" / "% Committed Bytes In Use" | `GlobalMemoryStatusEx` P/Invoke | Requires `[StructLayout]` boilerplate and manual % calculation; PDH counter is simpler |
-| GPU reading | `PerformanceCounter` "GPU Engine" / "Utilization (%)" instances | WMI `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine` | WMI is 10x more code, significantly slower; PDH is the underlying data source anyway |
-| Bar chart | `ProgressBar` | Custom `Border` inside `Grid` with `Width` proportional to value | Custom approach is more code and more fragile; `ProgressBar` is semantically correct |
-| Threading | `async void` tick + `Task.Run` | Dedicated background `Thread` with `Dispatcher.Invoke` | `async`/`await` is idiomatic .NET 10; less boilerplate; correct behavior on exceptions |
-| Stats update timer | Separate `DispatcherTimer _statsTimer` | Reuse existing phrase-change timer | Phrase timer is not user-configurable; stats interval is user-configurable — must be separate |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `System.Windows.Forms.ColorDialog` | Custom WPF color picker window | ColorDialog is the native Win32 dialog — zero implementation effort, users already know it; a custom WPF dialog requires significant XAML/code work (HSV slider, preview swatch, hex input) that is out of scope for this milestone |
+| `System.Windows.Forms.ColorDialog` | `Microsoft.Wpf.Toolkits.Extended.ColorPicker` NuGet | Third-party NuGet — adds external dependency; last release years old; custom WPF controls have known rendering issues in `AllowsTransparency` windows |
+| Store color as hex string in AppSettings | Store as struct with R/G/B/A int fields | Hex string is human-readable in the JSON file, conventional for color representation, and trivially round-tripped via `ColorConverter` or manual parse |
+| Store color as hex string in AppSettings | Store as `System.Windows.Media.Color` struct directly | `System.Text.Json` serializes the struct as an object with 9 properties (A/R/G/B/ScA/ScR/ScG/ScB/ColorContext) — verbose and fragile; hex string is canonical |
+| `UIElement.Opacity` on Window | `UIElement.OpacityMask` | OpacityMask applies per-pixel masking from a brush, not scalar transparency — wrong tool for widget-level opacity |
+| `UIElement.Opacity` on Window | `Brush.Opacity` on individual brushes | Would require updating brush opacity on every element separately; Window.Opacity is one line that covers everything uniformly |
+| `Math.Sign(e.Delta)` for scroll step | `e.Delta / Mouse.MouseWheelDeltaForOneLine` | Sign-based ensures exactly one 10% step per detent regardless of high-resolution mouse; division-based would produce fractional steps on precision scroll wheels |
+
+---
+
+## What NOT to Add
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `System.Windows.Media.Colors` static properties (e.g. `Colors.White`) for preset storage | Static brush references are frozen and cannot be passed to `SolidColorBrush(Color)` without extracting `.Color`; using `Color.FromArgb` with literal bytes is more explicit and consistent | `Color.FromArgb(255, 255, 255, 255)` or hardcoded hex string |
+| MVVM / `INotifyPropertyChanged` for accent color binding | Inconsistent with existing code-behind style; adds abstraction layer for a single-field update; `ApplyAccentColor()` method calling element assignments directly matches all existing patterns | Direct element assignment in `ApplyAccentColor()` method |
+| `ColorConverter.ConvertFromString` for hex parsing at load | Requires unsafe cast and can throw on malformed input; manual byte parsing with `Convert.ToByte(hex.Substring(...), 16)` is explicit and handles malformed input gracefully with try/catch | Manual hex parse or `Color.FromArgb` after parsing |
+| Animating opacity transitions (DoubleAnimation) | DropShadowEffect-class GPU rendering issue confirmed in .NET 10 for `AllowsTransparency` layered HWNDs; animations may interact unexpectedly with the layered window compositor | Instant `Opacity` assignment on menu click or scroll wheel |
+| `Window.Background` brush opacity for transparency effect | `Window.Background` is `#01000000` (near-transparent hit-test sentinel, 1 alpha) — changing it would break right-click hit testing; `UIElement.Opacity` is the correct knob | `this.Opacity` (UIElement.Opacity) |
+| `UseWindowsForms=true` without `UseWPF=true` | Using only `UseWindowsForms` would break the WPF build pipeline | Keep both properties in the `<PropertyGroup>` |
+
+---
+
+## Version Compatibility
+
+| Component | Version | Notes |
+|-----------|---------|-------|
+| `System.Windows.Media.Color` | windowsdesktop-10.0 (PresentationCore.dll) | No version constraints; unchanged API since WPF 3.0 |
+| `System.Windows.Media.SolidColorBrush` | windowsdesktop-10.0 (PresentationCore.dll) | No version constraints; unchanged API since WPF 3.0 |
+| `UIElement.Opacity` | windowsdesktop-10.0 (PresentationCore.dll) | No version constraints; unchanged since WPF 3.0 |
+| `UIElement.MouseWheel` / `MouseWheelEventArgs` | windowsdesktop-10.0 (PresentationCore.dll) | No version constraints; `Mouse.MouseWheelDeltaForOneLine = 120` is stable |
+| `System.Windows.Forms.ColorDialog` | windowsdesktop-10.0 (System.Windows.Forms.dll) | Available with `UseWindowsForms=true` on `net10.0-windows`; no NuGet required |
+| `System.Drawing.Color` | net-10.0 (System.Drawing.Primitives.dll) | In-box; pulled in automatically with `UseWindowsForms=true` |
+| `System.Windows.Media.ColorConverter` | windowsdesktop-10.0 (PresentationCore.dll) | In-box WPF; handles `#AARRGGBB` format |
+| `System.Diagnostics.PerformanceCounter` NuGet | 10.0.0 (unchanged) | No change required |
 
 ---
 
@@ -337,24 +264,28 @@ Everything else — `ProgressBar`, `Task.Run`, `DispatcherTimer`, `Dispatcher.In
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| CPU counter API | HIGH | Canonical PDH path; documented; verified on `windowsdesktop-10.0` official docs |
-| Memory counter API | HIGH | Standard single-instance PDH counter; Windows-invariant since NT |
-| GPU counter API | MEDIUM | `"GPU Engine"` category name and `"Utilization (%)"` counter confirmed by wide community consensus; Microsoft's display driver GPU docs page returned 404 during research; instance name format (`engtype_3D`) is well-established |
-| PerformanceCounter NuGet requirement | HIGH | Official docs list `System.Diagnostics.PerformanceCounter.dll` as the assembly for `windowsdesktop-10.0` |
-| ProgressBar API | HIGH | Official `windowsdesktop-10.0` docs verified |
-| DispatcherTimer + async Task.Run pattern | HIGH | Standard .NET 10 async pattern; no version-specific concerns |
-| Settings record extension | HIGH | Same `System.Text.Json` positional record pattern validated in v1.1 |
+| `System.Windows.Media.Color` / `SolidColorBrush` API | HIGH | Official windowsdesktop-10.0 docs confirmed; assembly `PresentationCore.dll`; `FromArgb` signature verified |
+| `UIElement.Opacity` (Window.Opacity) | HIGH | Official windowsdesktop-10.0 docs confirmed; `double`, range 0.0–1.0, default 1.0; AllowsTransparency interaction documented |
+| `MouseWheelEventArgs.Delta` + `Mouse.MouseWheelDeltaForOneLine` | HIGH | Official windowsdesktop-10.0 docs confirmed; value = 120; sign convention documented |
+| `System.Windows.Forms.ColorDialog` | HIGH | Official windowsdesktop-10.0 docs confirmed; assembly `System.Windows.Forms.dll`; `UseWindowsForms` + `UseWPF` coexistence documented |
+| `System.Drawing.Color` type bridge | HIGH | Official net-10.0 docs confirmed; A/R/G/B byte properties verified; `System.Drawing.Primitives.dll` in-box |
+| `UseWindowsForms` + `UseWPF` coexistence | HIGH | Official .NET Desktop SDK MSBuild properties docs confirm both flags supported in same project |
+| AppSettings hex string round-trip | HIGH | `ColorConverter.ConvertFromString` and `Color.FromArgb` both confirmed in official docs |
+| Preset color values | MEDIUM | RGB values are author-specified aesthetic choices, not verified against any external standard |
 
 ---
 
 ## Sources
 
-- `System.Diagnostics.PerformanceCounter` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter?view=windowsdesktop-10.0 — confirms assembly, full API surface, `NextValue()` behavior, rate-counter priming requirement
-- `System.Diagnostics.PerformanceCounterCategory` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecountercategory?view=windowsdesktop-10.0 — confirms `Exists()`, `GetInstanceNames()` APIs
-- `System.Windows.Controls.ProgressBar` (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.progressbar?view=windowsdesktop-10.0 — confirms namespace, assembly, `Minimum`/`Maximum`/`Value`/`Orientation` properties
-- Windows Performance Counters overview: https://learn.microsoft.com/en-us/windows/win32/perfctrs/about-performance-counters — confirms PDH architecture, single-instance vs. multi-instance categories, "Memory" and "Processor" category descriptions
-- .NET 10 target frameworks (TFM documentation): https://learn.microsoft.com/en-us/dotnet/standard/frameworks — confirms `net10.0-windows` as the WPF TFM and OS-specific API availability model
+- `System.Windows.Media.Color` struct (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.color?view=windowsdesktop-10.0 — confirms `FromArgb(byte,byte,byte,byte)`, `FromRgb`, A/R/G/B properties, `PresentationCore.dll` assembly
+- `System.Windows.Media.SolidColorBrush` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.solidcolorbrush?view=windowsdesktop-10.0 — confirms `SolidColorBrush(Color)` constructor, `Color` property, `PresentationCore.dll` assembly
+- `System.Windows.UIElement.Opacity` property (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.uielement.opacity?view=windowsdesktop-10.0 — confirms `double` type, 0.0–1.0 range, default 1.0, `PresentationCore.dll` assembly
+- `System.Windows.Input.MouseWheelEventArgs` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.mousewheeleventargs?view=windowsdesktop-10.0 — confirms `Delta` property, sign convention (positive = away from user)
+- `System.Windows.Input.Mouse.MouseWheelDeltaForOneLine` field (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.mouse.mousewheeldeltaforoneline?view=windowsdesktop-10.0 — confirms `const int = 120`, rationale for field existence
+- `System.Windows.Forms.ColorDialog` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.colordialog?view=windowsdesktop-10.0 — confirms `Color` property returns `System.Drawing.Color`, `ShowDialog()` API, `System.Windows.Forms.dll` assembly
+- `System.Drawing.Color` struct (net-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.drawing.color?view=net-10.0 — confirms A/R/G/B byte properties, `System.Drawing.Primitives.dll` assembly
+- MSBuild properties for .NET Desktop SDK: https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props-desktop — confirms `UseWindowsForms=true` + `UseWPF=true` can coexist in same project file
 
 ---
-*Stack research for: FuzzyClock v1.2 — CPU / GPU / MEM system stats*
-*Researched: 2026-02-25*
+*Stack research for: FuzzyClock v2.0 — color themes and opacity control*
+*Researched: 2026-02-27*
