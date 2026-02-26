@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private int _currentFontSize = 32;
     private bool _savedPositionLoaded = false;
     private bool _hasUserPosition = false;
+    private bool _dialMode;
 
     public MainWindow()
     {
@@ -48,7 +49,11 @@ public partial class MainWindow : Window
             }
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
-            _timer.Tick += (_, _) => UpdatePhraseIfChanged();
+            _timer.Tick += (_, _) =>
+            {
+                UpdatePhraseIfChanged();
+                if (_dialMode) UpdateDialDisplay();
+            };
             _timer.Start();
 
             // Stats timer — independent from phrase timer (different interval, user-configurable)
@@ -68,6 +73,8 @@ public partial class MainWindow : Window
                 _statsTimer.Start();
                 UpdateStatsDisplay();
             }
+
+            if (_dialMode) UpdateDialDisplay();
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
@@ -106,6 +113,12 @@ public partial class MainWindow : Window
         GpuRow.Visibility = s.GpuVisible ? Visibility.Visible : Visibility.Collapsed;
         MemRow.Visibility = s.MemVisible ? Visibility.Visible : Visibility.Collapsed;
         PagRow.Visibility = s.PagVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        // Apply dial mode directly (NOT via SetDialMode — unsafe before Show(), same invariant as StatsPanel).
+        _dialMode = s.DialMode;
+        PhraseText.Visibility = s.DialMode ? Visibility.Collapsed : Visibility.Visible;
+        ShadowText.Visibility = s.DialMode ? Visibility.Collapsed : Visibility.Visible;
+        DialCanvas.Visibility = s.DialMode ? Visibility.Visible   : Visibility.Collapsed;
     }
 
     /// <summary>
@@ -124,7 +137,8 @@ public partial class MainWindow : Window
             CpuVisible = (CpuRow.Visibility == Visibility.Visible),
             GpuVisible = (GpuRow.Visibility == Visibility.Visible),
             MemVisible = (MemRow.Visibility == Visibility.Visible),
-            PagVisible = (PagRow.Visibility == Visibility.Visible)
+            PagVisible = (PagRow.Visibility == Visibility.Visible),
+            DialMode = _dialMode
         });
     }
 
@@ -241,6 +255,7 @@ public partial class MainWindow : Window
         MenuGpuVisible.IsChecked = (GpuRow.Visibility == Visibility.Visible);
         MenuMemVisible.IsChecked = (MemRow.Visibility == Visibility.Visible);
         MenuPagVisible.IsChecked = (PagRow.Visibility == Visibility.Visible);
+        MenuDialMode.IsChecked = _dialMode;
     }
 
     private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
@@ -387,5 +402,48 @@ public partial class MainWindow : Window
         base.OnClosing(e);
     }
 
-    private void MenuDialMode_Click(object sender, RoutedEventArgs e) { }
+    private void MenuDialMode_Click(object sender, RoutedEventArgs e)
+        => SetDialMode(!_dialMode);
+
+    private void SetDialMode(bool dialMode)
+    {
+        _dialMode = dialMode;
+
+        PhraseText.Visibility  = dialMode ? Visibility.Collapsed : Visibility.Visible;
+        ShadowText.Visibility  = dialMode ? Visibility.Collapsed : Visibility.Visible;
+        DialCanvas.Visibility  = dialMode ? Visibility.Visible   : Visibility.Collapsed;
+
+        if (dialMode) UpdateDialDisplay();
+
+        SaveSettings();
+    }
+
+    private void UpdateDialDisplay()
+    {
+        if (!_dialMode) return;
+
+        var now    = DateTime.Now;
+        int hour   = now.Hour;
+        int minute = now.Minute;
+
+        // Analog interpolation: minute hand sweeps full circle in 60 min;
+        // hour hand sweeps full circle in 12 hours, with intra-hour interpolation.
+        double minuteAngle = (minute / 60.0) * 360.0;
+        double hourAngle   = ((hour % 12) / 12.0 + minute / 720.0) * 360.0;
+
+        // Convert to radians. Rotation is from 12 o'clock (top), clockwise.
+        // Canvas center = (40, 40). Offset formula:
+        //   X2 = 40 + length * Sin(angleRadians)   (Sin positive = rightward from 12)
+        //   Y2 = 40 - length * Cos(angleRadians)   (Cos positive = upward, so subtract)
+        double minuteRad = minuteAngle * Math.PI / 180.0;
+        double hourRad   = hourAngle   * Math.PI / 180.0;
+
+        const double HourLength   = 25.0;
+        const double MinuteLength = 35.0;
+
+        HourHand.X2   = 40 + HourLength   * Math.Sin(hourRad);
+        HourHand.Y2   = 40 - HourLength   * Math.Cos(hourRad);
+        MinuteHand.X2 = 40 + MinuteLength * Math.Sin(minuteRad);
+        MinuteHand.Y2 = 40 - MinuteLength * Math.Cos(minuteRad);
+    }
 }
