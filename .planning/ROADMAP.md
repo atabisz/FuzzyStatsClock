@@ -90,7 +90,7 @@ Plans:
 
 ### v1.5 Hover Fast-Refresh (Phase 12)
 
-- [ ] **Phase 12: Hover Fast-Refresh** — MouseEnter/MouseLeave handlers switch `_statsTimer` interval to 0.5s on hover and restore `_statsIntervalSeconds` on leave, guarded by StatsPanel visibility
+- [x] **Phase 12: Hover Fast-Refresh** — MouseEnter/MouseLeave handlers switch `_statsTimer` interval to 0.5s on hover and restore `_statsIntervalSeconds` on leave, guarded by StatsPanel visibility (completed 2026-02-26)
 
 ## Phase Details
 
@@ -212,7 +212,7 @@ Plans:
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 1/1 | Complete | 2026-02-26 |
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
-| 12. Hover Fast-Refresh | v1.5 | 0/? | Not started | - |
+| 12. Hover Fast-Refresh | 1/1 | Complete   | 2026-02-26 | - |
 
 ---
 *Last updated: 2026-02-26 — Phase 12 roadmap created, v1.5 milestone started*

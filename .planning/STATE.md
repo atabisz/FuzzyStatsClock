@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26 after v1.4 shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.5 milestone — Hover Fast-Refresh (Phase 12)
+**Current focus:** v1.5 milestone — Hover Fast-Refresh (Phase 12) — COMPLETE
 
 ## Current Position
 
 Phase: 12 — Hover Fast-Refresh
-Plan: 12-01
-Status: Plan written and verified, ready to execute
-Last activity: 2026-02-26 — Phase 12 plan created (plan-checker: PASS)
+Plan: 12-01 (complete — final plan in phase)
+Status: Phase 12 complete — v1.5 shipped
+Last activity: 2026-02-26 — 12-01 executed and human-verified PASS
 
-Progress: [----------] 0% (phase 12 planned, not yet executed)
+Progress: [##########] 100% (phase 12 complete, 1/1 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 2.6 min
-- Total execution time: 31 min
+- Total plans completed: 13
+- Average duration: 2.5 min
+- Total execution time: 33 min
 
 **By Phase:**
 
@@ -37,9 +37,10 @@ Progress: [----------] 0% (phase 12 planned, not yet executed)
 | 8. XAML Layout and Stats Display | 2 | 8 min | 4 min |
 | 9. Controls Persistence and Edge Cases | 1 | 15 min | 15 min |
 | 11. PAG Stat Row | 2 | 3 min | 1.5 min |
+| 12. Hover Fast-Refresh | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min), 08-02 (5 min), 09-01 (15 min), 11-01 (2 min), 11-02 (1 min)
+- Last 10 plans: 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min), 08-02 (5 min), 09-01 (15 min), 11-01 (2 min), 11-02 (1 min), 12-01 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -108,6 +109,9 @@ Recent decisions affecting current work:
 - [v1.5 Roadmap]: MouseEnter/MouseLeave handlers use Stop+set+Start pattern on _statsTimer — same pattern as SetStatsInterval(); immediate effect on interval change
 - [v1.5 Roadmap]: Guard condition checks StatsPanel.Visibility == Visibility.Visible before any timer interaction — hover does nothing when stats are hidden
 - [v1.5 Roadmap]: _statsIntervalSeconds field is the source of truth for the configured rate; hover must not modify it (only temporarily change the running timer interval)
+- [Phase 12-hover-fast-refresh]: Window_MouseEnter guard 2 checks !_statsTimer.IsEnabled — defensive guard for panel-visible-but-timer-stopped edge case
+- [Phase 12-hover-fast-refresh]: Window_MouseLeave guard 2 omits IsEnabled check — if panel visible but timer stopped, restoring interval and restarting is still correct behavior
+- [Phase 12-hover-fast-refresh]: _statsIntervalSeconds is read-only in hover handlers — hover must not overwrite the persisted user setting
 
 ### Pending Todos
 
@@ -115,11 +119,11 @@ None.
 
 ### Blockers/Concerns
 
-None — v1.4 complete and archived.
+None — v1.5 complete and archived.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 12 plan written (12-01-PLAN.md) and checker verified PASS
+Stopped at: Completed 12-01-PLAN.md — phase 12 and v1.5 milestone complete, human-verified PASS
 Resume file: None
-Next action: /gsd:execute-phase 12
+Next action: No planned phases. Start new milestone planning if desired.

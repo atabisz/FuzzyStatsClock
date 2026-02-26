@@ -9,9 +9,9 @@ Requirements for v1.5 release. Each maps to a roadmap phase.
 
 ### Hover Fast-Refresh
 
-- [ ] **HVRF-01**: When the mouse enters the widget and the stats panel is visible, the stats refresh rate switches to 0.5s
-- [ ] **HVRF-02**: When the mouse leaves the widget, the stats refresh rate returns to the user's configured interval (1s/3s/10s)
-- [ ] **HVRF-03**: When the stats panel is hidden, mouse hover has no effect on the stats timer
+- [x] **HVRF-01**: When the mouse enters the widget and the stats panel is visible, the stats refresh rate switches to 0.5s
+- [x] **HVRF-02**: When the mouse leaves the widget, the stats refresh rate returns to the user's configured interval (1s/3s/10s)
+- [x] **HVRF-03**: When the stats panel is hidden, mouse hover has no effect on the stats timer
 
 ## v2 Requirements
 
@@ -43,9 +43,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HVRF-01 | Phase 12 | Pending |
-| HVRF-02 | Phase 12 | Pending |
-| HVRF-03 | Phase 12 | Pending |
+| HVRF-01 | Phase 12 | Complete |
+| HVRF-02 | Phase 12 | Complete |
+| HVRF-03 | Phase 12 | Complete |
 
 **Coverage:**
 - v1 requirements: 3 total
