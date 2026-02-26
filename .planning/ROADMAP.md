@@ -9,6 +9,8 @@
 - **v1.4 PAG Stat Row** (2026-02-26) — Paging file % usage as fourth stat row, visibility toggle, persistence. 1 phase, 2 plans. → [Archive](milestones/v1.4-ROADMAP.md)
 - **v1.5 Hover Fast-Refresh** (2026-02-26) — Mouse-hover accelerates stats to 0.5s cadence; leave restores configured rate; guarded when stats hidden. 1 phase, 1 plan. → [Archive](milestones/v1.5-ROADMAP.md)
 - **v1.6 Dial Mode** (2026-02-26) — Minimal analog dial (hour + minute hands, no face) toggle via right-click menu; persisted; stats panel unaffected. 1 phase, 2 plans. → [Archive](milestones/v1.6-ROADMAP.md)
+- **v1.7 Visual Polish** (2026-02-26) — Hover backdrop (semi-transparent when stats visible), drag pause. 1 phase, 1 plan. → [Archive](milestones/v1.7-ROADMAP.md)
+- **v1.8 Dial Enhancement** (in progress) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases.
 
 ## Phases
 
@@ -86,7 +88,7 @@ Plans:
 <details>
 <summary>✅ v1.4 PAG Stat Row (Phase 11) — SHIPPED 2026-02-26</summary>
 
-- [x] **Phase 11: PAG Stat Row** — AppSettings.PagVisible + StatsService PDH counter + XAML PagRow + MenuPagVisible + six MainWindow.xaml.cs integration points; auto-collapse extended to 4 rows; all STAT-11–STAT-15 human-verified (completed 2026-02-26)
+- [x] **Phase 11: PAG Stat Row** — AppSettings.PagVisible + StatsService PDH counter + XAML PagRow Grid + MenuPagVisible MenuItem + six MainWindow.xaml.cs integration points; auto-collapse extended to 4 rows; all STAT-11–STAT-15 human-verified (completed 2026-02-26)
 
 </details>
 
@@ -107,6 +109,11 @@ Plans:
 ### ✅ v1.7 Visual Polish (Phase 14) — SHIPPED 2026-02-26
 
 - [x] **Phase 14: Hover Backdrop + Drag Pause** — Removed hardcoded #26000000 Border background; added hover-conditional #59000000 backdrop when stats visible; _statsTimer stop/start guard around DragMove(); all four requirements (BACK-01/02/03, DRAG-01) human-verified (completed 2026-02-26)
+
+### v1.8 Dial Enhancement (Phases 15-16)
+
+- [ ] **Phase 15: Unconditional Hover Backdrop** — Remove StatsPanel.Visibility guard from Window_MouseEnter so backdrop appears on hover regardless of stats visibility; BACK-04
+- [ ] **Phase 16: Dial Face Decorations** — XAML geometry for hour tick marks, minute dots, and hour number labels on DialCanvas; AppSettings bool fields; Dial submenu with three IsCheckable items; menu items hidden in phrase mode; persistence; DIAL-06, DIAL-07, DIAL-08, DIAL-09
 
 ## Phase Details
 
@@ -246,6 +253,28 @@ Plans:
 Plans:
 - [x] 14-01-PLAN.md — Remove hardcoded Border background; wire hover backdrop (#59000000) in MouseEnter/MouseLeave; guard DragMove with timer stop/start; human verify all 4 criteria
 
+### Phase 15: Unconditional Hover Backdrop
+**Goal**: The widget background becomes semi-transparent on hover regardless of whether the stats panel is visible
+**Depends on**: Phase 14
+**Requirements**: BACK-04
+**Success Criteria** (what must be TRUE):
+  1. With the stats panel hidden, moving the mouse over the widget causes the widget background to become semi-transparent (~35% black)
+  2. Moving the mouse away clears the backdrop immediately in all cases (stats visible or hidden)
+  3. With the stats panel visible, hover backdrop behavior is unchanged from v1.7 (backdrop still appears and clears correctly)
+**Plans**: TBD
+
+### Phase 16: Dial Face Decorations
+**Goal**: In dial mode, users can independently show or hide hour tick marks, minute dots, and hour number labels via the right-click menu, with all preferences persisted across restarts and the decoration menu items hidden in phrase mode
+**Depends on**: Phase 15
+**Requirements**: DIAL-06, DIAL-07, DIAL-08, DIAL-09
+**Success Criteria** (what must be TRUE):
+  1. In dial mode, right-clicking reveals a Dial Face submenu containing Show Hour Ticks, Show Minute Marks, and Show Hour Numbers menu items, each with a checkmark reflecting their current state
+  2. Toggling Show Hour Ticks draws or removes 12 short lines at each hour position on the DialCanvas
+  3. Toggling Show Minute Marks draws or removes 60 small dots at each minute position on the DialCanvas
+  4. Toggling Show Hour Numbers draws or removes the labels 1-12 at each hour position on the DialCanvas
+  5. All three decoration preferences survive a full app restart; switching to phrase mode hides the Dial Face submenu entirely and switching back to dial mode restores it
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -263,7 +292,9 @@ Plans:
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
-| 14. Hover Backdrop + Drag Pause | v1.7 | Complete    | 2026-02-26 | 2026-02-26 |
+| 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
+| 15. Unconditional Hover Backdrop | v1.8 | 0/TBD | Not started | - |
+| 16. Dial Face Decorations | v1.8 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-02-26 — v1.7 Visual Polish shipped (Phase 14 complete)*
+*Last updated: 2026-02-26 — v1.8 Dial Enhancement roadmap created (Phases 15-16)*

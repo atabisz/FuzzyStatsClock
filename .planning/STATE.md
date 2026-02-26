@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26 — v1.8 Dial Enhancement milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.8 Dial Enhancement — defining requirements
+**Current focus:** v1.8 Dial Enhancement — Phase 15: Unconditional Hover Backdrop
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 15 — Unconditional Hover Backdrop
 Plan: —
-Status: Defining requirements
-Last activity: 2026-02-26 — Milestone v1.8 started (always-on hover backdrop + dial face options)
+Status: Not started
+Last activity: 2026-02-26 — v1.8 roadmap created (Phases 15-16)
 
-Progress: [----------] 0% (new milestone)
+Progress: [----------] 0% (v1.8: 0/2 phases)
 
 ## Performance Metrics
 
@@ -59,17 +59,22 @@ Recent decisions (Phase 14 complete):
 - Alpha 0x59 (89/255 ≈ 35%) chosen for backdrop — visible on both light and dark wallpapers without obscuring content
 - Window_MouseLeave always restores Transparent regardless of StatsPanel.Visibility — prevents stale backdrop if stats are hidden mid-hover
 
+### v1.8 Roadmap Decisions
+
+- Phase 15 (BACK-04): Remove the `StatsPanel.Visibility == Visible` guard from `Window_MouseEnter` backdrop logic only — MouseLeave unconditional clear is already correct; 1-2 line change
+- Phase 16 (DIAL-06/07/08/09): All four requirements grouped — XAML geometry (ticks/dots/numbers), AppSettings bool fields, Dial Face submenu with three IsCheckable items, DIAL-09 mode-conditional menu visibility; natural single delivery boundary
+
 ### Pending Todos
 
 None.
 
 ### Blockers/Concerns
 
-None — v1.6 complete and archived.
+None.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: v1.8 milestone started — requirements defined, roadmap pending
+Stopped at: v1.8 roadmap created — Phase 15 ready to plan
 Resume file: None
-Next action: /gsd:plan-phase [N]
+Next action: /gsd:plan-phase 15
