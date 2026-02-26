@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26 after v1.3 shipped)
 ## Current Position
 
 Phase: 11 — PAG Stat Row
-Plan: —
-Status: Roadmap created, ready to plan Phase 11
-Last activity: 2026-02-26 — v1.4 roadmap created (Phase 11 defined)
+Plan: 1 of 2 complete
+Status: In progress — 11-01 done, ready for 11-02
+Last activity: 2026-02-26 — 11-01 complete (data layer + XAML skeleton)
 
-Progress: [----------] 0% (phase 11 not started)
+Progress: [#####-----] 50% (phase 11: 1/2 plans complete)
 
 ## Performance Metrics
 
@@ -42,6 +42,8 @@ Progress: [----------] 0% (phase 11 not started)
 - Trend: Stable
 
 *Updated after each plan completion*
+
+| Phase 11. PAG Stat Row | 1 | 2 min | 2 min |
 
 ## Accumulated Context
 
@@ -97,6 +99,9 @@ Recent decisions affecting current work:
 - [v1.4 Roadmap]: AppSettings.PagVisible bool field (default true) added with init-property pattern — same as CpuVisible/GpuVisible/MemVisible from Phase 10
 - [v1.4 Roadmap]: SetStatRowVisible() auto-collapse check must include PagRow in the all-hidden condition — currently only checks CpuRow/GpuRow/MemRow
 - [v1.4 Roadmap]: Plan 11-01 is autonomous (data + XAML + settings field); Plan 11-02 has human checkpoint (wiring + auto-collapse fix + verify)
+- [Phase 11-01]: 4-param PerformanceCounter constructor for Paging File multi-instance category; 3-param (string,string,bool) throws InvalidOperationException
+- [Phase 11-01]: No priming for PAG counter — % Usage is a ratio counter returning valid data on first NextValue() call; priming only needed for rate counters (CPU, GPU)
+- [Phase 11-01]: Double guard for no-pagefile edge case: PerformanceCounterCategory.Exists() + try/catch; Exists() may return true when pagefile disabled (category registered but no instances)
 
 ### Pending Todos
 
@@ -109,6 +114,6 @@ None — roadmap complete, ready to plan Phase 11.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: v1.4 roadmap created — Phase 11 defined, ready to plan
+Stopped at: Completed 11-01-PLAN.md — data layer, settings field, XAML skeleton
 Resume file: None
-Next action: /gsd:plan-phase 11
+Next action: Execute plan 11-02

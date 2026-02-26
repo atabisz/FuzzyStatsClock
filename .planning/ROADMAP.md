@@ -189,7 +189,7 @@ Plans:
 | 8. XAML Layout and Stats Display | v1.2 | 2/2 | Complete | 2026-02-26 |
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 1/1 | Complete | 2026-02-26 |
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
-| 11. PAG Stat Row | v1.4 | 0/2 | Not started | - |
+| 11. PAG Stat Row | 1/2 | In Progress|  | - |
 
 ---
 *Last updated: 2026-02-26 after v1.4 roadmap created — Phase 11 defined*

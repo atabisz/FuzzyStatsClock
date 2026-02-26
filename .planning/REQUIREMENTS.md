@@ -9,11 +9,11 @@ Requirements for v1.4 release. Each maps to a roadmap phase.
 
 ### Stats Display
 
-- [ ] **STAT-11**: PAG row appears in stats panel below MEM row, showing % paging file usage as horizontal bar + percentage text
+- [x] **STAT-11**: PAG row appears in stats panel below MEM row, showing % paging file usage as horizontal bar + percentage text
 - [ ] **STAT-12**: User can toggle PAG row visibility via right-click Stats submenu; checkmark reflects actual PAG row state each time menu opens
 - [ ] **STAT-13**: Hiding all four stat rows (CPU/GPU/MEM/PAG) auto-collapses the stats panel
-- [ ] **STAT-14**: PAG row visibility persists to settings.json and restores on launch
-- [ ] **STAT-15**: When paging file is disabled or unavailable, PAG row shows "N/A" with no exception thrown
+- [x] **STAT-14**: PAG row visibility persists to settings.json and restores on launch
+- [x] **STAT-15**: When paging file is disabled or unavailable, PAG row shows "N/A" with no exception thrown
 
 ## v2 Requirements
 
@@ -43,11 +43,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAT-11 | Phase 11 | Pending |
+| STAT-11 | Phase 11 | Complete |
 | STAT-12 | Phase 11 | Pending |
 | STAT-13 | Phase 11 | Pending |
-| STAT-14 | Phase 11 | Pending |
-| STAT-15 | Phase 11 | Pending |
+| STAT-14 | Phase 11 | Complete |
+| STAT-15 | Phase 11 | Complete |
 
 **Coverage:**
 - v1 requirements: 5 total
