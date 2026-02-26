@@ -12,11 +12,14 @@ public sealed class StatsService : IDisposable
     private PerformanceCounter? _memCounter;
     private PerformanceCounter[] _gpuCounters = [];
     private bool _gpuAvailable;
+    private PerformanceCounter? _pagCounter;
+    private bool _pagAvailable;
     private volatile bool _initialized;
 
     public float CpuPercent { get; private set; }
     public float GpuPercent { get; private set; } = -1f;  // -1f = unavailable sentinel (display "N/A")
     public float MemPercent { get; private set; }
+    public float PagPercent { get; private set; } = -1f;  // -1f = unavailable sentinel (display "N/A")
 
     public StatsService()
     {
@@ -30,6 +33,23 @@ public sealed class StatsService : IDisposable
 
         _memCounter = new PerformanceCounter("Memory", "% Committed Bytes In Use", readOnly: true);
         // MEM is a point-in-time counter — no priming needed
+
+        _pagAvailable = PerformanceCounterCategory.Exists("Paging File");
+        if (_pagAvailable)
+        {
+            try
+            {
+                // 4-param constructor required: "Paging File" is multi-instance.
+                // DO NOT use the 3-param (string, string, bool) overload — it throws for multi-instance categories.
+                // "% Usage" is a point-in-time ratio counter — no priming needed.
+                _pagCounter = new PerformanceCounter("Paging File", "% Usage", "_Total", readOnly: true);
+            }
+            catch
+            {
+                _pagAvailable = false;
+            }
+        }
+        PagPercent = _pagAvailable ? 0f : -1f;
 
         _gpuAvailable = PerformanceCounterCategory.Exists("GPU Engine");
         if (_gpuAvailable)
@@ -48,6 +68,19 @@ public sealed class StatsService : IDisposable
 
         CpuPercent = _cpuCounter?.NextValue() ?? 0f;
         MemPercent = _memCounter?.NextValue() ?? 0f;
+
+        if (_pagAvailable)
+        {
+            try
+            {
+                PagPercent = _pagCounter?.NextValue() ?? 0f;
+            }
+            catch
+            {
+                _pagAvailable = false;
+                PagPercent = -1f;
+            }
+        }
 
         if (!_gpuAvailable) return;
 
@@ -96,6 +129,7 @@ public sealed class StatsService : IDisposable
     {
         _cpuCounter?.Dispose();
         _memCounter?.Dispose();
+        _pagCounter?.Dispose();
         DisposeGpuCounters();
     }
 }
