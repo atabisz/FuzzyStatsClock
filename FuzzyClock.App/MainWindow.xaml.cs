@@ -306,6 +306,24 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
+    private void Window_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (StatsPanel.Visibility != Visibility.Visible) return;
+        if (_statsTimer == null || !_statsTimer.IsEnabled) return;
+        _statsTimer.Stop();
+        _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
+        _statsTimer.Start();
+    }
+
+    private void Window_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (StatsPanel.Visibility != Visibility.Visible) return;
+        if (_statsTimer == null) return;
+        _statsTimer.Stop();
+        _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
+        _statsTimer.Start();
+    }
+
     private void SetStatRowVisible(Grid row, bool visible)
     {
         row.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
