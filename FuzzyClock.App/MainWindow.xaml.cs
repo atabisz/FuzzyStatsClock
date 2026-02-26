@@ -18,6 +18,12 @@ public partial class MainWindow : Window
     private bool _savedPositionLoaded = false;
     private bool _hasUserPosition = false;
     private bool _dialMode;
+    private bool _showHourTicks   = false;
+    private bool _showMinuteDots  = false;
+    private bool _showHourNumbers = false;
+    private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
+    private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
+    private readonly List<System.Windows.Controls.TextBlock> _hourNumberElements = new();
 
     public MainWindow()
     {
@@ -75,6 +81,7 @@ public partial class MainWindow : Window
             }
 
             if (_dialMode) UpdateDialDisplay();
+            InitDialDecorations();
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
@@ -119,6 +126,11 @@ public partial class MainWindow : Window
         PhraseText.Visibility = s.DialMode ? Visibility.Collapsed : Visibility.Visible;
         ShadowText.Visibility = s.DialMode ? Visibility.Collapsed : Visibility.Visible;
         DialCanvas.Visibility = s.DialMode ? Visibility.Visible   : Visibility.Collapsed;
+
+        _showHourTicks   = s.ShowHourTicks;
+        _showMinuteDots  = s.ShowMinuteDots;
+        _showHourNumbers = s.ShowHourNumbers;
+        // Decoration element visibility applied in InitDialDecorations() (ContentRendered).
     }
 
     /// <summary>
@@ -138,7 +150,10 @@ public partial class MainWindow : Window
             GpuVisible = (GpuRow.Visibility == Visibility.Visible),
             MemVisible = (MemRow.Visibility == Visibility.Visible),
             PagVisible = (PagRow.Visibility == Visibility.Visible),
-            DialMode = _dialMode
+            DialMode = _dialMode,
+            ShowHourTicks   = _showHourTicks,
+            ShowMinuteDots  = _showMinuteDots,
+            ShowHourNumbers = _showHourNumbers
         });
     }
 
@@ -263,6 +278,12 @@ public partial class MainWindow : Window
         MenuMemVisible.IsChecked = (MemRow.Visibility == Visibility.Visible);
         MenuPagVisible.IsChecked = (PagRow.Visibility == Visibility.Visible);
         MenuDialMode.IsChecked = _dialMode;
+
+        // DIAL-09: Dial Face submenu visible only in dial mode
+        MenuDialFace.Visibility       = _dialMode ? Visibility.Visible : Visibility.Collapsed;
+        MenuShowHourTicks.IsChecked   = _showHourTicks;
+        MenuShowMinuteDots.IsChecked  = _showMinuteDots;
+        MenuShowHourNumbers.IsChecked = _showHourNumbers;
     }
 
     private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
@@ -426,6 +447,15 @@ public partial class MainWindow : Window
     private void MenuDialMode_Click(object sender, RoutedEventArgs e)
         => SetDialMode(!_dialMode);
 
+    private void MenuShowHourTicks_Click(object sender, RoutedEventArgs e)
+        => SetShowHourTicks(!_showHourTicks);
+
+    private void MenuShowMinuteDots_Click(object sender, RoutedEventArgs e)
+        => SetShowMinuteDots(!_showMinuteDots);
+
+    private void MenuShowHourNumbers_Click(object sender, RoutedEventArgs e)
+        => SetShowHourNumbers(!_showHourNumbers);
+
     private void SetDialMode(bool dialMode)
     {
         _dialMode = dialMode;
@@ -434,9 +464,108 @@ public partial class MainWindow : Window
         ShadowText.Visibility  = dialMode ? Visibility.Collapsed : Visibility.Visible;
         DialCanvas.Visibility  = dialMode ? Visibility.Visible   : Visibility.Collapsed;
 
+        // DIAL-09: hide/show Dial Face submenu on mode switch
+        MenuDialFace.Visibility = dialMode ? Visibility.Visible : Visibility.Collapsed;
+
         if (dialMode) UpdateDialDisplay();
 
         SaveSettings();
+    }
+
+    private void SetShowHourTicks(bool show)
+    {
+        _showHourTicks = show;
+        var vis = show ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var el in _hourTickElements) el.Visibility = vis;
+        SaveSettings();
+    }
+
+    private void SetShowMinuteDots(bool show)
+    {
+        _showMinuteDots = show;
+        var vis = show ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var el in _minuteDotElements) el.Visibility = vis;
+        SaveSettings();
+    }
+
+    private void SetShowHourNumbers(bool show)
+    {
+        _showHourNumbers = show;
+        var vis = show ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var el in _hourNumberElements) el.Visibility = vis;
+        SaveSettings();
+    }
+
+    private void InitDialDecorations()
+    {
+        const double CenterX = 40.0;
+        const double CenterY = 40.0;
+
+        // Hour ticks: 12 short Line elements, outer R=36, inner R=31
+        for (int h = 0; h < 12; h++)
+        {
+            double angleRad = (h / 12.0) * 2 * Math.PI;
+            var tick = new System.Windows.Shapes.Line
+            {
+                X1 = CenterX + 31.0 * Math.Sin(angleRad),
+                Y1 = CenterY - 31.0 * Math.Cos(angleRad),
+                X2 = CenterX + 36.0 * Math.Sin(angleRad),
+                Y2 = CenterY - 36.0 * Math.Cos(angleRad),
+                Stroke = System.Windows.Media.Brushes.White,
+                StrokeThickness = 1.5,
+                Visibility = Visibility.Collapsed
+            };
+            _hourTickElements.Add(tick);
+            DialCanvas.Children.Add(tick);
+        }
+
+        // Minute dots: 60 small Ellipse elements (2x2px) at R=35
+        for (int m = 0; m < 60; m++)
+        {
+            double angleRad = (m / 60.0) * 2 * Math.PI;
+            double dotCx = CenterX + 35.0 * Math.Sin(angleRad);
+            double dotCy = CenterY - 35.0 * Math.Cos(angleRad);
+            var dot = new System.Windows.Shapes.Ellipse
+            {
+                Width  = 2.0,
+                Height = 2.0,
+                Fill   = System.Windows.Media.Brushes.White,
+                Visibility = Visibility.Collapsed
+            };
+            Canvas.SetLeft(dot, dotCx - 1.0);
+            Canvas.SetTop(dot,  dotCy - 1.0);
+            _minuteDotElements.Add(dot);
+            DialCanvas.Children.Add(dot);
+        }
+
+        // Hour numbers: TextBlock "1"-"12" at R=25 (inside the tick ring)
+        for (int h = 1; h <= 12; h++)
+        {
+            double angleRad = (h / 12.0) * 2 * Math.PI;
+            double numCx = CenterX + 25.0 * Math.Sin(angleRad);
+            double numCy = CenterY - 25.0 * Math.Cos(angleRad);
+            var tb = new System.Windows.Controls.TextBlock
+            {
+                Text       = h.ToString(),
+                Foreground = System.Windows.Media.Brushes.White,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Light"),
+                FontSize   = 7,
+                Visibility = Visibility.Collapsed
+            };
+            Canvas.SetLeft(tb, numCx - 4.0);
+            Canvas.SetTop(tb,  numCy - 4.5);
+            _hourNumberElements.Add(tb);
+            DialCanvas.Children.Add(tb);
+        }
+
+        // Apply saved visibility state — ApplySettings() set the fields before ContentRendered ran;
+        // elements did not exist at that point, so we apply visibility here.
+        var tickVis = _showHourTicks   ? Visibility.Visible : Visibility.Collapsed;
+        var dotVis  = _showMinuteDots  ? Visibility.Visible : Visibility.Collapsed;
+        var numVis  = _showHourNumbers ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var el in _hourTickElements)   el.Visibility = tickVis;
+        foreach (var el in _minuteDotElements)  el.Visibility = dotVis;
+        foreach (var el in _hourNumberElements) el.Visibility = numVis;
     }
 
     private void UpdateDialDisplay()
