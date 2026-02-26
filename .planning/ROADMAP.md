@@ -261,7 +261,10 @@ Plans:
   1. With the stats panel hidden, moving the mouse over the widget causes the widget background to become semi-transparent (~35% black)
   2. Moving the mouse away clears the backdrop immediately in all cases (stats visible or hidden)
   3. With the stats panel visible, hover backdrop behavior is unchanged from v1.7 (backdrop still appears and clears correctly)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 15-01-PLAN.md — Restructure Window_MouseEnter so backdrop appears on hover unconditionally (BACK-04)
 
 ### Phase 16: Dial Face Decorations
 **Goal**: In dial mode, users can independently show or hide hour tick marks, minute dots, and hour number labels via the right-click menu, with all preferences persisted across restarts and the decoration menu items hidden in phrase mode
@@ -293,7 +296,7 @@ Plans:
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
 | 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
-| 15. Unconditional Hover Backdrop | v1.8 | 0/TBD | Not started | - |
+| 15. Unconditional Hover Backdrop | v1.8 | 0/1 | Not started | - |
 | 16. Dial Face Decorations | v1.8 | 0/TBD | Not started | - |
 
 ---
