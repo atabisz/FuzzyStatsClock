@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3". It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase refreshes when the 5-minute clock bucket changes, checked every 10 seconds. Below the phrase, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Hovering the mouse over the widget accelerates the stats update rate to 0.5s for a quick peek; moving the mouse away restores the configured rate. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, and all preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes checked every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Hovering the mouse over the widget accelerates the stats update rate to 0.5s for a quick peek; moving the mouse away restores the configured rate. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, switch between phrase and dial mode, and all preferences are saved across restarts.
 
 ## Core Value
 
@@ -10,12 +10,14 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v1.5 shipped: 2026-02-26**
+**v1.6 shipped: 2026-02-26**
 
-All v1.5 requirements delivered. Hover fast-refresh human-verified (all 4 behavioral checks passed).
+All v1.6 requirements delivered. Dial mode human-verified (all 5 DIAL criteria passed).
 
+- Dial mode: right-click "Dial Mode" toggles between phrase text and minimal analog dial (hour + minute hands, no face); persists across restarts
+- Dial hands: white 2px Lines, center (40,40), hour 25px, minute 35px; analog trig (X2=40+L×sin θ, Y2=40−L×cos θ); driven by existing 10s phrase timer
 - Hover fast-refresh: mouse over widget → stats update at 0.5s cadence; mouse leave → restores configured rate; no-op when stats panel hidden
-- Stats panel: CPU / GPU / MEM / PAG horizontal bars + % text below the time phrase
+- Stats panel: CPU / GPU / MEM / PAG horizontal bars + % text below the time phrase or dial
 - Per-row visibility: Show CPU / Show GPU / Show MEM / Show PAG toggles in Stats submenu, auto-collapse when all four hidden, persisted
 - PAG row: paging file % usage via PDH "Paging File"/"% Usage"/"_Total"; "N/A" displayed when pagefile unavailable
 - Update interval: 1s / 3s / 10s via right-click Stats submenu, persisted
@@ -23,7 +25,7 @@ All v1.5 requirements delivered. Hover fast-refresh human-verified (all 4 behavi
 - Position persistence: drag to any position, saved immediately, restored on next launch
 - Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~1,155 LOC C# / XAML
+- ~1,240 LOC C# / XAML
 
 ## Requirements
 
@@ -56,14 +58,15 @@ All v1.5 requirements delivered. Hover fast-refresh human-verified (all 4 behavi
 - ✓ When the mouse enters the widget and the stats panel is visible, the stats refresh rate switches to 0.5s (HVRF-01) — v1.5
 - ✓ When the mouse leaves the widget, the stats refresh rate returns to the user's configured interval (1s/3s/10s) (HVRF-02) — v1.5
 - ✓ When the stats panel is hidden, mouse hover has no effect on the stats timer (HVRF-03) — v1.5
+- ✓ User can switch between phrase mode and dial mode via the right-click context menu (DIAL-01) — v1.6
+- ✓ In dial mode, the widget displays hour and minute hands on a transparent background (no face, no circle, no numbers — hands only) (DIAL-02) — v1.6
+- ✓ Hands update every minute to accurately reflect the current hour and minute position (DIAL-03) — v1.6
+- ✓ The stats panel remains visible below the dial when stats are enabled (DIAL-04) — v1.6
+- ✓ The selected clock mode (phrase/dial) persists to settings.json and restores on launch (DIAL-05) — v1.6
 
-### Active (v1.6)
+### Active
 
-- [ ] DIAL-01: User can switch between phrase mode and dial mode via the right-click context menu
-- [ ] DIAL-02: In dial mode, the widget displays hour and minute hands on a transparent background (no face, no circle, no numbers — hands only)
-- [ ] DIAL-03: Hands update every minute to accurately reflect the current hour and minute position
-- [ ] DIAL-04: The stats panel remains visible below the dial when stats are enabled
-- [ ] DIAL-05: The selected clock mode (phrase/dial) persists to settings.json and restores on launch
+(None — v1.6 complete)
 
 ### Deferred (v2+)
 
@@ -136,6 +139,10 @@ All v1.5 requirements delivered. Hover fast-refresh human-verified (all 4 behavi
 | Window_MouseLeave omits IsEnabled guard | If panel is visible but timer somehow stopped, restoring interval and restarting is still correct | ✓ Validated — correct recovery behavior |
 | Hover handlers wire in ContentRendered (not XAML) | _statsTimer must exist before handlers can fire; ContentRendered is after construction; zero XAML changes required | ✓ Validated — no null-timer risk; no XAML touch |
 | _statsIntervalSeconds read-only in hover handlers | Source of truth for user's configured rate; hover must not overwrite persistence or interval selector state | ✓ Validated — interval selector checkmarks unchanged after hover cycles |
+| DialCanvas in same row 0 as PhraseText | Toggling Visibility.Collapsed/Visible on both elements swaps display mode with zero row restructuring | ✓ Validated — clean toggle; no Grid row insertion or height changes needed |
+| No zero-guard for DialMode bool in Load() | Bool false has no dangerous zero-equivalent (unlike StatsIntervalSeconds=0 which spikes the timer) | ✓ Validated — bool field safe without guard; consistent with other bool AppSettings fields |
+| ApplySettings() sets DialCanvas Visibility directly (not via SetDialMode) | SetDialMode() calls SaveSettings() — unsafe before Show() where settings are being applied, not changed | ✓ Validated — same pre-Show() safety invariant as StatsPanel and stat rows |
+| Existing 10s phrase timer drives UpdateDialDisplay() | Hands only change visually on the minute; 10s polling is sufficient — no second timer needed | ✓ Validated — dial updates correctly at sub-minute poll rate; no extra timer complexity |
 
 ---
-*Last updated: 2026-02-26 — v1.6 milestone started (Dial Mode)*
+*Last updated: 2026-02-26 — v1.6 Dial Mode shipped*

@@ -2,10 +2,10 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 — v1.6 roadmap created)
+See: .planning/PROJECT.md (updated 2026-02-26 — v1.6 Dial Mode shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.6 Dial Mode — Phase 13 COMPLETE
+**Current focus:** v1.6 SHIPPED — planning next milestone
 
 ## Current Position
 
@@ -75,11 +75,11 @@ None.
 
 ### Blockers/Concerns
 
-None — v1.5 complete and archived; Phase 13 scope is well-defined.
+None — v1.6 complete and archived.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 13-02-PLAN.md — Dial mode fully wired, trig hand placement, human-verified all 5 DIAL criteria
+Stopped at: v1.6 milestone archived — all 5 DIAL criteria shipped and verified
 Resume file: None
-Next action: Phase 13 complete — v1.6 Dial Mode shipped. All phases complete.
+Next action: /gsd:new-milestone

@@ -85,3 +85,17 @@
 
 ---
 
+
+## v1.6 Dial Mode (Shipped: 2026-02-26)
+
+**Phases completed:** 1 phase (13), 2 plans
+
+**Key accomplishments:**
+- `AppSettings.DialMode` bool init-property (default false) — JSON-safe persistence; no zero-guard needed for bool, no breaking change to existing settings files
+- `DialCanvas` 80×80 Canvas with `HourHand` (25px, White, 2px, round caps) and `MinuteHand` (35px) WPF Lines in row 0 alongside `PhraseTextBlock`, initially `Visibility=Collapsed`
+- `UpdateDialDisplay()` trig — X2=40+L×sin θ, Y2=40−L×cos θ from center (40,40); analog hour interpolation `((hour%12)/12.0 + minute/720.0)×360`; driven by existing 10s phrase timer tick
+- `SetDialMode()` toggles PhraseText/ShadowText/DialCanvas Visibility + saves settings immediately; `ApplySettings()` sets Visibility directly (pre-Show() safe); `ContextMenu_Opened` syncs `MenuDialMode.IsChecked`
+- All 5 DIAL-01 through DIAL-05 criteria human-verified: menu toggle + checkmark, hands-only display, correct analog hand positions, stats panel unaffected below dial, persistence across restart
+
+---
+
