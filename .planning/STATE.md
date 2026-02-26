@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26 — v1.8 Dial Enhancement milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.8 Dial Enhancement — Phase 15: Unconditional Hover Backdrop
+**Current focus:** v1.8 Dial Enhancement — Phase 16: Dial Face Decorations
 
 ## Current Position
 
-Phase: 15 — Unconditional Hover Backdrop
-Plan: 0 of 1 in current phase
+Phase: 16 — Dial Face Decorations
+Plan: 0 of TBD in current phase
 Status: Ready to execute
-Last activity: 2026-02-26 — Phase 15 planned (1 plan, verification passed)
+Last activity: 2026-02-26 — Phase 15 complete (15-01 human-verified PASS, BACK-04 done)
 
-Progress: [----------] 0% (v1.8: 0/2 phases)
+Progress: [#####-----] 50% (v1.8: 1/2 phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: 2.7 min
-- Total execution time: 46 min
+- Total execution time: 51 min
 
 **By Phase:**
 
@@ -40,9 +40,10 @@ Progress: [----------] 0% (v1.8: 0/2 phases)
 | 12. Hover Fast-Refresh | 1 | 2 min | 2 min |
 | 13. Dial Mode | 2 | 8 min | 4 min |
 | 14. Hover Backdrop + Drag Pause | 1 | 5 min | 5 min |
+| 15. Unconditional Hover Backdrop | 1 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 12-01 (2 min), 13-01 (3 min), 13-02 (5 min), 14-01 (5 min)
+- Last 5 plans: 13-01 (3 min), 13-02 (5 min), 14-01 (5 min), 15-01 (5 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -52,12 +53,13 @@ Progress: [----------] 0% (v1.8: 0/2 phases)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions (Phase 14 complete):
+Recent decisions (Phase 15 complete):
 
 - Phase 14 scope: Remove hardcoded #26000000 from Border; transparent by default; #59000000 on hover+stats-visible; driven by existing MouseEnter/MouseLeave handlers
 - Phase 14 drag pause: Stop _statsTimer before DragMove(), restart after, only when timer was running
 - Alpha 0x59 (89/255 ≈ 35%) chosen for backdrop — visible on both light and dark wallpapers without obscuring content
 - Window_MouseLeave always restores Transparent regardless of StatsPanel.Visibility — prevents stale backdrop if stats are hidden mid-hover
+- Phase 15 BACK-04: Backdrop is a general hover affordance (not stats-specific) — moved before StatsPanel.Visibility guard; guard retained only for _statsTimer fast-refresh block
 
 ### v1.8 Roadmap Decisions
 
@@ -75,6 +77,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 15 planned — 1 plan (15-01, human checkpoint), verification passed
+Stopped at: Completed 15-01 — Phase 15 Unconditional Hover Backdrop done (BACK-04 verified)
 Resume file: None
-Next action: /gsd:execute-phase 15
+Next action: /gsd:execute-phase 16

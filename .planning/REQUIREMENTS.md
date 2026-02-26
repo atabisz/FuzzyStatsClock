@@ -9,7 +9,7 @@ Requirements for v1.8 release. Each maps to a roadmap phase.
 
 ### Backdrop
 
-- [ ] **BACK-04**: Widget background becomes semi-transparent (~35% black) when the mouse is over the widget, regardless of whether the stats panel is visible; backdrop clears immediately when the mouse leaves
+- [x] **BACK-04**: Widget background becomes semi-transparent (~35% black) when the mouse is over the widget, regardless of whether the stats panel is visible; backdrop clears immediately when the mouse leaves
 
 ### Dial Face
 
@@ -45,7 +45,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BACK-04 | Phase 15 | Pending |
+| BACK-04 | Phase 15 | Complete |
 | DIAL-06 | Phase 16 | Pending |
 | DIAL-07 | Phase 16 | Pending |
 | DIAL-08 | Phase 16 | Pending |
@@ -58,4 +58,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 — v1.8 roadmap created; all 5 requirements mapped to phases 15-16*
+*Last updated: 2026-02-26 — BACK-04 complete (Phase 15); 4 remaining requirements in Phase 16*

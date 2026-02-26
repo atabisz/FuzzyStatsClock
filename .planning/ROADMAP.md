@@ -112,7 +112,7 @@ Plans:
 
 ### v1.8 Dial Enhancement (Phases 15-16)
 
-- [ ] **Phase 15: Unconditional Hover Backdrop** — Remove StatsPanel.Visibility guard from Window_MouseEnter so backdrop appears on hover regardless of stats visibility; BACK-04
+- [x] **Phase 15: Unconditional Hover Backdrop** — Moved ContentBorder.Background assignment before StatsPanel.Visibility guard in Window_MouseEnter; backdrop now shows on hover unconditionally; BACK-04 human-verified (completed 2026-02-26)
 - [ ] **Phase 16: Dial Face Decorations** — XAML geometry for hour tick marks, minute dots, and hour number labels on DialCanvas; AppSettings bool fields; Dial submenu with three IsCheckable items; menu items hidden in phrase mode; persistence; DIAL-06, DIAL-07, DIAL-08, DIAL-09
 
 ## Phase Details
@@ -264,7 +264,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 15-01-PLAN.md — Restructure Window_MouseEnter so backdrop appears on hover unconditionally (BACK-04)
+- [x] 15-01-PLAN.md — Restructure Window_MouseEnter so backdrop appears on hover unconditionally (BACK-04)
 
 ### Phase 16: Dial Face Decorations
 **Goal**: In dial mode, users can independently show or hide hour tick marks, minute dots, and hour number labels via the right-click menu, with all preferences persisted across restarts and the decoration menu items hidden in phrase mode
@@ -296,8 +296,8 @@ Plans:
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
 | 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
-| 15. Unconditional Hover Backdrop | v1.8 | 0/1 | Not started | - |
+| 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
 | 16. Dial Face Decorations | v1.8 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-02-26 — v1.8 Dial Enhancement roadmap created (Phases 15-16)*
+*Last updated: 2026-02-26 — Phase 15 complete (BACK-04); Phase 16 Dial Face Decorations is next*
