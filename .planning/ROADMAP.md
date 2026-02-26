@@ -212,7 +212,7 @@ Plans:
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 1/1 | Complete | 2026-02-26 |
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
-| 12. Hover Fast-Refresh | 1/1 | Complete   | 2026-02-26 | - |
+| 12. Hover Fast-Refresh | 1/1 | Complete    | 2026-02-26 | - |
 
 ---
 *Last updated: 2026-02-26 — Phase 12 roadmap created, v1.5 milestone started*
