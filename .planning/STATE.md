@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26 — v1.6 roadmap created)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.6 Dial Mode — Phase 13, ready to plan
+**Current focus:** v1.6 Dial Mode — Phase 13, plan 01 complete
 
 ## Current Position
 
 Phase: 13 of 13 (Dial Mode)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-02-26 — v1.6 roadmap created (Phase 13 defined)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-26 — 13-01 complete (DialMode field, DialCanvas, MenuDialMode scaffold)
 
-Progress: [----------] 0% (phase 13 not started)
+Progress: [#####-----] 50% (phase 13: 1/2 plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 2.5 min
-- Total execution time: 33 min
+- Total execution time: 36 min
 
 **By Phase:**
 
@@ -38,9 +38,10 @@ Progress: [----------] 0% (phase 13 not started)
 | 9. Controls Persistence and Edge Cases | 1 | 15 min | 15 min |
 | 11. PAG Stat Row | 2 | 3 min | 1.5 min |
 | 12. Hover Fast-Refresh | 1 | 2 min | 2 min |
+| 13. Dial Mode | 1/2 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 09-01 (15 min), 11-01 (2 min), 11-02 (1 min), 12-01 (2 min), — (next: 13-01)
+- Last 5 plans: 11-01 (2 min), 11-02 (1 min), 12-01 (2 min), 13-01 (3 min), — (next: 13-02)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -61,6 +62,9 @@ Recent decisions relevant to Phase 13:
 - [v1.6 Roadmap]: ContextMenu_Opened syncs MenuDialMode.IsChecked from _dialMode field — same single-sync-point pattern as all other checkmarks
 - [v1.6 Roadmap]: ApplySettings() sets PhraseTextBlock and DialCanvas Visibility directly (NOT via toggle method) — same safety invariant as StatsPanel before Show()
 - [v1.6 Roadmap]: Plan 13-01 autonomous (AppSettings field + XAML canvas + menu item stub); Plan 13-02 human checkpoint (wiring + trig + verify)
+- [13-01]: DialCanvas and PhraseText co-located in same inner Grid — Visibility toggling swaps display mode with no row insertion
+- [13-01]: No zero-guard for DialMode in Load() — bool false has no dangerous zero-equivalent unlike StatsIntervalSeconds int
+- [13-01]: Empty MenuDialMode_Click stub in plan 01 keeps build clean; full implementation deferred to plan 02
 
 ### Pending Todos
 
@@ -73,6 +77,6 @@ None — v1.5 complete and archived; Phase 13 scope is well-defined.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: v1.6 roadmap written — Phase 13 defined with 2 plans and 5 success criteria
+Stopped at: Completed 13-01-PLAN.md — DialMode scaffold (AppSettings field, DialCanvas, MenuDialMode stub)
 Resume file: None
-Next action: /gsd:plan-phase 13
+Next action: Execute plan 13-02 (dial mode wiring + trig + human verify)
