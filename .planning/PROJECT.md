@@ -8,6 +8,13 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v1.9 Context-Aware Menus
+
+**Goal:** Hide irrelevant menu items depending on the active display mode.
+
+**Target features:**
+- Font Size submenu hidden when in dial mode (mirrors Dial Face hidden in phrase mode)
+
 ## Current State
 
 **v1.8 shipped: 2026-02-26**
@@ -80,6 +87,12 @@ All v1.8 requirements delivered. Unconditional hover backdrop and dial face deco
 - ✓ DIAL-07: In dial mode, user can toggle minute marks (60 small dots at minute positions) via right-click submenu; persisted — v1.8
 - ✓ DIAL-08: In dial mode, user can toggle hour number labels (1–12) at hour positions via right-click submenu; persisted — v1.8
 - ✓ DIAL-09: Dial face decoration menu options are hidden when in phrase mode; visible only when dial mode is active — v1.8
+
+### Active
+
+<!-- Current scope — v1.9 Context-Aware Menus -->
+
+- [ ] MENU-01: Font Size submenu is hidden from the context menu when dial mode is active; reappears when switching to phrase mode
 
 ### Deferred (v2+)
 
@@ -166,4 +179,4 @@ All v1.8 requirements delivered. Unconditional hover backdrop and dial face deco
 | InitDialDecorations() in ContentRendered after UpdateDialDisplay() | Elements must exist before visibility applied; hand positions set first avoids visual flash | ✓ Validated — correct ordering; no null-element errors; no initial flash |
 
 ---
-*Last updated: 2026-02-26 — v1.8 Dial Enhancement milestone shipped; all v1.8 requirements validated*
+*Last updated: 2026-02-26 — v1.9 Context-Aware Menus milestone started*

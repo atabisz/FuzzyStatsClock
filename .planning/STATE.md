@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-26 — v1.8 Dial Enhancement mileston
 
 ## Current Position
 
-Phase: 16 — Dial Face Decorations
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-02-26 — 16-02 complete (human-verified DIAL-06/07/08/09; v1.8 milestone closed)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-26 — Milestone v1.9 started
 
 Progress: [##########] 100% (v1.8: 2/2 phases complete, all plans done)
 
