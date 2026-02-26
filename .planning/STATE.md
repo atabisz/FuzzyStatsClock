@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 after v1.3 shipped)
+See: .planning/PROJECT.md (updated 2026-02-26 after v1.4 shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.4 milestone — PAG stat row (Phase 11) complete
+**Current focus:** v1.4 complete — planning next milestone
 
 ## Current Position
 
-Phase: 11 — PAG Stat Row
-Plan: 2 of 2 complete
-Status: Complete — Phase 11 done, all v1.4 requirements verified
-Last activity: 2026-02-26 — Phase 11 complete (PAG row wired, human-verified)
+Phase: 11 — PAG Stat Row (complete)
+Plan: —
+Status: v1.4 milestone archived — ready for next milestone
+Last activity: 2026-02-26 — v1.4 archived (Phase 11 complete, git tagged)
 
-Progress: [##########] 100% (phase 11: 2/2 plans complete)
+Progress: [##########] 100% (all phases complete)
 
 ## Performance Metrics
 
@@ -111,11 +111,11 @@ None.
 
 ### Blockers/Concerns
 
-None — all phases complete through v1.4. Consider /gsd:complete-milestone to mark v1.4 shipped.
+None — v1.4 complete and archived.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 11-02-PLAN.md — Phase 11 complete, all STAT-11 through STAT-15 verified
+Stopped at: v1.4 milestone archived — Phase 11 complete, git tagged v1.4
 Resume file: None
-Next action: /gsd:complete-milestone (mark v1.4 shipped) or /gsd:verify-work
+Next action: /gsd:new-milestone

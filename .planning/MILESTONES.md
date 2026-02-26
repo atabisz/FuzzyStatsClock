@@ -58,3 +58,17 @@
 
 ---
 
+
+## v1.4 PAG Stat Row (Shipped: 2026-02-26)
+
+**Phases completed:** 1 phase (11), 2 plans
+
+**Key accomplishments:**
+- `AppSettings.PagVisible` init-property (default true) added; round-trips through System.Text.Json without breaking v1.3 settings files
+- StatsService extended with PDH "Paging File"/"% Usage"/"_Total" counter using 4-param constructor, `PerformanceCounterCategory.Exists` + try/catch double guard, and -1f unavailable sentinel — same pattern as GPU fallback
+- XAML `PagRow` Grid (identical structure to CPU/GPU/MEM rows: Segoe UI Light 12pt, `#40FFFFFF` track, 3-column layout) and `MenuPagVisible` MenuItem added to Stats submenu
+- Six MainWindow.xaml.cs integration points wired: click handler (reads Visibility not IsChecked), UpdateStatsDisplay N/A branch, ContextMenu_Opened checkmark sync, ApplySettings direct assignment, SaveSettings persistence, SetStatRowVisible auto-collapse extended from 3-row to 4-row check
+- All five STAT-11 through STAT-14 checks human-verified; v1.4 ships with PAG as fully independent fourth stat row alongside CPU, GPU, and MEM
+
+---
+

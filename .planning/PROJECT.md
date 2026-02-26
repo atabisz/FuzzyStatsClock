@@ -10,18 +10,19 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v1.3 shipped: 2026-02-26**
+**v1.4 shipped: 2026-02-26**
 
-All v1.3 requirements delivered. Per-row visibility toggles human-verified (all 5 behavioral checks passed).
+All v1.4 requirements delivered. PAG stat row human-verified (all 5 behavioral checks passed).
 
-- Stats panel: CPU / GPU / MEM horizontal bars + % text below the time phrase
-- Per-row visibility: Show CPU / Show GPU / Show MEM toggles in Stats submenu, auto-collapse when all hidden, persisted
+- Stats panel: CPU / GPU / MEM / PAG horizontal bars + % text below the time phrase
+- Per-row visibility: Show CPU / Show GPU / Show MEM / Show PAG toggles in Stats submenu, auto-collapse when all four hidden, persisted
+- PAG row: paging file % usage via PDH "Paging File"/"% Usage"/"_Total"; "N/A" displayed when pagefile unavailable
 - Update interval: 1s / 3s / 10s via right-click Stats submenu, persisted
 - Stats visibility: show/hide toggle via right-click Stats submenu, persisted
 - Position persistence: drag to any position, saved immediately, restored on next launch
 - Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- 1,056 LOC C# / XAML
+- ~1,135 LOC C# / XAML
 
 ## Requirements
 
@@ -46,14 +47,15 @@ All v1.3 requirements delivered. Per-row visibility toggles human-verified (all 
 - ✓ User can toggle MEM row visibility via right-click Stats submenu; checkmark reflects current state (STAT-08) — v1.3
 - ✓ Hiding all three stat rows auto-collapses the stats panel (one-way trigger) (STAT-09) — v1.3
 - ✓ Individual stat row visibility (CPU/GPU/MEM) persists to settings.json and restores on launch (STAT-10) — v1.3
+- ✓ PAG row appears in stats panel below MEM row, showing % paging file usage as horizontal bar + percentage text (STAT-11) — v1.4
+- ✓ User can toggle PAG row visibility via right-click Stats submenu; checkmark reflects actual PAG row state each time menu opens (STAT-12) — v1.4
+- ✓ Hiding all four stat rows (CPU/GPU/MEM/PAG) auto-collapses the stats panel (STAT-13) — v1.4
+- ✓ PAG row visibility persists to settings.json and restores on launch (STAT-14) — v1.4
+- ✓ When paging file is disabled or unavailable, PAG row shows "N/A" with no exception thrown (STAT-15) — v1.4
 
-### Active (v1.4)
+### Active
 
-- [ ] STAT-11: PAG row appears in stats panel below MEM row, showing % paging file usage as horizontal bar + percentage text
-- [ ] STAT-12: User can toggle PAG row visibility via right-click Stats submenu; checkmark reflects actual PAG row state each time menu opens
-- [ ] STAT-13: Hiding all four stat rows (CPU/GPU/MEM/PAG) auto-collapses the stats panel
-- [ ] STAT-14: PAG row visibility persists to settings.json and restores on launch
-- [ ] STAT-15: When paging file is disabled or unavailable, PAG row shows "N/A" with no exception thrown
+None — no next milestone defined yet.
 
 ### Deferred (v2+)
 
@@ -119,6 +121,9 @@ All v1.3 requirements delivered. Per-row visibility toggles human-verified (all 
 | Visibility.Collapsed (not Hidden) for hidden rows | Hidden preserves layout space in StackPanel, leaving visible vertical gap; Collapsed collapses entirely | ✓ Validated — no layout gap on hidden rows |
 | Auto-collapse is one-directional | Hiding last row collapses panel; showing a row does NOT auto-show panel — user controls panel via Show Stats | ✓ Validated — simpler model; no "Reset all stats" needed |
 | SetStatRowVisible() separate from ApplySettings() | SetStatRowVisible() calls UpdateLayout()+Clamp() — unsafe before Show() where ActualHeight=0 | ✓ Validated — ApplySettings() sets row Visibility directly; startup safety invariant preserved |
+| 4-param PerformanceCounter for Paging File | "Paging File" is a multi-instance PDH category; 3-param (string,string,bool) constructor throws InvalidOperationException | ✓ Validated — 4-param PerformanceCounter("Paging File","% Usage","_Total",readOnly:true) works correctly |
+| No priming for PAG counter | "% Usage" is a ratio counter (PERF_RAW_FRACTION), returns valid data on first NextValue() — unlike CPU/GPU rate counters | ✓ Validated — first read returns accurate value; no priming call needed |
+| Double guard for no-pagefile | PerformanceCounterCategory.Exists() may return true even when pagefile is disabled (category registered but no instances); try/catch is the essential guard | ✓ Validated — -1f sentinel correctly set when counter construction fails |
 
 ---
-*Last updated: 2026-02-26 after v1.4 milestone start*
+*Last updated: 2026-02-26 after v1.4 milestone shipped*
