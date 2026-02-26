@@ -102,6 +102,7 @@ public partial class MainWindow : Window
         CpuRow.Visibility = s.CpuVisible ? Visibility.Visible : Visibility.Collapsed;
         GpuRow.Visibility = s.GpuVisible ? Visibility.Visible : Visibility.Collapsed;
         MemRow.Visibility = s.MemVisible ? Visibility.Visible : Visibility.Collapsed;
+        PagRow.Visibility = s.PagVisible ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>
@@ -119,7 +120,8 @@ public partial class MainWindow : Window
             StatsIntervalSeconds = _statsIntervalSeconds,
             CpuVisible = (CpuRow.Visibility == Visibility.Visible),
             GpuVisible = (GpuRow.Visibility == Visibility.Visible),
-            MemVisible = (MemRow.Visibility == Visibility.Visible)
+            MemVisible = (MemRow.Visibility == Visibility.Visible),
+            PagVisible = (PagRow.Visibility == Visibility.Visible)
         });
     }
 
@@ -194,6 +196,17 @@ public partial class MainWindow : Window
 
         MemText.Text = $"{_statsService.MemPercent:F0}%";
         MemBar.Width = StatsBarTrackWidth * (_statsService.MemPercent / 100.0);
+
+        if (_statsService.PagPercent < 0f)
+        {
+            PagText.Text = "N/A";
+            PagBar.Width = 0;
+        }
+        else
+        {
+            PagText.Text = $"{_statsService.PagPercent:F0}%";
+            PagBar.Width = StatsBarTrackWidth * (_statsService.PagPercent / 100.0);
+        }
     }
 
     private void PositionTopRight()
@@ -224,6 +237,7 @@ public partial class MainWindow : Window
         MenuCpuVisible.IsChecked = (CpuRow.Visibility == Visibility.Visible);
         MenuGpuVisible.IsChecked = (GpuRow.Visibility == Visibility.Visible);
         MenuMemVisible.IsChecked = (MemRow.Visibility == Visibility.Visible);
+        MenuPagVisible.IsChecked = (PagRow.Visibility == Visibility.Visible);
     }
 
     private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
@@ -242,7 +256,8 @@ public partial class MainWindow : Window
     private void MenuMemVisible_Click(object sender, RoutedEventArgs e)
         => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible);
 
-    private void MenuPagVisible_Click(object sender, RoutedEventArgs e) { }  // stub — wired in Plan 11-02
+    private void MenuPagVisible_Click(object sender, RoutedEventArgs e)
+        => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible);
 
     private void MenuInterval1_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(1);
     private void MenuInterval3_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(3);
@@ -295,12 +310,13 @@ public partial class MainWindow : Window
     {
         row.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
 
-        // Auto-collapse: if all three rows are now hidden and the stats panel is still visible,
+        // Auto-collapse: if all FOUR rows are now hidden and the stats panel is still visible,
         // collapse the entire panel. One-way trigger — re-showing a row does NOT auto-show the panel.
         if (!visible
             && CpuRow.Visibility == Visibility.Collapsed
             && GpuRow.Visibility == Visibility.Collapsed
             && MemRow.Visibility == Visibility.Collapsed
+            && PagRow.Visibility == Visibility.Collapsed
             && StatsPanel.Visibility == Visibility.Visible)
         {
             SetStatsVisible(false);
