@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26 — v1.6 Dial Mode shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.6 SHIPPED — planning next milestone
+**Current focus:** v1.7 Visual Polish — Phase 14, ready to plan
 
 ## Current Position
 
-Phase: 13 of 13 (Dial Mode)
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-02-26 — 13-02 complete (dial mode wiring, trig hand placement, human-verified all 5 DIAL criteria)
+Phase: 14 of ? (Visual Polish)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-02-26 — v1.7 milestone started (hover backdrop + drag pause)
 
-Progress: [##########] 100% (phase 13: 2/2 plans done — ALL PHASES COMPLETE)
+Progress: [----------] 0% (phase 14 not started)
 
 ## Performance Metrics
 
@@ -51,23 +51,9 @@ Progress: [##########] 100% (phase 13: 2/2 plans done — ALL PHASES COMPLETE)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions relevant to Phase 13:
+Recent decisions relevant to Phase 14:
 
-- [v1.5 Roadmap]: Phase 12 is a single self-contained change to MainWindow.xaml.cs only — no XAML changes, no AppSettings changes, no new fields
-- [v1.6 Roadmap]: AppSettings.DialMode bool field (default false) — init-property pattern, same as StatsVisible; false = phrase mode, true = dial mode
-- [v1.6 Roadmap]: DialCanvas lives in row 0 alongside PhraseTextBlock; toggling Visibility.Collapsed / Visible on each swaps display modes — no row insertion needed
-- [v1.6 Roadmap]: DialCanvas fixed 80x80 px; hour hand 25px from center, minute hand 35px from center; white 2px stroke WPF Line elements
-- [v1.6 Roadmap]: Hand angles: minute = (minute/60.0)*360; hour = ((hour%12)/12.0 + minute/720.0)*360 — analog interpolation, not snapped to hour marks
-- [v1.6 Roadmap]: Existing 10s phrase timer drives UpdateDialDisplay() in dial mode — 10s polling is fine since hands only visually change on the minute
-- [v1.6 Roadmap]: ContextMenu_Opened syncs MenuDialMode.IsChecked from _dialMode field — same single-sync-point pattern as all other checkmarks
-- [v1.6 Roadmap]: ApplySettings() sets PhraseTextBlock and DialCanvas Visibility directly (NOT via toggle method) — same safety invariant as StatsPanel before Show()
-- [v1.6 Roadmap]: Plan 13-01 autonomous (AppSettings field + XAML canvas + menu item stub); Plan 13-02 human checkpoint (wiring + trig + verify)
-- [13-01]: DialCanvas and PhraseText co-located in same inner Grid — Visibility toggling swaps display mode with no row insertion
-- [13-01]: No zero-guard for DialMode in Load() — bool false has no dangerous zero-equivalent unlike StatsIntervalSeconds int
-- [13-01]: Empty MenuDialMode_Click stub in plan 01 keeps build clean; full implementation deferred to plan 02
-- [13-02]: Existing 10s phrase timer drives UpdateDialDisplay() in dial mode — no separate timer needed since hands only change meaningfully on the minute
-- [13-02]: ApplySettings() sets Visibility directly (NOT via SetDialMode) to preserve pre-Show() safety invariant
-- [13-02]: SetDialMode() calls SaveSettings() immediately so every toggle is persisted
+None yet — awaiting plan creation.
 
 ### Pending Todos
 
@@ -80,6 +66,6 @@ None — v1.6 complete and archived.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: v1.6 milestone archived — all 5 DIAL criteria shipped and verified
+Stopped at: v1.7 milestone started — hover backdrop + drag pause requirements defined
 Resume file: None
-Next action: /gsd:new-milestone
+Next action: /gsd:plan-phase 14

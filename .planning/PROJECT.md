@@ -64,9 +64,12 @@ All v1.6 requirements delivered. Dial mode human-verified (all 5 DIAL criteria p
 - ✓ The stats panel remains visible below the dial when stats are enabled (DIAL-04) — v1.6
 - ✓ The selected clock mode (phrase/dial) persists to settings.json and restores on launch (DIAL-05) — v1.6
 
-### Active
+### Active (v1.7)
 
-(None — v1.6 complete)
+- [ ] BACK-01: When the stats panel is visible and the mouse is over the widget, a semi-transparent backdrop (~35% black alpha) appears behind the widget
+- [ ] BACK-02: When the mouse leaves the widget (and stats are visible), the backdrop returns to fully transparent
+- [ ] BACK-03: When the stats panel is hidden, the widget background is always fully transparent regardless of hover state
+- [ ] DRAG-01: While dragging the widget, stats updates pause; they resume immediately when the drag completes
 
 ### Deferred (v2+)
 
@@ -145,4 +148,4 @@ All v1.6 requirements delivered. Dial mode human-verified (all 5 DIAL criteria p
 | Existing 10s phrase timer drives UpdateDialDisplay() | Hands only change visually on the minute; 10s polling is sufficient — no second timer needed | ✓ Validated — dial updates correctly at sub-minute poll rate; no extra timer complexity |
 
 ---
-*Last updated: 2026-02-26 — v1.6 Dial Mode shipped*
+*Last updated: 2026-02-26 — v1.7 Visual Polish milestone started*
