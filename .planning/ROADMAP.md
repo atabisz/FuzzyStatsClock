@@ -223,8 +223,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01: AppSettings.DialMode init-property + XAML DialCanvas with HourHand/MinuteHand Line elements + MenuDialMode IsCheckable MenuItem in context menu
-- [ ] 13-02: Wire MenuDialMode_Click toggle, ApplySettings/SaveSettings DialMode field, UpdateDialDisplay() hand angle trig, phrase timer drives dial updates, ContentRendered initial draw, ContextMenu_Opened checkmark sync; human verify all 5 checks
+- [ ] 13-01-PLAN.md — AppSettings.DialMode init-property + XAML DialCanvas with HourHand/MinuteHand Line elements + MenuDialMode IsCheckable MenuItem stub
+- [ ] 13-02-PLAN.md — Wire SetDialMode/UpdateDialDisplay trig, timer hook, ApplySettings/SaveSettings/ContextMenu_Opened integration; human verify all 5 DIAL criteria
 
 ## Progress
 
