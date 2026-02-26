@@ -279,6 +279,9 @@ public partial class MainWindow : Window
         MenuPagVisible.IsChecked = (PagRow.Visibility == Visibility.Visible);
         MenuDialMode.IsChecked = _dialMode;
 
+        // MENU-01: Font Size submenu visible only in phrase mode (inverse of DIAL-09)
+        MenuFontSize.Visibility = _dialMode ? Visibility.Collapsed : Visibility.Visible;
+
         // DIAL-09: Dial Face submenu visible only in dial mode
         MenuDialFace.Visibility       = _dialMode ? Visibility.Visible : Visibility.Collapsed;
         MenuShowHourTicks.IsChecked   = _showHourTicks;
@@ -466,6 +469,9 @@ public partial class MainWindow : Window
 
         // DIAL-09: hide/show Dial Face submenu on mode switch
         MenuDialFace.Visibility = dialMode ? Visibility.Visible : Visibility.Collapsed;
+
+        // MENU-01: hide Font Size submenu in dial mode, restore in phrase mode
+        MenuFontSize.Visibility = dialMode ? Visibility.Collapsed : Visibility.Visible;
 
         if (dialMode) UpdateDialDisplay();
 

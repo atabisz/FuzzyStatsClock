@@ -21,7 +21,7 @@
           MouseLeftButtonDown="Grid_MouseLeftButtonDown">
         <Grid.ContextMenu>
             <ContextMenu Opened="ContextMenu_Opened">
-                <MenuItem Header="Font Size">
+                <MenuItem x:Name="MenuFontSize" Header="Font Size">
                     <MenuItem x:Name="FontSmall"  Header="Small (16pt)"  IsCheckable="True" Click="FontSmall_Click" />
                     <MenuItem x:Name="FontMedium" Header="Medium (24pt)" IsCheckable="True" Click="FontMedium_Click" />
                     <MenuItem x:Name="FontLarge"  Header="Large (32pt)"  IsCheckable="True" Click="FontLarge_Click" />
