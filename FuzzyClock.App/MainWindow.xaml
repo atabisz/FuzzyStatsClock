@@ -70,8 +70,9 @@
             </Grid.RowDefinitions>
 
             <!-- Row 0: phrase display — unchanged from prior state -->
-            <Border Grid.Row="0"
-                    Background="#26000000"
+            <Border x:Name="ContentBorder"
+                    Grid.Row="0"
+                    Background="Transparent"
                     CornerRadius="5"
                     Padding="6">
                 <Grid>

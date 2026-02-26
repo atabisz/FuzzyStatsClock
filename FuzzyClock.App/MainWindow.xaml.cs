@@ -155,12 +155,19 @@ public partial class MainWindow : Window
 
     private void Grid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // Pause stats during drag — DragMove() is a blocking Win32 modal loop.
+        // Stop timer before, restart after if it was running (don't start it if stats are hidden).
+        bool statsTimerWasRunning = _statsTimer?.IsEnabled ?? false;
+        if (statsTimerWasRunning) _statsTimer!.Stop();
+
         // DragMove() is a blocking Win32 modal loop — it returns only when the mouse button
         // is released. Left and Top reflect the final dropped position immediately after return.
         // Do NOT defer with BeginInvoke or await — DragMove() throws if the left button is
         // not held down at the Win32 level at the moment of the call.
         DragMove();
         // LocationChanged fires during DragMove — _hasUserPosition is already true here.
+
+        if (statsTimerWasRunning) _statsTimer!.Start();
         SaveSettings();
     }
 
@@ -327,19 +334,30 @@ public partial class MainWindow : Window
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
         if (StatsPanel.Visibility != Visibility.Visible) return;
-        if (_statsTimer == null || !_statsTimer.IsEnabled) return;
-        _statsTimer.Stop();
-        _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
-        _statsTimer.Start();
+        // Fast-refresh (Phase 12): accelerate stats timer
+        if (_statsTimer != null && _statsTimer.IsEnabled)
+        {
+            _statsTimer.Stop();
+            _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
+            _statsTimer.Start();
+        }
+        // Backdrop (Phase 14): show semi-transparent background when stats visible
+        ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
         if (StatsPanel.Visibility != Visibility.Visible) return;
-        if (_statsTimer == null) return;
-        _statsTimer.Stop();
-        _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
-        _statsTimer.Start();
+        // Fast-refresh restore (Phase 12): restore configured interval
+        if (_statsTimer != null)
+        {
+            _statsTimer.Stop();
+            _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
+            _statsTimer.Start();
+        }
+        // Backdrop restore (Phase 14): always return to transparent on leave
+        ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
     }
 
     private void SetStatRowVisible(Grid row, bool visible)
