@@ -322,7 +322,10 @@ Plans:
   2. Widget launched with a freshly deleted settings.json uses AccentColor="#FFFFFFFF" and Opacity=1.0 as defaults without any code needing to handle null fields
   3. AccentColor and Opacity values written by SaveSettings() are read back correctly on the next launch, preserving any non-default values
   4. A settings.json with Opacity=0.0 (C# double default from malformed JSON) is corrected to 1.0 on load by the guard, preventing the invisible-widget regression
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 18-01-PLAN.md — Extend AppSettings record with AccentColor/Opacity fields; update SettingsService Defaults() and Load() guards; verify round-trip
 
 ### Phase 19: Window Opacity
 **Goal**: Users can set the widget's overall transparency from the right-click menu or by scrolling, and find their chosen opacity restored on every launch
