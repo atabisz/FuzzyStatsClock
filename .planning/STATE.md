@@ -2,26 +2,26 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 — v1.8 Dial Enhancement milestone started)
+See: .planning/PROJECT.md (updated 2026-02-26 — v1.8 Dial Enhancement milestone complete)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.8 Dial Enhancement — Phase 16: Dial Face Decorations
+**Current focus:** v1.8 Dial Enhancement — COMPLETE (Phase 16 plan 2/2 done)
 
 ## Current Position
 
 Phase: 16 — Dial Face Decorations
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-26 — 16-01 complete (dial face decorations: ticks, dots, hour numbers + Dial Face submenu)
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-02-26 — 16-02 complete (human-verified DIAL-06/07/08/09; v1.8 milestone closed)
 
-Progress: [######----] 60% (v1.8: 1/2 phases, plan 1/2)
+Progress: [##########] 100% (v1.8: 2/2 phases complete, all plans done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: 2.7 min
-- Total execution time: 54 min
+- Total execution time: 55 min
 
 **By Phase:**
 
@@ -41,10 +41,10 @@ Progress: [######----] 60% (v1.8: 1/2 phases, plan 1/2)
 | 13. Dial Mode | 2 | 8 min | 4 min |
 | 14. Hover Backdrop + Drag Pause | 1 | 5 min | 5 min |
 | 15. Unconditional Hover Backdrop | 1 | 5 min | 5 min |
-| 16. Dial Face Decorations (partial) | 1 | 3 min | 3 min |
+| 16. Dial Face Decorations | 2 | 4 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 13-02 (5 min), 14-01 (5 min), 15-01 (5 min), 16-01 (3 min)
+- Last 5 plans: 14-01 (5 min), 15-01 (5 min), 16-01 (3 min), 16-02 (1 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -54,7 +54,7 @@ Progress: [######----] 60% (v1.8: 1/2 phases, plan 1/2)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions (Phase 16 plan 01 complete):
+Recent decisions (Phase 16 plan 02 complete — v1.8 closed):
 
 - Phase 14 scope: Remove hardcoded #26000000 from Border; transparent by default; #59000000 on hover+stats-visible; driven by existing MouseEnter/MouseLeave handlers
 - Phase 14 drag pause: Stop _statsTimer before DragMove(), restart after, only when timer was running
@@ -64,6 +64,7 @@ Recent decisions (Phase 16 plan 01 complete):
 - Phase 16 decorations default false — preserves minimal dial for existing users without settings migration
 - Decoration elements created once (84 total) and Visibility-toggled, not add/remove — avoids re-layout cost on toggle
 - MenuDialFace.Visibility not set in XAML — code-behind controls it in both ContextMenu_Opened and SetDialMode
+- Phase 16-02: All five dial face criteria passed human verification on first attempt — no rework needed
 
 ### v1.8 Roadmap Decisions
 
@@ -81,6 +82,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 16-01-PLAN.md — dial face decorations implemented (ticks, dots, numbers, submenu)
+Stopped at: Completed 16-02-PLAN.md — dial face decorations human-verified (DIAL-06/07/08/09 all pass); v1.8 milestone complete
 Resume file: None
-Next action: /gsd:execute-phase 16 (plan 02 — human verification checkpoint)
+Next action: v1.9 planning (if desired) — project is at a clean milestone boundary

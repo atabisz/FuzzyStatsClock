@@ -10,7 +10,7 @@
 - **v1.5 Hover Fast-Refresh** (2026-02-26) — Mouse-hover accelerates stats to 0.5s cadence; leave restores configured rate; guarded when stats hidden. 1 phase, 1 plan. → [Archive](milestones/v1.5-ROADMAP.md)
 - **v1.6 Dial Mode** (2026-02-26) — Minimal analog dial (hour + minute hands, no face) toggle via right-click menu; persisted; stats panel unaffected. 1 phase, 2 plans. → [Archive](milestones/v1.6-ROADMAP.md)
 - **v1.7 Visual Polish** (2026-02-26) — Hover backdrop (semi-transparent when stats visible), drag pause. 1 phase, 1 plan. → [Archive](milestones/v1.7-ROADMAP.md)
-- **v1.8 Dial Enhancement** (in progress) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases.
+- **v1.8 Dial Enhancement** (2026-02-26) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases, 3 plans.
 
 ## Phases
 
@@ -110,10 +110,10 @@ Plans:
 
 - [x] **Phase 14: Hover Backdrop + Drag Pause** — Removed hardcoded #26000000 Border background; added hover-conditional #59000000 backdrop when stats visible; _statsTimer stop/start guard around DragMove(); all four requirements (BACK-01/02/03, DRAG-01) human-verified (completed 2026-02-26)
 
-### v1.8 Dial Enhancement (Phases 15-16)
+### ✅ v1.8 Dial Enhancement (Phases 15-16) — SHIPPED 2026-02-26
 
 - [x] **Phase 15: Unconditional Hover Backdrop** — Moved ContentBorder.Background assignment before StatsPanel.Visibility guard in Window_MouseEnter; backdrop now shows on hover unconditionally; BACK-04 human-verified (completed 2026-02-26)
-- [ ] **Phase 16: Dial Face Decorations** — XAML geometry for hour tick marks, minute dots, and hour number labels on DialCanvas; AppSettings bool fields; Dial submenu with three IsCheckable items; menu items hidden in phrase mode; persistence; DIAL-06, DIAL-07, DIAL-08, DIAL-09
+- [x] **Phase 16: Dial Face Decorations** — XAML geometry for hour tick marks, minute dots, and hour number labels on DialCanvas; AppSettings bool fields; Dial submenu with three IsCheckable items; menu items hidden in phrase mode; persistence; DIAL-06, DIAL-07, DIAL-08, DIAL-09 (completed 2026-02-26)
 
 ## Phase Details
 
@@ -279,8 +279,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Add AppSettings fields (ShowHourTicks/ShowMinuteDots/ShowHourNumbers); XAML Dial Face submenu; InitDialDecorations() + toggle methods + full wiring in MainWindow.xaml.cs
-- [ ] 16-02-PLAN.md — Human verify all five DIAL-06/07/08/09 success criteria
+- [x] 16-01-PLAN.md — Add AppSettings fields (ShowHourTicks/ShowMinuteDots/ShowHourNumbers); XAML Dial Face submenu; InitDialDecorations() + toggle methods + full wiring in MainWindow.xaml.cs
+- [x] 16-02-PLAN.md — Human verify all five DIAL-06/07/08/09 success criteria
 
 ## Progress
 
@@ -301,7 +301,7 @@ Plans:
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
 | 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
 | 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
-| 16. Dial Face Decorations | 1/2 | In Progress|  | - |
+| 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
 
 ---
-*Last updated: 2026-02-26 — Phase 15 complete (BACK-04); Phase 16 Dial Face Decorations planned (2 plans)*
+*Last updated: 2026-02-26 — Phase 16 complete (DIAL-06/07/08/09 human-verified); v1.8 Dial Enhancement milestone closed*

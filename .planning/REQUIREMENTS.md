@@ -58,4 +58,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 — BACK-04 complete (Phase 15); 4 remaining requirements in Phase 16*
+*Last updated: 2026-02-26 — All v1 requirements complete (BACK-04 Phase 15, DIAL-06/07/08/09 Phase 16); v1.8 milestone closed*
