@@ -126,7 +126,7 @@ Plans:
 
 ### v2.0 Visual Identity (Phases 18-21) — IN PROGRESS
 
-- [ ] **Phase 18: AppSettings Schema Extension** — Add AccentColor (hex string, default #FFFFFFFF) and Opacity (double, default 1.0) fields with backward-compat init defaults and load-time guards; verified round-trip with v1.9 settings.json
+- [x] **Phase 18: AppSettings Schema Extension** — Add AccentColor (hex string, default #FFFFFFFF) and Opacity (double, default 1.0) fields with backward-compat init defaults and load-time guards; schema locked for Phases 19-21 (completed 2026-02-27)
 - [ ] **Phase 19: Window Opacity** — Opacity submenu (25/50/75/100%), scroll wheel adjustment (10% increments, 0.10 floor), Window.Opacity applied to entire widget window, persisted and restored
 - [ ] **Phase 20: Accent Color Presets** — ApplyTheme() covering all 14+ accent elements, Theme submenu with 5 named presets, checkmark sync in ContextMenu_Opened, ContentRendered ordering constraint enforced, persisted as hex string
 - [ ] **Phase 21: Custom Color Picker** — UseWindowsForms=true in csproj, Win32Window HWND owner helper, ColorDialog integration, custom color persists as hex, no preset checkmark when custom active
@@ -325,7 +325,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 18-01-PLAN.md — Extend AppSettings record with AccentColor/Opacity fields; update SettingsService Defaults() and Load() guards; verify round-trip
+- [x] 18-01-PLAN.md — Extend AppSettings record with AccentColor/Opacity fields; update SettingsService Defaults() and Load() guards; verify round-trip
 
 ### Phase 19: Window Opacity
 **Goal**: Users can set the widget's overall transparency from the right-click menu or by scrolling, and find their chosen opacity restored on every launch
@@ -382,10 +382,10 @@ Plans:
 | 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
 | 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
 | 17. Context-Aware Font Size Menu | v1.9 | 2/2 | Complete | 2026-02-26 |
-| 18. AppSettings Schema Extension | v2.0 | 0/? | Not started | - |
+| 18. AppSettings Schema Extension | v2.0 | 1/1 | Complete | 2026-02-27 |
 | 19. Window Opacity | v2.0 | 0/? | Not started | - |
 | 20. Accent Color Presets | v2.0 | 0/? | Not started | - |
 | 21. Custom Color Picker | v2.0 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-27 — v2.0 Visual Identity roadmap created*
+*Last updated: 2026-02-27 — Phase 18 complete; AppSettings schema locked with AccentColor and Opacity fields*

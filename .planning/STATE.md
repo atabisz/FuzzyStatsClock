@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27 after v2.0 milestone started)
 ## Current Position
 
 Phase: 18 — AppSettings Schema Extension
-Plan: —
-Status: Not started
-Last activity: 2026-02-27 — v2.0 roadmap created; Phase 18 is next
+Plan: 01 complete
+Status: Phase complete
+Last activity: 2026-02-27 — Phase 18 complete; AppSettings schema extended with AccentColor and Opacity
 
-Progress: [░░░░░░░░░░] 0% (v2.0: 0/4 phases)
+Progress: [██░░░░░░░░] 25% (v2.0: 1/4 phases)
 
 ## Performance Metrics
 
@@ -44,8 +44,10 @@ Progress: [░░░░░░░░░░] 0% (v2.0: 0/4 phases)
 | 16. Dial Face Decorations | 2 | 4 min | 2 min |
 | 17. Context-Aware Font Size Menu | 2 | 2 min | 1 min |
 
+| 18. AppSettings Schema Extension | 1 | 1 min | 1 min |
+
 **Recent Trend:**
-- Last 5 plans: 16-01 (3 min), 16-02 (1 min), 17-01 (1 min), 17-02 (1 min)
+- Last 5 plans: 16-02 (1 min), 17-01 (1 min), 17-02 (1 min), 18-01 (1 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -60,6 +62,7 @@ Recent decisions relevant to current state:
 - Phase 16 DIAL-09 pattern: MenuDialFace.Visibility controlled from ContextMenu_Opened and SetDialMode in code-behind
 - Phase 17 MENU-01 pattern: MenuFontSize.Visibility = inverse of DIAL-09 (dialMode ? Collapsed : Visible); synced in same two hooks
 - ApplySettings() never touches menu item visibility — menus only exist post-Show(); font size preference (_currentFontSize) unchanged by mode switches
+- Phase 18 complete: AccentColor as hex string ("#FFFFFFFF", 8-digit AARRGGBB) and Opacity (double, 1.0) added to AppSettings; Defaults() and Load() guards updated — schema locked for Phases 19-21
 - v2.0 AppSettings additions: AccentColor as hex string (not Color struct — System.Text.Json cannot natively serialize WPF Color); Opacity as double with init default 1.0 (C# type default 0.0 would make widget invisible on upgrade)
 - v2.0 ordering constraint: ApplySettings() sets _accentColor only; ContentRendered calls ApplyTheme() after InitDialDecorations() — calling ApplyTheme() before decoration lists are populated silently skips ticks/dots/numbers
 - v2.0 brush pattern: always use new SolidColorBrush(_accentColor) — never mutate Brushes.* static instances (they are frozen and throw on mutation)
@@ -79,6 +82,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: v2.0 roadmap created — Phases 18–21 defined and written to ROADMAP.md
+Stopped at: Completed 18-appsettings-schema-extension/18-01-PLAN.md
 Resume file: None
-Next action: /gsd:plan-phase 18
+Next action: /gsd:plan-phase 19

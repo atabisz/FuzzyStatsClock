@@ -12,14 +12,14 @@ Requirements for v2.0 Visual Identity milestone. Each maps to roadmap phases.
 - [ ] **THEME-01**: User can select a built-in accent color preset (White, Amber, Ice Blue, Green, Hello Kitty Pink) via a right-click Theme submenu; current preset shown as checked
 - [ ] **THEME-02**: User can set a custom accent color via a color picker dialog ("Custom..." entry in the Theme submenu)
 - [ ] **THEME-03**: Active accent color is applied consistently to phrase text, dial hands and decorations (ticks, dots, numbers), and stats bars and percentage text
-- [ ] **THEME-04**: Active theme (preset name or custom hex color) persists to settings.json and restores on launch
+- [x] **THEME-04**: Active theme (preset name or custom hex color) persists to settings.json and restores on launch
 
 ### Opacity
 
 - [ ] **OPAC-01**: User can set widget opacity to 25%, 50%, 75%, or 100% via a right-click Opacity submenu; current level shown as checked
 - [ ] **OPAC-02**: User can adjust widget opacity in 10% increments by scrolling the mouse wheel over the widget
 - [ ] **OPAC-03**: Opacity applies to the entire widget window (phrase, dial, stats panel, hover backdrop)
-- [ ] **OPAC-04**: Opacity setting persists to settings.json and restores on launch
+- [x] **OPAC-04**: Opacity setting persists to settings.json and restores on launch
 
 ## Future Requirements
 
@@ -61,11 +61,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | THEME-01 | Phase 20 | Pending |
 | THEME-02 | Phase 21 | Pending |
 | THEME-03 | Phase 20 | Pending |
-| THEME-04 | Phase 18 | Pending |
+| THEME-04 | Phase 18 | Complete |
 | OPAC-01 | Phase 19 | Pending |
 | OPAC-02 | Phase 19 | Pending |
 | OPAC-03 | Phase 19 | Pending |
-| OPAC-04 | Phase 18 | Pending |
+| OPAC-04 | Phase 18 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 8 total
