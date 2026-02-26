@@ -241,10 +241,10 @@ Plans:
   2. Moving the mouse away from the widget (with stats visible) immediately returns the background to fully transparent
   3. With the stats panel hidden, the widget background remains fully transparent regardless of whether the mouse is over the widget
   4. While dragging the widget, stat values do not update; immediately after releasing the drag, stats resume updating at the configured interval
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 14-01: Remove hardcoded Border background from XAML; update Window_MouseEnter to set #59000000 backdrop when stats visible, Window_MouseLeave to restore transparent; update DragMove handler to stop timer before and restart after; human verify all 4 criteria
+- [ ] 14-01-PLAN.md — Remove hardcoded Border background; wire hover backdrop (#59000000) in MouseEnter/MouseLeave; guard DragMove with timer stop/start; human verify all 4 criteria
 
 ## Progress
 
