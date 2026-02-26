@@ -16,5 +16,7 @@ public record AppSettings
     public bool   ShowHourTicks        { get; init; } = false;
     public bool   ShowMinuteDots       { get; init; } = false;
     public bool   ShowHourNumbers      { get; init; } = false;
+    public string AccentColor          { get; init; } = "#FFFFFFFF";  // AARRGGBB hex; default = White (matches existing Foreground="White" in XAML)
+    public double Opacity              { get; init; } = 1.0;          // 0.0–1.0; default = fully opaque
 }
 // Left = -1 is the sentinel for "no saved position — use PositionTopRight() fallback"
