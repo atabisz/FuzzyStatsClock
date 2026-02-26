@@ -100,7 +100,7 @@ Plans:
 
 **Milestone Goal:** Users can switch to a minimal analog dial (hour + minute hands only, no face) via the right-click menu, with the choice persisted across restarts and the stats panel unaffected.
 
-- [ ] **Phase 13: Dial Mode** — AppSettings.DialMode field + XAML DialCanvas with hour/minute Line elements + context menu toggle + wiring + persistence + human verify
+- [x] **Phase 13: Dial Mode** — AppSettings.DialMode field + XAML DialCanvas with hour/minute Line elements + context menu toggle + wiring + persistence + human verify (completed 2026-02-26)
 
 ## Phase Details
 
@@ -242,7 +242,7 @@ Plans:
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
-| 13. Dial Mode | 1/2 | In Progress|  | - |
+| 13. Dial Mode | 2/2 | Complete   | 2026-02-26 | - |
 
 ---
 *Last updated: 2026-02-26 — v1.6 milestone roadmap created (Phase 13: Dial Mode)*

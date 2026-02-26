@@ -11,7 +11,7 @@ Requirements for v1.6 release. Each maps to a roadmap phase.
 
 - [x] **DIAL-01**: User can switch between phrase mode and dial mode via the right-click context menu
 - [x] **DIAL-02**: In dial mode, the widget displays hour and minute hands on a transparent background (no face, no circle, no numbers — hands only)
-- [ ] **DIAL-03**: Hands update every minute to accurately reflect the current hour and minute position
+- [x] **DIAL-03**: Hands update every minute to accurately reflect the current hour and minute position
 - [x] **DIAL-04**: The stats panel remains visible below the dial when stats are enabled
 - [x] **DIAL-05**: The selected clock mode (phrase/dial) persists to settings.json and restores on launch
 
@@ -50,7 +50,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DIAL-01 | Phase 13 | Complete |
 | DIAL-02 | Phase 13 | Complete |
-| DIAL-03 | Phase 13 | Pending |
+| DIAL-03 | Phase 13 | Complete |
 | DIAL-04 | Phase 13 | Complete |
 | DIAL-05 | Phase 13 | Complete |
 

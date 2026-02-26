@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26 — v1.6 roadmap created)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.6 Dial Mode — Phase 13, plan 01 complete
+**Current focus:** v1.6 Dial Mode — Phase 13 COMPLETE
 
 ## Current Position
 
 Phase: 13 of 13 (Dial Mode)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-26 — 13-01 complete (DialMode field, DialCanvas, MenuDialMode scaffold)
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-02-26 — 13-02 complete (dial mode wiring, trig hand placement, human-verified all 5 DIAL criteria)
 
-Progress: [#####-----] 50% (phase 13: 1/2 plans done)
+Progress: [##########] 100% (phase 13: 2/2 plans done — ALL PHASES COMPLETE)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 2.5 min
-- Total execution time: 36 min
+- Total plans completed: 15
+- Average duration: 2.7 min
+- Total execution time: 41 min
 
 **By Phase:**
 
@@ -38,10 +38,10 @@ Progress: [#####-----] 50% (phase 13: 1/2 plans done)
 | 9. Controls Persistence and Edge Cases | 1 | 15 min | 15 min |
 | 11. PAG Stat Row | 2 | 3 min | 1.5 min |
 | 12. Hover Fast-Refresh | 1 | 2 min | 2 min |
-| 13. Dial Mode | 1/2 | 3 min | 3 min |
+| 13. Dial Mode | 2/2 | 8 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 11-01 (2 min), 11-02 (1 min), 12-01 (2 min), 13-01 (3 min), — (next: 13-02)
+- Last 5 plans: 11-02 (1 min), 12-01 (2 min), 13-01 (3 min), 13-02 (5 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -65,6 +65,9 @@ Recent decisions relevant to Phase 13:
 - [13-01]: DialCanvas and PhraseText co-located in same inner Grid — Visibility toggling swaps display mode with no row insertion
 - [13-01]: No zero-guard for DialMode in Load() — bool false has no dangerous zero-equivalent unlike StatsIntervalSeconds int
 - [13-01]: Empty MenuDialMode_Click stub in plan 01 keeps build clean; full implementation deferred to plan 02
+- [13-02]: Existing 10s phrase timer drives UpdateDialDisplay() in dial mode — no separate timer needed since hands only change meaningfully on the minute
+- [13-02]: ApplySettings() sets Visibility directly (NOT via SetDialMode) to preserve pre-Show() safety invariant
+- [13-02]: SetDialMode() calls SaveSettings() immediately so every toggle is persisted
 
 ### Pending Todos
 
@@ -77,6 +80,6 @@ None — v1.5 complete and archived; Phase 13 scope is well-defined.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 13-01-PLAN.md — DialMode scaffold (AppSettings field, DialCanvas, MenuDialMode stub)
+Stopped at: Completed 13-02-PLAN.md — Dial mode fully wired, trig hand placement, human-verified all 5 DIAL criteria
 Resume file: None
-Next action: Execute plan 13-02 (dial mode wiring + trig + human verify)
+Next action: Phase 13 complete — v1.6 Dial Mode shipped. All phases complete.
