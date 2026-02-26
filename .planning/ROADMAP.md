@@ -263,7 +263,7 @@ Plans:
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
-| 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
+| 14. Hover Backdrop + Drag Pause | v1.7 | Complete    | 2026-02-26 | 2026-02-26 |
 
 ---
 *Last updated: 2026-02-26 — v1.7 Visual Polish shipped (Phase 14 complete)*
