@@ -120,6 +120,10 @@ Plans:
 
 - [ ] **Phase 17: Context-Aware Font Size Menu** — Font Size submenu hidden when dial mode is active; reappears when switching to phrase mode; mirrors the DIAL-09 pattern established in Phase 16
 
+Plans:
+- [ ] 17-01-PLAN.md — Add x:Name="MenuFontSize" to XAML and wire MenuFontSize.Visibility in ContextMenu_Opened and SetDialMode
+- [ ] 17-02-PLAN.md — Human verify all four MENU-01 success criteria
+
 ## Phase Details
 
 ### Phase 6: AppSettings Migration
@@ -296,7 +300,11 @@ Plans:
   2. Switching to dial mode via the right-click "Dial Mode" item causes the Font Size submenu to disappear from the menu on the next and all subsequent menu opens
   3. Switching back to phrase mode causes the Font Size submenu to reappear in the menu on the next open
   4. Font size preference is preserved across mode switches — switching to dial mode and back to phrase mode shows the same font size as before
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 17-01-PLAN.md — Add x:Name="MenuFontSize" to XAML and wire MenuFontSize.Visibility in ContextMenu_Opened and SetDialMode
+- [ ] 17-02-PLAN.md — Human verify all four MENU-01 success criteria
 
 ## Progress
 
