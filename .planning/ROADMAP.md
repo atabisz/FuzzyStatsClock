@@ -382,7 +382,7 @@ Plans:
 | 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
 | 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
 | 17. Context-Aware Font Size Menu | v1.9 | 2/2 | Complete | 2026-02-26 |
-| 18. AppSettings Schema Extension | v2.0 | 1/1 | Complete | 2026-02-27 |
+| 18. AppSettings Schema Extension | v2.0 | Complete    | 2026-02-26 | 2026-02-27 |
 | 19. Window Opacity | v2.0 | 0/? | Not started | - |
 | 20. Accent Color Presets | v2.0 | 0/? | Not started | - |
 | 21. Custom Color Picker | v2.0 | 0/? | Not started | - |
