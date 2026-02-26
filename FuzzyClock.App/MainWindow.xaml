@@ -54,6 +54,10 @@
                         <MenuItem x:Name="MenuInterval10" Header="10 seconds" IsCheckable="True" Click="MenuInterval10_Click" />
                     </MenuItem>
                 </MenuItem>
+                <MenuItem x:Name="MenuDialMode"
+                          Header="Dial Mode"
+                          IsCheckable="True"
+                          Click="MenuDialMode_Click" />
                 <MenuItem Header="Close" Click="CloseMenuItem_Click" />
             </ContextMenu>
         </Grid.ContextMenu>
@@ -92,6 +96,23 @@
                                FontFamily="Segoe UI Light"
                                FontSize="32"
                                Foreground="White" />
+
+                    <!-- DialCanvas: 80x80 analog clock hands — toggled visible in dial mode.
+                         Sits in the same inner Grid as PhraseText; both cannot be visible simultaneously.
+                         Center = (40,40). Hand X1/Y1 are set from center; X2/Y2 computed via trig in code-behind.
+                         Initial X2/Y2 = 0,0 — code-behind UpdateDialDisplay() sets correct values before Show(). -->
+                    <Canvas x:Name="DialCanvas"
+                            Width="80" Height="80"
+                            Visibility="Collapsed">
+                        <Line x:Name="HourHand"
+                              X1="40" Y1="40" X2="40" Y2="40"
+                              Stroke="White" StrokeThickness="2"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        <Line x:Name="MinuteHand"
+                              X1="40" Y1="40" X2="40" Y2="40"
+                              Stroke="White" StrokeThickness="2"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                    </Canvas>
                 </Grid>
             </Border>
 

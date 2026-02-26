@@ -386,4 +386,6 @@ public partial class MainWindow : Window
         SaveSettings();
         base.OnClosing(e);
     }
+
+    private void MenuDialMode_Click(object sender, RoutedEventArgs e) { }
 }
