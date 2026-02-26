@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-26 — v1.9 Context-Aware Menus milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.9 Context-Aware Menus — Phase 17 ready to plan
+**Current focus:** v1.9 Context-Aware Menus — Phase 17 complete, milestone shipped
 
 ## Current Position
 
 Phase: 17 of 17 (Context-Aware Font Size Menu)
-Plan: 1 of 1 in current phase
+Plan: 2 of 2 in current phase
 Status: Complete
-Last activity: 2026-02-26 — Phase 17 Plan 01 complete (MENU-01 shipped)
+Last activity: 2026-02-26 — Phase 17 Plan 02 complete (MENU-01 human-verified, v1.9 milestone closed)
 
-Progress: [██████████] 100% (v1.9: 1/1 plans complete)
+Progress: [██████████] 100% (v1.9: 2/2 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20 (v1.0 through v1.9)
+- Total plans completed: 21 (v1.0 through v1.9)
 - Average duration: 2.8 min
 - Total execution time: 56 min
 
@@ -42,10 +42,10 @@ Progress: [██████████] 100% (v1.9: 1/1 plans complete)
 | 14. Hover Backdrop + Drag Pause | 1 | 5 min | 5 min |
 | 15. Unconditional Hover Backdrop | 1 | 5 min | 5 min |
 | 16. Dial Face Decorations | 2 | 4 min | 2 min |
-| 17. Context-Aware Font Size Menu | 1 | 1 min | 1 min |
+| 17. Context-Aware Font Size Menu | 2 | 2 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 15-01 (5 min), 16-01 (3 min), 16-02 (1 min), 17-01 (1 min)
+- Last 5 plans: 16-01 (3 min), 16-02 (1 min), 17-01 (1 min), 17-02 (1 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -72,6 +72,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 17-01-PLAN.md — Phase 17 complete, v1.9 milestone shipped
+Stopped at: Completed 17-02-PLAN.md — Phase 17 fully verified, v1.9 milestone closed
 Resume file: None
 Next action: None — v1.9 complete
