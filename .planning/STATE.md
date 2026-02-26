@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-26 after v1.4 shipped)
 Phase: 12 — Hover Fast-Refresh
 Plan: —
 Status: Roadmap created, ready to plan Phase 12
-Last activity: 2026-02-26 — v1.5 milestone started
+Last activity: 2026-02-26 — v1.5 milestone started, Phase 12 roadmap written
 
 Progress: [----------] 0% (phase 12 not started)
 
@@ -104,6 +104,10 @@ Recent decisions affecting current work:
 - [Phase 11-02]: MenuPagVisible_Click reads PagRow.Visibility (NOT IsChecked) — WPF IsCheckable auto-toggles before handler fires; same pattern as CPU/GPU/MEM handlers
 - [Phase 11-02]: PagRow.Visibility set directly in ApplySettings() NOT via SetStatRowVisible() — unsafe before Show() where ActualHeight is 0; established pattern for all rows
 - [Phase 11-02]: SetStatRowVisible auto-collapse updated from 3-row to 4-row check — minimal change, PagRow.Visibility == Visibility.Collapsed added to condition
+- [v1.5 Roadmap]: Phase 12 is a single self-contained change to MainWindow.xaml.cs only — no XAML changes, no AppSettings changes, no new fields
+- [v1.5 Roadmap]: MouseEnter/MouseLeave handlers use Stop+set+Start pattern on _statsTimer — same pattern as SetStatsInterval(); immediate effect on interval change
+- [v1.5 Roadmap]: Guard condition checks StatsPanel.Visibility == Visibility.Visible before any timer interaction — hover does nothing when stats are hidden
+- [v1.5 Roadmap]: _statsIntervalSeconds field is the source of truth for the configured rate; hover must not modify it (only temporarily change the running timer interval)
 
 ### Pending Todos
 
@@ -116,6 +120,6 @@ None — v1.4 complete and archived.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: v1.4 milestone archived — Phase 11 complete, git tagged v1.4
+Stopped at: v1.5 milestone Phase 12 roadmap created
 Resume file: None
 Next action: /gsd:plan-phase 12

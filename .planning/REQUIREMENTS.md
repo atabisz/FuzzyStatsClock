@@ -54,4 +54,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after v1.5 milestone started*
+*Last updated: 2026-02-26 — Phase 12 roadmap created*

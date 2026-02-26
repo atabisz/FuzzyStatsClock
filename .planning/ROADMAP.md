@@ -88,6 +88,10 @@ Plans:
 
 </details>
 
+### v1.5 Hover Fast-Refresh (Phase 12)
+
+- [ ] **Phase 12: Hover Fast-Refresh** — MouseEnter/MouseLeave handlers switch `_statsTimer` interval to 0.5s on hover and restore `_statsIntervalSeconds` on leave, guarded by StatsPanel visibility
+
 ## Phase Details
 
 ### Phase 6: AppSettings Migration
@@ -182,6 +186,17 @@ Plans:
 - [x] 11-01-PLAN.md — Add AppSettings.PagVisible + StatsService.PagPercent (PDH "Paging File"/"% Usage"/"_Total", -1 sentinel) + XAML PagRow Grid (x:Name, below MemRow) + MenuPagVisible MenuItem (IsCheckable)
 - [x] 11-02-PLAN.md — Wire MenuPagVisible_Click + UpdateStatsDisplay PAG display + ContextMenu_Opened PAG checkmark + ApplySettings PAG row + SaveSettings PAG field + fix SetStatRowVisible auto-collapse to include PagRow; human verify
 
+### Phase 12: Hover Fast-Refresh
+**Goal**: While hovering over the widget with the stats panel visible, users see stats update at 0.5s cadence; on mouse leave, the cadence returns to their configured rate
+**Depends on**: Phase 11
+**Requirements**: HVRF-01, HVRF-02, HVRF-03
+**Success Criteria** (what must be TRUE):
+  1. With stats panel visible, moving the mouse over the widget causes the stat values to visibly update at approximately 0.5s cadence (noticeably faster than any configured interval)
+  2. Moving the mouse away from the widget restores the stats update cadence to the user's configured interval (1s, 3s, or 10s)
+  3. With stats panel hidden, hovering over the widget does not start the stats timer or produce any change in timer state
+  4. The user's configured interval (1s/3s/10s) is preserved after hover — hover does not overwrite the persisted setting nor alter what the interval selector shows
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -197,6 +212,7 @@ Plans:
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 1/1 | Complete | 2026-02-26 |
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
+| 12. Hover Fast-Refresh | v1.5 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-26 — Phase 11 complete, v1.4 shipped*
+*Last updated: 2026-02-26 — Phase 12 roadmap created, v1.5 milestone started*
