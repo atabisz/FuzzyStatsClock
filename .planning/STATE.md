@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26 after v1.3 shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.4 milestone — PAG stat row (Phase 11)
+**Current focus:** v1.4 milestone — PAG stat row (Phase 11) complete
 
 ## Current Position
 
 Phase: 11 — PAG Stat Row
-Plan: 1 of 2 complete
-Status: In progress — 11-01 done, ready for 11-02
-Last activity: 2026-02-26 — 11-01 complete (data layer + XAML skeleton)
+Plan: 2 of 2 complete
+Status: Complete — Phase 11 done, all v1.4 requirements verified
+Last activity: 2026-02-26 — Phase 11 complete (PAG row wired, human-verified)
 
-Progress: [#####-----] 50% (phase 11: 1/2 plans complete)
+Progress: [##########] 100% (phase 11: 2/2 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 2.8 min
-- Total execution time: 28 min
+- Total plans completed: 12
+- Average duration: 2.6 min
+- Total execution time: 31 min
 
 **By Phase:**
 
@@ -36,14 +36,13 @@ Progress: [#####-----] 50% (phase 11: 1/2 plans complete)
 | 7. Stats Data Layer | 1 | 3 min | 3 min |
 | 8. XAML Layout and Stats Display | 2 | 8 min | 4 min |
 | 9. Controls Persistence and Edge Cases | 1 | 15 min | 15 min |
+| 11. PAG Stat Row | 2 | 3 min | 1.5 min |
 
 **Recent Trend:**
-- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min), 08-02 (5 min), 09-01 (15 min)
+- Last 10 plans: 01-02 (2 min), 02-01 (1 min), 02-02 (2 min), 02-03 (< 1 min), 03-01 (2 min), 03-02 (5 min), 04-01 (2 min), 04-02 (10 min), 05-01 (2 min), 06-01 (2 min), 07-01 (3 min), 08-01 (3 min), 08-02 (5 min), 09-01 (15 min), 11-01 (2 min), 11-02 (1 min)
 - Trend: Stable
 
 *Updated after each plan completion*
-
-| Phase 11. PAG Stat Row | 1 | 2 min | 2 min |
 
 ## Accumulated Context
 
@@ -102,6 +101,9 @@ Recent decisions affecting current work:
 - [Phase 11-01]: 4-param PerformanceCounter constructor for Paging File multi-instance category; 3-param (string,string,bool) throws InvalidOperationException
 - [Phase 11-01]: No priming for PAG counter — % Usage is a ratio counter returning valid data on first NextValue() call; priming only needed for rate counters (CPU, GPU)
 - [Phase 11-01]: Double guard for no-pagefile edge case: PerformanceCounterCategory.Exists() + try/catch; Exists() may return true when pagefile disabled (category registered but no instances)
+- [Phase 11-02]: MenuPagVisible_Click reads PagRow.Visibility (NOT IsChecked) — WPF IsCheckable auto-toggles before handler fires; same pattern as CPU/GPU/MEM handlers
+- [Phase 11-02]: PagRow.Visibility set directly in ApplySettings() NOT via SetStatRowVisible() — unsafe before Show() where ActualHeight is 0; established pattern for all rows
+- [Phase 11-02]: SetStatRowVisible auto-collapse updated from 3-row to 4-row check — minimal change, PagRow.Visibility == Visibility.Collapsed added to condition
 
 ### Pending Todos
 
@@ -109,11 +111,11 @@ None.
 
 ### Blockers/Concerns
 
-None — roadmap complete, ready to plan Phase 11.
+None — all phases complete through v1.4. Consider /gsd:complete-milestone to mark v1.4 shipped.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 11-01-PLAN.md — data layer, settings field, XAML skeleton
+Stopped at: Completed 11-02-PLAN.md — Phase 11 complete, all STAT-11 through STAT-15 verified
 Resume file: None
-Next action: Execute plan 11-02
+Next action: /gsd:complete-milestone (mark v1.4 shipped) or /gsd:verify-work

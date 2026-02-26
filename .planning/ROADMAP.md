@@ -6,7 +6,7 @@
 - **v1.1 Position + Font Size** (2026-02-25) — Drag reposition, position persistence, font size selector. 2 phases, 3 plans. → [Archive](milestones/v1.1-ROADMAP.md)
 - **v1.2 System Stats** (2026-02-26) — CPU / GPU / MEM stats panel, update interval selector, show/hide toggle, persistence. 4 phases, 5 plans. → [Archive](milestones/v1.2-ROADMAP.md)
 - **v1.3 Individual Stat Visibility** (2026-02-26) — Per-row CPU/GPU/MEM visibility toggles, auto-collapse, persistence. 1 phase, 2 plans. → [Archive](milestones/v1.3-ROADMAP.md)
-- **v1.4 PAG Stat Row** (in progress) — Paging file % usage as fourth stat row, visibility toggle, persistence. 1 phase, 2 plans.
+- **v1.4 PAG Stat Row** (2026-02-26) — Paging file % usage as fourth stat row, visibility toggle, persistence. 1 phase, 2 plans.
 
 ## Phases
 
@@ -172,8 +172,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Add AppSettings.PagVisible + StatsService.PagPercent (PDH "Paging File"/"% Usage"/"_Total", -1 sentinel) + XAML PagRow Grid (x:Name, below MemRow) + MenuPagVisible MenuItem (IsCheckable)
-- [ ] 11-02-PLAN.md — Wire MenuPagVisible_Click + UpdateStatsDisplay PAG display + ContextMenu_Opened PAG checkmark + ApplySettings PAG row + SaveSettings PAG field + fix SetStatRowVisible auto-collapse to include PagRow; human verify
+- [x] 11-01-PLAN.md — Add AppSettings.PagVisible + StatsService.PagPercent (PDH "Paging File"/"% Usage"/"_Total", -1 sentinel) + XAML PagRow Grid (x:Name, below MemRow) + MenuPagVisible MenuItem (IsCheckable)
+- [x] 11-02-PLAN.md — Wire MenuPagVisible_Click + UpdateStatsDisplay PAG display + ContextMenu_Opened PAG checkmark + ApplySettings PAG row + SaveSettings PAG field + fix SetStatRowVisible auto-collapse to include PagRow; human verify
 
 ## Progress
 
@@ -189,7 +189,7 @@ Plans:
 | 8. XAML Layout and Stats Display | v1.2 | 2/2 | Complete | 2026-02-26 |
 | 9. Controls, Persistence, and Edge Cases | v1.2 | 1/1 | Complete | 2026-02-26 |
 | 10. Individual Stat Row Visibility | v1.3 | 2/2 | Complete | 2026-02-26 |
-| 11. PAG Stat Row | 1/2 | In Progress|  | - |
+| 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
 
 ---
-*Last updated: 2026-02-26 after v1.4 roadmap created — Phase 11 defined*
+*Last updated: 2026-02-26 — Phase 11 complete, v1.4 shipped*
