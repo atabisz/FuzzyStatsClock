@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private bool _showHourTicks   = false;
     private bool _showMinuteDots  = false;
     private bool _showHourNumbers = false;
+    private double _windowOpacity = 1.0;
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
     private readonly List<System.Windows.Controls.TextBlock> _hourNumberElements = new();
@@ -131,6 +132,9 @@ public partial class MainWindow : Window
         _showMinuteDots  = s.ShowMinuteDots;
         _showHourNumbers = s.ShowHourNumbers;
         // Decoration element visibility applied in InitDialDecorations() (ContentRendered).
+
+        _windowOpacity = s.Opacity;
+        this.Opacity   = s.Opacity;
     }
 
     /// <summary>
@@ -153,7 +157,8 @@ public partial class MainWindow : Window
             DialMode = _dialMode,
             ShowHourTicks   = _showHourTicks,
             ShowMinuteDots  = _showMinuteDots,
-            ShowHourNumbers = _showHourNumbers
+            ShowHourNumbers = _showHourNumbers,
+            Opacity = _windowOpacity
         });
     }
 
@@ -287,6 +292,14 @@ public partial class MainWindow : Window
         MenuShowHourTicks.IsChecked   = _showHourTicks;
         MenuShowMinuteDots.IsChecked  = _showMinuteDots;
         MenuShowHourNumbers.IsChecked = _showHourNumbers;
+
+        // Opacity preset sync — exact double comparison is reliable: _windowOpacity changes
+        // only via SetOpacity() (exact literal assignment) or Math.Clamp in 0.10 steps
+        MenuOpacity25.IsChecked  = (_windowOpacity == 0.25);
+        MenuOpacity50.IsChecked  = (_windowOpacity == 0.50);
+        MenuOpacity75.IsChecked  = (_windowOpacity == 0.75);
+        MenuOpacity100.IsChecked = (_windowOpacity == 1.00);
+        // Intermediate scroll-wheel values (e.g. 0.60) correctly show no checkmark
     }
 
     private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
@@ -500,6 +513,29 @@ public partial class MainWindow : Window
         var vis = show ? Visibility.Visible : Visibility.Collapsed;
         foreach (var el in _hourNumberElements) el.Visibility = vis;
         SaveSettings();
+    }
+
+    private void SetOpacity(double opacity)
+    {
+        _windowOpacity = opacity;
+        this.Opacity   = opacity;
+        SaveSettings();
+    }
+
+    private void MenuOpacity25_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.25);
+    private void MenuOpacity50_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.50);
+    private void MenuOpacity75_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.75);
+    private void MenuOpacity100_Click(object sender, RoutedEventArgs e) => SetOpacity(1.00);
+
+    private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        // e.Delta > 0: scroll up = increase opacity; e.Delta < 0: scroll down = decrease opacity
+        // Math.Sign: exactly one 10% step per physical notch regardless of high-resolution wheel
+        double step = Math.Sign(e.Delta) * 0.10;
+        _windowOpacity = Math.Clamp(_windowOpacity + step, 0.10, 1.0);
+        this.Opacity = _windowOpacity;
+        SaveSettings();
+        e.Handled = true;  // prevent scroll leaking to desktop or windows below overlay
     }
 
     private void InitDialDecorations()

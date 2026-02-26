@@ -12,7 +12,8 @@
         ShowInTaskbar="False"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="Manual"
-        ResizeMode="NoResize">
+        ResizeMode="NoResize"
+        PreviewMouseWheel="Window_PreviewMouseWheel">
 
     <!-- Background="#01000000": alpha=1, RGB=black — near-transparent but hit-testable.
          A fully transparent (alpha=0) background has no hit-test surface, causing mouse
@@ -72,6 +73,12 @@
                               Header="Show Hour Numbers"
                               IsCheckable="True"
                               Click="MenuShowHourNumbers_Click" />
+                </MenuItem>
+                <MenuItem Header="Opacity">
+                    <MenuItem x:Name="MenuOpacity25"  Header="25%"  IsCheckable="True" Click="MenuOpacity25_Click" />
+                    <MenuItem x:Name="MenuOpacity50"  Header="50%"  IsCheckable="True" Click="MenuOpacity50_Click" />
+                    <MenuItem x:Name="MenuOpacity75"  Header="75%"  IsCheckable="True" Click="MenuOpacity75_Click" />
+                    <MenuItem x:Name="MenuOpacity100" Header="100%" IsCheckable="True" Click="MenuOpacity100_Click" />
                 </MenuItem>
                 <MenuItem Header="Close" Click="CloseMenuItem_Click" />
             </ContextMenu>
