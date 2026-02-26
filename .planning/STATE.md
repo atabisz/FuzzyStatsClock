@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 after v1.5 shipped)
+See: .planning/PROJECT.md (updated 2026-02-26 — v1.6 started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.5 archived — planning next milestone
+**Current focus:** v1.6 milestone — Dial Mode (Phase 13)
 
 ## Current Position
 
-Phase: 12 — Hover Fast-Refresh
-Plan: 12-01 (complete — final plan in phase)
-Status: Phase 12 complete — v1.5 shipped
-Last activity: 2026-02-26 — 12-01 executed and human-verified PASS
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-26 — Milestone v1.6 started
 
-Progress: [##########] 100% (phase 12 complete, 1/1 plans)
+Progress: [----------] 0% (phase 13 not started)
 
 ## Performance Metrics
 
@@ -124,6 +124,6 @@ None — v1.5 complete and archived.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: v1.5 milestone archived — MILESTONES.md, PROJECT.md, ROADMAP.md, STATE.md updated, git tag v1.5
+Stopped at: v1.6 milestone started — requirements defined (DIAL-01 through DIAL-05)
 Resume file: None
-Next action: /gsd:new-milestone
+Next action: /gsd:plan-phase 13

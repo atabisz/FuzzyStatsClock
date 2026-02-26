@@ -57,9 +57,13 @@ All v1.5 requirements delivered. Hover fast-refresh human-verified (all 4 behavi
 - ✓ When the mouse leaves the widget, the stats refresh rate returns to the user's configured interval (1s/3s/10s) (HVRF-02) — v1.5
 - ✓ When the stats panel is hidden, mouse hover has no effect on the stats timer (HVRF-03) — v1.5
 
-### Active
+### Active (v1.6)
 
-*(No active requirements — v1.5 shipped. Start `/gsd:new-milestone` to define v1.6.)*
+- [ ] DIAL-01: User can switch between phrase mode and dial mode via the right-click context menu
+- [ ] DIAL-02: In dial mode, the widget displays hour and minute hands on a transparent background (no face, no circle, no numbers — hands only)
+- [ ] DIAL-03: Hands update every minute to accurately reflect the current hour and minute position
+- [ ] DIAL-04: The stats panel remains visible below the dial when stats are enabled
+- [ ] DIAL-05: The selected clock mode (phrase/dial) persists to settings.json and restores on launch
 
 ### Deferred (v2+)
 
@@ -134,4 +138,4 @@ All v1.5 requirements delivered. Hover fast-refresh human-verified (all 4 behavi
 | _statsIntervalSeconds read-only in hover handlers | Source of truth for user's configured rate; hover must not overwrite persistence or interval selector state | ✓ Validated — interval selector checkmarks unchanged after hover cycles |
 
 ---
-*Last updated: 2026-02-26 after v1.5 milestone shipped*
+*Last updated: 2026-02-26 — v1.6 milestone started (Dial Mode)*
