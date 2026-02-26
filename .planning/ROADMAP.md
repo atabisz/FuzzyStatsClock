@@ -104,6 +104,10 @@ Plans:
 
 </details>
 
+### v1.7 Visual Polish (Phase 14) — In Progress
+
+- [ ] **Phase 14: Hover Backdrop + Drag Pause** — Remove hardcoded Border background; add hover-conditional semi-transparent backdrop when stats visible; pause stats timer during drag and resume after
+
 ## Phase Details
 
 ### Phase 6: AppSettings Migration
@@ -225,8 +229,22 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — AppSettings.DialMode init-property + XAML DialCanvas with HourHand/MinuteHand Line elements + MenuDialMode IsCheckable MenuItem stub
-- [ ] 13-02-PLAN.md — Wire SetDialMode/UpdateDialDisplay trig, timer hook, ApplySettings/SaveSettings/ContextMenu_Opened integration; human verify all 5 DIAL criteria
+- [x] 13-01-PLAN.md — AppSettings.DialMode init-property + XAML DialCanvas with HourHand/MinuteHand Line elements + MenuDialMode IsCheckable MenuItem stub
+- [x] 13-02-PLAN.md — Wire SetDialMode/UpdateDialDisplay trig, timer hook, ApplySettings/SaveSettings/ContextMenu_Opened integration; human verify all 5 DIAL criteria
+
+### Phase 14: Hover Backdrop + Drag Pause
+**Goal**: The widget background is fully transparent by default and shows a semi-transparent backdrop only when the mouse is hovering with stats visible; stats updates pause during drag and resume immediately after
+**Depends on**: Phase 13
+**Requirements**: BACK-01, BACK-02, BACK-03, DRAG-01
+**Success Criteria** (what must be TRUE):
+  1. With the stats panel visible, moving the mouse over the widget causes the widget background to become semi-transparent (~35% black); the backdrop is clearly visible on both light and dark wallpapers
+  2. Moving the mouse away from the widget (with stats visible) immediately returns the background to fully transparent
+  3. With the stats panel hidden, the widget background remains fully transparent regardless of whether the mouse is over the widget
+  4. While dragging the widget, stat values do not update; immediately after releasing the drag, stats resume updating at the configured interval
+**Plans**: TBD
+
+Plans:
+- [ ] 14-01: Remove hardcoded Border background from XAML; update Window_MouseEnter to set #59000000 backdrop when stats visible, Window_MouseLeave to restore transparent; update DragMove handler to stop timer before and restart after; human verify all 4 criteria
 
 ## Progress
 
@@ -245,6 +263,7 @@ Plans:
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
+| 14. Hover Backdrop + Drag Pause | v1.7 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-02-26 — v1.6 Dial Mode shipped*
+*Last updated: 2026-02-26 — v1.7 Visual Polish roadmap created*

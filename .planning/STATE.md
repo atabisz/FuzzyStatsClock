@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 — v1.6 Dial Mode shipped)
+See: .planning/PROJECT.md (updated 2026-02-26 — v1.7 Visual Polish roadmap created)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v1.7 Visual Polish — Phase 14, ready to plan
+**Current focus:** v1.7 Visual Polish — Phase 14 Hover Backdrop + Drag Pause
 
 ## Current Position
 
-Phase: 14 of ? (Visual Polish)
-Plan: 0 of ? in current phase
+Phase: 14 of 14 (Hover Backdrop + Drag Pause)
+Plan: 0 of 1 in current phase
 Status: Ready to plan
-Last activity: 2026-02-26 — v1.7 milestone started (hover backdrop + drag pause)
+Last activity: 2026-02-26 — v1.7 roadmap created (1 phase, 4 requirements)
 
 Progress: [----------] 0% (phase 14 not started)
 
@@ -38,7 +38,7 @@ Progress: [----------] 0% (phase 14 not started)
 | 9. Controls Persistence and Edge Cases | 1 | 15 min | 15 min |
 | 11. PAG Stat Row | 2 | 3 min | 1.5 min |
 | 12. Hover Fast-Refresh | 1 | 2 min | 2 min |
-| 13. Dial Mode | 2/2 | 8 min | 4 min |
+| 13. Dial Mode | 2 | 8 min | 4 min |
 
 **Recent Trend:**
 - Last 5 plans: 11-02 (1 min), 12-01 (2 min), 13-01 (3 min), 13-02 (5 min)
@@ -53,7 +53,8 @@ Progress: [----------] 0% (phase 14 not started)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions relevant to Phase 14:
 
-None yet — awaiting plan creation.
+- Phase 14 scope: Remove hardcoded #26000000 from Border; transparent by default; #59000000 on hover+stats-visible; driven by existing MouseEnter/MouseLeave handlers
+- Phase 14 drag pause: Stop _statsTimer before DragMove(), restart after, only when timer was running
 
 ### Pending Todos
 
@@ -66,6 +67,6 @@ None — v1.6 complete and archived.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: v1.7 milestone started — hover backdrop + drag pause requirements defined
+Stopped at: v1.7 roadmap created — Phase 14 Hover Backdrop + Drag Pause defined
 Resume file: None
 Next action: /gsd:plan-phase 14
