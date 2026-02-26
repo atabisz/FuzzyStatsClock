@@ -58,20 +58,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THEME-01 | — | Pending |
-| THEME-02 | — | Pending |
-| THEME-03 | — | Pending |
-| THEME-04 | — | Pending |
-| OPAC-01 | — | Pending |
-| OPAC-02 | — | Pending |
-| OPAC-03 | — | Pending |
-| OPAC-04 | — | Pending |
+| THEME-01 | Phase 20 | Pending |
+| THEME-02 | Phase 21 | Pending |
+| THEME-03 | Phase 20 | Pending |
+| THEME-04 | Phase 18 | Pending |
+| OPAC-01 | Phase 19 | Pending |
+| OPAC-02 | Phase 19 | Pending |
+| OPAC-03 | Phase 19 | Pending |
+| OPAC-04 | Phase 18 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 8 total
-- Mapped to phases: 0
-- Unmapped: 8 ⚠️
+- Mapped to phases: 8
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-27*
-*Last updated: 2026-02-27 after initial definition*
+*Last updated: 2026-02-27 — traceability filled after roadmap creation*

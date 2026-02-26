@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-27 after v2.0 milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.0 Visual Identity — themes and opacity
+**Current focus:** v2.0 Visual Identity — Phase 18: AppSettings Schema Extension
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 18 — AppSettings Schema Extension
 Plan: —
-Status: Defining requirements
-Last activity: 2026-02-27 — Milestone v2.0 Visual Identity started
+Status: Not started
+Last activity: 2026-02-27 — v2.0 roadmap created; Phase 18 is next
 
-Progress: [░░░░░░░░░░] 0% (v2.0: not started)
+Progress: [░░░░░░░░░░] 0% (v2.0: 0/4 phases)
 
 ## Performance Metrics
 
@@ -60,10 +60,17 @@ Recent decisions relevant to current state:
 - Phase 16 DIAL-09 pattern: MenuDialFace.Visibility controlled from ContextMenu_Opened and SetDialMode in code-behind
 - Phase 17 MENU-01 pattern: MenuFontSize.Visibility = inverse of DIAL-09 (dialMode ? Collapsed : Visible); synced in same two hooks
 - ApplySettings() never touches menu item visibility — menus only exist post-Show(); font size preference (_currentFontSize) unchanged by mode switches
+- v2.0 AppSettings additions: AccentColor as hex string (not Color struct — System.Text.Json cannot natively serialize WPF Color); Opacity as double with init default 1.0 (C# type default 0.0 would make widget invisible on upgrade)
+- v2.0 ordering constraint: ApplySettings() sets _accentColor only; ContentRendered calls ApplyTheme() after InitDialDecorations() — calling ApplyTheme() before decoration lists are populated silently skips ticks/dots/numbers
+- v2.0 brush pattern: always use new SolidColorBrush(_accentColor) — never mutate Brushes.* static instances (they are frozen and throw on mutation)
+- v2.0 opacity scroll: use PreviewMouseWheel (not MouseWheel) on frameless transparent windows — MouseWheel is silently dropped without prior keyboard focus
+- v2.0 custom picker: ColorDialog requires HWND owner via WindowInteropHelper — without it the dialog renders behind Topmost=True WPF window
 
 ### Pending Todos
 
-None.
+- Settle on canonical preset color hex values before Phase 20 implementation (FEATURES.md is the design authority — Ice Blue varies across research files)
+- Confirm whether row label text (CPU/GPU/MEM/PAG) follows accent color or stays white (ARCHITECTURE.md leaves them white; confirm before Phase 20)
+- Confirm opacity floor behavior: scroll wheel floor = 0.10, preset menu floor = 0.25; document in Phase 19 plan
 
 ### Blockers/Concerns
 
@@ -71,7 +78,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Completed 17-02-PLAN.md — Phase 17 fully verified, v1.9 milestone closed
+Last session: 2026-02-27
+Stopped at: v2.0 roadmap created — Phases 18–21 defined and written to ROADMAP.md
 Resume file: None
-Next action: None — v1.9 complete
+Next action: /gsd:plan-phase 18

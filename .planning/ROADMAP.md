@@ -12,6 +12,7 @@
 - **v1.7 Visual Polish** (2026-02-26) — Hover backdrop (semi-transparent when stats visible), drag pause. 1 phase, 1 plan. → [Archive](milestones/v1.7-ROADMAP.md)
 - **v1.8 Dial Enhancement** (2026-02-26) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases, 3 plans. → [Archive](milestones/v1.8-ROADMAP.md)
 - **v1.9 Context-Aware Menus** (2026-02-26) — Font Size submenu hidden in dial mode; reappears in phrase mode. 1 phase, 2 plans. → [Archive](milestones/v1.9-ROADMAP.md)
+- **v2.0 Visual Identity** (in progress) — Accent color themes (5 presets + custom picker) and window opacity control (presets + scroll wheel). 4 phases. → Current
 
 ## Phases
 
@@ -70,7 +71,7 @@ Plans:
 </details>
 
 <details>
-<summary>✅ v1.2 System Stats (Phases 6-9) — SHIPPED 2026-02-26</summary>
+<summary>v1.2 System Stats (Phases 6-9) — SHIPPED 2026-02-26</summary>
 
 - [x] **Phase 6: AppSettings Migration** — Convert AppSettings to init-property record, add StatsVisible + StatsIntervalSeconds fields, guard against zero-interval on old JSON (completed 2026-02-25)
 - [x] **Phase 7: StatsService** — New StatsService.cs with async init, CPU counter priming, GPU multi-instance enumeration, IDisposable (completed 2026-02-25)
@@ -80,48 +81,55 @@ Plans:
 </details>
 
 <details>
-<summary>✅ v1.3 Individual Stat Visibility (Phase 10) — SHIPPED 2026-02-26</summary>
+<summary>v1.3 Individual Stat Visibility (Phase 10) — SHIPPED 2026-02-26</summary>
 
 - [x] **Phase 10: Individual Stat Row Visibility** — Per-row CPU/GPU/MEM toggle menu items, auto-collapse when all rows hidden, persistence of three new bool fields (completed 2026-02-26)
 
 </details>
 
 <details>
-<summary>✅ v1.4 PAG Stat Row (Phase 11) — SHIPPED 2026-02-26</summary>
+<summary>v1.4 PAG Stat Row (Phase 11) — SHIPPED 2026-02-26</summary>
 
 - [x] **Phase 11: PAG Stat Row** — AppSettings.PagVisible + StatsService PDH counter + XAML PagRow Grid + MenuPagVisible MenuItem + six MainWindow.xaml.cs integration points; auto-collapse extended to 4 rows; all STAT-11–STAT-15 human-verified (completed 2026-02-26)
 
 </details>
 
 <details>
-<summary>✅ v1.5 Hover Fast-Refresh (Phase 12) — SHIPPED 2026-02-26</summary>
+<summary>v1.5 Hover Fast-Refresh (Phase 12) — SHIPPED 2026-02-26</summary>
 
 - [x] **Phase 12: Hover Fast-Refresh** — MouseEnter/MouseLeave handlers switch `_statsTimer` interval to 0.5s on hover and restore `_statsIntervalSeconds` on leave, guarded by StatsPanel visibility (completed 2026-02-26)
 
 </details>
 
 <details>
-<summary>✅ v1.6 Dial Mode (Phase 13) — SHIPPED 2026-02-26</summary>
+<summary>v1.6 Dial Mode (Phase 13) — SHIPPED 2026-02-26</summary>
 
 - [x] **Phase 13: Dial Mode** — AppSettings.DialMode field + XAML DialCanvas with hour/minute Line elements + context menu toggle + trig wiring + persistence + human verify (completed 2026-02-26)
 
 </details>
 
-### ✅ v1.7 Visual Polish (Phase 14) — SHIPPED 2026-02-26
+### v1.7 Visual Polish (Phase 14) — SHIPPED 2026-02-26
 
 - [x] **Phase 14: Hover Backdrop + Drag Pause** — Removed hardcoded #26000000 Border background; added hover-conditional #59000000 backdrop when stats visible; _statsTimer stop/start guard around DragMove(); all four requirements (BACK-01/02/03, DRAG-01) human-verified (completed 2026-02-26)
 
-### ✅ v1.8 Dial Enhancement (Phases 15-16) — SHIPPED 2026-02-26
+### v1.8 Dial Enhancement (Phases 15-16) — SHIPPED 2026-02-26
 
 - [x] **Phase 15: Unconditional Hover Backdrop** — Moved ContentBorder.Background assignment before StatsPanel.Visibility guard in Window_MouseEnter; backdrop now shows on hover unconditionally; BACK-04 human-verified (completed 2026-02-26)
 - [x] **Phase 16: Dial Face Decorations** — XAML geometry for hour tick marks, minute dots, and hour number labels on DialCanvas; AppSettings bool fields; Dial submenu with three IsCheckable items; menu items hidden in phrase mode; persistence; DIAL-06, DIAL-07, DIAL-08, DIAL-09 (completed 2026-02-26)
 
 <details>
-<summary>✅ v1.9 Context-Aware Menus (Phase 17) — SHIPPED 2026-02-26</summary>
+<summary>v1.9 Context-Aware Menus (Phase 17) — SHIPPED 2026-02-26</summary>
 
 - [x] **Phase 17: Context-Aware Font Size Menu** — Font Size submenu hidden when dial mode is active; reappears when switching to phrase mode; mirrors the DIAL-09 pattern established in Phase 16 (completed 2026-02-26)
 
 </details>
+
+### v2.0 Visual Identity (Phases 18-21) — IN PROGRESS
+
+- [ ] **Phase 18: AppSettings Schema Extension** — Add AccentColor (hex string, default #FFFFFFFF) and Opacity (double, default 1.0) fields with backward-compat init defaults and load-time guards; verified round-trip with v1.9 settings.json
+- [ ] **Phase 19: Window Opacity** — Opacity submenu (25/50/75/100%), scroll wheel adjustment (10% increments, 0.10 floor), Window.Opacity applied to entire widget window, persisted and restored
+- [ ] **Phase 20: Accent Color Presets** — ApplyTheme() covering all 14+ accent elements, Theme submenu with 5 named presets, checkmark sync in ContextMenu_Opened, ContentRendered ordering constraint enforced, persisted as hex string
+- [ ] **Phase 21: Custom Color Picker** — UseWindowsForms=true in csproj, Win32Window HWND owner helper, ColorDialog integration, custom color persists as hex, no preset checkmark when custom active
 
 ## Phase Details
 
@@ -305,6 +313,51 @@ Plans:
 - [x] 17-01-PLAN.md — Add x:Name="MenuFontSize" to XAML and wire MenuFontSize.Visibility in ContextMenu_Opened and SetDialMode
 - [x] 17-02-PLAN.md — Human verify all four MENU-01 success criteria
 
+### Phase 18: AppSettings Schema Extension
+**Goal**: The settings layer can store and round-trip AccentColor and Opacity values without breaking existing v1.9 settings files or producing a transparent-on-first-launch regression
+**Depends on**: Phase 17 (v1.9 complete)
+**Requirements**: THEME-04, OPAC-04
+**Success Criteria** (what must be TRUE):
+  1. Widget launched with a v1.9 settings.json (AccentColor and Opacity fields absent) starts with white accent and full opacity — no invisible widget, no exception thrown
+  2. Widget launched with a freshly deleted settings.json uses AccentColor="#FFFFFFFF" and Opacity=1.0 as defaults without any code needing to handle null fields
+  3. AccentColor and Opacity values written by SaveSettings() are read back correctly on the next launch, preserving any non-default values
+  4. A settings.json with Opacity=0.0 (C# double default from malformed JSON) is corrected to 1.0 on load by the guard, preventing the invisible-widget regression
+**Plans**: TBD
+
+### Phase 19: Window Opacity
+**Goal**: Users can set the widget's overall transparency from the right-click menu or by scrolling, and find their chosen opacity restored on every launch
+**Depends on**: Phase 18
+**Requirements**: OPAC-01, OPAC-02, OPAC-03
+**Success Criteria** (what must be TRUE):
+  1. Right-clicking the widget reveals an Opacity submenu with four entries (25%, 50%, 75%, 100%); the currently active level has a checkmark every time the menu opens
+  2. Clicking an opacity preset immediately changes the widget's visual transparency — phrase text, dial hands, stats bars, hover backdrop, and all widget content fade uniformly to the selected level
+  3. Scrolling the mouse wheel over the widget adjusts opacity in 10% increments; scrolling down reduces opacity and scrolling up increases it; the widget never becomes fully invisible (floor of 10%)
+  4. Opacity applied via the scroll wheel persists across restarts — closing and relaunching the widget restores the scroll-adjusted opacity, not just the last preset-menu value
+**Plans**: TBD
+
+### Phase 20: Accent Color Presets
+**Goal**: Users can choose from five named color presets and see the chosen accent color applied instantly and consistently across every colored element in the widget, persisted across restarts
+**Depends on**: Phase 19
+**Requirements**: THEME-01, THEME-03
+**Success Criteria** (what must be TRUE):
+  1. Right-clicking the widget reveals a Theme submenu with five named preset entries (White, Amber, Ice Blue, Green, Hello Kitty Pink); the currently active preset has a checkmark every time the menu opens
+  2. Clicking a preset immediately recolors the phrase text, both dial hands, all dial decoration elements (tick marks, minute dots, hour number labels), all four stats fill bars, and all four stats percentage text values to the selected accent color
+  3. Bar track backgrounds and the shadow text element are not affected by accent color changes — they remain visually neutral after any preset selection
+  4. Closing and relaunching the widget restores the last-selected accent color preset without requiring re-selection
+**Plans**: TBD
+
+### Phase 21: Custom Color Picker
+**Goal**: Users can set any arbitrary accent color via the system color picker dialog, with the custom color applied immediately and persisted exactly like a preset
+**Depends on**: Phase 20
+**Requirements**: THEME-02
+**Success Criteria** (what must be TRUE):
+  1. The Theme submenu contains a "Custom..." entry below the five presets; clicking it opens the native Windows color picker dialog in front of the always-on-top widget
+  2. Selecting a color in the dialog and confirming immediately applies that color across all accent-colored elements (same elements as preset selection)
+  3. Canceling the color picker dialog leaves the current accent color unchanged
+  4. After selecting a custom color, no preset entry in the Theme submenu has a checkmark — the menu correctly reflects that a non-preset color is active
+  5. Closing and relaunching the widget restores the custom color exactly as chosen, not rounded to the nearest preset
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -326,6 +379,10 @@ Plans:
 | 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
 | 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
 | 17. Context-Aware Font Size Menu | v1.9 | 2/2 | Complete | 2026-02-26 |
+| 18. AppSettings Schema Extension | v2.0 | 0/? | Not started | - |
+| 19. Window Opacity | v2.0 | 0/? | Not started | - |
+| 20. Accent Color Presets | v2.0 | 0/? | Not started | - |
+| 21. Custom Color Picker | v2.0 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-26 — v1.9 Context-Aware Menus milestone archived*
+*Last updated: 2026-02-27 — v2.0 Visual Identity roadmap created*
