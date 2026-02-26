@@ -333,17 +333,18 @@ public partial class MainWindow : Window
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
+        // Backdrop (Phase 14/15): show semi-transparent background on hover (always)
+        ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
+
         if (StatsPanel.Visibility != Visibility.Visible) return;
-        // Fast-refresh (Phase 12): accelerate stats timer
+        // Fast-refresh (Phase 12): accelerate stats timer — only when stats visible
         if (_statsTimer != null && _statsTimer.IsEnabled)
         {
             _statsTimer.Stop();
             _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
             _statsTimer.Start();
         }
-        // Backdrop (Phase 14): show semi-transparent background when stats visible
-        ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
