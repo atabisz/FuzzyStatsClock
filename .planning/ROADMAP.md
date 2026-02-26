@@ -276,7 +276,11 @@ Plans:
   3. Toggling Show Minute Marks draws or removes 60 small dots at each minute position on the DialCanvas
   4. Toggling Show Hour Numbers draws or removes the labels 1-12 at each hour position on the DialCanvas
   5. All three decoration preferences survive a full app restart; switching to phrase mode hides the Dial Face submenu entirely and switching back to dial mode restores it
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 16-01-PLAN.md — Add AppSettings fields (ShowHourTicks/ShowMinuteDots/ShowHourNumbers); XAML Dial Face submenu; InitDialDecorations() + toggle methods + full wiring in MainWindow.xaml.cs
+- [ ] 16-02-PLAN.md — Human verify all five DIAL-06/07/08/09 success criteria
 
 ## Progress
 
@@ -297,7 +301,7 @@ Plans:
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
 | 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
 | 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
-| 16. Dial Face Decorations | v1.8 | 0/TBD | Not started | - |
+| 16. Dial Face Decorations | v1.8 | 0/2 | Not started | - |
 
 ---
-*Last updated: 2026-02-26 — Phase 15 complete (BACK-04); Phase 16 Dial Face Decorations is next*
+*Last updated: 2026-02-26 — Phase 15 complete (BACK-04); Phase 16 Dial Face Decorations planned (2 plans)*
