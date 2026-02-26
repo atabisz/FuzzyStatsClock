@@ -348,6 +348,10 @@ public partial class MainWindow : Window
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
+        // Backdrop restore (Phase 14): always clear on leave regardless of stats state
+        // (stats may have been hidden while mouse was over widget — backdrop must still clear)
+        ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+
         if (StatsPanel.Visibility != Visibility.Visible) return;
         // Fast-refresh restore (Phase 12): restore configured interval
         if (_statsTimer != null)
@@ -356,8 +360,6 @@ public partial class MainWindow : Window
             _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
             _statsTimer.Start();
         }
-        // Backdrop restore (Phase 14): always return to transparent on leave
-        ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
     }
 
     private void SetStatRowVisible(Grid row, bool visible)
