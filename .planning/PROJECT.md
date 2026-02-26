@@ -8,6 +8,14 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v2.0 Visual Identity
+
+**Goal:** Give users control over how the widget looks through accent color themes and opacity, making it blend with any wallpaper or personal style.
+
+**Target features:**
+- Color themes — 5 presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) + custom color picker; one accent color applies to phrase text, dial hands/decorations, and stats bars/text
+- Widget opacity — right-click menu presets (25%/50%/75%/100%) plus scroll wheel in 10% increments; window-level opacity, persisted
+
 ## Current State
 
 **v1.9 shipped: 2026-02-26**
@@ -87,9 +95,16 @@ All v1.9 requirements delivered. Font Size submenu context-awareness human-verif
 
 ### Active
 
-<!-- Next milestone requirements go here -->
+<!-- v2.0 Visual Identity requirements -->
 
-(None — planning next milestone)
+- [ ] User can select from preset color themes (White, Amber, Ice Blue, Green, Hello Kitty Pink) via right-click menu
+- [ ] User can set a custom accent color via color picker dialog
+- [ ] Active accent color applies consistently to phrase text, dial hands/decorations, and stats bars/text
+- [ ] Theme selection persists across restarts
+- [ ] User can set widget opacity to 25%/50%/75%/100% via right-click menu
+- [ ] User can adjust opacity in 10% increments using mouse scroll wheel
+- [ ] Opacity applies to the entire widget window
+- [ ] Opacity setting persists across restarts
 
 ### Deferred (v2+)
 
@@ -177,4 +192,4 @@ All v1.9 requirements delivered. Font Size submenu context-awareness human-verif
 | MenuFontSize.Visibility inverse of DIAL-09 | Font Size is phrase-mode-only; dial mode has no use for font size since DialCanvas size is fixed | ✓ Validated — MENU-01: dialMode ? Collapsed : Visible; synced in ContextMenu_Opened and SetDialMode |
 
 ---
-*Last updated: 2026-02-26 after v1.9 milestone*
+*Last updated: 2026-02-27 after v2.0 milestone started*

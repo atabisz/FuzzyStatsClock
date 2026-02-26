@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26 after v1.9 milestone)
+See: .planning/PROJECT.md (updated 2026-02-27 after v2.0 milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** v2.0 Visual Identity — themes and opacity
 
 ## Current Position
 
-Phase: —
+Phase: Not started (defining requirements)
 Plan: —
-Status: Milestone v1.9 archived — planning next milestone
-Last activity: 2026-02-26 — v1.9 Context-Aware Menus archived
+Status: Defining requirements
+Last activity: 2026-02-27 — Milestone v2.0 Visual Identity started
 
-Progress: [██████████] 100% (v1.9: 2/2 plans complete)
+Progress: [░░░░░░░░░░] 0% (v2.0: not started)
 
 ## Performance Metrics
 
