@@ -104,9 +104,9 @@ Plans:
 
 </details>
 
-### v1.7 Visual Polish (Phase 14) — In Progress
+### ✅ v1.7 Visual Polish (Phase 14) — SHIPPED 2026-02-26
 
-- [ ] **Phase 14: Hover Backdrop + Drag Pause** — Remove hardcoded Border background; add hover-conditional semi-transparent backdrop when stats visible; pause stats timer during drag and resume after
+- [x] **Phase 14: Hover Backdrop + Drag Pause** — Removed hardcoded #26000000 Border background; added hover-conditional #59000000 backdrop when stats visible; _statsTimer stop/start guard around DragMove(); all four requirements (BACK-01/02/03, DRAG-01) human-verified (completed 2026-02-26)
 
 ## Phase Details
 
@@ -244,7 +244,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 14-01-PLAN.md — Remove hardcoded Border background; wire hover backdrop (#59000000) in MouseEnter/MouseLeave; guard DragMove with timer stop/start; human verify all 4 criteria
+- [x] 14-01-PLAN.md — Remove hardcoded Border background; wire hover backdrop (#59000000) in MouseEnter/MouseLeave; guard DragMove with timer stop/start; human verify all 4 criteria
 
 ## Progress
 
@@ -263,7 +263,7 @@ Plans:
 | 11. PAG Stat Row | v1.4 | 2/2 | Complete | 2026-02-26 |
 | 12. Hover Fast-Refresh | v1.5 | 1/1 | Complete | 2026-02-26 |
 | 13. Dial Mode | v1.6 | 2/2 | Complete | 2026-02-26 |
-| 14. Hover Backdrop + Drag Pause | v1.7 | 0/1 | Not started | - |
+| 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
 
 ---
-*Last updated: 2026-02-26 — v1.7 Visual Polish roadmap created*
+*Last updated: 2026-02-26 — v1.7 Visual Polish shipped (Phase 14 complete)*

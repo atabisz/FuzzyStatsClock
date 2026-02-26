@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-26 — v1.7 Visual Polish roadmap cre
 ## Current Position
 
 Phase: 14 of 14 (Hover Backdrop + Drag Pause)
-Plan: 0 of 1 in current phase
-Status: Ready to execute
-Last activity: 2026-02-26 — Phase 14 planned (1 plan, verification passed)
+Plan: 1 of 1 in current phase
+Status: Complete
+Last activity: 2026-02-26 — Phase 14 complete (14-01 human-verified PASS)
 
-Progress: [----------] 0% (phase 14 planned, not started)
+Progress: [##########] 100% (all phases complete — v1.7 shipped)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 2.7 min
-- Total execution time: 41 min
+- Total execution time: 46 min
 
 **By Phase:**
 
@@ -39,9 +39,10 @@ Progress: [----------] 0% (phase 14 planned, not started)
 | 11. PAG Stat Row | 2 | 3 min | 1.5 min |
 | 12. Hover Fast-Refresh | 1 | 2 min | 2 min |
 | 13. Dial Mode | 2 | 8 min | 4 min |
+| 14. Hover Backdrop + Drag Pause | 1 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 11-02 (1 min), 12-01 (2 min), 13-01 (3 min), 13-02 (5 min)
+- Last 5 plans: 12-01 (2 min), 13-01 (3 min), 13-02 (5 min), 14-01 (5 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -51,10 +52,12 @@ Progress: [----------] 0% (phase 14 planned, not started)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions relevant to Phase 14:
+Recent decisions (Phase 14 complete):
 
 - Phase 14 scope: Remove hardcoded #26000000 from Border; transparent by default; #59000000 on hover+stats-visible; driven by existing MouseEnter/MouseLeave handlers
 - Phase 14 drag pause: Stop _statsTimer before DragMove(), restart after, only when timer was running
+- Alpha 0x59 (89/255 ≈ 35%) chosen for backdrop — visible on both light and dark wallpapers without obscuring content
+- Window_MouseLeave always restores Transparent regardless of StatsPanel.Visibility — prevents stale backdrop if stats are hidden mid-hover
 
 ### Pending Todos
 
@@ -67,6 +70,6 @@ None — v1.6 complete and archived.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 14 planned — 1 plan (14-01, human checkpoint), verification passed
+Stopped at: Completed 14-01-PLAN.md — Phase 14 complete, v1.7 Visual Polish shipped
 Resume file: None
-Next action: /gsd:execute-phase 14
+Next action: Plan next milestone or archive v1.7
