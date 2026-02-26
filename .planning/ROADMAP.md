@@ -326,7 +326,7 @@ Plans:
 | 14. Hover Backdrop + Drag Pause | v1.7 | 1/1 | Complete | 2026-02-26 |
 | 15. Unconditional Hover Backdrop | v1.8 | 1/1 | Complete | 2026-02-26 |
 | 16. Dial Face Decorations | v1.8 | 2/2 | Complete | 2026-02-26 |
-| 17. Context-Aware Font Size Menu | v1.9 | 2/2 | Complete | 2026-02-26 |
+| 17. Context-Aware Font Size Menu | v1.9 | Complete    | 2026-02-26 | 2026-02-26 |
 
 ---
 *Last updated: 2026-02-26 — Phase 17 complete; v1.9 Context-Aware Menus milestone shipped*
