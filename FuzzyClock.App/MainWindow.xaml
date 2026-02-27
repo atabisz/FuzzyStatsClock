@@ -74,6 +74,13 @@
                               IsCheckable="True"
                               Click="MenuShowHourNumbers_Click" />
                 </MenuItem>
+                <MenuItem Header="Theme">
+                    <MenuItem x:Name="MenuThemeWhite"  Header="White"            IsCheckable="True" Click="MenuThemeWhite_Click" />
+                    <MenuItem x:Name="MenuThemeAmber"  Header="Amber"            IsCheckable="True" Click="MenuThemeAmber_Click" />
+                    <MenuItem x:Name="MenuThemeIce"    Header="Ice Blue"         IsCheckable="True" Click="MenuThemeIce_Click" />
+                    <MenuItem x:Name="MenuThemeGreen"  Header="Green"            IsCheckable="True" Click="MenuThemeGreen_Click" />
+                    <MenuItem x:Name="MenuThemePink"   Header="Hello Kitty Pink" IsCheckable="True" Click="MenuThemePink_Click" />
+                </MenuItem>
                 <MenuItem Header="Opacity">
                     <MenuItem x:Name="MenuOpacity25"  Header="25%"  IsCheckable="True" Click="MenuOpacity25_Click" />
                     <MenuItem x:Name="MenuOpacity50"  Header="50%"  IsCheckable="True" Click="MenuOpacity50_Click" />

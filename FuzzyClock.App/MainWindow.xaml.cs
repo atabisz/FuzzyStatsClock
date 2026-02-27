@@ -22,9 +22,16 @@ public partial class MainWindow : Window
     private bool _showMinuteDots  = false;
     private bool _showHourNumbers = false;
     private double _windowOpacity = 1.0;
+    private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
     private readonly List<System.Windows.Controls.TextBlock> _hourNumberElements = new();
+
+    private static readonly System.Windows.Media.Color PresetWhite = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
+    private static readonly System.Windows.Media.Color PresetAmber = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0xC0, 0x00);
+    private static readonly System.Windows.Media.Color PresetIce   = System.Windows.Media.Color.FromArgb(0xFF, 0x87, 0xCE, 0xEB);
+    private static readonly System.Windows.Media.Color PresetGreen = System.Windows.Media.Color.FromArgb(0xFF, 0x00, 0xC0, 0x00);
+    private static readonly System.Windows.Media.Color PresetPink  = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4);
 
     public MainWindow()
     {
@@ -83,6 +90,7 @@ public partial class MainWindow : Window
 
             if (_dialMode) UpdateDialDisplay();
             InitDialDecorations();
+            ApplyTheme();            // NEW: must come AFTER InitDialDecorations() — decoration lists are empty before this point
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
@@ -135,6 +143,19 @@ public partial class MainWindow : Window
 
         _windowOpacity = s.Opacity;
         this.Opacity   = s.Opacity;
+
+        // Parse AccentColor hex string to Color struct
+        // SettingsService.Load() guards against null/empty; catch here for belt-and-suspenders safety
+        try
+        {
+            _accentColor = (System.Windows.Media.Color)
+                System.Windows.Media.ColorConverter.ConvertFromString(s.AccentColor);
+        }
+        catch
+        {
+            _accentColor = System.Windows.Media.Colors.White;  // fallback on any parse failure
+        }
+        // Do NOT call ApplyTheme() here — _hourTickElements etc. are empty until ContentRendered
     }
 
     /// <summary>
@@ -158,7 +179,8 @@ public partial class MainWindow : Window
             ShowHourTicks   = _showHourTicks,
             ShowMinuteDots  = _showMinuteDots,
             ShowHourNumbers = _showHourNumbers,
-            Opacity = _windowOpacity
+            Opacity = _windowOpacity,
+            AccentColor = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}"
         });
     }
 
@@ -300,6 +322,16 @@ public partial class MainWindow : Window
         MenuOpacity75.IsChecked  = (_windowOpacity == 0.75);
         MenuOpacity100.IsChecked = (_windowOpacity == 1.00);
         // Intermediate scroll-wheel values (e.g. 0.60) correctly show no checkmark
+
+        // Theme preset sync — compare hex from _accentColor to preset constants
+        // Single source of truth: derive hex from _accentColor; no secondary theme-name field
+        string currentHex = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}";
+        MenuThemeWhite.IsChecked = (currentHex == "#FFFFFFFF");
+        MenuThemeAmber.IsChecked = (currentHex == "#FFFFC000");
+        MenuThemeIce.IsChecked   = (currentHex == "#FF87CEEB");
+        MenuThemeGreen.IsChecked = (currentHex == "#FF00C000");
+        MenuThemePink.IsChecked  = (currentHex == "#FFFF69B4");
+        // When a custom color is active (Phase 21), none match — no checkmark shown. Correct.
     }
 
     private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
@@ -609,6 +641,54 @@ public partial class MainWindow : Window
         foreach (var el in _minuteDotElements)  el.Visibility = dotVis;
         foreach (var el in _hourNumberElements) el.Visibility = numVis;
     }
+
+    private void ApplyTheme()
+    {
+        var brush = new System.Windows.Media.SolidColorBrush(_accentColor);
+
+        // Phrase mode
+        PhraseText.Foreground = brush;
+        // ShadowText deliberately excluded — stays #BB000000 always
+
+        // Dial mode (static XAML elements)
+        HourHand.Stroke   = brush;
+        MinuteHand.Stroke = brush;
+
+        // Dial decorations (code-behind lists populated by InitDialDecorations)
+        // Safe here: ApplyTheme() is only called after InitDialDecorations() in ContentRendered,
+        // or from SetAccentColor() at runtime (after ContentRendered has already run).
+        foreach (var el in _hourTickElements)   el.Stroke     = brush;
+        foreach (var el in _minuteDotElements)  el.Fill       = brush;
+        foreach (var el in _hourNumberElements) el.Foreground = brush;
+
+        // Stats fill bars (accent color)
+        CpuBar.Background = brush;
+        GpuBar.Background = brush;
+        MemBar.Background = brush;
+        PagBar.Background = brush;
+
+        // Stats percentage text (accent color)
+        CpuText.Foreground = brush;
+        GpuText.Foreground = brush;
+        MemText.Foreground = brush;
+        PagText.Foreground = brush;
+
+        // Deliberately excluded: ShadowText, CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack,
+        // row label TextBlocks (CPU/GPU/MEM/PAG — no x:Name), ContentBorder.Background
+    }
+
+    private void SetAccentColor(System.Windows.Media.Color color)
+    {
+        _accentColor = color;
+        ApplyTheme();
+        SaveSettings();
+    }
+
+    private void MenuThemeWhite_Click(object sender, RoutedEventArgs e) => SetAccentColor(PresetWhite);
+    private void MenuThemeAmber_Click(object sender, RoutedEventArgs e) => SetAccentColor(PresetAmber);
+    private void MenuThemeIce_Click(object sender, RoutedEventArgs e)   => SetAccentColor(PresetIce);
+    private void MenuThemeGreen_Click(object sender, RoutedEventArgs e) => SetAccentColor(PresetGreen);
+    private void MenuThemePink_Click(object sender, RoutedEventArgs e)  => SetAccentColor(PresetPink);
 
     private void UpdateDialDisplay()
     {
