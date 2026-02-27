@@ -356,6 +356,8 @@ public partial class MainWindow : Window
     private void MenuPagVisible_Click(object sender, RoutedEventArgs e)
         => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible);
 
+    private void MenuUptimeVisible_Click(object sender, RoutedEventArgs e) { }
+
     private void MenuInterval1_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(1);
     private void MenuInterval3_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(3);
     private void MenuInterval10_Click(object sender, RoutedEventArgs e) => SetStatsInterval(10);

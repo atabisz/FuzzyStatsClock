@@ -12,6 +12,7 @@ public record AppSettings
     public bool   GpuVisible           { get; init; } = true;
     public bool   MemVisible           { get; init; } = true;
     public bool   PagVisible           { get; init; } = true;
+    public bool   UptimeVisible        { get; init; } = true;
     public bool   DialMode             { get; init; } = false;
     public bool   ShowHourTicks        { get; init; } = false;
     public bool   ShowMinuteDots       { get; init; } = false;

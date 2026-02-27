@@ -49,6 +49,10 @@
                               Header="Show PAG"
                               IsCheckable="True"
                               Click="MenuPagVisible_Click" />
+                    <MenuItem x:Name="MenuUptimeVisible"
+                              Header="Show Uptime"
+                              IsCheckable="True"
+                              Click="MenuUptimeVisible_Click" />
                     <MenuItem Header="Update Interval">
                         <MenuItem x:Name="MenuInterval1"  Header="1 second"   IsCheckable="True" Click="MenuInterval1_Click" />
                         <MenuItem x:Name="MenuInterval3"  Header="3 seconds"  IsCheckable="True" Click="MenuInterval3_Click" />
@@ -95,11 +99,12 @@
             </ContextMenu>
         </Grid.ContextMenu>
 
-        <!-- Two-row inner Grid: Row 0 = phrase display, Row 1 = stats panel -->
+        <!-- Three-row inner Grid: Row 0 = phrase display, Row 1 = stats panel, Row 2 = uptime row -->
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />   <!-- Row 2: UptimeRow (NEW) -->
             </Grid.RowDefinitions>
 
             <!-- Row 0: phrase display — unchanged from prior state -->
@@ -246,6 +251,20 @@
                 </Grid>
 
             </StackPanel>
+
+            <!-- Row 2: uptime row — default Visible (UptimeVisible=true default).
+                 Width="180" matches StatsPanel — prevents SizeToContent jitter when Phase 23 adds live data.
+                 Sibling of StatsPanel (NOT inside its StackPanel) — ensures independent toggle control. -->
+            <TextBlock x:Name="UptimeText"
+                       Grid.Row="2"
+                       Width="180"
+                       Margin="0,2,0,0"
+                       Visibility="Visible"
+                       FontFamily="Segoe UI Light"
+                       FontSize="11"
+                       Foreground="White"
+                       Text="up —"
+                       TextAlignment="Left" />
         </Grid>
     </Grid>
 </Window>
