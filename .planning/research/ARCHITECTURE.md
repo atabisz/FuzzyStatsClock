@@ -1,6 +1,6 @@
 # Architecture Research
 
-**Domain:** WPF transparent desktop widget — color themes and opacity (v2.0)
+**Domain:** WPF transparent desktop widget — uptime display and rolling CPU load averages (v2.1)
 **Researched:** 2026-02-27
 **Confidence:** HIGH
 
@@ -8,9 +8,10 @@
 
 ## System Overview
 
-v2.0 adds color themes and opacity to the existing v1.9 single-window code-behind architecture.
-No components are added or removed. Three files are modified: `AppSettings.cs`, `MainWindow.xaml`,
-and `MainWindow.xaml.cs`. `SettingsService.cs` and `App.xaml.cs` are untouched.
+v2.1 adds a compact uptime/load line below StatsPanel. No new files are required. Three files are
+modified: `AppSettings.cs`, `MainWindow.xaml`, and `MainWindow.xaml.cs`. A rolling CPU average
+buffer is added directly to `MainWindow.xaml.cs`; `StatsService.cs` and `SettingsService.cs` are
+unchanged.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -20,9 +21,9 @@ and `MainWindow.xaml.cs`. `SettingsService.cs` and `App.xaml.cs` are untouched.
 │  (UNCHANGED)           (MODIFIED)                    (UNCHANGED)              │
 │                              │                              │                 │
 │                              │  ApplySettings()             │ Load/Save       │
-│                              │  ApplyTheme()                ▼                 │
-│                              │  SaveSettings()         AppSettings.cs         │
-│                              │                         (MODIFIED: +2 fields)  │
+│                              │  SaveSettings()              ▼                 │
+│                              │  UpdateUptimeDisplay()  AppSettings.cs         │
+│                              │                         (MODIFIED: +1 field)  │
 │                              │                                                │
 │                    ┌─────────┴──────────┐                                     │
 │                    │                    │                                     │
@@ -31,28 +32,24 @@ and `MainWindow.xaml.cs`. `SettingsService.cs` and `App.xaml.cs` are untouched.
 │                    │                    │                                     │
 │             PhraseEngine          StatsService.cs                             │
 │             (UNCHANGED)           (UNCHANGED)                                 │
+│                                         │                                     │
+│                                    CpuPercent                                 │
+│                                    (already read each tick)                   │
+│                                         │                                     │
+│                              Queue<float> _cpuSamples (new, in MainWindow)    │
+│                              rolling averages: 1m / 5m / 15m                 │
 │                                                                               │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│  MainWindow.xaml (MODIFIED: +Theme submenu, +Opacity submenu)                 │
+│  MainWindow.xaml (MODIFIED: +UptimeRow TextBlock, +Stats submenu toggle)      │
 │                                                                               │
-│  Window (Opacity = 0.0–1.0, window-level)                                    │
+│  Window                                                                       │
 │    Grid                                                                       │
 │      Border (ContentBorder — backdrop, existing)                              │
-│        Grid (inner)                                                           │
-│          Row 0: ShadowText + PhraseText (z-stack) / DialCanvas                │
-│          Row 1: StatsPanel (CPU/GPU/MEM/PAG bars)                             │
-│                                                                               │
-│  Accent color applied in code-behind (ApplyTheme()) to:                       │
-│    PhraseText.Foreground        → SolidColorBrush(accentColor)                │
-│    HourHand.Stroke              → SolidColorBrush(accentColor)                │
-│    MinuteHand.Stroke            → SolidColorBrush(accentColor)                │
-│    _hourTickElements[].Stroke   → SolidColorBrush(accentColor)                │
-│    _minuteDotElements[].Fill    → SolidColorBrush(accentColor)                │
-│    _hourNumberElements[].Foreground → SolidColorBrush(accentColor)            │
-│    CpuBar.Background + CpuText.Foreground → SolidColorBrush(accentColor)      │
-│    GpuBar.Background + GpuText.Foreground → SolidColorBrush(accentColor)      │
-│    MemBar.Background + MemText.Foreground → SolidColorBrush(accentColor)      │
-│    PagBar.Background + PagText.Foreground → SolidColorBrush(accentColor)      │
+│        Grid (inner, 3 rows after this change)                                 │
+│          Row 0: ShadowText + PhraseText (z-stack) / DialCanvas (existing)    │
+│          Row 1: StatsPanel (CPU/GPU/MEM/PAG bars) (existing)                  │
+│          Row 2: UptimeRow TextBlock (NEW — Collapsed by default)              │
+│                  Text: "up 3d 14h 22m   0.52  0.47  0.43"                    │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -60,485 +57,287 @@ and `MainWindow.xaml.cs`. `SettingsService.cs` and `App.xaml.cs` are untouched.
 
 ## Component Responsibilities
 
-| Component | Status | Responsibility for v2.0 |
+| Component | Status | Responsibility for v2.1 |
 |-----------|--------|-------------------------|
 | `App.xaml.cs` | Unchanged | Startup, hidden owner, SessionEnding backup save |
-| `MainWindow.xaml.cs` | Modified | Add `_accentColor` and `_opacity` fields; add `ApplyTheme()`; add scroll wheel handler; extend `ApplySettings()`, `SaveSettings()`, `ContextMenu_Opened()`; add theme/opacity click handlers |
-| `MainWindow.xaml` | Modified | Add Theme submenu; add Opacity submenu; wire `MouseWheel` event |
-| `AppSettings.cs` | Modified | Add `string AccentColor` (hex, default `"#FFFFFF"`) and `double Opacity` (default `1.0`) |
+| `MainWindow.xaml.cs` | Modified | Add `_cpuSamples` queue; add `UpdateUptimeDisplay()`; call from `_statsTimer` tick; extend `ApplySettings()`, `SaveSettings()`, `ContextMenu_Opened()`; add toggle click handler; extend `ApplyTheme()` for UptimeRow theming |
+| `MainWindow.xaml` | Modified | Add `UptimeRow` TextBlock (Row 2 in inner Grid); add "Show Uptime" toggle to Stats submenu |
+| `AppSettings.cs` | Modified | Add `bool UptimeVisible { get; init; } = true` |
 | `SettingsService.cs` | Unchanged | Load/Save/Clamp work with new AppSettings fields automatically via init-property defaults |
-| `StatsService.cs` | Unchanged | PerformanceCounter ownership — no color awareness |
+| `StatsService.cs` | Unchanged | `CpuPercent` is already read in every `_statsTimer` tick — no new counters needed |
 | `FuzzyClock.Core` | Unchanged | PhraseEngine — no changes |
+
+---
+
+## New vs Reused
+
+### New in MainWindow.xaml.cs
+
+**Field: rolling CPU sample buffer**
+
+```csharp
+private readonly Queue<float> _cpuSamples = new();
+// Capacity: 15 minutes worth at the configured interval.
+// At 1s interval: 900 samples max. At 10s: 90 samples max.
+// Trim on each tick to keep only the last 15 * 60 / intervalSeconds entries.
+```
+
+**Method: UpdateUptimeDisplay()**
+
+Called at the end of the existing `_statsTimer.Tick` handler (which already calls `_statsService.Refresh()`). Reads `_statsService.CpuPercent` after `Refresh()` has already updated it for the same tick — no second `Refresh()` call needed.
+
+```csharp
+private void UpdateUptimeDisplay()
+{
+    if (UptimeRow.Visibility != Visibility.Visible) return;
+
+    // --- Uptime ---
+    TimeSpan uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
+    string uptimeStr = uptime.Days > 0
+        ? $"up {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m"
+        : $"up {uptime.Hours}h {uptime.Minutes}m";
+
+    // --- Rolling CPU averages ---
+    // CpuPercent already refreshed by _statsService.Refresh() this same tick
+    _cpuSamples.Enqueue(_statsService.CpuPercent);
+
+    int maxSamples = Math.Max(1, (15 * 60) / _statsIntervalSeconds);
+    while (_cpuSamples.Count > maxSamples) _cpuSamples.Dequeue();
+
+    float avg1m  = ComputeAvg(_cpuSamples, (int)Math.Ceiling(60.0  / _statsIntervalSeconds));
+    float avg5m  = ComputeAvg(_cpuSamples, (int)Math.Ceiling(300.0 / _statsIntervalSeconds));
+    float avg15m = _cpuSamples.Count > 0 ? _cpuSamples.Average() : 0f;
+
+    UptimeText.Text = $"{uptimeStr}   {avg1m / 100f:F2}  {avg5m / 100f:F2}  {avg15m / 100f:F2}";
+}
+
+private static float ComputeAvg(Queue<float> q, int count)
+{
+    // Take the last `count` elements (most recent window)
+    return q.Count == 0 ? 0f : q.TakeLast(Math.Min(count, q.Count)).Average();
+}
+```
+
+**Note on `_statsIntervalSeconds` change:** When the user changes the update interval, the existing `SetStatsInterval()` updates `_statsIntervalSeconds` and restarts `_statsTimer`. The `_cpuSamples` queue is trimmed on each tick using the current `_statsIntervalSeconds` — no explicit reset is needed on interval change. The window of samples shrinks naturally as old samples beyond the new `maxSamples` count are trimmed at the next tick. This is acceptable; a brief transient in the averages is imperceptible at normal usage.
+
+### Reused Patterns
+
+**Toggle pattern:** Identical to `CpuRow`/`GpuRow`/`MemRow`/`PagRow` visibility toggles:
+- XAML: `x:Name="UptimeRow"` TextBlock with `Visibility="Collapsed"` (or `Visible` since default is visible)
+- Menu item: `IsCheckable="True"` in Stats submenu
+- Click handler: `SetUptimeRowVisible(UptimeRow.Visibility != Visibility.Visible)`
+- `ContextMenu_Opened`: `MenuUptimeVisible.IsChecked = (UptimeRow.Visibility == Visibility.Visible)`
+
+**ApplySettings() pattern:** Set `UptimeRow.Visibility` directly (not via a method that calls `UpdateLayout()`). Same pre-Show safety invariant as all other row visibility assignments.
+
+**SaveSettings() pattern:** Add `UptimeVisible = (UptimeRow.Visibility == Visibility.Visible)` to the AppSettings construction.
+
+**Theming pattern:** `UptimeText.Foreground` follows accent color in `ApplyTheme()`. No new brush is needed — the existing `brush` variable in `ApplyTheme()` is reused.
 
 ---
 
 ## New Fields in AppSettings
 
-Two new fields added to the existing init-property record:
+One new field added to the existing init-property record:
 
 ```csharp
 public record AppSettings
 {
-    // ... existing fields unchanged ...
-    public string AccentColor { get; init; } = "#FFFFFF";   // hex, RRGGBB or AARRGGBB
-    public double Opacity     { get; init; } = 1.0;         // 0.0–1.0
+    // ... existing 15 fields unchanged ...
+    public bool UptimeVisible { get; init; } = true;
+    // Default true: uptime row visible on first launch (differs from StatsVisible which defaults false)
 }
 ```
 
-**AccentColor as string (not Color struct):**
-`System.Windows.Media.Color` is not natively serializable by `System.Text.Json`. A hex string is
-serialized/deserialized with zero extra configuration and parsed at runtime via
-`ColorConverter.ConvertFromString(hex)` — the same mechanism XAML uses internally. The
-`ColorConverter` class in `System.Windows.Media` handles `#RRGGBB` and `#AARRGGBB` format.
-(Source: `System.Windows.Media.ColorConverter` docs — HIGH confidence.)
+**Default `true` rationale:** Uptime is the headline feature of v2.1 and is lightweight to compute. Defaulting to visible (unlike stats bars which default false) means new users see the feature immediately. Existing users upgrading from v2.0 will have a missing `UptimeVisible` field in their `settings.json` — the init-property default `true` applies, so they also see the uptime row on first launch after upgrade. This is the intended behavior.
 
-**Opacity as double:**
-`double` serializes natively. Range is 0.0–1.0 matching `UIElement.Opacity`. The default 1.0 means
-existing users upgrading from v1.9 see no change on first launch — missing field defaults to 1.0.
-
-**SettingsService.Defaults() update:**
-```csharp
-public static AppSettings Defaults() => new()
-{
-    Left = -1, Top = 20, FontSize = 32,
-    StatsVisible = false, StatsIntervalSeconds = 3,
-    CpuVisible = true, GpuVisible = true, MemVisible = true,
-    PagVisible = true, DialMode = false,
-    AccentColor = "#FFFFFF",
-    Opacity = 1.0
-};
-```
-
-No guard needed for Opacity in `Load()` — a JSON-absent or zero Opacity field defaults to `0.0`
-via init-property, which is valid (fully transparent but not a dangerous timer value). If zero is
-considered undesirable, add the same guard pattern as `StatsIntervalSeconds`:
-```csharp
-if (loaded.Opacity <= 0.0)
-    loaded = loaded with { Opacity = Defaults().Opacity };
-```
-This guard is optional but recommended for robustness.
+**No guard needed in `SettingsService.Load()`:** `bool` has no dangerous falsy-zero equivalent. `false` is a valid user choice (they hid the row). The existing pattern (`StatsIntervalSeconds <= 0` guard, `Opacity <= 0.0` guard) applies only to types where a zero value causes a crash or unrecoverable invisible state. `UptimeVisible = false` is safe.
 
 ---
 
-## New Fields in MainWindow
+## Uptime Data Source
 
+**`Environment.TickCount64`** — the correct API for system uptime in .NET 10.
+
+- Returns `long` (Int64): milliseconds elapsed since system start
+- Available since .NET Core 3.0; in .NET 10 (HIGH confidence — official docs)
+- On Windows with .NET 10, includes non-awake time (sleep/hibernate time is counted)
+  - This matches the expected Linux-style "up" display behavior; uptime counting pause during sleep would surprise users
+- No P/Invoke required; no NuGet packages; one property access
+- Cost: effectively zero — a single kernel call, sub-microsecond
+
+**Conversion to TimeSpan:**
 ```csharp
-private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
-private double _windowOpacity = 1.0;
+TimeSpan uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
+// uptime.Days, uptime.Hours, uptime.Minutes give the display components
 ```
 
-`_accentColor` stores the parsed `System.Windows.Media.Color` struct at runtime — parsed once from
-the hex string in `AppSettings` and cached so `ApplyTheme()` constructs brushes from it without
-re-parsing the hex on every call.
+**Why not `DateTime.Now - Process.GetCurrentProcess().StartTime`:** That gives widget uptime, not system uptime. Wrong concept.
 
-`_windowOpacity` mirrors `this.Opacity` in a field so `SaveSettings()` reads the field rather than
-reading the dependency property. Either approach is correct; the field is marginally cleaner.
+**Why not `Win32_OperatingSystem.LastBootUpTime` via WMI:** WMI startup cost is 100–500ms and requires `using System.Management`. `Environment.TickCount64` achieves the same result at zero cost with no new dependencies.
+
+(Source: https://learn.microsoft.com/en-us/dotnet/api/system.environment.tickcount64?view=net-10.0 — HIGH confidence)
 
 ---
 
-## ApplyTheme() Method
+## Rolling CPU Average Implementation
 
-`ApplyTheme()` is a new private method that applies `_accentColor` to every accent-colored element.
-It is called after `_accentColor` changes (from menu selection or color picker) and once during
-startup from `ApplySettings()`.
+### Approach: Queue-of-floats trimmed to 15m window
 
-```csharp
-private void ApplyTheme()
-{
-    var brush = new System.Windows.Media.SolidColorBrush(_accentColor);
+`Queue<float>` is the simplest structure for a sliding window: `Enqueue` at the tail, `Dequeue` from the head. Capacity is implicitly bounded by trimming on each tick.
 
-    // Phrase mode elements
-    PhraseText.Foreground = brush;
-    // ShadowText remains dark (#BB000000) — it is the shadow layer, not the accent
-
-    // Dial mode elements
-    HourHand.Stroke   = brush;
-    MinuteHand.Stroke = brush;
-    foreach (var el in _hourTickElements)   el.Stroke      = brush;
-    foreach (var el in _minuteDotElements)  el.Fill        = brush;
-    foreach (var el in _hourNumberElements) el.Foreground  = brush;
-
-    // Stats bar fill elements (the fill bar, not the track)
-    CpuBar.Background  = brush;
-    CpuText.Foreground = brush;
-    GpuBar.Background  = brush;
-    GpuText.Foreground = brush;
-    MemBar.Background  = brush;
-    MemText.Foreground = brush;
-    PagBar.Background  = brush;
-    PagText.Foreground = brush;
-    // Row label text (CPU/GPU/MEM/PAG) can stay white or follow accent — design decision.
-    // Recommended: leave labels white (high contrast regardless of accent) for readability.
-}
+```
+_cpuSamples: [oldest ... ... ... newest]
+              ^Dequeue                ^Enqueue
 ```
 
-**Why a single method instead of inline assignments:**
-The same set of 14+ assignments must happen both at startup (ApplySettings) and at runtime (menu
-click, color picker). A single `ApplyTheme()` call at both sites is the only way to guarantee
-consistency. Scattering the assignments across multiple handlers creates divergence risk.
+**Window sizes (at default 3s interval):**
+| Average | Window | Sample count (at 3s) |
+|---------|--------|----------------------|
+| 1-minute | 60s | 20 samples |
+| 5-minute | 300s | 100 samples |
+| 15-minute | 900s | 300 samples (queue max) |
 
-**Why brush is created fresh per call:**
-`SolidColorBrush` is a lightweight object. Creating one per `ApplyTheme()` call (which is rare —
-only on user action or startup) is correct. Sharing a single brush instance across all elements is
-also valid but creates a complication: if any code later freezes the brush (for thread-safety),
-all elements share the frozen instance and any subsequent color change would require creating a
-new brush anyway. Per-call creation is simpler with no measurable cost.
+**Display format:** Values are stored as percentages (0–100), displayed as load-average-style decimals (divided by 100). This matches the Linux `uptime` output convention where `0.52` means 52% average CPU load.
 
-**InitDialDecorations() ordering constraint:**
-`_hourTickElements`, `_minuteDotElements`, and `_hourNumberElements` are populated in
-`InitDialDecorations()`, which runs in `ContentRendered`. `ApplyTheme()` iterates these lists.
+**Startup behavior:** At startup, only a few samples exist. `ComputeAvg` uses `Math.Min(count, q.Count)` to average over however many samples are available. This is correct — no sentinel value or "warming up" indicator is needed.
 
-Calling order at startup:
-1. `ApplySettings()` — runs before `Show()`, lists are empty at this point
-2. `ContentRendered` → `InitDialDecorations()` creates the elements
-3. `ContentRendered` → call `ApplyTheme()` after `InitDialDecorations()` to color them
+**Interval change behavior:** Changing the stats interval (e.g., from 3s to 10s) changes how many samples represent each time window. The queue is trimmed to the new `maxSamples` on the next tick. Averages recalculate immediately using the new window sizes. The brief discontinuity is imperceptible.
 
-At startup, `ApplySettings()` must NOT call `ApplyTheme()` directly because the decoration lists
-are empty before `ContentRendered`. Instead, `ApplySettings()` sets `_accentColor` and
-`_windowOpacity` from the loaded settings, then `ContentRendered` calls `ApplyTheme()` after
-`InitDialDecorations()`. This mirrors the existing pattern for `_showHourTicks` etc.
+### Why Not a Circular Buffer Array
+
+A fixed-size circular buffer is marginally more efficient at high sample rates, but the queue approach is:
+- Simpler to read and reason about
+- Correct for variable interval sizes
+- Bounded at 900 elements maximum (even at 1s interval), which is negligible memory
+- Uses `LINQ .Average()` and `.TakeLast()` — both available in .NET 10 BCL, zero dependencies
+
+A circular buffer would be appropriate if samples were taken at sub-second rates. At the coarsest stats timer rate (1s), `Queue<float>` is the right tradeoff.
 
 ---
 
-## Opacity Integration
+## XAML Layout
 
-**Window.Opacity (inherited from UIElement.Opacity):**
-Setting `this.Opacity = 0.75` applies a 0.75 opacity factor to the entire window and all its
-children uniformly. This is the correct approach for widget-level opacity — it fades everything
-(phrase, dial, stats, backdrop) together.
-(Source: `UIElement.Opacity` docs — range 0.0–1.0, applied top-down to child elements. HIGH confidence.)
+### Inner Grid: Add Row 2
 
-**Interaction with existing BackdropBorder hover:**
-The `ContentBorder.Background` semi-transparent hover effect (`#590000000`) uses alpha on the
-brush, not `Opacity`. These are independent: window Opacity multiplies on top of element alpha.
-At 50% window opacity, the backdrop appears at 50% × 35% = ~17.5% effective opacity. This is
-the expected behavior — the whole widget fades together including the backdrop.
-
-**Scroll wheel handler:**
-Wire `MouseWheel` on the Window (not Grid) so it fires even when hovering over elements that do
-not handle scroll events themselves. The handler is wired in XAML for consistency with other event
-patterns in this codebase.
+The inner `Grid` inside `ContentBorder` currently has 2 rows. Add a third:
 
 ```xml
-<!-- MainWindow.xaml — Window element -->
-<Window ...
-        MouseWheel="Window_MouseWheel">
+<Grid>
+    <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />   <!-- Row 0: phrase/dial (existing) -->
+        <RowDefinition Height="Auto" />   <!-- Row 1: StatsPanel (existing) -->
+        <RowDefinition Height="Auto" />   <!-- Row 2: UptimeRow (NEW) -->
+    </Grid.RowDefinitions>
+
+    <!-- Row 0: existing ContentBorder (unchanged) -->
+    <!-- Row 1: existing StatsPanel (unchanged) -->
+
+    <!-- Row 2: uptime/load line -->
+    <TextBlock x:Name="UptimeText"
+               Grid.Row="2"
+               Width="180"
+               Margin="0,2,0,0"
+               Visibility="Visible"
+               FontFamily="Segoe UI Light"
+               FontSize="11"
+               Foreground="White"
+               Text="up —"
+               TextAlignment="Left" />
+</Grid>
 ```
 
-```csharp
-private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
-{
-    // e.Delta: positive = scroll up (increase opacity), negative = scroll down (decrease)
-    // Standard delta is ±120 per notch. Use sign only, not magnitude.
-    double delta = e.Delta > 0 ? 0.10 : -0.10;
-    _windowOpacity = Math.Clamp(_windowOpacity + delta, 0.10, 1.0);
-    // Clamp minimum to 0.10 — allowing 0.0 makes the widget invisible and unrecoverable
-    // without restarting. 0.10 (10%) is barely visible but still interactable.
-    this.Opacity = _windowOpacity;
-    SaveSettings();
-}
-```
+**Width="180":** Matches `StatsPanel` width to prevent SizeToContent jitter. The uptime string has variable length depending on days/hours/minutes and the load values. Fixing the width stabilizes the widget.
 
-**Opacity minimum floor:** Clamp to 0.10 minimum, not 0.0. A fully transparent window with
-`AllowsTransparency=True` is invisible but still receives mouse events (see `UIElement.Opacity`
-docs: "even if declared opacity is 0, an element still participates in input events"). However,
-if the user scrolls to 0% opacity, there is no visual feedback that the widget exists, making
-it effectively lost. The 0.10 floor prevents this non-recoverable state. The preset menu offers
-25%/50%/75%/100% as the four named steps.
+**FontSize="11":** Slightly smaller than the stats row label font (12pt) to visually de-emphasize the line as supplementary information.
 
-**Preset menu opacity:**
-```csharp
-private void MenuOpacity25_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.25);
-private void MenuOpacity50_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.50);
-private void MenuOpacity75_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.75);
-private void MenuOpacity100_Click(object sender, RoutedEventArgs e) => SetOpacity(1.00);
+**Visibility="Visible" default:** Uptime is visible by default (matches `UptimeVisible = true` default). `ApplySettings()` sets the actual visibility from loaded settings before `Show()`.
 
-private void SetOpacity(double opacity)
-{
-    _windowOpacity = opacity;
-    this.Opacity   = opacity;
-    SaveSettings();
-}
-```
+**Text="up —":** Placeholder text shown for the brief period between `Show()` and the first `_statsTimer` tick. Avoids an empty/blank row.
 
----
-
-## ApplySettings() Changes
-
-`ApplySettings()` runs before `Show()`. The pre-Show safety invariant applies: do not call methods
-that trigger `UpdateLayout()`, `Clamp()`, or `SaveSettings()`.
-
-```csharp
-internal void ApplySettings(AppSettings s)
-{
-    // ... existing fields (FontSize, position, stats, dial mode) unchanged ...
-
-    // NEW: accent color — parse hex string to Color struct, store in field
-    // Do NOT call ApplyTheme() here — _hourTickElements etc. are empty until ContentRendered
-    try
-    {
-        _accentColor = (System.Windows.Media.Color)
-            System.Windows.Media.ColorConverter.ConvertFromString(s.AccentColor);
-    }
-    catch
-    {
-        _accentColor = System.Windows.Media.Colors.White;  // fallback on invalid hex
-    }
-
-    // NEW: opacity — set field and Window.Opacity directly (safe before Show())
-    _windowOpacity = s.Opacity;
-    this.Opacity   = s.Opacity;
-}
-```
-
-**Setting `this.Opacity` before Show():** `UIElement.Opacity` is a dependency property on the
-visual. Setting it before `Show()` is safe — it is not position-related and does not require a
-layout pass. This follows the same pattern as `StatsPanel.Visibility` (set directly in
-`ApplySettings()`) and is distinct from the `ApplyFontSize()`/`SetStatsVisible()` group that
-require `UpdateLayout()`.
-
-**ContentRendered calls ApplyTheme() after InitDialDecorations():**
-```csharp
-ContentRendered += (_, _) =>
-{
-    // ... existing position clamp/PositionTopRight, timer setup, stats init ...
-    if (_dialMode) UpdateDialDisplay();
-    InitDialDecorations();
-    ApplyTheme();    // NEW: after decoration lists are populated, apply accent color
-    // ... hover handlers ...
-};
-```
-
----
-
-## SaveSettings() Changes
-
-Add the two new fields to the AppSettings construction:
-
-```csharp
-internal void SaveSettings()
-{
-    SettingsService.Save(new AppSettings
-    {
-        Left = Left, Top = Top,
-        FontSize = _currentFontSize,
-        StatsVisible = (StatsPanel.Visibility == Visibility.Visible),
-        StatsIntervalSeconds = _statsIntervalSeconds,
-        CpuVisible = (CpuRow.Visibility == Visibility.Visible),
-        GpuVisible = (GpuRow.Visibility == Visibility.Visible),
-        MemVisible = (MemRow.Visibility == Visibility.Visible),
-        PagVisible = (PagRow.Visibility == Visibility.Visible),
-        DialMode = _dialMode,
-        ShowHourTicks   = _showHourTicks,
-        ShowMinuteDots  = _showMinuteDots,
-        ShowHourNumbers = _showHourNumbers,
-        // NEW:
-        AccentColor = $"#{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}",
-        Opacity     = _windowOpacity
-    });
-}
-```
-
-**AccentColor serialization:** Convert `_accentColor` back to `#RRGGBB` hex string. Alpha is
-intentionally excluded — all preset themes and the custom picker use fully opaque colors; window
-opacity is the separate opacity lever. Storing alpha in AccentColor would create two opacity
-controls for the same visual effect and confuse the round-trip.
-
----
-
-## ContextMenu Changes
-
-### New XAML Structure
+### Stats Submenu: Add Toggle
 
 ```xml
-<ContextMenu Opened="ContextMenu_Opened">
-    <MenuItem x:Name="MenuFontSize" Header="Font Size"> ... </MenuItem>
-    <MenuItem Header="Stats"> ... </MenuItem>
-    <MenuItem x:Name="MenuDialMode" ... />
-    <MenuItem x:Name="MenuDialFace" ...> ... </MenuItem>
-
-    <!-- NEW: Theme submenu -->
-    <MenuItem Header="Theme">
-        <MenuItem x:Name="MenuThemeWhite"   Header="White"           IsCheckable="True" Click="MenuThemeWhite_Click" />
-        <MenuItem x:Name="MenuThemeAmber"   Header="Amber"           IsCheckable="True" Click="MenuThemeAmber_Click" />
-        <MenuItem x:Name="MenuThemeIce"     Header="Ice Blue"        IsCheckable="True" Click="MenuThemeIce_Click" />
-        <MenuItem x:Name="MenuThemeGreen"   Header="Green"           IsCheckable="True" Click="MenuThemeGreen_Click" />
-        <MenuItem x:Name="MenuThemePink"    Header="Hello Kitty Pink" IsCheckable="True" Click="MenuThemePink_Click" />
-        <Separator />
-        <MenuItem x:Name="MenuThemeCustom"  Header="Custom Color..." Click="MenuThemeCustom_Click" />
-    </MenuItem>
-
-    <!-- NEW: Opacity submenu -->
-    <MenuItem Header="Opacity">
-        <MenuItem x:Name="MenuOpacity25"  Header="25%"  IsCheckable="True" Click="MenuOpacity25_Click" />
-        <MenuItem x:Name="MenuOpacity50"  Header="50%"  IsCheckable="True" Click="MenuOpacity50_Click" />
-        <MenuItem x:Name="MenuOpacity75"  Header="75%"  IsCheckable="True" Click="MenuOpacity75_Click" />
-        <MenuItem x:Name="MenuOpacity100" Header="100%" IsCheckable="True" Click="MenuOpacity100_Click" />
-    </MenuItem>
-
-    <MenuItem Header="Close" Click="CloseMenuItem_Click" />
-</ContextMenu>
+<MenuItem Header="Stats">
+    <MenuItem x:Name="MenuShowStats" ... />
+    <Separator />
+    <MenuItem x:Name="MenuCpuVisible" ... />
+    <MenuItem x:Name="MenuGpuVisible" ... />
+    <MenuItem x:Name="MenuMemVisible" ... />
+    <MenuItem x:Name="MenuPagVisible" ... />
+    <!-- NEW -->
+    <MenuItem x:Name="MenuUptimeVisible"
+              Header="Show Uptime"
+              IsCheckable="True"
+              Click="MenuUptimeVisible_Click" />
+    <MenuItem Header="Update Interval"> ... </MenuItem>
+</MenuItem>
 ```
 
-**Custom Color... is not IsCheckable:** The custom color item opens a dialog, not a toggle. It
-has no checked state. If the current color is a custom one (not a preset), none of the preset
-MenuItems will show a checkmark — that is correct behavior.
-
-**Opacity has no "Custom" option:** The scroll wheel already provides arbitrary 10%-increment
-control. Preset steps (25/50/75/100) in the menu are the primary coarse controls. Showing a
-checkmark only when the current opacity exactly matches a preset step (0.25/0.50/0.75/1.00) is
-correct — at intermediate values (e.g., 0.60 via scroll wheel) no step is checked. This is
-consistent with how `FontSmall/Medium/Large` work (no intermediate sizes exist, each maps 1:1).
-
-### ContextMenu_Opened Sync
-
-The existing sync pattern syncs `IsChecked` from state fields. Add theme and opacity syncs:
-
-```csharp
-private void ContextMenu_Opened(object sender, RoutedEventArgs e)
-{
-    // ... existing font, stats, dial syncs unchanged ...
-
-    // Theme preset sync: check the preset whose hex matches _accentColor, or none for custom
-    string currentHex = $"#{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}";
-    MenuThemeWhite.IsChecked = (currentHex == "#FFFFFF");
-    MenuThemeAmber.IsChecked = (currentHex == "#FFC200");
-    MenuThemeIce.IsChecked   = (currentHex == "#A8D8EA");
-    MenuThemeGreen.IsChecked = (currentHex == "#39D353");
-    MenuThemePink.IsChecked  = (currentHex == "#FF69B4");
-    // MenuThemeCustom has no IsChecked — it opens a dialog
-
-    // Opacity preset sync: check only exact matches
-    MenuOpacity25.IsChecked  = (_windowOpacity == 0.25);
-    MenuOpacity50.IsChecked  = (_windowOpacity == 0.50);
-    MenuOpacity75.IsChecked  = (_windowOpacity == 0.75);
-    MenuOpacity100.IsChecked = (_windowOpacity == 1.00);
-}
-```
-
-**Hex comparison for theme check:** The canonical hex values for the five presets are constants in
-the click handlers. Comparing the stored field to these constants is the correct sync pattern —
-it matches how `_statsIntervalSeconds` is compared to 1/3/10.
-
-**Floating-point equality for opacity:** `double` equality works correctly here because the only
-way `_windowOpacity` changes is via `SetOpacity(0.25/0.50/0.75/1.00)` (preset click) or
-`Window_MouseWheel` (10% increments via `Math.Clamp`). No arithmetic accumulation occurs that
-would cause drift. The clamped `+= 0.10` pattern can accumulate small float error after many
-scrolls — a safer sync is `Math.Round(_windowOpacity, 2)` comparison — but at 2 decimal places
-this is not a practical problem.
-
----
-
-## Color Picker Dialog
-
-**WPF has no built-in color picker dialog.** The standard Windows color picker is in
-`System.Windows.Forms.ColorDialog` from the WinForms assembly.
-
-**Recommended approach: Use WinForms ColorDialog via interop.**
-The WinForms `ColorDialog` is available in .NET 10 via `Microsoft.WindowsDesktop.App` (already
-a dependency of any WPF app targeting `net10.0-windows`). No additional NuGet package is required.
-
-```csharp
-private void MenuThemeCustom_Click(object sender, RoutedEventArgs e)
-{
-    var dlg = new System.Windows.Forms.ColorDialog
-    {
-        Color = System.Drawing.Color.FromArgb(
-            _accentColor.R, _accentColor.G, _accentColor.B),
-        FullOpen = true,    // show full HSV picker, not just basic swatches
-        AllowFullOpen = true
-    };
-
-    if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-    {
-        var dc = dlg.Color;
-        _accentColor = System.Windows.Media.Color.FromRgb(dc.R, dc.G, dc.B);
-        ApplyTheme();
-        SaveSettings();
-    }
-}
-```
-
-**Why WinForms ColorDialog over a custom WPF color picker:**
-A custom picker requires building a XAML dialog window, color wheel/slider controls, and hex input
-validation — hundreds of lines for a widget that has "no settings screens" as a design constraint.
-The WinForms `ColorDialog` is the standard Windows system dialog, familiar to users, zero-cost to
-implement, and consistent with the project's simplicity principle. The interop works natively
-because WPF and WinForms share the same .NET runtime.
-
-**The `System.Windows.Forms` namespace must be referenced.** In .NET 10, the WinForms assembly is
-part of the `Microsoft.WindowsDesktop.App` framework reference that WPF apps already target. No
-NuGet addition is needed; add `<UseWindowsForms>true</UseWindowsForms>` to the `.csproj` to
-enable the WinForms types.
-
-```xml
-<!-- FuzzyClock.App.csproj — inside <PropertyGroup> -->
-<UseWindowsForms>true</UseWindowsForms>
-```
+**Placement:** After the PAG row toggle and before Update Interval. The uptime row is logically separate from the four stat bars but lives in the same cluster of row-visibility controls.
 
 ---
 
 ## Data Flow
 
-### Startup Flow (v2.0 additions in bold)
+### Startup Flow (v2.1 additions in bold)
 
 ```
 App.OnStartup()
     |
     +-- SettingsService.Load() -> AppSettings
-    |       ** AccentColor and Opacity included with init-property defaults **
+    |       ** UptimeVisible included with init-property default (true) **
     |
     +-- new MainWindow()
+    |       ** _cpuSamples = new Queue<float>() (initialized) **
+    |
     +-- mainWindow.ApplySettings(settings)
-    |       +-- existing fields applied (font, position, stats, dial)
-    |       ** _accentColor = parse settings.AccentColor (try/catch fallback to White) **
-    |       ** _windowOpacity = settings.Opacity **
-    |       ** this.Opacity = settings.Opacity          (safe before Show()) **
-    |       ** NOTE: ApplyTheme() NOT called here — decoration lists empty **
+    |       ** UptimeRow.Visibility = settings.UptimeVisible ? Visible : Collapsed **
+    |       (Direct assignment, not via method — same pre-Show safety invariant)
     |
     +-- mainWindow.SetInitialPhrase(...)
     +-- mainWindow.Show()
             |
             +-- ContentRendered fires
-                    +-- position clamp / PositionTopRight (existing)
-                    +-- _timer started (existing)
-                    +-- _statsService + _statsTimer (existing)
-                    +-- UpdateDialDisplay() if _dialMode (existing)
-                    +-- InitDialDecorations()    (existing)
-                    ** ApplyTheme()  ← NEW, after InitDialDecorations() **
-                    +-- hover handlers wired (existing)
+                    +-- existing: _timer, _statsService, _statsTimer started
+                    +-- _statsTimer.Tick fires every N seconds:
+                            +-- _statsService.Refresh()    (existing)
+                            +-- UpdateStatsDisplay()       (existing)
+                            +-- UpdateUptimeDisplay()      (NEW — if UptimeRow.Visible)
 ```
 
-### Theme Change Flow (runtime)
+### Stats Timer Tick Flow (v2.1 additions in bold)
 
 ```
-User selects "Amber" from Theme submenu
+_statsTimer.Tick
     |
-    +-- MenuThemeAmber_Click fires
-    +-- _accentColor = Color.FromRgb(0xFF, 0xC2, 0x00)
-    +-- ApplyTheme()
-    |       +-- new SolidColorBrush(_accentColor)
-    |       +-- PhraseText.Foreground = brush
-    |       +-- HourHand.Stroke = brush, MinuteHand.Stroke = brush
-    |       +-- _hourTickElements[i].Stroke = brush  (0–12 elements, may be empty list)
-    |       +-- _minuteDotElements[i].Fill = brush   (0–60 elements)
-    |       +-- _hourNumberElements[i].Foreground = brush (0–12 elements)
-    |       +-- CpuBar.Background = brush, CpuText.Foreground = brush
-    |       +-- GpuBar.Background = brush, GpuText.Foreground = brush
-    |       +-- MemBar.Background = brush, MemText.Foreground = brush
-    |       +-- PagBar.Background = brush, PagText.Foreground = brush
-    +-- SaveSettings()  (persists new AccentColor hex)
-```
-
-### Opacity Change Flow (scroll wheel)
-
-```
-User scrolls mouse wheel up over widget
+    +-- _statsService.Refresh()
+    |       CpuPercent updated
     |
-    +-- Window_MouseWheel fires (e.Delta > 0)
-    +-- _windowOpacity = Math.Clamp(_windowOpacity + 0.10, 0.10, 1.0)
-    +-- this.Opacity = _windowOpacity
-    +-- SaveSettings()
+    +-- UpdateStatsDisplay()    (existing — reads CpuPercent for bars)
+    |
+    +-- UpdateUptimeDisplay()   (NEW)
+            |
+            +-- if UptimeRow.Collapsed → return (early exit, no queue growth)
+            |
+            +-- TimeSpan uptime = TimeSpan.FromMilliseconds(Environment.TickCount64)
+            +-- _cpuSamples.Enqueue(_statsService.CpuPercent)
+            +-- trim _cpuSamples to maxSamples = 15*60 / _statsIntervalSeconds
+            +-- compute avg1m, avg5m, avg15m via ComputeAvg()
+            +-- UptimeText.Text = formatted string
+```
+
+### Toggle Flow (runtime)
+
+```
+User clicks "Show Uptime" in Stats submenu
+    |
+    +-- MenuUptimeVisible_Click fires
+    +-- SetUptimeRowVisible(UptimeRow.Visibility != Visibility.Visible)
+            |
+            +-- UptimeRow.Visibility = visible ? Visible : Collapsed
+            +-- UpdateLayout() + re-clamp (if visible && _hasUserPosition)
+            +-- SaveSettings()
 ```
 
 ---
@@ -549,199 +348,140 @@ User scrolls mouse wheel up over widget
 
 | File | What Changes |
 |------|-------------|
-| `AppSettings.cs` | Add `string AccentColor { get; init; } = "#FFFFFF"` and `double Opacity { get; init; } = 1.0`; update `SettingsService.Defaults()` |
-| `MainWindow.xaml` | Add Theme submenu (5 presets + Custom), Opacity submenu (4 presets), `MouseWheel` event on Window element |
-| `MainWindow.xaml.cs` | Add `_accentColor`, `_windowOpacity` fields; add `ApplyTheme()`; add `Window_MouseWheel`, theme click handlers, opacity click handlers, `SetOpacity()`; extend `ApplySettings()`, `SaveSettings()`, `ContextMenu_Opened()`, `ContentRendered` |
+| `AppSettings.cs` | Add `bool UptimeVisible { get; init; } = true`; update `SettingsService.Defaults()` |
+| `MainWindow.xaml` | Add Row 2 `UptimeText` TextBlock; add "Show Uptime" toggle to Stats submenu |
+| `MainWindow.xaml.cs` | Add `_cpuSamples` field; add `UpdateUptimeDisplay()` and `ComputeAvg()`; extend `_statsTimer.Tick` handler; extend `ApplySettings()`, `SaveSettings()`, `ContextMenu_Opened()`, `ApplyTheme()`; add `MenuUptimeVisible_Click` and `SetUptimeRowVisible()` |
 
 ### Unchanged Files
 
 | File | Why Unchanged |
 |------|--------------|
-| `SettingsService.cs` | Load/Save/Clamp work with any AppSettings shape; init-property defaults handle new fields automatically |
-| `App.xaml.cs` | Startup/shutdown flow unchanged; `ApplySettings()` call transparent to new fields |
-| `StatsService.cs` | PerformanceCounter logic — no color or opacity awareness |
+| `StatsService.cs` | `CpuPercent` is already populated on every tick; no new counters needed |
+| `SettingsService.cs` | Load/Save/Clamp work with any AppSettings shape automatically |
+| `App.xaml.cs` | Startup/shutdown flow transparent to new fields |
 | `FuzzyClock.Core/` | PhraseEngine — no changes |
 
-### XAML Elements Receiving Accent Color
+### Existing Patterns Reused
 
-The following named elements in `MainWindow.xaml` are written to by `ApplyTheme()`:
+| Pattern | Where Applied |
+|---------|---------------|
+| `Visibility.Collapsed/Visible` toggle | `UptimeRow` visibility on toggle and `ApplySettings()` |
+| `IsChecked` sync in `ContextMenu_Opened()` | `MenuUptimeVisible.IsChecked` from row visibility |
+| Click handler reads `Visibility` not `IsChecked` | `MenuUptimeVisible_Click` reads `UptimeRow.Visibility` |
+| Pre-Show safety: set Visibility directly in `ApplySettings()` | `UptimeRow.Visibility` set directly, not via `SetUptimeRowVisible()` |
+| `UpdateLayout() + re-clamp` on row show | `SetUptimeRowVisible(true)` calls layout pass to adjust window height |
+| Accent color applied via `ApplyTheme()` | `UptimeText.Foreground = brush` added to `ApplyTheme()` |
+| `SaveSettings()` called after state change | `SetUptimeRowVisible()` calls `SaveSettings()` |
 
-| Element | Property | Notes |
-|---------|----------|-------|
-| `PhraseText` | `Foreground` | Main phrase text |
-| `ShadowText` | not changed | Shadow is always dark; leave as `#BB000000` |
-| `HourHand` | `Stroke` | Dial hand |
-| `MinuteHand` | `Stroke` | Dial hand |
-| `CpuBar` | `Background` | Stats bar fill |
-| `CpuText` | `Foreground` | Stats percentage text |
-| `GpuBar` | `Background` | Stats bar fill |
-| `GpuText` | `Foreground` | Stats percentage text |
-| `MemBar` | `Background` | Stats bar fill |
-| `MemText` | `Foreground` | Stats percentage text |
-| `PagBar` | `Background` | Stats bar fill |
-| `PagText` | `Foreground` | Stats percentage text |
-| `_hourTickElements[]` | `Stroke` | Created in code-behind, iterated in `ApplyTheme()` |
-| `_minuteDotElements[]` | `Fill` | Created in code-behind, iterated in `ApplyTheme()` |
-| `_hourNumberElements[]` | `Foreground` | Created in code-behind, iterated in `ApplyTheme()` |
+---
 
-**Elements deliberately excluded from accent color:**
-- `ShadowText` — always dark for contrast regardless of accent
-- `CpuRow`, `GpuRow`, etc. label TextBlocks ("CPU", "GPU", "MEM", "PAG") — white is legible
-  against any accent color; making labels match accent can cause low-contrast combinations
-  (e.g., white accent + white label = invisible)
-- `CpuBarTrack`, `GpuBarTrack`, etc. — track background stays `#40FFFFFF` (semi-transparent
-  white); it is a neutral container, not an accent element
-- `ContentBorder` backdrop — hover backdrop color (`#59000000`) is a neutral overlay, not themed
+## SizeToContent Interaction
+
+Showing or hiding `UptimeRow` changes window height by ~16px (11pt font + 2px margin). The same
+`UpdateLayout()` + re-clamp pattern used for all other row visibility changes applies here.
+
+| Event | SizeToContent Effect | Action Required |
+|-------|---------------------|-----------------|
+| `UptimeRow` shown | Window height increases ~16px | `UpdateLayout()` + re-clamp (if `_hasUserPosition`) |
+| `UptimeRow` hidden | Window height decreases ~16px | `UpdateLayout()` + re-clamp not strictly needed, but consistent to include |
+| `UptimeText.Text` updated | Width fixed at 180 — no resize | None |
+| Uptime string length changes | Prevented by `Width="180"` | None |
 
 ---
 
 ## Suggested Build Order
 
-Each step is independently verifiable before the next begins.
+Each step is independently verifiable.
 
-**Step 1: AppSettings — add AccentColor and Opacity fields**
-- Add `string AccentColor { get; init; } = "#FFFFFF"` to `AppSettings.cs`
-- Add `double Opacity { get; init; } = 1.0` to `AppSettings.cs`
-- Update `SettingsService.Defaults()` to include new fields
-- Optionally add Opacity guard in `Load()` for zero-value robustness
-- Verify: existing `settings.json` (without new fields) loads correctly — new fields default
-- Verify: new round-trip saves and reloads both new fields
+**Step 1: AppSettings — add UptimeVisible field**
+- Add `bool UptimeVisible { get; init; } = true` to `AppSettings.cs`
+- Update `SettingsService.Defaults()` to include `UptimeVisible = true`
+- Verify: existing `settings.json` (without new field) loads correctly — field defaults `true`
+- Verify: new field saves and reloads correctly
 
-**Step 2: Opacity — window-level fade**
-- Add `_windowOpacity` field to `MainWindow.xaml.cs`
-- Add `MouseWheel="Window_MouseWheel"` to Window element in XAML
-- Implement `Window_MouseWheel` (10% increments, clamp 0.10–1.00, SaveSettings)
-- Add Opacity submenu to XAML (4 presets: 25/50/75/100)
-- Implement `SetOpacity()`, four preset click handlers
-- Extend `ApplySettings()` to set `_windowOpacity` and `this.Opacity`
-- Extend `SaveSettings()` to persist `_windowOpacity`
-- Extend `ContextMenu_Opened()` to sync opacity preset checkmarks
-- Verify: scroll wheel fades widget; persists across restart; presets work; checkmarks sync
+**Step 2: XAML — add UptimeRow TextBlock and menu toggle**
+- Add Row 2 `RowDefinition` to inner Grid in `MainWindow.xaml`
+- Add `UptimeText` TextBlock at Grid.Row="2" with `Width="180"`, `Visibility="Visible"`, placeholder text
+- Add `MenuUptimeVisible` `IsCheckable` MenuItem to Stats submenu
+- Verify: widget renders with placeholder "up —" row visible; Stats submenu shows "Show Uptime" item
 
-**Step 3: Accent color — presets**
-- Add `_accentColor` field to `MainWindow.xaml.cs`
-- Implement `ApplyTheme()` — sets `Foreground`/`Stroke`/`Fill`/`Background` on all 14+ elements
-- Call `ApplyTheme()` at end of `ContentRendered` after `InitDialDecorations()`
-- Extend `ApplySettings()` to parse `AccentColor` hex and set `_accentColor` (try/catch fallback)
-- Extend `SaveSettings()` to serialize `_accentColor` back to `#RRGGBB`
-- Add Theme submenu to XAML (5 presets, no Custom yet)
-- Implement 5 preset click handlers: set `_accentColor`, call `ApplyTheme()`, `SaveSettings()`
-- Extend `ContextMenu_Opened()` to sync theme preset checkmarks
-- Verify: each preset changes all accent elements at once; persists across restart; checkmarks sync
+**Step 3: ApplySettings / SaveSettings / ContextMenu_Opened wiring**
+- Extend `ApplySettings()`: `UptimeRow.Visibility = s.UptimeVisible ? Visible : Collapsed`
+- Extend `SaveSettings()`: `UptimeVisible = (UptimeRow.Visibility == Visibility.Visible)`
+- Extend `ContextMenu_Opened()`: `MenuUptimeVisible.IsChecked = (UptimeRow.Visibility == Visibility.Visible)`
+- Add `MenuUptimeVisible_Click` handler: calls `SetUptimeRowVisible(UptimeRow.Visibility != Visibility.Visible)`
+- Add `SetUptimeRowVisible()`: sets Visibility, UpdateLayout + re-clamp, SaveSettings
+- Verify: toggle hides/shows row; checkmark syncs; state persists across restart
 
-**Step 4: Custom color picker**
-- Add `<UseWindowsForms>true</UseWindowsForms>` to `.csproj`
-- Add `Custom Color...` MenuItem to Theme submenu (no IsCheckable)
-- Implement `MenuThemeCustom_Click` using `System.Windows.Forms.ColorDialog`
-- Verify: custom color dialog opens pre-seeded with current accent color; choosing a color updates
-  all accent elements; custom color persists across restart; no preset checkmark appears
+**Step 4: Uptime data and display**
+- Add `UpdateUptimeDisplay()` with `Environment.TickCount64` uptime formatting
+- Call `UpdateUptimeDisplay()` at end of `_statsTimer.Tick` handler (after `UpdateStatsDisplay()`)
+- No queue logic yet — just uptime string
+- Verify: "up Xd Yh Zm" appears and updates each timer tick; sub-day format works
 
-**Step 5: Edge cases and cleanup**
-- Test startup with default settings.json (White / 100% — no visible change from v1.9)
-- Test upgrade from v1.9 settings.json (missing fields → default to White/1.0)
-- Test all 5 presets in both phrase mode and dial mode (all elements change)
-- Test opacity via scroll at 0.10 floor — confirm widget remains interactable
-- Test custom color → preset → custom flow (no checkmark on custom; checkmark clears on preset)
-- Verify stats bar track (`#40FFFFFF`) does not change — only bar fill changes
+**Step 5: Rolling CPU averages**
+- Add `Queue<float> _cpuSamples` field
+- Add `ComputeAvg()` helper
+- Extend `UpdateUptimeDisplay()` to enqueue, trim, compute, and format averages
+- Extend `ApplyTheme()`: `UptimeText.Foreground = brush`
+- Verify: averages accumulate over time; values plausible; accent color applies to UptimeText
+
+**Step 6: Edge cases**
+- Test with all stats intervals (1s/3s/10s): verify averages match expected window sizes
+- Test toggle while widget is near screen edge: row show/hide re-clamps correctly
+- Test upgrade from v2.0 settings.json (missing UptimeVisible): row appears (default true)
+- Test long uptime format (multi-day) and short (sub-hour)
+- Test hover fast-refresh (0.5s interval): verify averages compute without error at 0.5s tick
 
 **Dependency rationale:**
-- Step 1 before all: AppSettings schema must be stable before any field is read or written
-- Step 2 before 3: Opacity is simpler (no element enumeration, no color parsing) — validates the
-  `ApplySettings`/`SaveSettings` extension pattern before the more complex color wiring
-- Step 3 before 4: Preset colors validate `ApplyTheme()` and the full round-trip before the
-  color picker dialog adds the interop dependency
-- Step 5 last: edge case and upgrade validation after happy path is fully confirmed
+- Steps 1–3 before 4–5: infrastructure (settings, XAML, toggle) before data logic — testable independently
+- Step 4 before 5: uptime alone is a complete displayable value; averaging adds complexity but is separate concern
+- Step 5 includes theming: logical completion of the row feature
+- Step 6 last: edge-case validation after all happy paths confirmed
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Calling ApplyTheme() from ApplySettings()
+### Anti-Pattern 1: Calling Refresh() Again in UpdateUptimeDisplay()
 
-**What:** Call `ApplyTheme()` inside `ApplySettings()` to apply accent color at startup alongside
-all the other direct assignments.
+**What:** Call `_statsService.Refresh()` at the start of `UpdateUptimeDisplay()` to get a fresh CPU reading for the rolling average.
 
-**Why bad:** `ApplySettings()` runs before `Show()`. At that point, `InitDialDecorations()` has
-not run, so `_hourTickElements`, `_minuteDotElements`, and `_hourNumberElements` are empty lists.
-`ApplyTheme()` iterates these lists — calling it early silently skips all decoration elements.
-`PhraseText` and static XAML elements would be colored, but decoration elements would not.
-On the next `ApplyTheme()` call (first runtime theme change), all elements would suddenly gain
-color. This creates a startup inconsistency: decoration elements show white even when a non-white
-theme was saved.
+**Why bad:** `_statsService.Refresh()` is already called by `UpdateStatsDisplay()` on the same `_statsTimer.Tick`. Calling it twice per tick doubles the PDH counter reads. More importantly, PDH rate counters (CPU) return the delta since the last read — calling `Refresh()` twice in quick succession on a rate counter produces a near-zero delta reading on the second call because almost no time has passed. This corrupts the rolling average with spurious near-zero samples.
 
-**Instead:** `ApplySettings()` sets `_accentColor` from parsed hex (safe). `ContentRendered` calls
-`ApplyTheme()` after `InitDialDecorations()` — the existing ordering pattern for startup safety.
+**Instead:** Read `_statsService.CpuPercent` directly after the single `Refresh()` call that `UpdateStatsDisplay()` has already triggered. Call `UpdateUptimeDisplay()` after `UpdateStatsDisplay()` in the same tick handler.
 
-### Anti-Pattern 2: Storing Color as System.Windows.Media.Color in AppSettings
+### Anti-Pattern 2: Placing UptimeRow Inside StatsPanel
 
-**What:** Change `AccentColor` from `string` to `System.Windows.Media.Color` in the AppSettings
-record so parsing is avoided at load time.
+**What:** Add `UptimeText` as a fifth child of `StatsPanel` (the existing `StackPanel`), below the PAG row.
 
-**Why bad:** `System.Text.Json` cannot natively serialize/deserialize `System.Windows.Media.Color`
-(a struct with `A`, `R`, `G`, `B`, `ScA`, `ScR`, `ScG`, `ScB`, and `ColorContext` — the last
-being an object). Without a custom converter, serialization would produce an unreadable JSON
-object or fail. A hex string is human-readable in `settings.json` and round-trips trivially.
+**Why bad:** `StatsPanel.Visibility = Collapsed` hides all children including `UptimeText`. The uptime row has independent visibility — the user should be able to show uptime with stats hidden, or show stats with uptime hidden. Nesting UptimeRow inside StatsPanel creates an implicit dependency that does not match the requirement (UPT-02: independent toggle).
 
-**Instead:** `string AccentColor` with `ColorConverter.ConvertFromString()` at load time.
+**Instead:** Place `UptimeRow` as a sibling of `StatsPanel` in Row 2 of the inner Grid. This matches the existing pattern: `DialCanvas` and `PhraseText` are siblings in Row 0, not nested inside each other.
 
-### Anti-Pattern 3: Using UIElement.Opacity on Individual Elements Instead of Window
+### Anti-Pattern 3: Growing the Queue Without Trimming
 
-**What:** Apply opacity by setting `Opacity` on `PhraseText`, `DialCanvas`, `StatsPanel`, etc.
-individually to achieve a "fade the widget" effect.
+**What:** Only enqueue samples and never trim `_cpuSamples`, computing averages over `q.TakeLast(N)`.
 
-**Why bad:** `UIElement.Opacity` propagates top-down through the element tree but is NOT additive
-from child to parent. Setting the window's `Opacity` to 0.5 automatically fades all children.
-Setting each child's `Opacity` to 0.5 independently would not affect the window chrome (if any)
-and would require maintaining a parallel set of "baseline opacities" per element to compute
-the correct combined value when the widget also has the hover backdrop at partial alpha. The
-interaction between element-level alpha and window-level alpha becomes complex and fragile.
+**Why bad:** Over a long-running session (days of uptime), the queue grows to hundreds of thousands of entries. At 1s interval over 24 hours: 86,400 samples. Memory is minor (~340KB for floats), but `TakeLast()` on a large Queue allocates a new iterator snapshot on every tick — this causes continuous GC pressure on a widget that is otherwise allocation-free at steady state.
 
-**Instead:** `this.Opacity = value` — one assignment, entire window fades uniformly including
-backdrop, all text, all bars.
+**Instead:** Trim the queue on each tick to the 15-minute maximum. At 1s interval, the queue never exceeds 900 entries. `TakeLast()` on 900 elements is negligible and GC-friendly.
 
-### Anti-Pattern 4: Syncing Theme Checkmarks by Storing a Theme Name Field
+### Anti-Pattern 4: Using a StatsIntervalSeconds-Agnostic Fixed Window
 
-**What:** Add a `string _currentThemeName` field, set it in each preset click handler, and compare
-it in `ContextMenu_Opened()` instead of comparing the hex color.
+**What:** Always keep 900 samples in the queue (hardcoded), compute avg1m as `TakeLast(60)`, avg5m as `TakeLast(300)`, avg15m as `TakeLast(900)` — treating sample count as seconds.
 
-**Why bad:** This introduces a secondary field that can become inconsistent with `_accentColor` if
-a preset click handler fails to update both. The custom color picker has no theme name, so it
-would need a sentinel value (e.g., `"Custom"`) that means nothing to `ApplyTheme()`. The hex
-comparison approach derives checkmark state directly from the authoritative field (`_accentColor`)
-with no secondary state.
+**Why bad:** At a 3s interval, each sample represents 3 seconds. `TakeLast(60)` would represent 60 samples × 3s = 180 seconds (3 minutes), not 1 minute. The labeled averages (1m/5m/15m) would be wrong by a factor equal to `_statsIntervalSeconds`.
 
-**Instead:** Compare `$"#{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}"` to the
-preset constants in `ContextMenu_Opened()`. Single source of truth.
+**Instead:** Convert time windows to sample counts: `windowSamples = (int)Math.Ceiling(windowSeconds / _statsIntervalSeconds)`. This is exact at all configured intervals.
 
-### Anti-Pattern 5: Double-Toggle on Theme Preset MenuItems
+### Anti-Pattern 5: Calling SetUptimeRowVisible() from ApplySettings()
 
-**What:** Read `MenuThemeAmber.IsChecked` in the click handler to decide whether to apply or
-unapply the theme — i.e., clicking a checked preset unsets the theme.
+**What:** Call `SetUptimeRowVisible()` inside `ApplySettings()` to apply saved `UptimeVisible` state at startup.
 
-**Why bad:** The existing codebase explicitly avoids reading `IsChecked` in click handlers because
-WPF's `IsCheckable=True` toggles `IsChecked` before the handler fires. The handler would see the
-post-toggle value, making the logic invert. All existing handlers (font size, stats, dial) read
-actual state fields or element `Visibility`, never `IsChecked`.
+**Why bad:** `SetUptimeRowVisible()` calls `UpdateLayout()` and `SaveSettings()`, which are unsafe before `Show()` (same invariant as `SetStatsVisible()` and `SetStatRowVisible()`). Specifically, `UpdateLayout()` before `Show()` produces `ActualHeight = 0`, causing `SettingsService.Clamp()` to return a nonsense position.
 
-**Instead:** Theme preset click handlers unconditionally apply the color. `ContextMenu_Opened()`
-sets the correct `IsChecked` state from `_accentColor` before the menu is displayed. A theme
-cannot be "unchecked" — selecting another preset clears the previous one's check automatically
-via `ContextMenu_Opened()` sync on next open.
-
----
-
-## SizeToContent Interaction Summary
-
-Theme and opacity changes do not affect window size. Neither `UpdateLayout()` nor re-clamp is
-needed after `ApplyTheme()` or `SetOpacity()`.
-
-| Event | SizeToContent Effect | Action Required |
-|-------|---------------------|-----------------|
-| `ApplyTheme()` | None — only Brush/Color properties change | None |
-| `SetOpacity()` / scroll wheel | None — `UIElement.Opacity` is a render-layer effect | None |
-| Phrase text changes | Window width may change | Existing UpdateLayout() + re-clamp (unchanged) |
-| Font size changes | Window width/height change | Existing UpdateLayout() + re-clamp (unchanged) |
-| Stats panel visibility | Window height changes | Existing UpdateLayout() + re-clamp (unchanged) |
+**Instead:** Set `UptimeRow.Visibility` directly in `ApplySettings()`. The same pattern governs all five stat rows and StatsPanel itself.
 
 ---
 
@@ -749,16 +489,15 @@ needed after `ApplyTheme()` or `SetOpacity()`.
 
 | Claim | Source | Confidence |
 |-------|--------|------------|
-| `System.Windows.Media.ColorConverter.ConvertFromString()` parses `#RRGGBB` hex strings | https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.colorconverter | HIGH |
-| `UIElement.Opacity` range 0.0–1.0; applied top-down to child elements; element at 0.0 still receives input | https://learn.microsoft.com/en-us/dotnet/api/system.windows.uielement.opacity?view=windowsdesktop-10.0 | HIGH |
-| `System.Windows.Media.Color.FromRgb(r, g, b)` factory method | https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.color?view=windowsdesktop-10.0 | HIGH |
-| `System.Text.Json` cannot natively serialize `System.Windows.Media.Color` (complex struct with ColorContext object) | Training data corroborated by Color struct API docs showing non-primitive members | MEDIUM |
-| `System.Windows.Forms.ColorDialog` available in .NET 10 WPF projects via `<UseWindowsForms>true</UseWindowsForms>` | https://learn.microsoft.com/en-us/dotnet/desktop/wpf/ (.NET 10 WPF docs confirm WinForms interop pattern) | HIGH |
-| WPF has no built-in color picker dialog control | Absence verified in WPF control library docs; confirmed community pattern is WinForms ColorDialog | HIGH |
-| `ContextMenu_Opened` sync pattern for IsCheckable MenuItems; handlers must not read IsChecked | Existing codebase documented decision in PROJECT.md Key Decisions table | HIGH |
-| `ApplySettings()` before `Show()` safety invariant; methods calling `UpdateLayout()` are unsafe before Show() | Existing codebase documented decision in PROJECT.md Key Decisions table | HIGH |
+| `Environment.TickCount64` returns `long` milliseconds since system start; available .NET Core 3.0+ / .NET 10 | https://learn.microsoft.com/en-us/dotnet/api/system.environment.tickcount64?view=net-10.0 | HIGH |
+| On Windows with .NET 10, `TickCount64` includes non-awake time (sleep/hibernate counted) | https://learn.microsoft.com/en-us/dotnet/api/system.environment.tickcount64?view=net-10.0 (Remarks section) | HIGH |
+| `TimeSpan.FromMilliseconds(long)` converts ms to decomposable Days/Hours/Minutes/Seconds | Official .NET BCL, unchanged API | HIGH |
+| `Queue<T>.TakeLast(int)` available in .NET 10 BCL via LINQ | In-box LINQ, .NET Core 2.0+ | HIGH |
+| Pre-Show safety invariant: direct Visibility assignment in ApplySettings(); methods calling UpdateLayout() unsafe before Show() | Existing codebase PROJECT.md Key Decisions table | HIGH |
+| ContextMenu_Opened pattern: sync IsChecked from state; handlers read Visibility not IsChecked | Existing codebase PROJECT.md Key Decisions table | HIGH |
+| PDH rate counters return near-zero on back-to-back Refresh() calls | Existing codebase StatsService.cs comment: "prime — rate counter always returns 0 on first call" | HIGH |
 
 ---
 
-*Architecture research for: FuzzyClock v2.0 — color themes and opacity*
+*Architecture research for: FuzzyClock v2.1 — uptime display and rolling CPU load averages*
 *Researched: 2026-02-27*

@@ -1,32 +1,35 @@
-# Technology Stack: v2.0 Visual Identity
+# Technology Stack: v2.1 Uptime and Rolling CPU Load Averages
 
-**Project:** FuzzyClock — color themes and opacity control
+**Project:** FuzzyClock — uptime display + rolling 1m/5m/15m CPU load averages
 **Researched:** 2026-02-27
 **Scope:** Additions only — existing validated stack is unchanged
 **Confidence:** HIGH
 
 ---
 
-## What Changes vs v1.9
+## What Changes vs v2.0
 
-v1.9 stack (already validated, not re-researched):
+v2.0 stack (already validated, not re-researched):
 - .NET 10, C# 13, WPF (`net10.0-windows`)
 - `System.Text.Json` for settings persistence
 - `DispatcherTimer` for periodic UI updates
 - `System.Windows.Controls` (TextBlock, ContextMenu, Grid, Border)
 - `System.Windows.Shapes` (Line, Ellipse)
 - `System.Diagnostics.PerformanceCounter` (NuGet 10.0.0)
+- `System.Windows.Forms.ColorDialog` (UseWindowsForms=true)
 - Code-behind pattern — no MVVM, no data bindings
 
-v2.0 stack additions:
+v2.1 stack additions:
 
 | Layer | What's Added | csproj Change |
 |-------|-------------|---------------|
-| WPF color API | `System.Windows.Media.Color` + `SolidColorBrush` | None — already in PresentationCore.dll |
-| WPF opacity API | `UIElement.Opacity` (inherited by Window) | None — already in PresentationCore.dll |
-| Scroll wheel input | `UIElement.MouseWheel` event + `MouseWheelEventArgs.Delta` | None — already in PresentationCore.dll |
-| Custom color picker | `System.Windows.Forms.ColorDialog` | `<UseWindowsForms>true</UseWindowsForms>` |
-| Color type bridge | `System.Drawing.Color` (R/G/B/A) → `System.Windows.Media.Color.FromArgb` | None — System.Drawing.Primitives.dll is in-box |
+| Uptime source | `Environment.TickCount64` (System namespace, System.Runtime.dll) | None — already referenced |
+| Uptime formatting | `TimeSpan.FromMilliseconds()` + `.Days` / `.Hours` / `.Minutes` (System namespace) | None — already referenced |
+| Rolling averages | Pure C# circular buffer (`float[]` + `long[]` timestamps) inside `StatsService` | None — no external dependency |
+| AppSettings extension | One new `bool` init-property: `UptimeVisible` | None — same pattern as all previous fields |
+| XAML row | One new `TextBlock` below stats panel | None — same pattern as existing stat rows |
+
+**Zero new NuGet packages. Zero csproj changes.**
 
 ---
 
@@ -36,185 +39,151 @@ v2.0 stack additions:
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `System.Windows.Media.Color` (struct) | (WPF in-box, windowsdesktop-10.0) | Represent the single accent color value in memory and in AppSettings serialization | Native WPF color type — direct input to `SolidColorBrush`; `Color.FromArgb(255, r, g, b)` is the canonical construction path; serializable as 4 bytes for JSON persistence |
-| `System.Windows.Media.SolidColorBrush` | (WPF in-box, windowsdesktop-10.0) | Paint all colored elements at runtime — TextBlock.Foreground, Line.Stroke, Ellipse.Fill/Stroke, Border.Background fill | The only WPF brush type needed for solid single-color painting; `new SolidColorBrush(color)` one-liner integrates directly into existing code-behind pattern; already used in the project for backdrop logic |
-| `UIElement.Opacity` (double, 0.0–1.0) | (WPF in-box, windowsdesktop-10.0, inherited from UIElement) | Apply widget-level transparency to the entire window | Window inherits `UIElement.Opacity`; setting `this.Opacity = 0.75` on the MainWindow applies transparency across all content simultaneously with no per-element work; works correctly with `AllowsTransparency=True` |
-| `UIElement.MouseWheel` event + `MouseWheelEventArgs.Delta` | (WPF in-box, windowsdesktop-10.0) | Detect scroll wheel input to adjust opacity in 10% increments | Already available on `Window` via UIElement; `e.Delta / Mouse.MouseWheelDeltaForOneLine` normalizes detent counts (1 standard notch = Delta 120 = 1 detent); sign convention: positive = scroll up = increase opacity |
-| `System.Windows.Forms.ColorDialog` | (WinForms in-box, windowsdesktop-10.0) | Custom color picker dialog — standard Windows color chooser that returns user-selected RGB | The native Win32 `ChooseColor` dialog; zero dependencies; familiar to users; returns `System.Drawing.Color` which converts to `System.Windows.Media.Color` with one `FromArgb` call; no NuGet required — only a csproj property change |
+| `Environment.TickCount64` (static property) | net-10.0 (`System.Runtime.dll`, in-box) | Read milliseconds elapsed since system start — the raw uptime value | Single line: `TimeSpan uptime = TimeSpan.FromMilliseconds(Environment.TickCount64)`. No P/Invoke, no PDH counter, no WMI. Already available in `System` namespace which is globally imported. On .NET 10 / Windows, includes sleep/hibernate time — this matches standard OS uptime behavior (Task Manager, `net statistics server`, etc.). Overflows `Int32.MaxValue` (~49 days) gracefully because it returns `Int64` (overflows after ~292 million years). |
+| `TimeSpan.FromMilliseconds(long)` + `.Days` / `.Hours` / `.Minutes` | net-10.0 (`System.Runtime.dll`, in-box) | Convert raw milliseconds to structured time components for `up 3d 14h 22m` display | `TimeSpan.Days` returns the integer days component (not total — e.g., `3` for 3.5 days, `Hours` = 12 for the remaining hours). Standard format: `$"up {ts.Days}d {ts.Hours}h {ts.Minutes}m"` with conditional suppression of `0d` when uptime is under one day. No parsing, no custom math. |
+| Circular buffer in `StatsService` (pure C#, no library) | N/A — plain arrays | Accumulate time-stamped CPU samples to compute accurate 1m/5m/15m rolling averages | The existing `StatsService.Refresh()` is called by the stats `DispatcherTimer` at variable rates (0.5s hover / 1s / 3s / 10s). A fixed-size ring buffer of `(float value, long timestampMs)` pairs, combined with a LINQ-style walk that discards samples older than the window, produces accurate time-weighted or simple averages regardless of sample rate. Capacity of 1800 entries (one per second for 30 minutes) covers all three windows at any timer rate. `float[]` + `long[]` parallel arrays avoid boxing; `Queue<(float, long)>` is equivalent but slightly higher allocation. Plain array ring buffer is idiomatic for this pattern in embedded/desktop telemetry code. |
 
-### WPF API Detail: SolidColorBrush Application
+### Rolling Average Algorithm Detail
 
-The existing code-behind already constructs `SolidColorBrush` objects directly (see `Window_MouseEnter` backdrop logic). The same pattern applies to accent color:
+The stats timer fires at variable rates (0.5s during hover, 1/3/10s configured). Accurate window averages require time-aware sampling, not count-based averaging:
 
 ```csharp
-// In code-behind: create brush from stored Color value
-var brush = new SolidColorBrush(_accentColor);
+// In StatsService — parallel ring buffer approach
+private const int LoadBufferCapacity = 1800;  // 30 min at 1-sample/sec maximum
+private float[] _loadValues     = new float[LoadBufferCapacity];
+private long[]  _loadTimestamps = new long[LoadBufferCapacity];  // Environment.TickCount64 ms
+private int     _loadHead       = 0;   // next write position (overwrites oldest)
+private int     _loadCount      = 0;   // total entries filled (capped at capacity)
 
-// Apply to phrase text
-PhraseText.Foreground = brush;
-
-// Apply to dial hands (Line.Stroke) and decoration elements
-HourHand.Stroke   = brush;
-MinuteHand.Stroke = brush;
-foreach (var tick in _hourTickElements)   tick.Stroke = brush;
-foreach (var dot  in _minuteDotElements)  dot.Fill   = brush;
-foreach (var tb   in _hourNumberElements) tb.Foreground = brush;
-
-// Apply to stats bars (Border.Background) and label text
-CpuBar.Background  = brush;
-CpuText.Foreground = brush;
-// ... repeat for GPU/MEM/PAG rows
-```
-
-**Why one brush instance reused across elements:** `SolidColorBrush` is a `Freezable`. When you assign the same instance to multiple properties, WPF holds a reference in each DependencyProperty. Creating a fresh `new SolidColorBrush(_accentColor)` per element call is acceptable (WPF does not require frozen brushes for code-behind assignment), but using a single instance is cleaner and avoids allocation churn on theme change.
-
-**Confidence:** HIGH — `SolidColorBrush(Color)` constructor and `PresentationCore.dll` assembly confirmed via official windowsdesktop-10.0 docs.
-
-### WPF API Detail: Color Storage and Serialization
-
-`System.Windows.Media.Color` is a value type (struct). Store the accent color as a single `Color` field in `AppSettings`:
-
-```csharp
-// AppSettings record — new fields for v2.0
-public string AccentColorHex  { get; init; } = "#FFFFFFFF";  // ARGB hex string
-public double WindowOpacity   { get; init; } = 1.0;
-```
-
-**Why persist as hex string, not four separate bytes:** `System.Text.Json` serializes `System.Windows.Media.Color` as an object with multiple fields (A, R, G, B, ScA, ScR, ScG, ScB) by default. A single `#AARRGGBB` hex string is more compact, human-readable in the JSON file, forward-compatible, and trivially round-tripped:
-
-```csharp
-// Save: Color → hex string
-string hex = $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
-
-// Load: hex string → Color
-// Use ColorConverter (System.Windows.Media) or manual parse:
-var c = (Color)ColorConverter.ConvertFromString(hex);
-// Or: Color.FromArgb(a, r, g, b) after parsing hex manually
-```
-
-`System.Windows.Media.ColorConverter` (in `PresentationCore.dll`) handles all standard WPF color string formats including `#AARRGGBB` — no custom parsing needed.
-
-**Confidence:** HIGH — `Color.FromArgb(byte, byte, byte, byte)` and `ColorConverter` confirmed in official windowsdesktop-10.0 docs.
-
-### WPF API Detail: Window.Opacity
-
-`Window.Opacity` is `UIElement.Opacity` — no Window-specific override exists. It is a `double` dependency property with default 1.0 and expected range 0.0–1.0:
-
-```csharp
-// Set from menu (25/50/75/100% presets):
-this.Opacity = 0.75;
-
-// Set from scroll wheel (10% steps, clamped to 0.1–1.0):
-this.Opacity = Math.Clamp(this.Opacity + (e.Delta > 0 ? 0.10 : -0.10), 0.1, 1.0);
-```
-
-**Interaction with AllowsTransparency:** The widget already has `AllowsTransparency="True"` and `Background="Transparent"`. `UIElement.Opacity` works correctly on `AllowsTransparency` windows — it applies a global alpha multiplier to the entire layered window HWND. This is distinct from per-pixel alpha (controlled by element backgrounds). Result: setting `Opacity=0.5` makes all content — phrase text, dial hands, stats bars, and the semi-transparent backdrop — uniformly half-opaque. This is the intended widget-level opacity behavior.
-
-**Minimum opacity guard:** Do not allow 0.0 opacity. At 0.0, the window is invisible but still captures mouse events, making it impossible for the user to interact with. Clamp minimum to 0.1 (10%).
-
-**Confidence:** HIGH — `UIElement.Opacity` property type, range, and assembly confirmed in official windowsdesktop-10.0 docs; AllowsTransparency interaction verified in official WPF window documentation.
-
-### WPF API Detail: Scroll Wheel Normalization
-
-```csharp
-// Wire in ContentRendered (same pattern as MouseEnter/MouseLeave):
-this.MouseWheel += Window_MouseWheel;
-
-private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
+// Called inside Refresh(), after CpuPercent is updated:
+private void RecordLoadSample()
 {
-    // Mouse.MouseWheelDeltaForOneLine = 120 (one standard detent)
-    // e.Delta is a multiple of 120 for standard mice
-    // Positive = scroll up = increase opacity; negative = decrease
-    double step = 0.10 * Math.Sign(e.Delta);
-    this.Opacity = Math.Clamp(this.Opacity + step, 0.1, 1.0);
-    SaveSettings();
+    _loadValues[_loadHead]     = CpuPercent;
+    _loadTimestamps[_loadHead] = Environment.TickCount64;
+    _loadHead = (_loadHead + 1) % LoadBufferCapacity;
+    if (_loadCount < LoadBufferCapacity) _loadCount++;
 }
-```
 
-`Mouse.MouseWheelDeltaForOneLine` is a `const int = 120` in `PresentationCore.dll`. One standard mouse wheel detent produces exactly Delta=120 (or -120). Using `Math.Sign(e.Delta)` rather than dividing by 120 means one step per physical notch regardless of high-resolution wheel variations — correct for a 10%-per-notch opacity adjustment.
-
-**Confidence:** HIGH — `Mouse.MouseWheelDeltaForOneLine = 120` confirmed in official windowsdesktop-10.0 docs; sign convention (positive = away from user = scroll up) confirmed in `MouseWheelEventArgs` docs.
-
-### Supporting Library: System.Windows.Forms.ColorDialog
-
-`System.Windows.Forms.ColorDialog` wraps the native Win32 `ChooseColor` common dialog. It opens the standard Windows color picker that users recognize from Paint, Office, and other applications.
-
-**Assembly:** `System.Windows.Forms.dll`
-**csproj change required:** Add `<UseWindowsForms>true</UseWindowsForms>` to the `<PropertyGroup>`. This can coexist with `<UseWPF>true</UseWPF>` — the .NET Desktop SDK documentation explicitly supports both flags in the same project.
-
-```csharp
-// In custom color picker menu handler:
-private void MenuCustomColor_Click(object sender, RoutedEventArgs e)
+// Compute average for a window (e.g. windowMs = 60_000 for 1-minute)
+public float GetLoadAverage(long windowMs)
 {
-    var dlg = new System.Windows.Forms.ColorDialog
+    long cutoff = Environment.TickCount64 - windowMs;
+    float sum = 0f;
+    int   cnt = 0;
+    // Walk backwards from newest to oldest
+    for (int i = 1; i <= _loadCount; i++)
     {
-        FullOpen    = true,   // Show custom color panel expanded by default
-        Color       = System.Drawing.Color.FromArgb(
-                          _accentColor.A, _accentColor.R,
-                          _accentColor.G, _accentColor.B)
-    };
-
-    if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-    {
-        // Convert System.Drawing.Color → System.Windows.Media.Color
-        var sd = dlg.Color;
-        ApplyAccentColor(
-            System.Windows.Media.Color.FromArgb(sd.A, sd.R, sd.G, sd.B));
+        int idx = (_loadHead - i + LoadBufferCapacity) % LoadBufferCapacity;
+        if (_loadTimestamps[idx] < cutoff) break;
+        sum += _loadValues[idx];
+        cnt++;
     }
+    return cnt > 0 ? sum / cnt : 0f;
+}
+
+// Exposed properties (computed on demand during Refresh, cached as fields):
+public float Load1m  { get; private set; }
+public float Load5m  { get; private set; }
+public float Load15m { get; private set; }
+```
+
+**Why "break on first old sample" is valid:** The ring buffer fills from oldest to newest; walking backwards from the current head means samples are in descending time order. The first sample older than the cutoff guarantees all remaining samples are also older. This makes the average O(n) in window size, not O(capacity).
+
+**Why cached properties not on-demand compute:** `MainWindow` reads load averages once per `_statsTimer` tick to update the UI. Caching `Load1m`/`Load5m`/`Load15m` in `Refresh()` avoids triple-iteration of the buffer per tick.
+
+**Confidence:** HIGH — `Environment.TickCount64` behavior on .NET 10 / Windows confirmed via official docs. Ring buffer algorithm is standard; no external source required.
+
+---
+
+### Uptime Formatting Detail
+
+```csharp
+// In StatsService or inline in MainWindow timer handler:
+public static string FormatUptime()
+{
+    TimeSpan ts = TimeSpan.FromMilliseconds(Environment.TickCount64);
+    // "up 3d 14h 22m"  — suppress 0d for uptime under 1 day
+    return ts.Days > 0
+        ? $"up {ts.Days}d {ts.Hours}h {ts.Minutes}m"
+        : $"up {ts.Hours}h {ts.Minutes}m";
 }
 ```
 
-**Color type bridge:** `ColorDialog.Color` returns `System.Drawing.Color` (from `System.Drawing.Primitives.dll`, in-box). Converting to `System.Windows.Media.Color` requires `Color.FromArgb(sd.A, sd.R, sd.G, sd.B)` — four bytes, no math. `System.Drawing.Primitives.dll` is pulled in automatically with `UseWindowsForms=true`; it does not need a separate NuGet package.
+`TimeSpan.Days` is the integer days component (0–int.MaxValue), confirmed correct. `TimeSpan.Hours` is 0–23 (the hours remainder after full days). `TimeSpan.Minutes` is 0–59 (the minutes remainder after full hours). No custom arithmetic needed.
 
-**Confidence:** HIGH — `System.Windows.Forms.ColorDialog` existence in `windowsdesktop-10.0` confirmed; `UseWindowsForms` + `UseWPF` coexistence confirmed in official .NET Desktop SDK MSBuild docs.
+**Confidence:** HIGH — `TimeSpan.Days`, `TimeSpan.Hours`, `TimeSpan.Minutes` component semantics confirmed in official net-10.0 docs (see example: 229 days 5 hours 30 minutes = `.Days=229`, `.Hours=5`, `.Minutes=30`).
+
+---
+
+### AppSettings Extension
+
+```csharp
+// Add one field to the existing AppSettings record:
+public bool UptimeVisible { get; init; } = true;   // default: visible
+```
+
+`bool` init-property follows the same pattern as `CpuVisible`, `GpuVisible`, `MemVisible`, `PagVisible`. `System.Text.Json` deserializes it natively. Old settings.json without this field loads the default (`true`) — forward-compatible with no migration needed.
+
+**Why default `true`:** The feature is new and opt-out. Users who have not yet toggled the menu see the row on first launch — they discover it exists, then can hide it if unwanted. Matches `StatsVisible = false` not being the right default here because uptime is a single compact line (low visual weight), not a full multi-row panel.
+
+**Confidence:** HIGH — `bool` init-property serialization pattern validated across all prior milestones (v1.2–v2.0).
+
+---
+
+### XAML Addition
+
+One new compact row below the stats panel, same structural pattern as the `StatsPanel` StackPanel rows:
+
+```xml
+<!-- Below StatsPanel in the main StackPanel/Grid: -->
+<TextBlock x:Name="UptimeLine"
+           FontFamily="Segoe UI Light"
+           FontSize="11"
+           Foreground="White"
+           Opacity="0.85"
+           TextWrapping="NoWrap"
+           Visibility="Visible"
+           Margin="0,2,0,0"
+           Text="up 0h 0m  0.0  0.0  0.0" />
+```
+
+The `Text` is set entirely from code-behind in the stats timer handler, matching the existing pattern for `CpuText`, `MemText`, etc. The accent color applies to `Foreground` via `ApplyTheme()`, same as all other text elements.
+
+Format string: `$"up {uptime}  {load1m:F1}  {load5m:F1}  {load15m:F1}"` — compact single line, two spaces between segments to visually separate without extra controls.
+
+**Why one TextBlock not a structured row:** The uptime + load line is read-only telemetry, not interactive. There is no bar to render. A single `TextBlock` is the minimum control needed. Adding `Border`/`StackPanel`/`Grid` structure for a line with no bar would be unnecessary complexity.
+
+**Confidence:** HIGH — `TextBlock` in code-behind accent pattern is validated across all v1.x–v2.0 milestones.
+
+---
+
+## Integration with Existing StatsService
+
+`StatsService` is the correct home for all three new data points:
+
+| Data | Where it goes | How it's triggered |
+|------|---------------|-------------------|
+| Uptime | `FormatUptime()` static helper (or inline in MainWindow) | Called in `_statsTimer` tick handler, same as CpuPercent/GpuPercent display update |
+| Load samples | `RecordLoadSample()` called at end of `Refresh()` | Automatic — every Refresh() call (hover fast-refresh included) produces a time-stamped sample |
+| Load averages | `Load1m`, `Load5m`, `Load15m` cached in `Refresh()` | Computed inside `Refresh()` after `RecordLoadSample()`; read by MainWindow tick handler |
+
+**Why uptime does NOT go in StatsService as a computed property:** Uptime is not a PDH counter and carries no initialization cost. It is a one-liner `TimeSpan.FromMilliseconds(Environment.TickCount64)` anywhere in the code. Putting it in `StatsService` would be over-engineering. Either a `static string FormatUptime()` utility or inline in the MainWindow tick handler is appropriate.
+
+**Hover fast-refresh interaction:** When the user hovers, `_statsTimer` fires at 0.5s instead of the configured rate. `Refresh()` is called more frequently, so load samples accumulate faster. This is correct — more samples in the buffer = more accurate short-window averages. The time-stamped buffer design ensures window averages remain accurate regardless of sample frequency; no special handling needed for hover mode.
+
+**Why 1800-entry buffer capacity:** At the fastest possible rate (0.5s hover), 1800 entries = 900 seconds = 15 minutes of samples. The 15-minute load average window requires samples back 15 minutes. At 0.5s rate, 1800 entries exactly covers the 15m window. At the slowest rate (10s), 1800 entries covers 5 hours — far more than needed, but memory cost is trivial: `1800 × (4 bytes float + 8 bytes long) = 21.6 KB`.
 
 ---
 
 ## csproj Change Summary
 
-```xml
-<!-- Only addition required to the .csproj: -->
-<PropertyGroup>
-  <UseWPF>true</UseWPF>
-  <UseWindowsForms>true</UseWindowsForms>   <!-- ADD THIS LINE -->
-</PropertyGroup>
-```
+**No changes required.** All APIs used are in assemblies already referenced:
+- `Environment.TickCount64` — `System.Runtime.dll` (in-box, always referenced)
+- `TimeSpan` — `System.Runtime.dll` (in-box, always referenced)
+- `float[]` / `long[]` ring buffer — pure C#, no assembly
 
-No new NuGet packages. `System.Diagnostics.PerformanceCounter` at 10.0.0 is unchanged.
-
----
-
-## AppSettings Record Extension
-
-The existing `AppSettings` init-property record must be extended with two new fields:
-
-```csharp
-// v2.0 additions to AppSettings record
-public string AccentColorHex { get; init; } = "#FFFFFFFF";  // default: White
-public double WindowOpacity  { get; init; } = 1.0;          // default: fully opaque
-```
-
-`System.Text.Json` serializes/deserializes `string` and `double` init-property fields natively — same pattern validated in v1.1 through v1.9. No attributes needed. Old settings.json files without these fields will load them as defaults (White accent, 100% opacity) — forward-compatible.
-
-`AccentColorHex` default `"#FFFFFFFF"` matches the current hardcoded `Foreground="White"` on all TextBlock/Line/Ellipse/Border elements in XAML, ensuring zero visual change for existing users on first upgrade.
-
----
-
-## Preset Color Values
-
-The 5 built-in presets as `#AARRGGBB` hex strings (alpha = FF = fully opaque):
-
-| Preset Name | Hex Value | R, G, B |
-|-------------|-----------|---------|
-| White | `#FFFFFFFF` | 255, 255, 255 |
-| Amber | `#FFFFBF00` | 255, 191, 0 |
-| Ice Blue | `#FF99D9EA` | 153, 217, 234 |
-| Green | `#FF57F287` | 87, 242, 135 |
-| Hello Kitty Pink | `#FFFF85C2` | 255, 133, 194 |
-
-These values are embedded directly in the menu click handlers — no enum or dictionary required. The `ApplyAccentColor(Color)` method handles all element updates regardless of source (preset or custom picker).
-
-**Color selection rationale:** All presets are light-to-mid-tone colors that remain legible against the semi-transparent dark backdrop (#26000000 = 15% black) and against light wallpapers. Avoid dark colors (low contrast against the near-transparent background) and highly saturated pure primaries (eye strain at small font sizes).
+The `System.Diagnostics.PerformanceCounter` NuGet package at 10.0.0 is unchanged.
+`UseWindowsForms=true` is unchanged (added in v2.0).
 
 ---
 
@@ -222,13 +191,13 @@ These values are embedded directly in the menu click handlers — no enum or dic
 
 | Recommended | Alternative | Why Not |
 |-------------|-------------|---------|
-| `System.Windows.Forms.ColorDialog` | Custom WPF color picker window | ColorDialog is the native Win32 dialog — zero implementation effort, users already know it; a custom WPF dialog requires significant XAML/code work (HSV slider, preview swatch, hex input) that is out of scope for this milestone |
-| `System.Windows.Forms.ColorDialog` | `Microsoft.Wpf.Toolkits.Extended.ColorPicker` NuGet | Third-party NuGet — adds external dependency; last release years old; custom WPF controls have known rendering issues in `AllowsTransparency` windows |
-| Store color as hex string in AppSettings | Store as struct with R/G/B/A int fields | Hex string is human-readable in the JSON file, conventional for color representation, and trivially round-tripped via `ColorConverter` or manual parse |
-| Store color as hex string in AppSettings | Store as `System.Windows.Media.Color` struct directly | `System.Text.Json` serializes the struct as an object with 9 properties (A/R/G/B/ScA/ScR/ScG/ScB/ColorContext) — verbose and fragile; hex string is canonical |
-| `UIElement.Opacity` on Window | `UIElement.OpacityMask` | OpacityMask applies per-pixel masking from a brush, not scalar transparency — wrong tool for widget-level opacity |
-| `UIElement.Opacity` on Window | `Brush.Opacity` on individual brushes | Would require updating brush opacity on every element separately; Window.Opacity is one line that covers everything uniformly |
-| `Math.Sign(e.Delta)` for scroll step | `e.Delta / Mouse.MouseWheelDeltaForOneLine` | Sign-based ensures exactly one 10% step per detent regardless of high-resolution mouse; division-based would produce fractional steps on precision scroll wheels |
+| `Environment.TickCount64` for uptime | `PerformanceCounter("System", "System Up Time")` | PDH counter works but requires async init (same pattern as CPU/GPU counters), adds to StatsService initialization complexity, returns a float of elapsed seconds — same data as TickCount64 but heavier; TickCount64 is one property read with no counter lifecycle to manage |
+| `Environment.TickCount64` for uptime | WMI `Win32_OperatingSystem.LastBootUpTime` | WMI queries are slow (20–200ms blocking) and require `ManagementObjectSearcher` — a heavier dependency than any existing code path; TickCount64 is instantaneous and in-box |
+| `Environment.TickCount64` for uptime | `DateTime.Now - Process.GetCurrentProcess().StartTime` | This gives the widget's own process uptime, not the system uptime — wrong data |
+| Time-stamped ring buffer for load averages | Fixed-count rolling average (e.g. last N samples) | Fixed-count approach produces wildly inaccurate results when timer rate changes (hover = 0.5s vs normal = 10s); a 1-minute average over the last 60 samples at 10s/sample is actually a 10-minute average — meaningless. Time-stamped buffer is the only correct approach given variable timer rates. |
+| Time-stamped ring buffer for load averages | Separate 1s DispatcherTimer dedicated to load sampling | A third timer adds complexity and coupling. The existing stats timer already samples CPU at the configured rate; piggy-backing load recording onto `Refresh()` is zero overhead and consistent with the existing architecture. |
+| `float[]` + `long[]` parallel arrays | `Queue<(float, long)>` or `List<(float, long)>` | Queue/List works but allocates on enqueue; ring buffer with fixed arrays is allocation-free after initialization. For a desktop widget that runs for days, allocation-free is worth the minor additional code complexity. |
+| Single `TextBlock` for uptime line | Separate TextBlock per segment (uptime, load1m, load5m, load15m) | Multiple TextBlocks in a row require a horizontal StackPanel and more XAML/code; a single formatted string in one TextBlock is the minimum viable implementation consistent with the widget's code-behind-first pattern |
 
 ---
 
@@ -236,12 +205,11 @@ These values are embedded directly in the menu click handlers — no enum or dic
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `System.Windows.Media.Colors` static properties (e.g. `Colors.White`) for preset storage | Static brush references are frozen and cannot be passed to `SolidColorBrush(Color)` without extracting `.Color`; using `Color.FromArgb` with literal bytes is more explicit and consistent | `Color.FromArgb(255, 255, 255, 255)` or hardcoded hex string |
-| MVVM / `INotifyPropertyChanged` for accent color binding | Inconsistent with existing code-behind style; adds abstraction layer for a single-field update; `ApplyAccentColor()` method calling element assignments directly matches all existing patterns | Direct element assignment in `ApplyAccentColor()` method |
-| `ColorConverter.ConvertFromString` for hex parsing at load | Requires unsafe cast and can throw on malformed input; manual byte parsing with `Convert.ToByte(hex.Substring(...), 16)` is explicit and handles malformed input gracefully with try/catch | Manual hex parse or `Color.FromArgb` after parsing |
-| Animating opacity transitions (DoubleAnimation) | DropShadowEffect-class GPU rendering issue confirmed in .NET 10 for `AllowsTransparency` layered HWNDs; animations may interact unexpectedly with the layered window compositor | Instant `Opacity` assignment on menu click or scroll wheel |
-| `Window.Background` brush opacity for transparency effect | `Window.Background` is `#01000000` (near-transparent hit-test sentinel, 1 alpha) — changing it would break right-click hit testing; `UIElement.Opacity` is the correct knob | `this.Opacity` (UIElement.Opacity) |
-| `UseWindowsForms=true` without `UseWPF=true` | Using only `UseWindowsForms` would break the WPF build pipeline | Keep both properties in the `<PropertyGroup>` |
+| WMI (`ManagementObjectSearcher`, `Win32_OperatingSystem`) | 20–200ms blocking query; requires `System.Management` NuGet; heavyweight for a value available in 1 µs via `Environment.TickCount64` | `Environment.TickCount64` |
+| `PerformanceCounter("System", "System Up Time")` | Requires the same async init + priming pattern as CPU/GPU counters; adds to StatsService initialization path; returns identical data as TickCount64 | `Environment.TickCount64` |
+| Exponential Moving Average (EMA) for load averages | EMA requires careful alpha tuning; result depends on initial value and sample rate variance; harder to explain and validate than simple windowed average; Linux `uptime` uses EMA but the display convention is well-understood only because Linux sample rates are fixed | Simple windowed average over time-stamped buffer |
+| Seconds in the uptime display | The format `up 3d 14h 22m` matches the Linux `uptime` convention and is human-readable at widget scale; adding seconds makes the string longer and changes every second (defeating the stats timer's 1s-minimum update cycle for a compact info line) | `up Xd Yh Zm` format |
+| `Thread.Sleep` / background thread for load sampling | `Refresh()` is already called from the UI thread via `DispatcherTimer`; introducing a background thread for load sampling creates cross-thread access issues with the existing StatsService fields (`_initialized` volatile flag, counter reads) | Record samples inside existing `Refresh()` |
 
 ---
 
@@ -249,14 +217,11 @@ These values are embedded directly in the menu click handlers — no enum or dic
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| `System.Windows.Media.Color` | windowsdesktop-10.0 (PresentationCore.dll) | No version constraints; unchanged API since WPF 3.0 |
-| `System.Windows.Media.SolidColorBrush` | windowsdesktop-10.0 (PresentationCore.dll) | No version constraints; unchanged API since WPF 3.0 |
-| `UIElement.Opacity` | windowsdesktop-10.0 (PresentationCore.dll) | No version constraints; unchanged since WPF 3.0 |
-| `UIElement.MouseWheel` / `MouseWheelEventArgs` | windowsdesktop-10.0 (PresentationCore.dll) | No version constraints; `Mouse.MouseWheelDeltaForOneLine = 120` is stable |
-| `System.Windows.Forms.ColorDialog` | windowsdesktop-10.0 (System.Windows.Forms.dll) | Available with `UseWindowsForms=true` on `net10.0-windows`; no NuGet required |
-| `System.Drawing.Color` | net-10.0 (System.Drawing.Primitives.dll) | In-box; pulled in automatically with `UseWindowsForms=true` |
-| `System.Windows.Media.ColorConverter` | windowsdesktop-10.0 (PresentationCore.dll) | In-box WPF; handles `#AARRGGBB` format |
-| `System.Diagnostics.PerformanceCounter` NuGet | 10.0.0 (unchanged) | No change required |
+| `Environment.TickCount64` | net-10.0 (`System.Runtime.dll`) | Available since .NET Core 3.0; `Int64`, no overflow concern; includes sleep time on Windows in .NET 10 (expected behavior for OS uptime) |
+| `TimeSpan.FromMilliseconds(long)` | net-10.0 (`System.Runtime.dll`) | `long` overload available since .NET 7; avoids lossy `double` cast; `Days`/`Hours`/`Minutes` component properties stable since .NET 1.0 |
+| `float[]` ring buffer | Any .NET | No version dependency; pure language feature |
+| `AppSettings` bool init-property | net-10.0 (`System.Text.Json` in-box) | Same pattern as all prior AppSettings fields; no version concern |
+| `System.Diagnostics.PerformanceCounter` NuGet | 10.0.0 (unchanged) | No change |
 
 ---
 
@@ -264,28 +229,21 @@ These values are embedded directly in the menu click handlers — no enum or dic
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| `System.Windows.Media.Color` / `SolidColorBrush` API | HIGH | Official windowsdesktop-10.0 docs confirmed; assembly `PresentationCore.dll`; `FromArgb` signature verified |
-| `UIElement.Opacity` (Window.Opacity) | HIGH | Official windowsdesktop-10.0 docs confirmed; `double`, range 0.0–1.0, default 1.0; AllowsTransparency interaction documented |
-| `MouseWheelEventArgs.Delta` + `Mouse.MouseWheelDeltaForOneLine` | HIGH | Official windowsdesktop-10.0 docs confirmed; value = 120; sign convention documented |
-| `System.Windows.Forms.ColorDialog` | HIGH | Official windowsdesktop-10.0 docs confirmed; assembly `System.Windows.Forms.dll`; `UseWindowsForms` + `UseWPF` coexistence documented |
-| `System.Drawing.Color` type bridge | HIGH | Official net-10.0 docs confirmed; A/R/G/B byte properties verified; `System.Drawing.Primitives.dll` in-box |
-| `UseWindowsForms` + `UseWPF` coexistence | HIGH | Official .NET Desktop SDK MSBuild properties docs confirm both flags supported in same project |
-| AppSettings hex string round-trip | HIGH | `ColorConverter.ConvertFromString` and `Color.FromArgb` both confirmed in official docs |
-| Preset color values | MEDIUM | RGB values are author-specified aesthetic choices, not verified against any external standard |
+| `Environment.TickCount64` for uptime | HIGH | Official net-10.0 docs confirmed; return type `Int64`; Windows behavior (includes sleep) documented; assembly `System.Runtime.dll` confirmed |
+| `TimeSpan.FromMilliseconds(long)` overload | HIGH | Official net-10.0 docs confirmed; `Days`/`Hours`/`Minutes` component semantics confirmed with numeric example in docs |
+| Time-stamped ring buffer algorithm | HIGH | Standard pattern; no external library; correctness derivable from first principles; `Environment.TickCount64` as timestamp confirmed |
+| AppSettings `bool` init-property | HIGH | Validated pattern across v1.2–v2.0 milestones |
+| Buffer capacity (1800 entries) | HIGH | Arithmetic: 0.5s × 1800 = 900s = 15m; covers all three windows at maximum sample rate |
+| Zero csproj changes | HIGH | All required APIs in assemblies already referenced in `net10.0-windows` target |
 
 ---
 
 ## Sources
 
-- `System.Windows.Media.Color` struct (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.color?view=windowsdesktop-10.0 — confirms `FromArgb(byte,byte,byte,byte)`, `FromRgb`, A/R/G/B properties, `PresentationCore.dll` assembly
-- `System.Windows.Media.SolidColorBrush` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.solidcolorbrush?view=windowsdesktop-10.0 — confirms `SolidColorBrush(Color)` constructor, `Color` property, `PresentationCore.dll` assembly
-- `System.Windows.UIElement.Opacity` property (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.uielement.opacity?view=windowsdesktop-10.0 — confirms `double` type, 0.0–1.0 range, default 1.0, `PresentationCore.dll` assembly
-- `System.Windows.Input.MouseWheelEventArgs` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.mousewheeleventargs?view=windowsdesktop-10.0 — confirms `Delta` property, sign convention (positive = away from user)
-- `System.Windows.Input.Mouse.MouseWheelDeltaForOneLine` field (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.mouse.mousewheeldeltaforoneline?view=windowsdesktop-10.0 — confirms `const int = 120`, rationale for field existence
-- `System.Windows.Forms.ColorDialog` class (windowsdesktop-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.colordialog?view=windowsdesktop-10.0 — confirms `Color` property returns `System.Drawing.Color`, `ShowDialog()` API, `System.Windows.Forms.dll` assembly
-- `System.Drawing.Color` struct (net-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.drawing.color?view=net-10.0 — confirms A/R/G/B byte properties, `System.Drawing.Primitives.dll` assembly
-- MSBuild properties for .NET Desktop SDK: https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props-desktop — confirms `UseWindowsForms=true` + `UseWPF=true` can coexist in same project file
+- `Environment.TickCount64` property (net-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.environment.tickcount64?view=net-10.0 — confirms `Int64` return type, milliseconds elapsed since system start, Windows behavior includes sleep time in .NET 10, `System.Runtime.dll` assembly
+- `TimeSpan` struct (net-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.timespan?view=net-10.0 — confirms `Days`/`Hours`/`Minutes` as integer component properties (not totals), `FromMilliseconds(long)` overload, `System.Runtime.dll` assembly; numeric example confirms 229 days 5 hours 30 minutes component semantics
+- Prior milestone research (v1.2 StatsService, v1.4 PAG counter): `.planning/milestones/v1.2-phases/07-statsservice/07-RESEARCH.md` — confirms `PerformanceCounter` init pattern, `Refresh()` tick integration, existing architecture constraints
 
 ---
-*Stack research for: FuzzyClock v2.0 — color themes and opacity control*
+*Stack research for: FuzzyClock v2.1 — uptime display and rolling CPU load averages*
 *Researched: 2026-02-27*
