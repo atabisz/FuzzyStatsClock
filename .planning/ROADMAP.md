@@ -434,7 +434,7 @@ Plans:
 | 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
-| 22. Infrastructure and Toggle | 1/1 | Complete   | 2026-02-27 | - |
+| 22. Infrastructure and Toggle | 1/1 | Complete    | 2026-02-27 | - |
 | 23. Data Display | v2.1 | 0/TBD | Not started | - |
 
 ---
