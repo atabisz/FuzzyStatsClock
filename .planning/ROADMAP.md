@@ -137,7 +137,7 @@ Plans:
 
 ### v2.1 Uptime (Phases 22-23) — IN PROGRESS
 
-- [ ] **Phase 22: Infrastructure and Toggle** — AppSettings.UptimeVisible (default true), UptimeRow TextBlock in XAML Grid Row 2 (sibling of StatsPanel, not child), MenuUptimeVisible IsCheckable toggle in Stats submenu, full settings plumbing (ApplySettings/SaveSettings/ContextMenu_Opened/ApplyTheme/SetUptimeRowVisible)
+- [x] **Phase 22: Infrastructure and Toggle** — AppSettings.UptimeVisible (default true), UptimeRow TextBlock in XAML Grid Row 2 (sibling of StatsPanel, not child), MenuUptimeVisible IsCheckable toggle in Stats submenu, full settings plumbing (ApplySettings/SaveSettings/ContextMenu_Opened/ApplyTheme/SetUptimeRowVisible) (completed 2026-02-27)
 - [ ] **Phase 23: Data Display** — StatsService.IsReady property, Environment.TickCount64 uptime formatting (up Xd Xh Xm, leading zero-unit suppressed), Queue<float> rolling CPU averages for 1m/5m/15m with IsReady guard and hover-fast-refresh exclusion, UpdateUptimeDisplay() wired to _statsTimer.Tick
 
 ## Phase Details
@@ -434,7 +434,7 @@ Plans:
 | 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
-| 22. Infrastructure and Toggle | v2.1 | 0/TBD | Not started | - |
+| 22. Infrastructure and Toggle | 1/1 | Complete   | 2026-02-27 | - |
 | 23. Data Display | v2.1 | 0/TBD | Not started | - |
 
 ---
