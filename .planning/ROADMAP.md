@@ -12,7 +12,7 @@
 - **v1.7 Visual Polish** (2026-02-26) — Hover backdrop (semi-transparent when stats visible), drag pause. 1 phase, 1 plan. → [Archive](milestones/v1.7-ROADMAP.md)
 - **v1.8 Dial Enhancement** (2026-02-26) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases, 3 plans. → [Archive](milestones/v1.8-ROADMAP.md)
 - **v1.9 Context-Aware Menus** (2026-02-26) — Font Size submenu hidden in dial mode; reappears in phrase mode. 1 phase, 2 plans. → [Archive](milestones/v1.9-ROADMAP.md)
-- **v2.0 Visual Identity** (in progress) — Accent color themes (5 presets + custom picker) and window opacity control (presets + scroll wheel). 4 phases. → Current
+- **v2.0 Visual Identity** (2026-02-27) — Accent color themes (5 presets + custom picker) and window opacity control (presets + scroll wheel). 4 phases, 8 plans. → [Complete]
 
 ## Phases
 
@@ -124,12 +124,12 @@ Plans:
 
 </details>
 
-### v2.0 Visual Identity (Phases 18-21) — IN PROGRESS
+### v2.0 Visual Identity (Phases 18-21) — COMPLETE 2026-02-27
 
 - [x] **Phase 18: AppSettings Schema Extension** — Add AccentColor (hex string, default #FFFFFFFF) and Opacity (double, default 1.0) fields with backward-compat init defaults and load-time guards; schema locked for Phases 19-21 (completed 2026-02-27)
 - [x] **Phase 19: Window Opacity** — Opacity submenu (25/50/75/100%), scroll wheel adjustment (10% increments, 0.10 floor), Window.Opacity applied to entire widget window, persisted and restored (completed 2026-02-27)
 - [x] **Phase 20: Accent Color Presets** — ApplyTheme() covering all 14+ accent elements, Theme submenu with 5 named presets, checkmark sync in ContextMenu_Opened, ContentRendered ordering constraint enforced, persisted as hex string (completed 2026-02-27)
-- [ ] **Phase 21: Custom Color Picker** — UseWindowsForms=true in csproj, Win32Window HWND owner helper, ColorDialog integration, custom color persists as hex, no preset checkmark when custom active
+- [x] **Phase 21: Custom Color Picker** — UseWindowsForms=true in csproj, Win32Window HWND owner helper, ColorDialog integration, custom color persists as hex, no preset checkmark when custom active (completed 2026-02-27)
 
 ## Phase Details
 
@@ -370,8 +370,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md — Add UseWindowsForms flag, Custom... MenuItem (XAML), Win32Window adapter + MenuThemeCustom_Click handler (code-behind)
-- [ ] 21-02-PLAN.md — Human verify all five THEME-02 success criteria
+- [x] 21-01-PLAN.md — Add UseWindowsForms flag, Custom... MenuItem (XAML), Win32Window adapter + MenuThemeCustom_Click handler (code-behind)
+- [x] 21-02-PLAN.md — Human verify all five THEME-02 success criteria
 
 ## Progress
 
@@ -397,7 +397,7 @@ Plans:
 | 18. AppSettings Schema Extension | v2.0 | Complete    | 2026-02-26 | 2026-02-27 |
 | 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
-| 21. Custom Color Picker | 1/2 | In Progress|  | - |
+| 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
 
 ---
-*Last updated: 2026-02-27 — Phase 20 complete; accent color presets (5 named themes, 14 elements) human-verified*
+*Last updated: 2026-02-27 — Phase 21 complete; v2.0 Visual Identity milestone complete (THEME-01/02/03/04, OPAC-01/02/03/04 all human-verified)*
