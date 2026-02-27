@@ -132,6 +132,8 @@ public partial class MainWindow : Window
         GpuRow.Visibility = s.GpuVisible ? Visibility.Visible : Visibility.Collapsed;
         MemRow.Visibility = s.MemVisible ? Visibility.Visible : Visibility.Collapsed;
         PagRow.Visibility = s.PagVisible ? Visibility.Visible : Visibility.Collapsed;
+        // Direct assignment (NOT via SetUptimeRowVisible — unsafe before Show(), same invariant as other rows).
+        UptimeText.Visibility = s.UptimeVisible ? Visibility.Visible : Visibility.Collapsed;
 
         // Apply dial mode directly (NOT via SetDialMode — unsafe before Show(), same invariant as StatsPanel).
         _dialMode = s.DialMode;
@@ -178,6 +180,7 @@ public partial class MainWindow : Window
             GpuVisible = (GpuRow.Visibility == Visibility.Visible),
             MemVisible = (MemRow.Visibility == Visibility.Visible),
             PagVisible = (PagRow.Visibility == Visibility.Visible),
+            UptimeVisible = (UptimeText.Visibility == Visibility.Visible),
             DialMode = _dialMode,
             ShowHourTicks   = _showHourTicks,
             ShowMinuteDots  = _showMinuteDots,
@@ -306,7 +309,8 @@ public partial class MainWindow : Window
         MenuCpuVisible.IsChecked = (CpuRow.Visibility == Visibility.Visible);
         MenuGpuVisible.IsChecked = (GpuRow.Visibility == Visibility.Visible);
         MenuMemVisible.IsChecked = (MemRow.Visibility == Visibility.Visible);
-        MenuPagVisible.IsChecked = (PagRow.Visibility == Visibility.Visible);
+        MenuPagVisible.IsChecked    = (PagRow.Visibility    == Visibility.Visible);
+        MenuUptimeVisible.IsChecked = (UptimeText.Visibility == Visibility.Visible);
         MenuDialMode.IsChecked = _dialMode;
 
         // MENU-01: Font Size submenu visible only in phrase mode (inverse of DIAL-09)
@@ -356,7 +360,8 @@ public partial class MainWindow : Window
     private void MenuPagVisible_Click(object sender, RoutedEventArgs e)
         => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible);
 
-    private void MenuUptimeVisible_Click(object sender, RoutedEventArgs e) { }
+    private void MenuUptimeVisible_Click(object sender, RoutedEventArgs e)
+        => SetUptimeRowVisible(UptimeText.Visibility != Visibility.Visible);
 
     private void MenuInterval1_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(1);
     private void MenuInterval3_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(3);
@@ -465,6 +470,24 @@ public partial class MainWindow : Window
                 Left = clamped.Left;
                 Top  = clamped.Top;
             }
+        }
+
+        SaveSettings();
+    }
+
+    private void SetUptimeRowVisible(bool visible)
+    {
+        UptimeText.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+        // Re-clamp on show: UptimeRow adds ~15px; widget near bottom edge would slide off screen.
+        if (visible && _hasUserPosition)
+        {
+            UpdateLayout();
+            var clamped = SettingsService.Clamp(
+                new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
+                ActualWidth, ActualHeight);
+            Left = clamped.Left;
+            Top  = clamped.Top;
         }
 
         SaveSettings();
@@ -677,6 +700,9 @@ public partial class MainWindow : Window
         GpuText.Foreground = brush;
         MemText.Foreground = brush;
         PagText.Foreground = brush;
+
+        // Uptime row text (accent color)
+        UptimeText.Foreground = brush;
 
         // Deliberately excluded: ShadowText, CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack,
         // row label TextBlocks (CPU/GPU/MEM/PAG — no x:Name), ContentBorder.Background
