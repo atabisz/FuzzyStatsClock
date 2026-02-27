@@ -20,6 +20,12 @@ public sealed class StatsService : IDisposable
     public float GpuPercent { get; private set; } = -1f;  // -1f = unavailable sentinel (display "N/A")
     public float MemPercent { get; private set; }
     public float PagPercent { get; private set; } = -1f;  // -1f = unavailable sentinel (display "N/A")
+    public bool IsReady => _initialized;
+    // volatile bool: safe to read from Dispatcher thread — always sees latest committed value.
+    // Environment.TickCount64 on .NET 10/Windows includes suspend/hibernate time.
+    // Deliberate choice over WMI LastBootUpTime: zero COM overhead, sub-microsecond.
+    // NOTE: .NET 11 breaking change — TickCount64 will EXCLUDE suspend time on .NET 11+.
+    // See: https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/11/environment-tickcount-windows-behavior
 
     public StatsService()
     {

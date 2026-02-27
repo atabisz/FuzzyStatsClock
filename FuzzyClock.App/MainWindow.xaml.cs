@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private DispatcherTimer _statsTimer = null!;
     private StatsService _statsService = null!;
     private int _statsIntervalSeconds = 3;   // default matches AppSettings.StatsIntervalSeconds default
+    private bool _isHoverFastRefresh = false;
     // StatsPanel.Width(180) - label column(35) - text column(36) = 109
     private const double StatsBarTrackWidth = 109.0;
     private int _currentFontSize = 32;
@@ -425,6 +426,7 @@ public partial class MainWindow : Window
             _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
             _statsTimer.Start();
         }
+        _isHoverFastRefresh = true;
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
@@ -441,6 +443,7 @@ public partial class MainWindow : Window
             _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
             _statsTimer.Start();
         }
+        _isHoverFastRefresh = false;
     }
 
     private void SetStatRowVisible(Grid row, bool visible)
