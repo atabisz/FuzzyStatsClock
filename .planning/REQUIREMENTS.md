@@ -9,7 +9,7 @@ Requirements for v2.1 Uptime milestone. Each maps to roadmap phases.
 
 ### Uptime
 
-- [ ] **UPT-01**: Widget displays system uptime in `up Xd Xh Xm` format (leading zero-units suppressed, e.g. `up 5h 3m` not `up 0d 5h 3m`) alongside three rolling CPU load averages (1m/5m/15m) as decimal values (`0.52, 0.47, 0.43`) as a compact single line below the stats panel, themed in the active accent color
+- [x] **UPT-01**: Widget displays system uptime in `up Xd Xh Xm` format (leading zero-units suppressed, e.g. `up 5h 3m` not `up 0d 5h 3m`) alongside three rolling CPU load averages (1m/5m/15m) as decimal values (`0.52, 0.47, 0.43`) as a compact single line below the stats panel, themed in the active accent color
 - [x] **UPT-02**: User can show or hide the uptime/load line via a right-click Stats submenu toggle; visible by default; persisted to settings.json and restored on launch
 
 ## Future Requirements
@@ -49,7 +49,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UPT-01 | Phase 23 | Pending |
+| UPT-01 | Phase 23 | Complete |
 | UPT-02 | Phase 22 | Complete |
 
 **Coverage:**

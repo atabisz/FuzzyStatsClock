@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27 after v2.1 milestone started)
 ## Current Position
 
 Phase: 23 — Data Display
-Plan: 23-01
-Status: Phase planned; ready for execution
-Last activity: 2026-02-27 — Phase 23 planned (1 plan, 1 wave; verification passed)
+Plan: 23-01 (COMPLETE)
+Status: Phase complete; v2.1 milestone complete
+Last activity: 2026-02-27 — 23-01 executed (live uptime row + rolling CPU load averages; build 0 errors)
 
-Progress: [█████░░░░░] 50% (v2.1: 1/2 phases complete)
+Progress: [██████████] 100% (v2.1: 2/2 phases complete)
 
 ## Performance Metrics
 
@@ -48,18 +48,24 @@ Progress: [█████░░░░░] 50% (v2.1: 1/2 phases complete)
 | 20. Accent Color Presets | 2 | 2 min | 1 min |
 | 21. Custom Color Picker | 2 | 1 min | 0.5 min |
 | 22. Infrastructure and Toggle | 1 | 2 min | 2 min |
+| 23. Data Display | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 21-01 (1 min), 21-02 (0 min), 22-01 (2 min)
+- Last 5 plans: 21-01 (1 min), 21-02 (0 min), 22-01 (2 min), 23-01 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 23-data-display P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. All v2.0 decisions added.
+- [Phase 23-data-display]: IsReady reads volatile bool _initialized without lock — safe from Dispatcher thread
+- [Phase 23-data-display]: _isHoverFastRefresh gates buffer push at 0.5s hover cadence — prevents rolling window size corruption
+- [Phase 23-data-display]: Window sizes computed as ceil(windowSeconds / _statsIntervalSeconds) — interval-aware, not hardcoded counts
+- [Phase 23-data-display]: TickCount64 (Int64 ms) used exclusively for uptime — TickCount (Int32) wraps at 24.9 days
 
 ### v2.1 Architectural Constraints (from research)
 
@@ -84,6 +90,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 22-01-PLAN.md (UptimeRow infrastructure + toggle — build 0 errors)
+Stopped at: Completed 23-01-PLAN.md (live uptime row + rolling CPU load averages — build 0 errors)
 Resume file: None
-Next action: `/gsd:execute-phase 23`
+Next action: v2.1 milestone complete — plan next milestone or features as needed
