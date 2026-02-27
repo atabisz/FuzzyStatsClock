@@ -133,6 +133,7 @@ public partial class MainWindow : Window
         MemRow.Visibility = s.MemVisible ? Visibility.Visible : Visibility.Collapsed;
         PagRow.Visibility = s.PagVisible ? Visibility.Visible : Visibility.Collapsed;
         // Direct assignment (NOT via SetUptimeRowVisible — unsafe before Show(), same invariant as other rows).
+        // UptimeText is inside StatsPanel; StatsPanel.Collapsed hides it automatically.
         UptimeText.Visibility = s.UptimeVisible ? Visibility.Visible : Visibility.Collapsed;
 
         // Apply dial mode directly (NOT via SetDialMode — unsafe before Show(), same invariant as StatsPanel).
@@ -480,7 +481,9 @@ public partial class MainWindow : Window
         UptimeText.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
 
         // Re-clamp on show: UptimeRow adds ~15px; widget near bottom edge would slide off screen.
-        if (visible && _hasUserPosition)
+        // Only meaningful when StatsPanel is visible — UptimeText is inside it, so if stats are hidden
+        // the height doesn't change regardless of UptimeText.Visibility.
+        if (visible && _hasUserPosition && StatsPanel.Visibility == Visibility.Visible)
         {
             UpdateLayout();
             var clamped = SettingsService.Clamp(

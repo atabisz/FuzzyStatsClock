@@ -99,12 +99,11 @@
             </ContextMenu>
         </Grid.ContextMenu>
 
-        <!-- Three-row inner Grid: Row 0 = phrase display, Row 1 = stats panel, Row 2 = uptime row -->
+        <!-- Two-row inner Grid: Row 0 = phrase display, Row 1 = stats panel (uptime row is inside stats panel) -->
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />   <!-- Row 2: UptimeRow (NEW) -->
             </Grid.RowDefinitions>
 
             <!-- Row 0: phrase display — unchanged from prior state -->
@@ -250,14 +249,9 @@
                                TextAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
 
-            </StackPanel>
-
-            <!-- Row 2: uptime row — default Visible (UptimeVisible=true default).
-                 Width="180" matches StatsPanel — prevents SizeToContent jitter when Phase 23 adds live data.
-                 Sibling of StatsPanel (NOT inside its StackPanel) — ensures independent toggle control. -->
+            <!-- Uptime row — child of StatsPanel so it hides with stats.
+                 UptimeText.Visibility controls the sub-toggle (same pattern as CpuRow/GpuRow/etc.). -->
             <TextBlock x:Name="UptimeText"
-                       Grid.Row="2"
-                       Width="180"
                        Margin="0,2,0,0"
                        Visibility="Visible"
                        FontFamily="Segoe UI Light"
@@ -265,6 +259,7 @@
                        Foreground="White"
                        Text="up —"
                        TextAlignment="Left" />
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>
