@@ -137,7 +137,7 @@ Plans:
 
 ### v2.1 Uptime (Phases 22-23) — IN PROGRESS
 
-- [x] **Phase 22: Infrastructure and Toggle** — AppSettings.UptimeVisible (default true), UptimeRow TextBlock in XAML Grid Row 2 (sibling of StatsPanel, not child), MenuUptimeVisible IsCheckable toggle in Stats submenu, full settings plumbing (ApplySettings/SaveSettings/ContextMenu_Opened/ApplyTheme/SetUptimeRowVisible) (completed 2026-02-27)
+- [x] **Phase 22: Infrastructure and Toggle** — AppSettings.UptimeVisible (default true), UptimeRow TextBlock in XAML Grid Row 2 (sibling of StatsPanel, not child), MenuUptimeVisible IsCheckable toggle in Stats submenu, full settings plumbing (ApplySettings/SaveSettings/ContextMenu_Opened/ApplyTheme/SetUptimeRowVisible) (completed 2026-02-27)
 - [ ] **Phase 23: Data Display** — StatsService.IsReady property, Environment.TickCount64 uptime formatting (up Xd Xh Xm, leading zero-unit suppressed), Queue<float> rolling CPU averages for 1m/5m/15m with IsReady guard and hover-fast-refresh exclusion, UpdateUptimeDisplay() wired to _statsTimer.Tick
 
 ## Phase Details
@@ -407,7 +407,10 @@ Plans:
   3. The 1m/5m/15m load averages do not show artificially depressed values during the first minute after launch — the rolling buffer is guarded against StatsService cold-start zero samples
   4. Switching to hover fast-refresh (0.5s cadence) does not corrupt the rolling average window sizes — the 1m, 5m, and 15m windows continue to represent the correct time spans regardless of how long the mouse hovers
   5. The uptime and load values update correctly at all three configured stats intervals (1s, 3s, 10s) without any timer changes or additional wiring
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 23-01-PLAN.md — StatsService.IsReady property, _isHoverFastRefresh flag, _cpuSamples Queue<float>, UpdateUptimeDisplay() with 3-case uptime format + interval-aware averages, ComputeAvg(), expanded _statsTimer.Tick handler
 
 ## Progress
 
@@ -434,8 +437,8 @@ Plans:
 | 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
-| 22. Infrastructure and Toggle | 1/1 | Complete    | 2026-02-27 | - |
-| 23. Data Display | v2.1 | 0/TBD | Not started | - |
+| 22. Infrastructure and Toggle | v2.1 | 1/1 | Complete | 2026-02-27 |
+| 23. Data Display | v2.1 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-02-27 — v2.1 Uptime roadmap created; Phases 22-23 added*
+*Last updated: 2026-02-27 — Phase 23 planned: 1 plan (23-01-PLAN.md)*
