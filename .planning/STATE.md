@@ -2,18 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-27 after v2.0 milestone complete)
+See: .planning/PROJECT.md (updated 2026-02-27 after v2.1 milestone started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** v2.1 Uptime
 
 ## Current Position
 
-Phase: —
-Status: v2.0 Visual Identity milestone complete and archived. Ready for next milestone.
-Last activity: 2026-02-27 — v2.0 milestone archived; all 8 requirements (THEME-01/02/03/04, OPAC-01/02/03/04) human-verified
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v2.1 Uptime
+Last activity: 2026-02-27 — Milestone v2.1 started
 
-Progress: [██████████] 100% (v2.0: 4/4 phases complete — SHIPPED)
+Progress: [░░░░░░░░░░] 0% (v2.1: 0 phases complete)
 
 ## Performance Metrics
 

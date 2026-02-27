@@ -8,6 +8,15 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v2.1 Uptime
+
+**Goal:** Add a compact uptime and system load line below the stats panel, giving the widget a Linux-style system pulse at a glance.
+
+**Target features:**
+- Uptime row showing time since last boot in compact form (`up 3d 14h 22m`)
+- Three rolling CPU load averages (1m, 5m, 15m) displayed alongside uptime
+- Toggleable via right-click menu (visible by default), persisted
+
 ## Current State
 
 **v2.0 shipped: 2026-02-27**
@@ -95,7 +104,10 @@ All v2.0 requirements delivered. All 8 THEME/OPAC requirements human-verified.
 
 ### Active
 
-(none — planning next milestone)
+<!-- v2.1 Uptime requirements -->
+
+- [ ] **UPT-01**: Widget displays system uptime and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel
+- [ ] **UPT-02**: User can show or hide the uptime/load line via a right-click menu toggle; state persisted
 
 ### Deferred (v2+)
 
@@ -191,4 +203,4 @@ All v2.0 requirements delivered. All 8 THEME/OPAC requirements human-verified.
 | UseWindowsForms=true WinForms/WPF collision resolved with using aliases | UseWindowsForms=true introduces Application and MouseEventArgs ambiguity; using aliases at file level cleaner than fully-qualified names at every call site | ✓ Validated — using Application = System.Windows.Application; in App.xaml.cs; using MouseEventArgs alias in MainWindow.xaml.cs |
 
 ---
-*Last updated: 2026-02-27 after v2.0 milestone complete*
+*Last updated: 2026-02-27 after v2.1 milestone started*
