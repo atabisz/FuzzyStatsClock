@@ -3,6 +3,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using FuzzyClock.Core;
+// Disambiguate WinForms vs WPF type name collisions introduced by UseWindowsForms=true
+using Application    = System.Windows.Application;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 namespace FuzzyClock.App;
 
@@ -689,6 +692,33 @@ public partial class MainWindow : Window
     private void MenuThemeIce_Click(object sender, RoutedEventArgs e)   => SetAccentColor(PresetIce);
     private void MenuThemeGreen_Click(object sender, RoutedEventArgs e) => SetAccentColor(PresetGreen);
     private void MenuThemePink_Click(object sender, RoutedEventArgs e)  => SetAccentColor(PresetPink);
+
+    private sealed class Win32Window : System.Windows.Forms.IWin32Window
+    {
+        public IntPtr Handle { get; }
+        public Win32Window(IntPtr handle) => Handle = handle;
+    }
+
+    private void MenuThemeCustom_Click(object sender, RoutedEventArgs e)
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+
+        using var dlg = new System.Windows.Forms.ColorDialog
+        {
+            AllowFullOpen = true,
+            FullOpen      = true,
+            Color         = System.Drawing.Color.FromArgb(
+                                _accentColor.A, _accentColor.R,
+                                _accentColor.G, _accentColor.B)
+        };
+
+        if (dlg.ShowDialog(new Win32Window(hwnd)) == System.Windows.Forms.DialogResult.OK)
+        {
+            var c = dlg.Color;
+            SetAccentColor(System.Windows.Media.Color.FromArgb(c.A, c.R, c.G, c.B));
+        }
+        // Cancel: no action — current accent color preserved
+    }
 
     private void UpdateDialDisplay()
     {

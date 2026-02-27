@@ -1,6 +1,8 @@
 using System.Threading;
 using System.Windows;
 using FuzzyClock.Core;
+// Disambiguate System.Windows.Application vs System.Windows.Forms.Application (UseWindowsForms=true)
+using Application = System.Windows.Application;
 
 namespace FuzzyClock.App;
 

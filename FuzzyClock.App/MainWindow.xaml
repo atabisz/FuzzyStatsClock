@@ -80,6 +80,10 @@
                     <MenuItem x:Name="MenuThemeIce"    Header="Ice Blue"         IsCheckable="True" Click="MenuThemeIce_Click" />
                     <MenuItem x:Name="MenuThemeGreen"  Header="Green"            IsCheckable="True" Click="MenuThemeGreen_Click" />
                     <MenuItem x:Name="MenuThemePink"   Header="Hello Kitty Pink" IsCheckable="True" Click="MenuThemePink_Click" />
+                    <Separator />
+                    <MenuItem x:Name="MenuThemeCustom"
+                              Header="Custom..."
+                              Click="MenuThemeCustom_Click" />
                 </MenuItem>
                 <MenuItem Header="Opacity">
                     <MenuItem x:Name="MenuOpacity25"  Header="25%"  IsCheckable="True" Click="MenuOpacity25_Click" />
