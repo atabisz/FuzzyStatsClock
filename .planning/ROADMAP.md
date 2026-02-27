@@ -128,7 +128,7 @@ Plans:
 
 - [x] **Phase 18: AppSettings Schema Extension** — Add AccentColor (hex string, default #FFFFFFFF) and Opacity (double, default 1.0) fields with backward-compat init defaults and load-time guards; schema locked for Phases 19-21 (completed 2026-02-27)
 - [x] **Phase 19: Window Opacity** — Opacity submenu (25/50/75/100%), scroll wheel adjustment (10% increments, 0.10 floor), Window.Opacity applied to entire widget window, persisted and restored (completed 2026-02-27)
-- [ ] **Phase 20: Accent Color Presets** — ApplyTheme() covering all 14+ accent elements, Theme submenu with 5 named presets, checkmark sync in ContextMenu_Opened, ContentRendered ordering constraint enforced, persisted as hex string
+- [x] **Phase 20: Accent Color Presets** — ApplyTheme() covering all 14+ accent elements, Theme submenu with 5 named presets, checkmark sync in ContextMenu_Opened, ContentRendered ordering constraint enforced, persisted as hex string (completed 2026-02-27)
 - [ ] **Phase 21: Custom Color Picker** — UseWindowsForms=true in csproj, Win32Window HWND owner helper, ColorDialog integration, custom color persists as hex, no preset checkmark when custom active
 
 ## Phase Details
@@ -354,8 +354,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 20-01-PLAN.md — Add _accentColor field, 5 preset Color constants, ApplyTheme(), SetAccentColor(), 5 click handlers; extend ApplySettings/SaveSettings/ContextMenu_Opened/ContentRendered; add Theme submenu XAML
-- [ ] 20-02-PLAN.md — Human verify all four Phase 20 success criteria
+- [x] 20-01-PLAN.md — Add _accentColor field, 5 preset Color constants, ApplyTheme(), SetAccentColor(), 5 click handlers; extend ApplySettings/SaveSettings/ContextMenu_Opened/ContentRendered; add Theme submenu XAML
+- [x] 20-02-PLAN.md — Human verify all four Phase 20 success criteria
 
 ### Phase 21: Custom Color Picker
 **Goal**: Users can set any arbitrary accent color via the system color picker dialog, with the custom color applied immediately and persisted exactly like a preset
@@ -392,8 +392,8 @@ Plans:
 | 17. Context-Aware Font Size Menu | v1.9 | 2/2 | Complete | 2026-02-26 |
 | 18. AppSettings Schema Extension | v2.0 | Complete    | 2026-02-26 | 2026-02-27 |
 | 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
-| 20. Accent Color Presets | 1/2 | In Progress|  | - |
+| 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 21. Custom Color Picker | v2.0 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-27 — Phase 20 planned: 2 plans (20-01 implementation + 20-02 human verify)*
+*Last updated: 2026-02-27 — Phase 20 complete; accent color presets (5 named themes, 14 elements) human-verified*
