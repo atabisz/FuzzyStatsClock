@@ -351,7 +351,11 @@ Plans:
   2. Clicking a preset immediately recolors the phrase text, both dial hands, all dial decoration elements (tick marks, minute dots, hour number labels), all four stats fill bars, and all four stats percentage text values to the selected accent color
   3. Bar track backgrounds and the shadow text element are not affected by accent color changes — they remain visually neutral after any preset selection
   4. Closing and relaunching the widget restores the last-selected accent color preset without requiring re-selection
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 20-01-PLAN.md — Add _accentColor field, 5 preset Color constants, ApplyTheme(), SetAccentColor(), 5 click handlers; extend ApplySettings/SaveSettings/ContextMenu_Opened/ContentRendered; add Theme submenu XAML
+- [ ] 20-02-PLAN.md — Human verify all four Phase 20 success criteria
 
 ### Phase 21: Custom Color Picker
 **Goal**: Users can set any arbitrary accent color via the system color picker dialog, with the custom color applied immediately and persisted exactly like a preset
@@ -388,8 +392,8 @@ Plans:
 | 17. Context-Aware Font Size Menu | v1.9 | 2/2 | Complete | 2026-02-26 |
 | 18. AppSettings Schema Extension | v2.0 | Complete    | 2026-02-26 | 2026-02-27 |
 | 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
-| 20. Accent Color Presets | v2.0 | 0/? | Not started | - |
+| 20. Accent Color Presets | v2.0 | 0/2 | Not started | - |
 | 21. Custom Color Picker | v2.0 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-27 — Phase 19 complete; window opacity control (menu presets + scroll wheel) human-verified*
+*Last updated: 2026-02-27 — Phase 20 planned: 2 plans (20-01 implementation + 20-02 human verify)*
