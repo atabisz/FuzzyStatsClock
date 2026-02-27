@@ -392,7 +392,10 @@ Plans:
   3. Hiding the uptime row does not affect the stats panel, and hiding the stats panel does not affect the uptime row — each is independently controlled
   4. The UptimeVisible state survives a full app restart: closing and relaunching the widget restores the last-chosen visibility without requiring re-selection
   5. Changing the accent color while the uptime row is visible immediately recolors the uptime text — ApplyTheme() covers the UptimeText element
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 22-01-PLAN.md — AppSettings.UptimeVisible field, XAML UptimeText row, Stats submenu toggle, full code-behind wiring (ApplySettings/SaveSettings/ContextMenu_Opened/SetUptimeRowVisible/ApplyTheme)
 
 ### Phase 23: Data Display
 **Goal**: The uptime row shows live system uptime and rolling CPU load averages (1m/5m/15m) that accurately reflect actual system state, update on every stats timer tick, and survive hover fast-refresh and StatsService cold-start without displaying incorrect values
