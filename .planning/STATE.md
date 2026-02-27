@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-27 after v2.0 milestone started)
 ## Current Position
 
 Phase: 21 — Custom Color Picker
-Plan: Not started
-Status: Phase 20 complete; Phase 21 pending
-Last activity: 2026-02-27 — Phase 20 complete; accent color presets (Theme submenu + ApplyTheme, 14 elements) human-verified
+Plan: 01 complete
+Status: Phase 21 plan 01 complete; awaiting human verification
+Last activity: 2026-02-27 — Phase 21 plan 01 complete; custom ColorDialog picker integrated (THEME-02)
 
 Progress: [████████░░] 75% (v2.0: 3/4 phases)
 
@@ -47,9 +47,10 @@ Progress: [████████░░] 75% (v2.0: 3/4 phases)
 | 18. AppSettings Schema Extension | 1 | 1 min | 1 min |
 | 19. Window Opacity | 2 | 2 min | 1 min |
 | 20. Accent Color Presets | 2 | 2 min | 1 min |
+| 21. Custom Color Picker | 1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 19-01 (2 min), 19-02 (0 min), 20-01 (2 min), 20-02 (0 min)
+- Last 5 plans: 19-02 (0 min), 20-01 (2 min), 20-02 (0 min), 21-01 (1 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -74,6 +75,8 @@ Recent decisions relevant to current state:
 - [Phase 19-window-opacity]: ApplySettings() uses direct field+property assignment for opacity (not SetOpacity()) to avoid redundant SaveSettings() at startup
 - [Phase 20-accent-color-presets]: ApplyTheme() called in ContentRendered AFTER InitDialDecorations() — calling before produces empty foreach loops over decoration lists
 - [Phase 20-accent-color-presets]: ContextMenu_Opened() derives hex from _accentColor on the fly for checkmark sync — no secondary theme-name field needed
+- [Phase 21-custom-color-picker]: Win32Window HWND adapter passes WPF window handle to ColorDialog.ShowDialog() — required to prevent dialog rendering behind Topmost=True window
+- [Phase 21-custom-color-picker]: UseWindowsForms=true causes WinForms/WPF type name collisions; resolved with explicit using aliases (Application, MouseEventArgs) rather than fully-qualified names at each call site
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 20-accent-color-presets/20-02-PLAN.md (human-verified)
+Stopped at: Completed 21-custom-color-picker/21-01-PLAN.md
 Resume file: None
-Next action: /gsd:plan-phase 21
+Next action: Human verify 21-01 — run app, right-click Theme > Custom..., confirm ColorDialog opens and color applies

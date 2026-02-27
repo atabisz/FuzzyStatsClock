@@ -397,7 +397,7 @@ Plans:
 | 18. AppSettings Schema Extension | v2.0 | Complete    | 2026-02-26 | 2026-02-27 |
 | 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
-| 21. Custom Color Picker | v2.0 | 0/? | Not started | - |
+| 21. Custom Color Picker | 1/2 | In Progress|  | - |
 
 ---
 *Last updated: 2026-02-27 — Phase 20 complete; accent color presets (5 named themes, 14 elements) human-verified*
