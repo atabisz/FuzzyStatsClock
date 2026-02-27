@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-27 after v2.1 milestone started)
 
 ## Current Position
 
-Phase: 22 — Infrastructure and Toggle
-Plan: 22-01 COMPLETE — Phase 22 complete (1/1 plans done)
-Status: Phase 22 complete; ready for Phase 23
-Last activity: 2026-02-27 — Phase 22 Plan 22-01 executed (UptimeRow infrastructure + toggle)
+Phase: 23 — Data Display
+Plan: 23-01
+Status: Phase planned; ready for execution
+Last activity: 2026-02-27 — Phase 23 planned (1 plan, 1 wave; verification passed)
 
 Progress: [█████░░░░░] 50% (v2.1: 1/2 phases complete)
 
