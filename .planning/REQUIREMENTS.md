@@ -9,9 +9,9 @@ Requirements for v2.0 Visual Identity milestone. Each maps to roadmap phases.
 
 ### Theme
 
-- [ ] **THEME-01**: User can select a built-in accent color preset (White, Amber, Ice Blue, Green, Hello Kitty Pink) via a right-click Theme submenu; current preset shown as checked
+- [x] **THEME-01**: User can select a built-in accent color preset (White, Amber, Ice Blue, Green, Hello Kitty Pink) via a right-click Theme submenu; current preset shown as checked
 - [ ] **THEME-02**: User can set a custom accent color via a color picker dialog ("Custom..." entry in the Theme submenu)
-- [ ] **THEME-03**: Active accent color is applied consistently to phrase text, dial hands and decorations (ticks, dots, numbers), and stats bars and percentage text
+- [x] **THEME-03**: Active accent color is applied consistently to phrase text, dial hands and decorations (ticks, dots, numbers), and stats bars and percentage text
 - [x] **THEME-04**: Active theme (preset name or custom hex color) persists to settings.json and restores on launch
 
 ### Opacity
@@ -58,9 +58,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THEME-01 | Phase 20 | Pending |
+| THEME-01 | Phase 20 | Complete |
 | THEME-02 | Phase 21 | Pending |
-| THEME-03 | Phase 20 | Pending |
+| THEME-03 | Phase 20 | Complete |
 | THEME-04 | Phase 18 | Complete |
 | OPAC-01 | Phase 19 | Complete |
 | OPAC-02 | Phase 19 | Complete |

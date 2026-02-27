@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27 after v2.0 milestone started)
 ## Current Position
 
 Phase: 20 — Accent Color Presets
-Plan: Not started
-Status: Phase 19 complete; Phase 20 pending
-Last activity: 2026-02-27 — Phase 19 complete; window opacity (menu presets + scroll wheel) human-verified
+Plan: 01 complete
+Status: Phase 20-01 complete; Phase 20 done (1/1 plans)
+Last activity: 2026-02-27 — Phase 20-01 complete; accent color presets (Theme submenu + ApplyTheme) implemented
 
-Progress: [█████░░░░░] 50% (v2.0: 2/4 phases)
+Progress: [██████░░░░] 62% (v2.0: 3/4 phases)
 
 ## Performance Metrics
 
@@ -46,9 +46,10 @@ Progress: [█████░░░░░] 50% (v2.0: 2/4 phases)
 
 | 18. AppSettings Schema Extension | 1 | 1 min | 1 min |
 | 19. Window Opacity | 2 | 2 min | 1 min |
+| 20. Accent Color Presets | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 17-01 (1 min), 17-02 (1 min), 18-01 (1 min), 19-01 (2 min), 19-02 (0 min)
+- Last 5 plans: 18-01 (1 min), 19-01 (2 min), 19-02 (0 min), 20-01 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -71,11 +72,13 @@ Recent decisions relevant to current state:
 - v2.0 custom picker: ColorDialog requires HWND owner via WindowInteropHelper — without it the dialog renders behind Topmost=True WPF window
 - [Phase 19-window-opacity]: PreviewMouseWheel (not MouseWheel) confirmed for frameless transparent windows — MouseWheel silently dropped without keyboard focus
 - [Phase 19-window-opacity]: ApplySettings() uses direct field+property assignment for opacity (not SetOpacity()) to avoid redundant SaveSettings() at startup
+- [Phase 20-accent-color-presets]: ApplyTheme() called in ContentRendered AFTER InitDialDecorations() — calling before produces empty foreach loops over decoration lists
+- [Phase 20-accent-color-presets]: ContextMenu_Opened() derives hex from _accentColor on the fly for checkmark sync — no secondary theme-name field needed
 
 ### Pending Todos
 
-- Settle on canonical preset color hex values before Phase 20 implementation (FEATURES.md is the design authority — Ice Blue varies across research files)
-- Confirm whether row label text (CPU/GPU/MEM/PAG) follows accent color or stays white (ARCHITECTURE.md leaves them white; confirm before Phase 20)
+- ~~Settle on canonical preset color hex values before Phase 20 implementation~~ (DONE: White=#FFFFFFFF, Amber=#FFFFC000, Ice Blue=#FF87CEEB, Green=#FF00C000, Hello Kitty Pink=#FFFF69B4)
+- ~~Confirm whether row label text (CPU/GPU/MEM/PAG) follows accent color or stays white~~ (DONE: row labels excluded — no x:Name, stay white always)
 - ~~Confirm opacity floor behavior: scroll wheel floor = 0.10, preset menu floor = 0.25; document in Phase 19 plan~~ (DONE: Phase 19-01 implements and documents both floors)
 
 ### Blockers/Concerns
@@ -85,6 +88,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 19-window-opacity/19-02-PLAN.md (human-verified)
+Stopped at: Completed 20-accent-color-presets/20-01-PLAN.md
 Resume file: None
-Next action: /gsd:plan-phase 20
+Next action: /gsd:plan-phase 21
