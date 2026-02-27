@@ -16,6 +16,8 @@ public partial class MainWindow : Window
     private StatsService _statsService = null!;
     private int _statsIntervalSeconds = 3;   // default matches AppSettings.StatsIntervalSeconds default
     private bool _isHoverFastRefresh = false;
+    private readonly Queue<float> _cpuSamples = new();
+    // Bounded by trim logic in UpdateUptimeDisplay(). Max 900 entries at 1s interval (~3.5KB).
     // StatsPanel.Width(180) - label column(35) - text column(36) = 109
     private const double StatsBarTrackWidth = 109.0;
     private int _currentFontSize = 32;
@@ -82,7 +84,11 @@ public partial class MainWindow : Window
             {
                 Interval = TimeSpan.FromSeconds(_statsIntervalSeconds)
             };
-            _statsTimer.Tick += (_, _) => UpdateStatsDisplay();
+            _statsTimer.Tick += (_, _) =>
+            {
+                UpdateStatsDisplay();    // calls _statsService.Refresh() internally — must run first
+                UpdateUptimeDisplay();   // reads CpuPercent after Refresh() already ran — never call Refresh() again here
+            };
             // Conditional timer start: ApplySettings() may have set StatsPanel to Visible
             // (restored from settings.json), but _statsTimer didn't exist then. Start it now
             // if the panel is already visible. If Collapsed, timer stays stopped.
@@ -281,6 +287,62 @@ public partial class MainWindow : Window
             PagText.Text = $"{_statsService.PagPercent:F0}%";
             PagBar.Width = StatsBarTrackWidth * (_statsService.PagPercent / 100.0);
         }
+    }
+
+    private void UpdateUptimeDisplay()
+    {
+        // Early exit: UptimeText is inside StatsPanel; both must be visible.
+        // StatsPanel Collapsed hides UptimeText automatically, but belt-and-suspenders guard prevents
+        // _cpuSamples growth and string allocation when neither is shown.
+        if (StatsPanel.Visibility  != Visibility.Visible ||
+            UptimeText.Visibility  != Visibility.Visible) return;
+
+        // Cold-start guard: StatsService takes ~6s to initialize via Task.Run(Initialize).
+        // CpuPercent is 0f during init — indistinguishable from genuine idle CPU by value.
+        // Skipping until IsReady prevents zeros from depressing the 1m average for ~60s at launch.
+        if (!_statsService.IsReady) return;
+
+        // Hover fast-refresh guard: at 0.5s cadence, sample density is 6x the configured rate.
+        // Count-based windows (TakeLast) would represent far shorter time spans than labeled.
+        // Only push samples at the configured (non-hover) interval.
+        if (!_isHoverFastRefresh)
+        {
+            _cpuSamples.Enqueue(_statsService.CpuPercent);
+            // Trim to 15-minute window at current configured interval
+            int maxSamples = Math.Max(1, (15 * 60) / _statsIntervalSeconds);
+            while (_cpuSamples.Count > maxSamples) _cpuSamples.Dequeue();
+        }
+
+        // Uptime string — leading zero-unit suppression applies to ALL leading zero units.
+        // Uses Environment.TickCount64 (Int64, ms since boot). Never use TickCount (Int32, wraps at ~24.9 days).
+        TimeSpan uptime = TimeSpan.FromMilliseconds(Environment.TickCount64); // Int64 — never TickCount (Int32)
+        string uptimeStr;
+        if (uptime.Days > 0)
+            uptimeStr = $"up {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m";
+        else if (uptime.Hours > 0)
+            uptimeStr = $"up {uptime.Hours}h {uptime.Minutes}m";
+        else
+            uptimeStr = $"up {uptime.Minutes}m";
+
+        // Rolling CPU averages — interval-aware window sizing.
+        // CpuPercent is 0-100; divide by 100 for load-average-style decimal display (0.52).
+        float avg1m  = ComputeAvg(_cpuSamples, (int)Math.Ceiling(60.0  / _statsIntervalSeconds));
+        float avg5m  = ComputeAvg(_cpuSamples, (int)Math.Ceiling(300.0 / _statsIntervalSeconds));
+        float avg15m = _cpuSamples.Count > 0 ? _cpuSamples.Average() : 0f;
+
+        string newText = $"{uptimeStr}   {avg1m / 100f:F2}  {avg5m / 100f:F2}  {avg15m / 100f:F2}";
+
+        // Change guard: minutes component changes at most once per minute.
+        // Prevents spurious TextBlock invalidation on every 1s tick.
+        if (UptimeText.Text != newText)
+            UptimeText.Text = newText;
+    }
+
+    private static float ComputeAvg(Queue<float> q, int count)
+    {
+        // Average the last `count` elements (most recent time window).
+        // Math.Min guards against requesting more samples than exist (warm-up period).
+        return q.Count == 0 ? 0f : q.TakeLast(Math.Min(count, q.Count)).Average();
     }
 
     private void PositionTopRight()
