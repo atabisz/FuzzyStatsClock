@@ -2,40 +2,29 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes checked every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Hovering the mouse over the widget accelerates the stats update rate to 0.5s for a quick peek; moving the mouse away restores the configured rate. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, switch between phrase and dial mode, and all preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, and stats bars/text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). Hovering the mouse over the widget accelerates the stats update rate to 0.5s; moving the mouse away restores the configured rate. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, switch between phrase and dial mode, and all preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v2.0 Visual Identity
-
-**Goal:** Give users control over how the widget looks through accent color themes and opacity, making it blend with any wallpaper or personal style.
-
-**Target features:**
-- Color themes — 5 presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) + custom color picker; one accent color applies to phrase text, dial hands/decorations, and stats bars/text
-- Widget opacity — right-click menu presets (25%/50%/75%/100%) plus scroll wheel in 10% increments; window-level opacity, persisted
-
 ## Current State
 
-**v1.9 shipped: 2026-02-26**
+**v2.0 shipped: 2026-02-27**
 
-All v1.9 requirements delivered. Font Size submenu context-awareness human-verified.
+All v2.0 requirements delivered. All 8 THEME/OPAC requirements human-verified.
 
-- Context-aware menus: Font Size submenu hidden in dial mode; Dial Face submenu hidden in phrase mode — right-click menu shows only relevant controls for the active display mode
-- ~4,870 LOC C# / XAML
-- Drag pause: stat updates freeze during DragMove(), resume immediately on release
-- Dial mode: right-click "Dial Mode" toggles between phrase text and minimal analog dial (hour + minute hands, no face); persists
-- Hover fast-refresh: mouse over widget → stats update at 0.5s cadence; restores configured rate on leave; no-op when stats hidden
-- Stats panel: CPU / GPU / MEM / PAG horizontal bars + % text below the time phrase or dial
-- Per-row visibility: Show CPU / Show GPU / Show MEM / Show PAG toggles, auto-collapse when all hidden, persisted
-- PAG row: paging file % usage via PDH "Paging File"/"% Usage"/"_Total"; "N/A" when pagefile unavailable
-- Update interval: 1s / 3s / 10s via right-click Stats submenu, persisted
-- Stats visibility: show/hide toggle via right-click Stats submenu, persisted
+- Accent color: 5 presets (White/Amber/Ice Blue/Green/Hello Kitty Pink) + custom color picker dialog; applied to 14 elements consistently; persisted as hex string
+- Window opacity: right-click Opacity submenu (25/50/75/100%) + scroll wheel (10% steps, 10% floor); window-level `Window.Opacity`, persisted
+- Context-aware menus: Font Size submenu hidden in dial mode; Dial Face submenu hidden in phrase mode
+- Dial face decorations: Show Hour Ticks / Show Minute Marks / Show Hour Numbers; persisted; defaults false
+- Dial mode: right-click toggle between phrase text and minimal analog dial (hour + minute hands, no face); persists
+- Hover fast-refresh: mouse over widget → stats update at 0.5s cadence; restores configured rate on leave
+- Stats panel: CPU / GPU / MEM / PAG horizontal bars + % text; per-row visibility toggles; auto-collapse when all hidden; persisted
 - Position persistence: drag to any position, saved immediately, restored on next launch
 - Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~1,380 LOC C# / XAML
+- ~2,775 LOC C# / XAML
 
 ## Requirements
 
@@ -93,18 +82,20 @@ All v1.9 requirements delivered. Font Size submenu context-awareness human-verif
 
 - ✓ MENU-01: Font Size submenu is hidden from the context menu when dial mode is active; reappears when switching to phrase mode — v1.9
 
+### Validated (v2.0)
+
+- ✓ THEME-01: User can select from preset color themes (White, Amber, Ice Blue, Green, Hello Kitty Pink) via right-click Theme submenu; current preset shown as checked — v2.0
+- ✓ THEME-02: User can set a custom accent color via color picker dialog ("Custom..." entry in Theme submenu) — v2.0
+- ✓ THEME-03: Active accent color applied consistently to phrase text, dial hands/decorations, and stats bars/text (14 elements) — v2.0
+- ✓ THEME-04: Active theme (preset name or custom hex color) persists to settings.json and restores on launch — v2.0
+- ✓ OPAC-01: User can set widget opacity to 25%/50%/75%/100% via right-click Opacity submenu; current level shown as checked — v2.0
+- ✓ OPAC-02: User can adjust widget opacity in 10% increments using mouse scroll wheel (10% floor) — v2.0
+- ✓ OPAC-03: Opacity applies to the entire widget window — v2.0
+- ✓ OPAC-04: Opacity setting persists to settings.json and restores on launch — v2.0
+
 ### Active
 
-<!-- v2.0 Visual Identity requirements -->
-
-- [ ] User can select from preset color themes (White, Amber, Ice Blue, Green, Hello Kitty Pink) via right-click menu
-- [ ] User can set a custom accent color via color picker dialog
-- [ ] Active accent color applies consistently to phrase text, dial hands/decorations, and stats bars/text
-- [ ] Theme selection persists across restarts
-- [ ] User can set widget opacity to 25%/50%/75%/100% via right-click menu
-- [ ] User can adjust opacity in 10% increments using mouse scroll wheel
-- [ ] Opacity applies to the entire widget window
-- [ ] Opacity setting persists across restarts
+(none — planning next milestone)
 
 ### Deferred (v2+)
 
@@ -190,6 +181,14 @@ All v1.9 requirements delivered. Font Size submenu context-awareness human-verif
 | MenuDialFace.Visibility controlled from code-behind only | XAML cannot know startup DialMode state; code-behind in ContextMenu_Opened and SetDialMode always correct | ✓ Validated — submenu correctly hidden/shown on first menu open after any mode switch |
 | InitDialDecorations() in ContentRendered after UpdateDialDisplay() | Elements must exist before visibility applied; hand positions set first avoids visual flash | ✓ Validated — correct ordering; no null-element errors; no initial flash |
 | MenuFontSize.Visibility inverse of DIAL-09 | Font Size is phrase-mode-only; dial mode has no use for font size since DialCanvas size is fixed | ✓ Validated — MENU-01: dialMode ? Collapsed : Visible; synced in ContextMenu_Opened and SetDialMode |
+| AccentColor stored as hex string, not WPF Color | System.Text.Json cannot natively serialize/deserialize WPF Color struct | ✓ Validated — 8-digit AARRGGBB hex string; ColorConverter.ConvertFromString() for round-trip; no JSON attributes needed |
+| Opacity init-default 1.0, not C# default 0.0 | C# double default 0.0 would make widget invisible on first launch with old settings.json | ✓ Validated — init default 1.0; Load() guard clamps Opacity <= 0.0 to 1.0 as safety net |
+| ApplyTheme() called in ContentRendered AFTER InitDialDecorations() | InitDialDecorations() populates the decoration element lists that ApplyTheme() iterates; calling before produces empty foreach loops | ✓ Validated — locked ordering constraint; enforced via comment in ContentRendered |
+| Always new SolidColorBrush(_accentColor) — never mutate Brushes.* | WPF Brushes.* static instances are frozen; mutation throws InvalidOperationException | ✓ Validated — consistent pattern across all 14 accent elements |
+| PreviewMouseWheel (not MouseWheel) for opacity scroll | MouseWheel is silently dropped on frameless AllowsTransparency=True windows without prior keyboard focus | ✓ Validated — PreviewMouseWheel fires reliably; 10% step opacity scroll works immediately |
+| ContextMenu_Opened derives accent hex on the fly (no theme-name field) | Computing hex from _accentColor each open avoids stale theme-name state for custom colors | ✓ Validated — single source of truth; preset checkmarks correct even after custom → preset transitions |
+| Win32Window HWND adapter for ColorDialog | ColorDialog.ShowDialog() without owner renders behind Topmost=True WPF window; Win32Window : IWin32Window passes WPF HWND | ✓ Validated — WindowInteropHelper(this).Handle + Win32Window adapter; dialog always in front |
+| UseWindowsForms=true WinForms/WPF collision resolved with using aliases | UseWindowsForms=true introduces Application and MouseEventArgs ambiguity; using aliases at file level cleaner than fully-qualified names at every call site | ✓ Validated — using Application = System.Windows.Application; in App.xaml.cs; using MouseEventArgs alias in MainWindow.xaml.cs |
 
 ---
-*Last updated: 2026-02-27 after v2.0 milestone started*
+*Last updated: 2026-02-27 after v2.0 milestone complete*

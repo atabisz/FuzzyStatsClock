@@ -137,3 +137,16 @@
 
 ---
 
+
+## v2.0 Visual Identity (Shipped: 2026-02-27)
+
+**Phases completed:** 4 phases (18–21), 7 plans
+
+**Key accomplishments:**
+- Extended AppSettings with `AccentColor` (hex string, 8-digit AARRGGBB, default `#FFFFFFFF`) and `Opacity` (double, init default 1.0) init-properties; `SettingsService` guards prevent invisible-widget regression on upgrade (Opacity=0.0 guard) and null/empty AccentColor
+- Window opacity control via right-click Opacity submenu (25%/50%/75%/100%) and `PreviewMouseWheel` scroll (10% steps, 10% floor); `Window.Opacity` applies to the entire widget uniformly; opacity persisted and restored on launch
+- Accent color theming via `ApplyTheme()` covering 14 elements: phrase text, drop shadow, both dial hands, all 12 decoration elements (tick marks, minute dots, hour numbers), 4 stats fill bars, and 4 stats % text values; 5 named presets (White/Amber/Ice Blue/Green/Hello Kitty Pink); `ContextMenu_Opened` derives checkmark from `_accentColor` hex on the fly — no secondary theme-name field needed
+- Custom color picker via Windows `ColorDialog` with `Win32Window : IWin32Window` HWND adapter; `UseWindowsForms=true` enabled with `using` aliases to resolve WinForms/WPF type name collisions; dialog always appears in front of the `Topmost=True` widget; custom colors persist as hex and restore identically on launch; no preset checkmark shown when custom color is active
+
+---
+
