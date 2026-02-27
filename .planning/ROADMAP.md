@@ -13,7 +13,7 @@
 - **v1.8 Dial Enhancement** (2026-02-26) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases, 3 plans. → [Archive](milestones/v1.8-ROADMAP.md)
 - **v1.9 Context-Aware Menus** (2026-02-26) — Font Size submenu hidden in dial mode; reappears in phrase mode. 1 phase, 2 plans. → [Archive](milestones/v1.9-ROADMAP.md)
 - ✅ **v2.0 Visual Identity** (2026-02-27) — Accent color themes (5 presets + custom picker) and window opacity control (presets + scroll wheel). 4 phases, 7 plans. → [Archive](milestones/v2.0-ROADMAP.md)
-- **v2.1 Uptime** (in progress) — System uptime and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel; toggleable and persisted. 2 phases.
+- ✅ **v2.1 Uptime** (2026-02-27) — System uptime and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel; toggleable and persisted. 2 phases, 2 plans. → [Archive](milestones/v2.1-ROADMAP.md)
 
 ## Phases
 
@@ -135,10 +135,13 @@ Plans:
 
 </details>
 
-### v2.1 Uptime (Phases 22-23) — IN PROGRESS
+<details>
+<summary>✅ v2.1 Uptime (Phases 22-23) — SHIPPED 2026-02-27</summary>
 
-- [x] **Phase 22: Infrastructure and Toggle** — AppSettings.UptimeVisible (default true), UptimeRow TextBlock in XAML Grid Row 2 (sibling of StatsPanel, not child), MenuUptimeVisible IsCheckable toggle in Stats submenu, full settings plumbing (ApplySettings/SaveSettings/ContextMenu_Opened/ApplyTheme/SetUptimeRowVisible) (completed 2026-02-27)
-- [x] **Phase 23: Data Display** — StatsService.IsReady property, Environment.TickCount64 uptime formatting (up Xd Xh Xm, leading zero-unit suppressed), Queue<float> rolling CPU averages for 1m/5m/15m with IsReady guard and hover-fast-refresh exclusion, UpdateUptimeDisplay() wired to _statsTimer.Tick (completed 2026-02-27)
+- [x] **Phase 22: Infrastructure and Toggle** — AppSettings.UptimeVisible (default true), UptimeText TextBlock inside StatsPanel StackPanel (auto-hides with stats), MenuUptimeVisible IsCheckable toggle in Stats submenu, full settings plumbing (ApplySettings/SaveSettings/ContextMenu_Opened/ApplyTheme/SetUptimeRowVisible) (completed 2026-02-27)
+- [x] **Phase 23: Data Display** — StatsService.IsReady property, Environment.TickCount64 uptime formatting (up Xd Xh Xm, leading zero-unit suppressed), Queue<float> rolling CPU averages for 1m/5m/15m with IsReady guard and hover-fast-refresh exclusion, UpdateUptimeDisplay() wired to _statsTimer.Tick (completed 2026-02-27)
+
+</details>
 
 ## Phase Details
 
@@ -395,7 +398,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 22-01-PLAN.md — AppSettings.UptimeVisible field, XAML UptimeText row, Stats submenu toggle, full code-behind wiring (ApplySettings/SaveSettings/ContextMenu_Opened/SetUptimeRowVisible/ApplyTheme)
+- [x] 22-01-PLAN.md — AppSettings.UptimeVisible field, XAML UptimeText row, Stats submenu toggle, full code-behind wiring (ApplySettings/SaveSettings/ContextMenu_Opened/SetUptimeRowVisible/ApplyTheme)
 
 ### Phase 23: Data Display
 **Goal**: The uptime row shows live system uptime and rolling CPU load averages (1m/5m/15m) that accurately reflect actual system state, update on every stats timer tick, and survive hover fast-refresh and StatsService cold-start without displaying incorrect values
@@ -410,7 +413,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 23-01-PLAN.md — StatsService.IsReady property, _isHoverFastRefresh flag, _cpuSamples Queue<float>, UpdateUptimeDisplay() with 3-case uptime format + interval-aware averages, ComputeAvg(), expanded _statsTimer.Tick handler
+- [x] 23-01-PLAN.md — StatsService.IsReady property, _isHoverFastRefresh flag, _cpuSamples Queue<float>, UpdateUptimeDisplay() with 3-case uptime format + interval-aware averages, ComputeAvg(), expanded _statsTimer.Tick handler
 
 ## Progress
 
@@ -438,7 +441,7 @@ Plans:
 | 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 22. Infrastructure and Toggle | v2.1 | 1/1 | Complete | 2026-02-27 |
-| 23. Data Display | 1/1 | Complete    | 2026-02-27 | - |
+| 23. Data Display | v2.1 | 1/1 | Complete | 2026-02-27 |
 
 ---
 *Last updated: 2026-02-27 — Phase 23 planned: 1 plan (23-01-PLAN.md)*

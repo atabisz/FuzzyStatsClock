@@ -150,3 +150,18 @@
 
 ---
 
+
+## v2.1 Uptime (Shipped: 2026-02-27)
+
+**Phases completed:** 2 phases (22–23), 2 plans, 4 tasks
+
+**Key accomplishments:**
+- `AppSettings.UptimeVisible { get; init; } = true` — explicit init default ensures the uptime row is visible on first launch and on upgrade from v2.0 settings.json (JSON-absent bool would otherwise deserialize as false)
+- UptimeText TextBlock placed inside StatsPanel's StackPanel — auto-hides with stats; independently toggleable via "Show Uptime" in the Stats right-click submenu; accent-colored from launch via `ApplyTheme()`
+- `up Xd Xh Xm` format with full leading zero-unit suppression: 3-case if/else (`days > 0` / `hours > 0` / else) produces `up 5h 3m`, not `up 0d 5h 3m`; sub-hour shows `up 45m`
+- `Queue<float> _cpuSamples` rolling averages for 1m/5m/15m with interval-aware window sizing (`Math.Ceiling(windowSeconds / _statsIntervalSeconds)`) — adapts to 1s/3s/10s intervals without hardcoded sample counts
+- `StatsService.IsReady` property (exposes `volatile bool _initialized`) guards cold-start: buffer push skipped until ~6s init completes; no zero-depressed averages on launch
+- `_isHoverFastRefresh` flag gates buffer push during 0.5s hover cadence — prevents 6× oversampling that would corrupt the labeled 1m/5m/15m time windows
+
+---
+

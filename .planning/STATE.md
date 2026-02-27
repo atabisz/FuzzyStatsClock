@@ -2,10 +2,10 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-27 after v2.1 milestone started)
+See: .planning/PROJECT.md (updated 2026-02-27 after v2.1 milestone)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.1 Uptime
+**Current focus:** Planning next milestone
 
 ## Current Position
 
@@ -67,17 +67,6 @@ Decisions are logged in PROJECT.md Key Decisions table. All v2.0 decisions added
 - [Phase 23-data-display]: Window sizes computed as ceil(windowSeconds / _statsIntervalSeconds) — interval-aware, not hardcoded counts
 - [Phase 23-data-display]: TickCount64 (Int64 ms) used exclusively for uptime — TickCount (Int32) wraps at 24.9 days
 
-### v2.1 Architectural Constraints (from research)
-
-- UptimeRow is a sibling of StatsPanel in the XAML Grid (Row 2), not a child — ensures independent visibility control
-- ApplySettings() sets UptimeRow.Visibility directly (never via SetUptimeRowVisible()) — pre-Show() safety invariant
-- UptimeVisible init default = true — bool JSON-deserializes as false when absent from old settings.json; must be explicit
-- Rolling averages use Queue<float> trimmed to window size on each tick; window = ceil(windowSeconds / _statsIntervalSeconds)
-- Skip buffer push during hover fast-refresh ticks (_isHoverFastRefresh flag or equivalent) — prevents window size corruption
-- Guard buffer push with _statsService.IsReady — prevents cold-start zeros (StatsService takes ~6s to initialize)
-- StatsService.IsReady property needed: exposes _initialized as public bool; one-line addition to StatsService.cs
-- Use Environment.TickCount64 (Int64, milliseconds) — never Environment.TickCount (Int32, wraps at 24.9 days)
-- UpdateUptimeDisplay() called at end of _statsTimer.Tick, after _statsService.Refresh() — no second Refresh call needed
 
 ### Pending Todos
 
@@ -92,4 +81,4 @@ None.
 Last session: 2026-02-27
 Stopped at: Completed 23-01-PLAN.md (live uptime row + rolling CPU load averages — build 0 errors)
 Resume file: None
-Next action: v2.1 milestone complete — plan next milestone or features as needed
+Next action: /gsd:new-milestone

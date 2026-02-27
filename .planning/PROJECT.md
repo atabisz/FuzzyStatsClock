@@ -2,28 +2,21 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, and stats bars/text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). Hovering the mouse over the widget accelerates the stats update rate to 0.5s; moving the mouse away restores the configured rate. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, switch between phrase and dial mode, and all preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). Hovering the mouse over the widget accelerates the stats update rate to 0.5s; moving the mouse away restores the configured rate. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, toggle the uptime row, switch between phrase and dial mode, and all preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v2.1 Uptime
-
-**Goal:** Add a compact uptime and system load line below the stats panel, giving the widget a Linux-style system pulse at a glance.
-
-**Target features:**
-- Uptime row showing time since last boot in compact form (`up 3d 14h 22m`)
-- Three rolling CPU load averages (1m, 5m, 15m) displayed alongside uptime
-- Toggleable via right-click menu (visible by default), persisted
-
 ## Current State
 
-**v2.0 shipped: 2026-02-27**
+**v2.1 shipped: 2026-02-27**
 
-All v2.0 requirements delivered. All 8 THEME/OPAC requirements human-verified.
+All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
 
-- Accent color: 5 presets (White/Amber/Ice Blue/Green/Hello Kitty Pink) + custom color picker dialog; applied to 14 elements consistently; persisted as hex string
+- Uptime row: `up Xd Xh Xm   0.52  0.47  0.43` format; leading zero-unit suppression; themed in active accent color; toggleable via "Show Uptime" in Stats submenu; visible by default; auto-hides with stats panel
+- Rolling CPU load averages: 1m/5m/15m via `Queue<float>` with interval-aware window sizing; `StatsService.IsReady` cold-start guard; `_isHoverFastRefresh` hover guard
+- Accent color: 5 presets (White/Amber/Ice Blue/Green/Hello Kitty Pink) + custom color picker dialog; applied to 15 elements (14 v2.0 + UptimeText); persisted as hex string
 - Window opacity: right-click Opacity submenu (25/50/75/100%) + scroll wheel (10% steps, 10% floor); window-level `Window.Opacity`, persisted
 - Context-aware menus: Font Size submenu hidden in dial mode; Dial Face submenu hidden in phrase mode
 - Dial face decorations: Show Hour Ticks / Show Minute Marks / Show Hour Numbers; persisted; defaults false
@@ -33,7 +26,7 @@ All v2.0 requirements delivered. All 8 THEME/OPAC requirements human-verified.
 - Position persistence: drag to any position, saved immediately, restored on next launch
 - Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~2,775 LOC C# / XAML
+- ~2,900 LOC C# / XAML (4 main source files: MainWindow.xaml.cs 847, MainWindow.xaml 265, StatsService.cs 141, AppSettings.cs 23)
 
 ## Requirements
 
@@ -102,12 +95,14 @@ All v2.0 requirements delivered. All 8 THEME/OPAC requirements human-verified.
 - ✓ OPAC-03: Opacity applies to the entire widget window — v2.0
 - ✓ OPAC-04: Opacity setting persists to settings.json and restores on launch — v2.0
 
+### Validated (v2.1)
+
+- ✓ UPT-01: Widget displays system uptime in `up Xd Xh Xm` format (leading zero-units suppressed) and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel, themed in accent color — v2.1
+- ✓ UPT-02: User can show or hide the uptime/load line via a right-click Stats submenu toggle; visible by default; persisted to settings.json and restored on launch — v2.1
+
 ### Active
 
-<!-- v2.1 Uptime requirements -->
-
-- [ ] **UPT-01**: Widget displays system uptime and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel
-- [ ] **UPT-02**: User can show or hide the uptime/load line via a right-click menu toggle; state persisted
+<!-- Next milestone requirements go here -->
 
 ### Deferred (v2+)
 
@@ -201,6 +196,13 @@ All v2.0 requirements delivered. All 8 THEME/OPAC requirements human-verified.
 | ContextMenu_Opened derives accent hex on the fly (no theme-name field) | Computing hex from _accentColor each open avoids stale theme-name state for custom colors | ✓ Validated — single source of truth; preset checkmarks correct even after custom → preset transitions |
 | Win32Window HWND adapter for ColorDialog | ColorDialog.ShowDialog() without owner renders behind Topmost=True WPF window; Win32Window : IWin32Window passes WPF HWND | ✓ Validated — WindowInteropHelper(this).Handle + Win32Window adapter; dialog always in front |
 | UseWindowsForms=true WinForms/WPF collision resolved with using aliases | UseWindowsForms=true introduces Application and MouseEventArgs ambiguity; using aliases at file level cleaner than fully-qualified names at every call site | ✓ Validated — using Application = System.Windows.Application; in App.xaml.cs; using MouseEventArgs alias in MainWindow.xaml.cs |
+| UptimeText inside StatsPanel StackPanel (not Grid sibling) | Originally planned as Grid.Row=2 sibling for independent control; user feedback required it to hide with stats — StackPanel child provides auto-hide with independence preserved via separate toggle | ✓ Validated — hides with stats panel; separately toggleable; accent-colored identically |
+| UptimeVisible init default = true | Bool JSON-deserializes as false when field absent from old settings.json; explicit `= true` required for upgrade safety from v2.0 | ✓ Validated — v2.0 upgrades see uptime row visible by default |
+| Queue<float> rolling averages with interval-aware window sizing | Windows has no native load average; `ceil(windowSeconds / _statsIntervalSeconds)` adapts to 1s/3s/10s intervals without hardcoded sample counts | ✓ Validated — 1m/5m/15m windows correctly sized at all three configured intervals |
+| StatsService.IsReady guards cold-start buffer push | StatsService takes ~6s to initialize; pushing zero samples during cold-start would depress the 1m average below reality for the first minute | ✓ Validated — averages populate correctly after ~6s; no zero-depressed display on launch |
+| _isHoverFastRefresh gates buffer push during hover | 0.5s hover cadence runs 6× faster than the 3s default; pushing samples at hover rate would fill the 1m window in ~10s instead of 60s, corrupting the labeled time window | ✓ Validated — hover sessions do not corrupt rolling window sizes |
+| Environment.TickCount64 (Int64 ms) for uptime — never TickCount (Int32) | Int32 TickCount wraps at 24.9 days, producing negative or incorrect uptime on long-running systems | ✓ Validated — Int64 supports >292 million years; no wrap concern |
+| UpdateUptimeDisplay() does NOT call Refresh() | Refresh() already called inside UpdateStatsDisplay() earlier in the same tick; calling it again would double-sample and artificially depress CPU percentages | ✓ Validated — single Refresh() per tick; uptime display reads _statsService.CpuPercent set by the prior call |
 
 ---
-*Last updated: 2026-02-27 after v2.1 milestone started*
+*Last updated: 2026-02-27 after v2.1 milestone*
