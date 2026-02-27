@@ -438,7 +438,7 @@ Plans:
 | 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 22. Infrastructure and Toggle | v2.1 | 1/1 | Complete | 2026-02-27 |
-| 23. Data Display | 1/1 | Complete   | 2026-02-27 | - |
+| 23. Data Display | 1/1 | Complete    | 2026-02-27 | - |
 
 ---
 *Last updated: 2026-02-27 — Phase 23 planned: 1 plan (23-01-PLAN.md)*
