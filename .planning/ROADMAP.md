@@ -367,7 +367,11 @@ Plans:
   3. Canceling the color picker dialog leaves the current accent color unchanged
   4. After selecting a custom color, no preset entry in the Theme submenu has a checkmark — the menu correctly reflects that a non-preset color is active
   5. Closing and relaunching the widget restores the custom color exactly as chosen, not rounded to the nearest preset
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 21-01-PLAN.md — Add UseWindowsForms flag, Custom... MenuItem (XAML), Win32Window adapter + MenuThemeCustom_Click handler (code-behind)
+- [ ] 21-02-PLAN.md — Human verify all five THEME-02 success criteria
 
 ## Progress
 
