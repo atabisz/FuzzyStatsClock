@@ -59,4 +59,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-27*
-*Last updated: 2026-02-27 after initial definition*
+*Last updated: 2026-02-27 — traceability confirmed; UPT-01 → Phase 23, UPT-02 → Phase 22*

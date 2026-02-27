@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-27 after v2.1 milestone started)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 22 — Infrastructure and Toggle
 Plan: —
-Status: Defining requirements for v2.1 Uptime
-Last activity: 2026-02-27 — Milestone v2.1 started
+Status: Roadmap created; ready for Phase 22 planning
+Last activity: 2026-02-27 — v2.1 Uptime roadmap created (Phases 22-23)
 
-Progress: [░░░░░░░░░░] 0% (v2.1: 0 phases complete)
+Progress: [░░░░░░░░░░] 0% (v2.1: 0/2 phases complete)
 
 ## Performance Metrics
 
@@ -43,7 +43,6 @@ Progress: [░░░░░░░░░░] 0% (v2.1: 0 phases complete)
 | 15. Unconditional Hover Backdrop | 1 | 5 min | 5 min |
 | 16. Dial Face Decorations | 2 | 4 min | 2 min |
 | 17. Context-Aware Font Size Menu | 2 | 2 min | 1 min |
-
 | 18. AppSettings Schema Extension | 1 | 1 min | 1 min |
 | 19. Window Opacity | 2 | 2 min | 1 min |
 | 20. Accent Color Presets | 2 | 2 min | 1 min |
@@ -61,6 +60,18 @@ Progress: [░░░░░░░░░░] 0% (v2.1: 0 phases complete)
 
 Decisions are logged in PROJECT.md Key Decisions table. All v2.0 decisions added.
 
+### v2.1 Architectural Constraints (from research)
+
+- UptimeRow is a sibling of StatsPanel in the XAML Grid (Row 2), not a child — ensures independent visibility control
+- ApplySettings() sets UptimeRow.Visibility directly (never via SetUptimeRowVisible()) — pre-Show() safety invariant
+- UptimeVisible init default = true — bool JSON-deserializes as false when absent from old settings.json; must be explicit
+- Rolling averages use Queue<float> trimmed to window size on each tick; window = ceil(windowSeconds / _statsIntervalSeconds)
+- Skip buffer push during hover fast-refresh ticks (_isHoverFastRefresh flag or equivalent) — prevents window size corruption
+- Guard buffer push with _statsService.IsReady — prevents cold-start zeros (StatsService takes ~6s to initialize)
+- StatsService.IsReady property needed: exposes _initialized as public bool; one-line addition to StatsService.cs
+- Use Environment.TickCount64 (Int64, milliseconds) — never Environment.TickCount (Int32, wraps at 24.9 days)
+- UpdateUptimeDisplay() called at end of _statsTimer.Tick, after _statsService.Refresh() — no second Refresh call needed
+
 ### Pending Todos
 
 None.
@@ -72,6 +83,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: v2.0 milestone complete and archived
+Stopped at: v2.1 roadmap created (Phases 22-23); ready to plan Phase 22
 Resume file: None
-Next action: `/gsd:new-milestone` to plan next milestone
+Next action: `/gsd:plan-phase 22`

@@ -13,6 +13,7 @@
 - **v1.8 Dial Enhancement** (2026-02-26) — Unconditional hover backdrop fix; dial face decorations (tick marks, minute marks, hour numbers) with per-item toggles, persistence, and mode-conditional menu visibility. 2 phases, 3 plans. → [Archive](milestones/v1.8-ROADMAP.md)
 - **v1.9 Context-Aware Menus** (2026-02-26) — Font Size submenu hidden in dial mode; reappears in phrase mode. 1 phase, 2 plans. → [Archive](milestones/v1.9-ROADMAP.md)
 - ✅ **v2.0 Visual Identity** (2026-02-27) — Accent color themes (5 presets + custom picker) and window opacity control (presets + scroll wheel). 4 phases, 7 plans. → [Archive](milestones/v2.0-ROADMAP.md)
+- **v2.1 Uptime** (in progress) — System uptime and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel; toggleable and persisted. 2 phases.
 
 ## Phases
 
@@ -133,6 +134,11 @@ Plans:
 - [x] **Phase 21: Custom Color Picker** — UseWindowsForms=true in csproj, Win32Window HWND owner helper, ColorDialog integration, custom color persists as hex, no preset checkmark when custom active (completed 2026-02-27)
 
 </details>
+
+### v2.1 Uptime (Phases 22-23) — IN PROGRESS
+
+- [ ] **Phase 22: Infrastructure and Toggle** — AppSettings.UptimeVisible (default true), UptimeRow TextBlock in XAML Grid Row 2 (sibling of StatsPanel, not child), MenuUptimeVisible IsCheckable toggle in Stats submenu, full settings plumbing (ApplySettings/SaveSettings/ContextMenu_Opened/ApplyTheme/SetUptimeRowVisible)
+- [ ] **Phase 23: Data Display** — StatsService.IsReady property, Environment.TickCount64 uptime formatting (up Xd Xh Xm, leading zero-unit suppressed), Queue<float> rolling CPU averages for 1m/5m/15m with IsReady guard and hover-fast-refresh exclusion, UpdateUptimeDisplay() wired to _statsTimer.Tick
 
 ## Phase Details
 
@@ -376,6 +382,30 @@ Plans:
 - [x] 21-01-PLAN.md — Add UseWindowsForms flag, Custom... MenuItem (XAML), Win32Window adapter + MenuThemeCustom_Click handler (code-behind)
 - [x] 21-02-PLAN.md — Human verify all five THEME-02 success criteria
 
+### Phase 22: Infrastructure and Toggle
+**Goal**: Users can see a placeholder uptime row below the stats panel, toggle its visibility from the right-click Stats submenu, and find that preference persisted across restarts, with the accent color applied correctly from launch
+**Depends on**: Phase 21 (v2.0 complete)
+**Requirements**: UPT-02
+**Success Criteria** (what must be TRUE):
+  1. After launching the widget (including first launch and upgrade from v2.0 with no UptimeVisible in settings.json), the uptime row is visible below the stats panel showing a placeholder value, styled in the active accent color
+  2. Right-clicking the widget reveals a "Show Uptime" toggle in the Stats submenu; clicking it hides or shows the uptime row, and the checkmark reflects the current state every time the menu opens
+  3. Hiding the uptime row does not affect the stats panel, and hiding the stats panel does not affect the uptime row — each is independently controlled
+  4. The UptimeVisible state survives a full app restart: closing and relaunching the widget restores the last-chosen visibility without requiring re-selection
+  5. Changing the accent color while the uptime row is visible immediately recolors the uptime text — ApplyTheme() covers the UptimeText element
+**Plans**: TBD
+
+### Phase 23: Data Display
+**Goal**: The uptime row shows live system uptime and rolling CPU load averages (1m/5m/15m) that accurately reflect actual system state, update on every stats timer tick, and survive hover fast-refresh and StatsService cold-start without displaying incorrect values
+**Depends on**: Phase 22
+**Requirements**: UPT-01
+**Success Criteria** (what must be TRUE):
+  1. The uptime row displays `up Xd Xh Xm` with leading zero-units suppressed: a system up for 5 hours 3 minutes shows `up 5h 3m`, not `up 0d 5h 3m`; a system up for more than a day shows all three components
+  2. Three CPU load averages appear alongside the uptime value as decimal numbers (`0.52  0.47  0.43`), styled in the active accent color, and update each stats timer tick
+  3. The 1m/5m/15m load averages do not show artificially depressed values during the first minute after launch — the rolling buffer is guarded against StatsService cold-start zero samples
+  4. Switching to hover fast-refresh (0.5s cadence) does not corrupt the rolling average window sizes — the 1m, 5m, and 15m windows continue to represent the correct time spans regardless of how long the mouse hovers
+  5. The uptime and load values update correctly at all three configured stats intervals (1s, 3s, 10s) without any timer changes or additional wiring
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -401,6 +431,8 @@ Plans:
 | 19. Window Opacity | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 20. Accent Color Presets | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
+| 22. Infrastructure and Toggle | v2.1 | 0/TBD | Not started | - |
+| 23. Data Display | v2.1 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-02-27 — Phase 21 complete; v2.0 Visual Identity milestone complete (THEME-01/02/03/04, OPAC-01/02/03/04 all human-verified)*
+*Last updated: 2026-02-27 — v2.1 Uptime roadmap created; Phases 22-23 added*
