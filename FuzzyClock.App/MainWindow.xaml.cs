@@ -597,14 +597,38 @@ public partial class MainWindow : Window
 
     private void InitTrayIcon()
     {
-        // Create a simple 16x16 filled circle as the tray icon programmatically.
-        // No .ico file required — UseWindowsForms=true makes System.Drawing available.
+        // Create a 16x16 analog clock face icon programmatically.
+        // Dark circle face, white rim, hour + minute hands at 10:10.
         var bmp = new System.Drawing.Bitmap(16, 16);
         using (var g = System.Drawing.Graphics.FromImage(bmp))
         {
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.Clear(System.Drawing.Color.Transparent);
-            g.FillEllipse(System.Drawing.Brushes.White, 1, 1, 14, 14);
+
+            // Clock face
+            using var faceBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(30, 30, 30));
+            g.FillEllipse(faceBrush, 1, 1, 14, 14);
+            using var rimPen = new System.Drawing.Pen(System.Drawing.Color.White, 1.2f);
+            g.DrawEllipse(rimPen, 1, 1, 14, 14);
+
+            // Hour hand — 10 o'clock (−60° from 12)
+            double hourRad = -60.0 * Math.PI / 180.0;
+            float hx = 8f + 3.5f * (float)Math.Sin(hourRad);
+            float hy = 8f - 3.5f * (float)Math.Cos(hourRad);
+            using var hourPen = new System.Drawing.Pen(System.Drawing.Color.White, 1.8f)
+                { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
+            g.DrawLine(hourPen, 8f, 8f, hx, hy);
+
+            // Minute hand — 2 o'clock (+60° from 12)
+            double minRad = 60.0 * Math.PI / 180.0;
+            float mx = 8f + 5.5f * (float)Math.Sin(minRad);
+            float my = 8f - 5.5f * (float)Math.Cos(minRad);
+            using var minPen = new System.Drawing.Pen(System.Drawing.Color.White, 1.2f)
+                { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
+            g.DrawLine(minPen, 8f, 8f, mx, my);
+
+            // Center pivot
+            g.FillEllipse(System.Drawing.Brushes.White, 6.5f, 6.5f, 3f, 3f);
         }
         var icon = System.Drawing.Icon.FromHandle(bmp.GetHicon());
 
