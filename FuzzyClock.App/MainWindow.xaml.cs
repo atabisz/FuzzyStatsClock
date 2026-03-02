@@ -33,7 +33,8 @@ public partial class MainWindow : Window
     private System.Windows.Forms.NotifyIcon _trayIcon = null!;
     private System.Windows.Forms.ToolStripMenuItem _ghostModeMenuItem   = null!;
     // Tray items needing programmatic updates (checkmarks or visibility)
-    private System.Windows.Forms.ToolStripMenuItem _trayFontSizeItem    = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _trayFontSizeItem    = null!;
+    private System.Windows.Forms.ToolStripSeparator _trayFontSizeSep    = null!;
     private System.Windows.Forms.ToolStripMenuItem _trayFontSmall       = null!;
     private System.Windows.Forms.ToolStripMenuItem _trayFontMedium      = null!;
     private System.Windows.Forms.ToolStripMenuItem _trayFontLarge       = null!;
@@ -758,9 +759,11 @@ public partial class MainWindow : Window
         _trayFontLarge.Click  += (_, _) => Dispatcher.Invoke(() => ApplyFontSize(32));
         _trayFontSizeItem = new System.Windows.Forms.ToolStripMenuItem("Font Size", null,
             _trayFontSmall, _trayFontMedium, _trayFontLarge);
+        _trayFontSizeSep = new System.Windows.Forms.ToolStripSeparator();
         _trayFontSizeItem.Visible = !_dialMode;
+        _trayFontSizeSep.Visible  = !_dialMode;
         menu.Items.Add(_trayFontSizeItem);
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+        menu.Items.Add(_trayFontSizeSep);
 
         // Stats submenu
         _trayShowStats     = new System.Windows.Forms.ToolStripMenuItem("Show Stats");
@@ -899,8 +902,9 @@ public partial class MainWindow : Window
         // DIAL-09: hide/show Dial Face submenu on mode switch
         _trayDialFaceItem.Visible = dialMode;
 
-        // MENU-01: hide Font Size submenu in dial mode, restore in phrase mode
+        // MENU-01: hide Font Size submenu (and its trailing separator) in dial mode
         _trayFontSizeItem.Visible = !dialMode;
+        _trayFontSizeSep.Visible  = !dialMode;
 
         if (dialMode) UpdateDialDisplay();
 
