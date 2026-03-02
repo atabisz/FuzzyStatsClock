@@ -10,7 +10,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v2.1 shipped: 2026-02-27**
+**v2.2 in progress: 2026-03-02**
 
 All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
 
@@ -102,7 +102,13 @@ All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
 
 ### Active
 
-<!-- Next milestone requirements go here -->
+<!-- v2.2 System Tray -->
+- [ ] TRAY-01: Application displays a system tray icon while running
+- [ ] TRAY-02: System tray icon shows a context menu with "Reset to Defaults" and "Quit" items
+- [ ] TRAY-03: "Reset to Defaults" sets accent color to White, opacity to 100%, and centers the widget on the primary screen
+- [ ] TRAY-04: "Reset to Defaults" saves the reset state to settings.json immediately
+- [ ] TRAY-05: "Quit" exits the application cleanly
+- [ ] TRAY-06: System tray icon is removed from the tray when the application exits
 
 ### Deferred (v2+)
 
@@ -205,4 +211,4 @@ All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
 | UpdateUptimeDisplay() does NOT call Refresh() | Refresh() already called inside UpdateStatsDisplay() earlier in the same tick; calling it again would double-sample and artificially depress CPU percentages | ✓ Validated — single Refresh() per tick; uptime display reads _statsService.CpuPercent set by the prior call |
 
 ---
-*Last updated: 2026-02-27 after v2.1 milestone*
+*Last updated: 2026-03-02 after v2.2 milestone start*

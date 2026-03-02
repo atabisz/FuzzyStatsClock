@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-27 after v2.1 milestone)
 
 ## Current Position
 
-Phase: 23 — Data Display
-Plan: 23-01 (COMPLETE)
-Status: Phase complete; v2.1 milestone complete
-Last activity: 2026-02-27 — 23-01 executed (live uptime row + rolling CPU load averages; build 0 errors)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v2.2 System Tray
+Last activity: 2026-03-02 — Milestone v2.2 started
 
 Progress: [██████████] 100% (v2.1: 2/2 phases complete)
 
