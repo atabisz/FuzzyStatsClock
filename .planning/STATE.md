@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-02 after v2.2 milestone)
 
 ## Current Position
 
-Phase: 24 of 24 (System Tray Icon)
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-03-02 — v2.2 milestone complete; all phases archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-02 — Milestone v2.3 started
 
-Progress: [██████████] 100% (v2.2: 2/2 plans complete)
+Progress: [░░░░░░░░░░] 0% (v2.3: not started)
 
 ## Performance Metrics
 
@@ -86,4 +86,4 @@ None.
 Last session: 2026-03-02
 Stopped at: Completed 24-02-PLAN.md — all TRAY-01 through TRAY-06 verified by human
 Resume file: None
-Next action: /gsd:complete-milestone to tag v2.2 release
+Next action: /gsd:plan-phase 25 to start execution

@@ -8,6 +8,15 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v2.3 Ghost Mode
+
+**Goal:** The widget gets out of your way automatically — it disappears when you hover over it and reappears when you move away, with Ctrl+Alt as the opt-in interaction modifier.
+
+**Target features:**
+- Auto-hide on hover (Opacity=0 + click-through) — widget vanishes when mouse enters, restores on exit
+- Ctrl+Alt interaction mode — holding Ctrl+Alt while hovering keeps the widget visible and interactive
+- Centered phrase text — TextAlignment=Center within the widget content area when in phrase mode
+
 ## Current State
 
 **v2.2 shipped: 2026-03-02**
@@ -113,7 +122,9 @@ All v2.2 requirements delivered. TRAY-01 through TRAY-06 human-verified.
 
 ### Active
 
-(none — ready for next milestone)
+- [ ] Auto-hide on hover: widget fades to Opacity=0 and becomes click-through when mouse enters (no Ctrl+Alt held)
+- [ ] Ctrl+Alt interaction: holding Ctrl+Alt while hovering keeps widget visible and interactive
+- [ ] Centered phrase text: TextAlignment=Center within widget content area in phrase mode
 
 ### Deferred (v2+)
 
@@ -221,4 +232,4 @@ All v2.2 requirements delivered. TRAY-01 through TRAY-06 human-verified.
 | _hasUserPosition = true after ResetToDefaults centering | Prevents phrase-change timer from snapping widget to top-right after Reset to Defaults positions it at center | ✓ Validated — consistent with the snap guard established in v1.1 |
 
 ---
-*Last updated: 2026-03-02 after v2.2 milestone*
+*Last updated: 2026-03-02 after v2.3 milestone start*
