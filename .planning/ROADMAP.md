@@ -14,6 +14,7 @@
 - **v1.9 Context-Aware Menus** (2026-02-26) — Font Size submenu hidden in dial mode; reappears in phrase mode. 1 phase, 2 plans. → [Archive](milestones/v1.9-ROADMAP.md)
 - ✅ **v2.0 Visual Identity** (2026-02-27) — Accent color themes (5 presets + custom picker) and window opacity control (presets + scroll wheel). 4 phases, 7 plans. → [Archive](milestones/v2.0-ROADMAP.md)
 - ✅ **v2.1 Uptime** (2026-02-27) — System uptime and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel; toggleable and persisted. 2 phases, 2 plans. → [Archive](milestones/v2.1-ROADMAP.md)
+- **v2.2 System Tray** (in progress) — System tray icon with Reset to Defaults and Quit; clean icon removal on exit. 1 phase.
 
 ## Phases
 
@@ -142,6 +143,10 @@ Plans:
 - [x] **Phase 23: Data Display** — StatsService.IsReady property, Environment.TickCount64 uptime formatting (up Xd Xh Xm, leading zero-unit suppressed), Queue<float> rolling CPU averages for 1m/5m/15m with IsReady guard and hover-fast-refresh exclusion, UpdateUptimeDisplay() wired to _statsTimer.Tick (completed 2026-02-27)
 
 </details>
+
+### v2.2 System Tray (Phase 24) — In Progress
+
+- [ ] **Phase 24: System Tray Icon** — NotifyIcon with tray context menu (Reset to Defaults, Quit); Reset sets White accent + 100% opacity + centered position and saves immediately; Quit exits cleanly; icon disposed on exit
 
 ## Phase Details
 
@@ -415,6 +420,18 @@ Plans:
 Plans:
 - [x] 23-01-PLAN.md — StatsService.IsReady property, _isHoverFastRefresh flag, _cpuSamples Queue<float>, UpdateUptimeDisplay() with 3-case uptime format + interval-aware averages, ComputeAvg(), expanded _statsTimer.Tick handler
 
+### Phase 24: System Tray Icon
+**Goal**: Users have a persistent system tray icon they can right-click to reset the widget to default appearance and position, or exit the application cleanly
+**Depends on**: Phase 23 (v2.1 complete)
+**Requirements**: TRAY-01, TRAY-02, TRAY-03, TRAY-04, TRAY-05, TRAY-06
+**Success Criteria** (what must be TRUE):
+  1. While the application is running, a FuzzyClock icon is visible in the Windows system tray (notification area)
+  2. Right-clicking the tray icon shows a context menu with exactly two items: "Reset to Defaults" and "Quit"
+  3. Clicking "Reset to Defaults" immediately sets the widget accent color to White, opacity to 100%, and centers the widget on the primary screen — the visual change is instant and no restart is required
+  4. After "Reset to Defaults" completes, the reset state (White accent, 100% opacity, centered position) is written to settings.json so the next launch starts with those values
+  5. Clicking "Quit" exits the application process completely with no errors and no lingering tray icon
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -442,6 +459,7 @@ Plans:
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 22. Infrastructure and Toggle | v2.1 | 1/1 | Complete | 2026-02-27 |
 | 23. Data Display | v2.1 | 1/1 | Complete | 2026-02-27 |
+| 24. System Tray Icon | v2.2 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-02-27 — Phase 23 planned: 1 plan (23-01-PLAN.md)*
+*Last updated: 2026-03-02 — Phase 24 added for v2.2 System Tray milestone*

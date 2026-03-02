@@ -2,26 +2,26 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-27 after v2.1 milestone)
+See: .planning/PROJECT.md (updated 2026-03-02 after v2.2 milestone start)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 24 — System Tray Icon (v2.2)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements for v2.2 System Tray
-Last activity: 2026-03-02 — Milestone v2.2 started
+Phase: 24 of 24 (System Tray Icon)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-03-02 — Roadmap created for v2.2; Phase 24 defined
 
-Progress: [██████████] 100% (v2.1: 2/2 phases complete)
+Progress: [░░░░░░░░░░] 0% (v2.2: 0/1 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21 (v1.0 through v1.9)
+- Total plans completed: 23 (v1.0 through v2.1)
 - Average duration: 2.8 min
-- Total execution time: 56 min
+- Total execution time: ~65 min
 
 **By Phase:**
 
@@ -55,18 +55,18 @@ Progress: [██████████] 100% (v2.1: 2/2 phases complete)
 - Trend: Stable
 
 *Updated after each plan completion*
-| Phase 23-data-display P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table. All v2.0 decisions added.
-- [Phase 23-data-display]: IsReady reads volatile bool _initialized without lock — safe from Dispatcher thread
-- [Phase 23-data-display]: _isHoverFastRefresh gates buffer push at 0.5s hover cadence — prevents rolling window size corruption
-- [Phase 23-data-display]: Window sizes computed as ceil(windowSeconds / _statsIntervalSeconds) — interval-aware, not hardcoded counts
-- [Phase 23-data-display]: TickCount64 (Int64 ms) used exclusively for uptime — TickCount (Int32) wraps at 24.9 days
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
 
+- [Phase 23]: TickCount64 (Int64 ms) for uptime — never TickCount (Int32) which wraps at 24.9 days
+- [Phase 23]: _isHoverFastRefresh gates buffer push at 0.5s hover cadence
+- [Phase 21]: UseWindowsForms=true already active — NotifyIcon available with no new dependencies
+- [Phase 21]: Win32Window HWND adapter pattern for WinForms dialogs behind Topmost window
 
 ### Pending Todos
 
@@ -78,7 +78,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27
-Stopped at: Completed 23-01-PLAN.md (live uptime row + rolling CPU load averages — build 0 errors)
+Last session: 2026-03-02
+Stopped at: Roadmap created — Phase 24 (System Tray Icon) defined with 5 success criteria, all 6 TRAY requirements mapped
 Resume file: None
-Next action: /gsd:new-milestone
+Next action: /gsd:plan-phase 24
