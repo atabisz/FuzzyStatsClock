@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     // Ghost mode state (v2.3)
     private bool   _isGhostMode = false;
     private IntPtr _hwnd;
+    private DispatcherTimer? _ghostRestoreTimer;
 
     // Ghost mode P/Invoke constants
     private const int  GWL_EXSTYLE       = -20;
@@ -43,8 +44,6 @@ public partial class MainWindow : Window
     private const uint SWP_NOMOVE        = 0x0002;
     private const uint SWP_NOZORDER      = 0x0004;
     private const uint SWP_FRAMECHANGED  = 0x0020;
-    private const uint TME_LEAVE         = 0x00000002;
-    private const int  WM_MOUSELEAVE     = 0x02A3;
 
     // Ghost mode P/Invoke declarations
     [DllImport("user32.dll", SetLastError = true)]
@@ -57,18 +56,6 @@ public partial class MainWindow : Window
     private static extern bool SetWindowPos(
         IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
-
-    [DllImport("user32.dll")]
-    private static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT lpEventTrack);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct TRACKMOUSEEVENT
-    {
-        public uint   cbSize;
-        public uint   dwFlags;
-        public IntPtr hwndTrack;
-        public uint   dwHoverTime;
-    }
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
@@ -145,7 +132,23 @@ public partial class MainWindow : Window
             InitTrayIcon();
 
             _hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-            System.Windows.Interop.HwndSource.FromHwnd(_hwnd).AddHook(WndProcHook);
+            _ghostRestoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(75) };
+            _ghostRestoreTimer.Tick += (_, _) =>
+            {
+                if (!_isGhostMode) return;
+                var pos = Mouse.GetPosition(this);
+                if (pos.X < 0 || pos.X > ActualWidth || pos.Y < 0 || pos.Y > ActualHeight)
+                {
+                    _ghostRestoreTimer!.Stop();
+                    _isGhostMode = false;
+                    int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+                    SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
+                    SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                    this.Opacity = _windowOpacity;
+                    ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+                }
+            };
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
@@ -540,18 +543,12 @@ public partial class MainWindow : Window
         }
         _isHoverFastRefresh = false;
 
-        // Step 2: Register leave tracking BEFORE applying WS_EX_TRANSPARENT.
-        // TrackMouseEvent is HWND-keyed; OS should deliver WM_MOUSELEAVE when cursor
-        // exits window rectangle even after WS_EX_TRANSPARENT is set.
-        // (MEDIUM confidence — see WndProcHook for fallback if delivery fails)
-        var tme = new TRACKMOUSEEVENT
-        {
-            cbSize      = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(),
-            dwFlags     = TME_LEAVE,
-            hwndTrack   = _hwnd,
-            dwHoverTime = 0
-        };
-        TrackMouseEvent(ref tme);
+        // Step 2: Start DispatcherTimer polling — checks Mouse.GetPosition(this) every 75ms.
+        // When the cursor exits the window rectangle, the timer stops and triggers ghost restore.
+        // This fallback is used instead of TrackMouseEvent because WS_EX_TRANSPARENT causes Win32
+        // to deliver a synthetic WM_MOUSELEAVE immediately after the style is applied, which would
+        // trigger WndProcHook to restore opacity before the user moves away.
+        _ghostRestoreTimer!.Start();
 
         // Step 3: Apply WS_EX_TRANSPARENT (always OR onto existing style — never replace).
         // Must preserve WS_EX_LAYERED (AllowsTransparency) and WS_EX_TOOLWINDOW (Alt+Tab hide).
@@ -565,8 +562,8 @@ public partial class MainWindow : Window
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
-        // Ghost mode guard: if _isGhostMode is true, ghost restore is handled by WndProcHook
-        // (or DispatcherTimer fallback). The hover-restore path below must NOT run during ghost state —
+        // Ghost mode guard: if _isGhostMode is true, ghost restore is handled by _ghostRestoreTimer
+        // polling Mouse.GetPosition(this). The hover-restore path below must NOT run during ghost state —
         // backdrop and timer were never set by Window_MouseEnter when ghosting (Step 1 cleaned them up).
         if (_isGhostMode) return;
 
@@ -582,25 +579,6 @@ public partial class MainWindow : Window
             _statsTimer.Start();
         }
         _isHoverFastRefresh = false;
-    }
-
-    private IntPtr WndProcHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
-        if (msg == WM_MOUSELEAVE && _isGhostMode)
-        {
-            // Ghost restore: clear WS_EX_TRANSPARENT and restore configured opacity.
-            // ContentBorder.Background was already cleared in Window_MouseEnter Step 1.
-            // Defensive clear below for safety against any future code path changes.
-            _isGhostMode = false;
-            int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-            SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
-            SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-            this.Opacity = _windowOpacity;
-            ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
-            handled = true;
-        }
-        return IntPtr.Zero;
     }
 
     private void SetStatRowVisible(Grid row, bool visible)
