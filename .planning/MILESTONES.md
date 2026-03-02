@@ -179,3 +179,16 @@
 
 ---
 
+
+## v2.3 Ghost Mode (Shipped: 2026-03-02)
+
+**Phases completed:** 3 phases (25–27), 3 plans
+
+**Key accomplishments:**
+- Phrase text horizontally centered in the widget content area via `TextAlignment=Center` + `HorizontalAlignment=Stretch` on both PhraseText and ShadowText TextBlocks — shadow offset preserved via shared Grid cell
+- Ghost mode core: widget auto-hides (`Opacity=0` + `WS_EX_TRANSPARENT` click-through) on `MouseEnter`; restores via 75ms `DispatcherTimer` polling `GetCursorPos+GetWindowRect` (pure Win32 — bypasses WPF input broken under WS_EX_TRANSPARENT)
+- Ctrl+Alt interaction modifier: `GetAsyncKeyState(VK_LCONTROL) & 0x8000` + `GetAsyncKeyState(VK_LMENU) & 0x8000` guard at top of `Window_MouseEnter` — holding left Ctrl+Alt suppresses ghost and activates normal hover (backdrop + fast-refresh) instead; `VK_LMENU` avoids AltGr false-positives on EU keyboards
+- Ghost mode tray toggle: checkable "Ghost Mode" item in system tray context menu (with separator above Reset to Defaults); state persists to `settings.json` via `AppSettings.GhostModeEnabled`
+
+---
+

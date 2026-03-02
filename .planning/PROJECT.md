@@ -2,42 +2,33 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). Hovering the mouse over the widget accelerates the stats update rate to 0.5s; moving the mouse away restores the configured rate. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row (CPU/GPU/MEM/PAG) independently, toggle the uptime row, switch between phrase and dial mode, and all preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. A system tray icon provides Reset to Defaults and Quit. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row independently, toggle the uptime row, switch between phrase and dial mode, and all preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v2.3 Ghost Mode
-
-**Goal:** The widget gets out of your way automatically — it disappears when you hover over it and reappears when you move away, with Ctrl+Alt as the opt-in interaction modifier.
-
-**Target features:**
-- Auto-hide on hover (Opacity=0 + click-through) — widget vanishes when mouse enters, restores on exit
-- Ctrl+Alt interaction mode — holding Ctrl+Alt while hovering keeps the widget visible and interactive
-- Centered phrase text — TextAlignment=Center within the widget content area when in phrase mode
-
 ## Current State
 
-**v2.2 shipped: 2026-03-02**
+**v2.3 shipped: 2026-03-02** — Next milestone: TBD
 
-All v2.2 requirements delivered. TRAY-01 through TRAY-06 human-verified.
+All v2.3 requirements delivered. CENTER-01, GHOST-01/02/03, CTRLALT-01/02 human-verified.
 
-- System tray icon: 16×16 analog clock face (dark circle, white hands at 10:10, white rim) in Windows notification area while running
-- Tray context menu: "Reset to Defaults" (White accent + 100% opacity + 16pt + phrase mode + centered + save) and "Quit" (clean exit); icon disposed on any exit path
-- Uptime row: `up Xd Xh Xm   0.52  0.47  0.43` format; leading zero-unit suppression; themed in active accent color; toggleable via "Show Uptime" in Stats submenu; visible by default; auto-hides with stats panel
-- Rolling CPU load averages: 1m/5m/15m via `Queue<float>` with interval-aware window sizing; `StatsService.IsReady` cold-start guard; `_isHoverFastRefresh` hover guard
-- Accent color: 5 presets (White/Amber/Ice Blue/Green/Hello Kitty Pink) + custom color picker dialog; applied to 15 elements (14 v2.0 + UptimeText); persisted as hex string
-- Window opacity: right-click Opacity submenu (25/50/75/100%) + scroll wheel (10% steps, 10% floor); window-level `Window.Opacity`, persisted
-- Context-aware menus: Font Size submenu hidden in dial mode; Dial Face submenu hidden in phrase mode
-- Dial face decorations: Show Hour Ticks / Show Minute Marks / Show Hour Numbers; persisted; defaults false
-- Dial mode: right-click toggle between phrase text and minimal analog dial (hour + minute hands, no face); persists
-- Hover fast-refresh: mouse over widget → stats update at 0.5s cadence; restores configured rate on leave
-- Stats panel: CPU / GPU / MEM / PAG horizontal bars + % text; per-row visibility toggles; auto-collapse when all hidden; persisted
-- Position persistence: drag to any position, saved immediately, restored on next launch
-- Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
-- Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~3,000 LOC C# / XAML (5 main source files: MainWindow.xaml.cs 935, MainWindow.xaml 265, StatsService.cs 141, SettingsService.cs 78, AppSettings.cs 23)
+- Ghost mode: `Opacity=0` + `WS_EX_TRANSPARENT` on `MouseEnter` (no modifier); `DispatcherTimer` 75ms `GetCursorPos+GetWindowRect` restore; synthetic hover-state cleanup before going transparent; `_isGhostMode` guard in `Window_MouseLeave`
+- Ctrl+Alt modifier: `GetAsyncKeyState(VK_LCONTROL/VK_LMENU) & 0x8000` at top of `Window_MouseEnter`; if held (or ghost mode disabled), fires normal hover path (backdrop + fast-refresh) and returns early — no WS_EX_TRANSPARENT
+- Ghost mode tray toggle: checkable "Ghost Mode" tray menu item; `AppSettings.GhostModeEnabled` (default true); persisted
+- Phrase text: `TextAlignment=Center` + `HorizontalAlignment=Stretch` on both PhraseText and ShadowText TextBlocks
+- System tray icon: 16×16 analog clock face; tray context menu: Ghost Mode ✓ (toggle), Reset to Defaults, Quit
+- Uptime row: `up Xd Xh Xm   0.52  0.47  0.43` format; rolling CPU 1m/5m/15m via `Queue<float>`; interval-aware window sizing; cold-start guard
+- Accent color: 5 presets + custom color picker; applied to 15 elements; persisted as hex string
+- Window opacity: right-click submenu (25/50/75/100%) + scroll wheel (10% steps, 10% floor); persisted
+- Stats panel: CPU / GPU / MEM / PAG horizontal bars + %; per-row visibility toggles; auto-collapse when all hidden; persisted
+- Dial mode: minimal analog dial (hour + minute hands, no face); dial face decorations (tick marks, minute marks, hour numbers); persisted
+- Context-aware menus: Font Size hidden in dial mode; Dial Face hidden in phrase mode
+- Position persistence: drag to any position, saved immediately, restored on launch
+- Font size: Small (16pt) / Medium (24pt) / Large (32pt); persisted
+- Settings: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
+- ~1,440 LOC C# / XAML (main files: MainWindow.xaml.cs 1068, MainWindow.xaml 269, StatsService.cs 141, SettingsService.cs 78, AppSettings.cs 24)
 
 ## Requirements
 
@@ -120,11 +111,18 @@ All v2.2 requirements delivered. TRAY-01 through TRAY-06 human-verified.
 - ✓ TRAY-05: "Quit" exits the application cleanly — v2.2
 - ✓ TRAY-06: System tray icon is removed from the tray when the application exits — v2.2
 
+### Validated (v2.3)
+
+- ✓ CENTER-01: In phrase mode, the phrase text is centered horizontally within the widget content area — v2.3
+- ✓ GHOST-01: When mouse enters widget (left Ctrl+Alt not held), widget becomes Opacity=0 and click-through — v2.3
+- ✓ GHOST-02: When mouse leaves widget area, widget restores configured opacity and stops being click-through — v2.3
+- ✓ GHOST-03: While ghost mode is active, hover backdrop and hover fast-refresh do not activate — v2.3
+- ✓ CTRLALT-01: When user holds left Ctrl+Alt while hovering, ghost mode is suppressed — widget stays visible and interactive — v2.3
+- ✓ CTRLALT-02: In Ctrl+Alt mode, existing hover behaviors activate normally (backdrop, fast-refresh, drag, right-click, scroll) — v2.3
+
 ### Active
 
-- [ ] Auto-hide on hover: widget fades to Opacity=0 and becomes click-through when mouse enters (no Ctrl+Alt held)
-- [ ] Ctrl+Alt interaction: holding Ctrl+Alt while hovering keeps widget visible and interactive
-- [ ] Centered phrase text: TextAlignment=Center within widget content area in phrase mode
+(No active requirements — next milestone not yet defined)
 
 ### Deferred (v2+)
 
@@ -230,6 +228,13 @@ All v2.2 requirements delivered. TRAY-01 through TRAY-06 human-verified.
 | this.Closed for tray dispose (not OnClosing) | OnClosing handles stats/settings lifecycle; Closed handles tray cleanup — keeps shutdown responsibilities separated | ✓ Validated — `_trayIcon?.Dispose()` in Closed event; icon removed from notification area on any exit path |
 | Programmatic 16×16 bitmap for tray icon | No .ico file required; `System.Drawing` available via `UseWindowsForms=true` already active since v2.0 | ✓ Validated — analog clock face drawn with `System.Drawing.Graphics`; no asset file dependency |
 | _hasUserPosition = true after ResetToDefaults centering | Prevents phrase-change timer from snapping widget to top-right after Reset to Defaults positions it at center | ✓ Validated — consistent with the snap guard established in v1.1 |
+| Ghost mode via Opacity=0 + WS_EX_TRANSPARENT | Opacity=0 hides rendering; WS_EX_TRANSPARENT passes clicks through to windows below — both needed; Opacity=0 alone still captures mouse events | ✓ Validated — widget fully invisible and non-blocking on hover; restores correctly on mouse exit |
+| DispatcherTimer+GetCursorPos+GetWindowRect for ghost restore | WS_EX_TRANSPARENT causes synthetic WM_MOUSELEAVE immediately after application; WPF Mouse.GetPosition returns stale coords under transparency; TrackMouseEvent restore path unreliable; 75ms polling of pure Win32 APIs bypasses all WPF input system issues | ✓ Validated — reliable mouse-leave detection under full click-through transparency |
+| VK_LMENU not VK_MENU for Ctrl+Alt modifier | VK_MENU fires on AltGr (right-Alt) on EU keyboards where right-Alt = Ctrl+Alt in hardware; VK_LMENU matches left-Alt only — zero false-positives | ✓ Validated — Ctrl+Alt modifier works without AltGr interference on EU keyboards |
+| Synthetic hover-state cleanup before applying WS_EX_TRANSPARENT | Window_MouseLeave does not fire after WS_EX_TRANSPARENT is set (synthetic MOUSELEAVE has already been delivered); backdrop, timer interval, and _isHoverFastRefresh must be reset proactively | ✓ Validated — hover state always clean on ghost activation; no stale backdrop after restore |
+| TextAlignment=Center (not HorizontalAlignment=Center) for phrase centering | HorizontalAlignment=Center collapses the layout box to content size — centering relative to text width is a no-op visually; TextAlignment=Center centers glyphs within the full Stretch-width layout box | ✓ Validated — phrase text visually centered in widget area at all three font sizes |
+| ctrlAltHeld \|\| !_ghostModeEnabled combined condition | Both cases (modifier held, ghost disabled via tray) route to the same normal hover path; single early-return handles both without code duplication | ✓ Validated — Ctrl+Alt suppression and tray toggle both work correctly; no regression to either path |
+| GhostModeEnabled init default = true | Ghost mode is the primary UX of v2.3; users must explicitly disable if unwanted; default-true ensures ghost is active on first install and on upgrade from v2.2 | ✓ Validated — ghost mode active on fresh install and settings.json upgrade |
 
 ---
-*Last updated: 2026-03-02 after v2.3 milestone start*
+*Last updated: 2026-03-02 — v2.3 Ghost Mode shipped*
