@@ -14,7 +14,7 @@
 - **v1.9 Context-Aware Menus** (2026-02-26) — Font Size submenu hidden in dial mode; reappears in phrase mode. 1 phase, 2 plans. → [Archive](milestones/v1.9-ROADMAP.md)
 - ✅ **v2.0 Visual Identity** (2026-02-27) — Accent color themes (5 presets + custom picker) and window opacity control (presets + scroll wheel). 4 phases, 7 plans. → [Archive](milestones/v2.0-ROADMAP.md)
 - ✅ **v2.1 Uptime** (2026-02-27) — System uptime and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel; toggleable and persisted. 2 phases, 2 plans. → [Archive](milestones/v2.1-ROADMAP.md)
-- **v2.2 System Tray** (in progress) — System tray icon with Reset to Defaults and Quit; clean icon removal on exit. 1 phase.
+- **v2.2 System Tray** (2026-03-02) — System tray icon with Reset to Defaults and Quit; clean icon removal on exit. 1 phase.
 
 ## Phases
 
@@ -144,9 +144,9 @@ Plans:
 
 </details>
 
-### v2.2 System Tray (Phase 24) — In Progress
+### v2.2 System Tray (Phase 24) — SHIPPED 2026-03-02
 
-- [ ] **Phase 24: System Tray Icon** — NotifyIcon with tray context menu (Reset to Defaults, Quit); Reset sets White accent + 100% opacity + centered position and saves immediately; Quit exits cleanly; icon disposed on exit
+- [x] **Phase 24: System Tray Icon** — NotifyIcon with tray context menu (Reset to Defaults, Quit); Reset sets White accent + 100% opacity + centered position and saves immediately; Quit exits cleanly; icon disposed on exit
 
 ## Phase Details
 
@@ -433,8 +433,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 24-01-PLAN.md — Add _trayIcon field, InitTrayIcon(), ResetToDefaults(), tray Quit handler, Closed dispose
-- [ ] 24-02-PLAN.md — Human verify all 6 TRAY requirements (TRAY-01 through TRAY-06)
+- [x] 24-01-PLAN.md — Add _trayIcon field, InitTrayIcon(), ResetToDefaults(), tray Quit handler, Closed dispose
+- [x] 24-02-PLAN.md — Human verify all 6 TRAY requirements (TRAY-01 through TRAY-06)
 
 ## Progress
 
@@ -463,7 +463,7 @@ Plans:
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 22. Infrastructure and Toggle | v2.1 | 1/1 | Complete | 2026-02-27 |
 | 23. Data Display | v2.1 | 1/1 | Complete | 2026-02-27 |
-| 24. System Tray Icon | 1/2 | In Progress|  | - |
+| 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
 
 ---
-*Last updated: 2026-03-02 — Phase 24 added for v2.2 System Tray milestone*
+*Last updated: 2026-03-02 — Phase 24 complete; v2.2 System Tray shipped*
