@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-02 after v2.2 milestone start)
+See: .planning/PROJECT.md (updated 2026-03-02 after v2.2 milestone)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 24 — System Tray Icon (v2.2)
+**Current focus:** Planning next milestone
 
 ## Current Position
 
 Phase: 24 of 24 (System Tray Icon)
 Plan: 2 of 2 in current phase
 Status: Complete
-Last activity: 2026-03-02 — Completed 24-02-PLAN.md (human verify tray icon — all checks passed)
+Last activity: 2026-03-02 — v2.2 milestone complete; all phases archived
 
 Progress: [██████████] 100% (v2.2: 2/2 plans complete)
 

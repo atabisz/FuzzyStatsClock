@@ -165,3 +165,17 @@
 
 ---
 
+
+## v2.2 System Tray (Shipped: 2026-03-02)
+
+**Phases completed:** 1 phase (24), 2 plans
+
+**Key accomplishments:**
+- `System.Windows.Forms.NotifyIcon` tray icon (16×16 analog clock face — dark circle, white hands at 10:10, white rim) visible in Windows notification area while app is running
+- Right-click tray context menu with exactly two items: "Reset to Defaults" and "Quit"
+- `ResetToDefaults()` snaps widget to factory state instantly: White accent color, 100% opacity, 16pt font, phrase mode (dial disabled), centered on primary screen, saved to settings.json immediately
+- `Quit` calls `Application.Current.Shutdown()` via `Dispatcher.Invoke` — clean WPF exit, no orphaned process
+- `_trayIcon.Dispose()` in `Window.Closed` event — tray icon removed from notification area on any exit path (tray Quit, Alt+F4, window close)
+
+---
+

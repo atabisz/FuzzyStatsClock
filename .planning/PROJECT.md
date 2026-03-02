@@ -10,10 +10,12 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v2.2 in progress: 2026-03-02**
+**v2.2 shipped: 2026-03-02**
 
-All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
+All v2.2 requirements delivered. TRAY-01 through TRAY-06 human-verified.
 
+- System tray icon: 16×16 analog clock face (dark circle, white hands at 10:10, white rim) in Windows notification area while running
+- Tray context menu: "Reset to Defaults" (White accent + 100% opacity + 16pt + phrase mode + centered + save) and "Quit" (clean exit); icon disposed on any exit path
 - Uptime row: `up Xd Xh Xm   0.52  0.47  0.43` format; leading zero-unit suppression; themed in active accent color; toggleable via "Show Uptime" in Stats submenu; visible by default; auto-hides with stats panel
 - Rolling CPU load averages: 1m/5m/15m via `Queue<float>` with interval-aware window sizing; `StatsService.IsReady` cold-start guard; `_isHoverFastRefresh` hover guard
 - Accent color: 5 presets (White/Amber/Ice Blue/Green/Hello Kitty Pink) + custom color picker dialog; applied to 15 elements (14 v2.0 + UptimeText); persisted as hex string
@@ -26,7 +28,7 @@ All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
 - Position persistence: drag to any position, saved immediately, restored on next launch
 - Font size: Small (16pt) / Medium (24pt) / Large (32pt) via right-click menu, persisted
 - Settings file: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~2,900 LOC C# / XAML (4 main source files: MainWindow.xaml.cs 847, MainWindow.xaml 265, StatsService.cs 141, AppSettings.cs 23)
+- ~3,000 LOC C# / XAML (5 main source files: MainWindow.xaml.cs 935, MainWindow.xaml 265, StatsService.cs 141, SettingsService.cs 78, AppSettings.cs 23)
 
 ## Requirements
 
@@ -100,15 +102,18 @@ All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
 - ✓ UPT-01: Widget displays system uptime in `up Xd Xh Xm` format (leading zero-units suppressed) and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel, themed in accent color — v2.1
 - ✓ UPT-02: User can show or hide the uptime/load line via a right-click Stats submenu toggle; visible by default; persisted to settings.json and restored on launch — v2.1
 
+### Validated (v2.2)
+
+- ✓ TRAY-01: Application displays a system tray icon while running — v2.2
+- ✓ TRAY-02: System tray icon shows a context menu with "Reset to Defaults" and "Quit" items — v2.2
+- ✓ TRAY-03: "Reset to Defaults" sets accent color to White, opacity to 100%, font to 16pt, disables dial mode, and centers the widget — v2.2
+- ✓ TRAY-04: "Reset to Defaults" saves the reset state to settings.json immediately — v2.2
+- ✓ TRAY-05: "Quit" exits the application cleanly — v2.2
+- ✓ TRAY-06: System tray icon is removed from the tray when the application exits — v2.2
+
 ### Active
 
-<!-- v2.2 System Tray -->
-- [ ] TRAY-01: Application displays a system tray icon while running
-- [ ] TRAY-02: System tray icon shows a context menu with "Reset to Defaults" and "Quit" items
-- [ ] TRAY-03: "Reset to Defaults" sets accent color to White, opacity to 100%, and centers the widget on the primary screen
-- [ ] TRAY-04: "Reset to Defaults" saves the reset state to settings.json immediately
-- [ ] TRAY-05: "Quit" exits the application cleanly
-- [ ] TRAY-06: System tray icon is removed from the tray when the application exits
+(none — ready for next milestone)
 
 ### Deferred (v2+)
 
@@ -118,7 +123,7 @@ All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
 
 ### Out of Scope
 
-- System tray icon / settings UI — keep it simple
+- System tray icon full settings UI — shipped minimal tray (Reset + Quit); full settings UI remains out of scope
 - 24-hour format — natural English implies 12-hour
 - Click-through / no interaction — incompatible with drag (kills DragMove() event delivery)
 - Arbitrary font size input — 3-step ladder is sufficient
@@ -210,5 +215,10 @@ All v2.1 requirements delivered. UPT-01 and UPT-02 both human-verified.
 | Environment.TickCount64 (Int64 ms) for uptime — never TickCount (Int32) | Int32 TickCount wraps at 24.9 days, producing negative or incorrect uptime on long-running systems | ✓ Validated — Int64 supports >292 million years; no wrap concern |
 | UpdateUptimeDisplay() does NOT call Refresh() | Refresh() already called inside UpdateStatsDisplay() earlier in the same tick; calling it again would double-sample and artificially depress CPU percentages | ✓ Validated — single Refresh() per tick; uptime display reads _statsService.CpuPercent set by the prior call |
 
+| Dispatcher.Invoke for WinForms → WPF thread marshal | WinForms ToolStripMenuItem Click fires on WinForms UI thread; WPF elements require Dispatcher thread | ✓ Validated — `Dispatcher.Invoke(ResetToDefaults)` and `Dispatcher.Invoke(Shutdown)` work reliably |
+| this.Closed for tray dispose (not OnClosing) | OnClosing handles stats/settings lifecycle; Closed handles tray cleanup — keeps shutdown responsibilities separated | ✓ Validated — `_trayIcon?.Dispose()` in Closed event; icon removed from notification area on any exit path |
+| Programmatic 16×16 bitmap for tray icon | No .ico file required; `System.Drawing` available via `UseWindowsForms=true` already active since v2.0 | ✓ Validated — analog clock face drawn with `System.Drawing.Graphics`; no asset file dependency |
+| _hasUserPosition = true after ResetToDefaults centering | Prevents phrase-change timer from snapping widget to top-right after Reset to Defaults positions it at center | ✓ Validated — consistent with the snap guard established in v1.1 |
+
 ---
-*Last updated: 2026-03-02 after v2.2 milestone start*
+*Last updated: 2026-03-02 after v2.2 milestone*
