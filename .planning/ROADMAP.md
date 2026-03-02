@@ -430,7 +430,11 @@ Plans:
   3. Clicking "Reset to Defaults" immediately sets the widget accent color to White, opacity to 100%, and centers the widget on the primary screen — the visual change is instant and no restart is required
   4. After "Reset to Defaults" completes, the reset state (White accent, 100% opacity, centered position) is written to settings.json so the next launch starts with those values
   5. Clicking "Quit" exits the application process completely with no errors and no lingering tray icon
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 24-01-PLAN.md — Add _trayIcon field, InitTrayIcon(), ResetToDefaults(), tray Quit handler, Closed dispose
+- [ ] 24-02-PLAN.md — Human verify all 6 TRAY requirements (TRAY-01 through TRAY-06)
 
 ## Progress
 
