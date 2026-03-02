@@ -45,7 +45,10 @@
   2. The drop shadow TextBlock is also centered, maintaining correct shadow offset behind the phrase text
   3. Centering is stable across all three font sizes (16pt / 24pt / 32pt) without clipping or overflow
   4. In dial mode, the DialCanvas remains unaffected by the XAML centering change
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 25-01-PLAN.md — Add TextAlignment=Center + HorizontalAlignment=Stretch to ShadowText and PhraseText; human verify centering at all font sizes
 
 ### Phase 26: Ghost Mode Core
 **Goal**: Widget auto-hides when the mouse enters — becomes invisible and click-through — and restores to its configured state when the mouse leaves
