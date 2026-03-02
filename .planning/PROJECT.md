@@ -120,9 +120,20 @@ All v2.3 requirements delivered. CENTER-01, GHOST-01/02/03, CTRLALT-01/02 human-
 - ✓ CTRLALT-01: When user holds left Ctrl+Alt while hovering, ghost mode is suppressed — widget stays visible and interactive — v2.3
 - ✓ CTRLALT-02: In Ctrl+Alt mode, existing hover behaviors activate normally (backdrop, fast-refresh, drag, right-click, scroll) — v2.3
 
-### Active
+### Active (v2.5 Unit Tests)
 
-(No active requirements — next milestone not yet defined)
+- [ ] EXTRACT-01: UptimeFormatter.Format(TimeSpan) extracted from MainWindow into FuzzyClock.Core
+- [ ] EXTRACT-02: DialGeometry.GetHandAngle extracted from MainWindow into FuzzyClock.Core
+- [ ] TINFRA-01: FuzzyClock.App.Tests project (net10.0-windows, MSTest) added to solution
+- [ ] STEST-01: AppSettings JSON round-trip test passes (serialize → deserialize → all fields match)
+- [ ] STEST-02: AppSettings deserialization with absent field returns init default, not C# type default
+- [ ] STEST-03: SettingsService validation logic (StatsIntervalSeconds ≤ 0) is unit testable and tested
+- [ ] STEST-04: SettingsService validation logic (Opacity ≤ 0.0) is unit testable and tested
+- [ ] STEST-05: SettingsService validation logic (AccentColor null/empty) is unit testable and tested
+- [ ] STEST-06: SettingsService.Clamp() pure overload clamps Left/Top within provided bounds
+- [ ] UTEST-01: UptimeFormatter tests cover sub-hour, exactly-1h, hours-only, exactly-1d, days+hours+minutes
+- [ ] UTEST-02: DialGeometry tests cover 12:00, 3:00, 6:00, 3:15 and intermediate angle positions
+- [ ] CI-01: GitHub Actions release.yml runs dotnet test before dotnet publish; workflow fails if tests fail
 
 ### Deferred (v2+)
 
@@ -237,4 +248,4 @@ All v2.3 requirements delivered. CENTER-01, GHOST-01/02/03, CTRLALT-01/02 human-
 | GhostModeEnabled init default = true | Ghost mode is the primary UX of v2.3; users must explicitly disable if unwanted; default-true ensures ghost is active on first install and on upgrade from v2.2 | ✓ Validated — ghost mode active on fresh install and settings.json upgrade |
 
 ---
-*Last updated: 2026-03-02 — v2.3 Ghost Mode shipped*
+*Last updated: 2026-03-03 — v2.5 Unit Tests milestone started*

@@ -2,18 +2,18 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-02 — v2.3 Ghost Mode shipped)
+See: .planning/PROJECT.md (updated 2026-03-03 — v2.5 Unit Tests started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.4 Tray-Only Controls tagged — next milestone TBD
+**Current focus:** v2.5 Unit Tests — defining requirements
 
 ## Current Position
 
-Phase: 27 of 27 (all complete)
-Status: v2.4 Tray-Only Controls tagged (ad-hoc — no formal phases)
-Last activity: 2026-03-03 — tray menu migration (right-click removed, all settings in tray); tag v2.4 created
+Phase: Not started (defining requirements)
+Status: Defining requirements for v2.5 Unit Tests
+Last activity: 2026-03-03 — Milestone v2.5 started
 
-Progress: [██████████] 100% (v2.3 complete)
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -51,6 +51,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: v2.4 tagged — tray menu migration complete
+Stopped at: v2.5 requirements defined — roadmap pending
 Resume file: None
-Next action: Run /gsd:new-milestone to start next milestone
+Next action: /gsd:plan-phase 28
