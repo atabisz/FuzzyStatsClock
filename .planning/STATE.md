@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-03 — v2.5 Unit Tests started)
 **Milestone:** v2.5 Unit Tests
 **Phase:** 28 — Core Logic Extraction + Tests (in progress — plan 01 complete)
 **Plan:** 28-01 complete
-**Status:** Plan 01 done; ready for Phase 29
+**Status:** Milestone complete
 
 Progress: [█░░░░░░░░░] 11% (0.33/3 phases complete)
 
