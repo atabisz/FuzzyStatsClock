@@ -11,13 +11,13 @@ Requirements for v2.5 Unit Tests. Each maps to roadmap phases.
 
 Pure functions extracted from MainWindow into FuzzyClock.Core for independent testability.
 
-- [ ] **EXTRACT-01**: UptimeFormatter.Format(TimeSpan) is extracted from MainWindow into FuzzyClock.Core; MainWindow calls it with no behavior change
-- [ ] **EXTRACT-02**: DialGeometry hand-angle calculation is extracted from MainWindow into FuzzyClock.Core; MainWindow calls it with no behavior change
+- [x] **EXTRACT-01**: UptimeFormatter.Format(TimeSpan) is extracted from MainWindow into FuzzyClock.Core; MainWindow calls it with no behavior change
+- [x] **EXTRACT-02**: DialGeometry hand-angle calculation is extracted from MainWindow into FuzzyClock.Core; MainWindow calls it with no behavior change
 
 ### Unit Tests — Core Logic
 
-- [ ] **UTEST-01**: UptimeFormatter tests cover sub-hour (≥1m), exactly-1h boundary, hours-only (≥1h <1d), exactly-1d boundary, and days+hours+minutes
-- [ ] **UTEST-02**: DialGeometry tests cover 12:00 (both hands at 0°/360°), 6:00, 3:00, 3:15 (minute hand interpolation), and at least one intermediate hour position
+- [x] **UTEST-01**: UptimeFormatter tests cover sub-hour (≥1m), exactly-1h boundary, hours-only (≥1h <1d), exactly-1d boundary, and days+hours+minutes
+- [x] **UTEST-02**: DialGeometry tests cover 12:00 (both hands at 0°/360°), 6:00, 3:00, 3:15 (minute hand interpolation), and at least one intermediate hour position
 
 ### Test Infrastructure
 
@@ -64,10 +64,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXTRACT-01 | Phase 28 | Pending |
-| EXTRACT-02 | Phase 28 | Pending |
-| UTEST-01 | Phase 28 | Pending |
-| UTEST-02 | Phase 28 | Pending |
+| EXTRACT-01 | Phase 28 | Complete |
+| EXTRACT-02 | Phase 28 | Complete |
+| UTEST-01 | Phase 28 | Complete |
+| UTEST-02 | Phase 28 | Complete |
 | TINFRA-01 | Phase 29 | Pending |
 | STEST-01 | Phase 29 | Pending |
 | STEST-02 | Phase 29 | Pending |

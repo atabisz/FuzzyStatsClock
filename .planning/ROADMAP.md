@@ -64,7 +64,7 @@ Plans:
 
 **Milestone Goal:** Core logic is independently testable in FuzzyClock.Core; SettingsService validation is testable without file I/O; CI prevents a broken build from producing a release artifact.
 
-- [ ] **Phase 28: Core Logic Extraction + Tests** — Extract UptimeFormatter and DialGeometry into FuzzyClock.Core; add tests for both in FuzzyClock.Core.Tests
+- [x] **Phase 28: Core Logic Extraction + Tests** — Extract UptimeFormatter and DialGeometry into FuzzyClock.Core; add tests for both in FuzzyClock.Core.Tests (completed 2026-03-02)
 - [ ] **Phase 29: App Test Infrastructure + Settings Tests** — Add FuzzyClock.App.Tests project; refactor SettingsService for testability (Validate method + pure Clamp overload); write all settings tests
 - [ ] **Phase 30: CI Test Gate** — Add dotnet test step to release.yml before dotnet publish; workflow fails fast on test failure
 
@@ -114,7 +114,7 @@ Plans:
 | 25. Centered Phrase Text | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 1/1 | Complete | 2026-03-02 |
-| 28. Core Logic Extraction + Tests | v2.5 | 0/1 | Not started | - |
+| 28. Core Logic Extraction + Tests | 1/1 | Complete   | 2026-03-02 | - |
 | 29. App Test Infrastructure + Settings Tests | v2.5 | 0/? | Not started | - |
 | 30. CI Test Gate | v2.5 | 0/? | Not started | - |
 
