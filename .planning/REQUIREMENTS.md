@@ -13,8 +13,8 @@
 
 ### Ctrl+Alt Modifier
 
-- [ ] **CTRLALT-01**: When the user holds left Ctrl + left Alt while hovering, ghost mode is suppressed — widget stays at its configured opacity and is fully interactive
-- [ ] **CTRLALT-02**: In Ctrl+Alt mode, existing hover behaviors activate normally (backdrop, fast-refresh, drag, right-click, scroll)
+- [x] **CTRLALT-01**: When the user holds left Ctrl + left Alt while hovering, ghost mode is suppressed — widget stays at its configured opacity and is fully interactive
+- [x] **CTRLALT-02**: In Ctrl+Alt mode, existing hover behaviors activate normally (backdrop, fast-refresh, drag, right-click, scroll)
 
 ### Layout
 
@@ -43,8 +43,8 @@
 | GHOST-01 | Phase 26 | Complete |
 | GHOST-02 | Phase 26 | Complete |
 | GHOST-03 | Phase 26 | Complete |
-| CTRLALT-01 | Phase 27 | Pending |
-| CTRLALT-02 | Phase 27 | Pending |
+| CTRLALT-01 | Phase 27 | Complete |
+| CTRLALT-02 | Phase 27 | Complete |
 
 **Coverage:**
 - v2.3 requirements: 6 total

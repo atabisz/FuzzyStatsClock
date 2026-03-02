@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-02 after v2.3 milestone start)
 
 ## Current Position
 
-Phase: 26 of 27 (Ghost Mode Core)
-Plan: 1 of 1 in current phase — COMPLETE
-Status: Phase 26 complete; ready for Phase 27
-Last activity: 2026-03-02 — Phase 26 Plan 01 complete (GHOST-01, GHOST-02, GHOST-03 satisfied)
+Phase: 27 of 27 (Ctrl+Alt Interaction Modifier)
+Plan: 1 of 1 in current phase — COMPLETE (pending human verify checkpoint)
+Status: Phase 27 Plan 01 code complete; human verification checkpoint pending
+Last activity: 2026-03-02 — Phase 27 Plan 01 Task 1 complete (CTRLALT-01, CTRLALT-02 implemented)
 
-Progress: [██░░░░░░░░] 67% (v2.3: 2/3 phases complete)
+Progress: [███░░░░░░░] 92% (v2.3: phase 27 code complete, human verify pending)
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Recent decisions affecting current work:
 - [Phase 25-01]: TextAlignment=Center (not HorizontalAlignment=Center) centers glyphs within full layout-width box — HorizontalAlignment=Center collapses box to content size
 - [Phase 25-01]: Both ShadowText and PhraseText must carry identical TextAlignment so 2px TranslateTransform shadow offset remains visually correct at all phrase lengths
 - [Phase 26-ghost-mode-core]: DispatcherTimer+GetCursorPos+GetWindowRect for ghost restore — WS_EX_TRANSPARENT causes synthetic WM_MOUSELEAVE + WPF stale coords, bypassing WPF input system is required
+- [Phase 27-01]: GetAsyncKeyState (not Keyboard.IsKeyDown) for Ctrl+Alt — overlay has no keyboard focus; VK_LCONTROL/VK_LMENU (not VK_CONTROL/VK_MENU) — VK_MENU matches AltGr on EU keyboards
 
 ### Pending Todos
 
@@ -66,6 +67,6 @@ None. (Phase 26 blocker resolved: DispatcherTimer+GetCursorPos+GetWindowRect con
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Phase 26-01 complete — GHOST-01/02/03 satisfied, SUMMARY.md written
+Stopped at: Phase 27-01 Task 1 complete — CTRLALT-01/02 implemented, awaiting human verify checkpoint
 Resume file: None
-Next action: /gsd:plan-phase 27
+Next action: Run app and verify 4 behavioral scenarios (dotnet run --project FuzzyClock.App/FuzzyClock.App.csproj)

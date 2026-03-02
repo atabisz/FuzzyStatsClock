@@ -32,7 +32,7 @@
 
 - [x] **Phase 25: Centered Phrase Text** - TextAlignment=Center on PhraseText and ShadowText TextBlocks; phrase text is horizontally centered in the widget content area (completed 2026-03-02)
 - [x] **Phase 26: Ghost Mode Core** - Widget becomes Opacity=0 and click-through (WS_EX_TRANSPARENT) on MouseEnter with no modifier; restores on mouse exit with all hover state cleanly reset (completed 2026-03-02)
-- [ ] **Phase 27: Ctrl+Alt Interaction Modifier** - Holding left Ctrl+left Alt while hovering suppresses ghost activation; all existing hover behaviors (backdrop, fast-refresh, drag, right-click, scroll) activate normally
+- [x] **Phase 27: Ctrl+Alt Interaction Modifier** - Holding left Ctrl+left Alt while hovering suppresses ghost activation; all existing hover behaviors (backdrop, fast-refresh, drag, right-click, scroll) activate normally (completed 2026-03-02)
 
 ## Phase Details
 
@@ -86,7 +86,7 @@ Plans:
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
 | 25. Centered Phrase Text | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
-| 27. Ctrl+Alt Interaction Modifier | v2.3 | 0/1 | Planned | - |
+| 27. Ctrl+Alt Interaction Modifier | 1/1 | Complete   | 2026-03-02 | - |
 
 ---
 *Last updated: 2026-03-02 — Phase 27 planned (CTRLALT-01/02); 1 plan created*
