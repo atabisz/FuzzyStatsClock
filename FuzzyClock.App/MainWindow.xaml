@@ -121,7 +121,9 @@
                                FontFamily="Segoe UI Light"
                                FontSize="32"
                                Foreground="#BB000000"
-                               IsHitTestVisible="False">
+                               IsHitTestVisible="False"
+                               HorizontalAlignment="Stretch"
+                               TextAlignment="Center">
                         <TextBlock.RenderTransform>
                             <TranslateTransform X="2" Y="2" />
                         </TextBlock.RenderTransform>
@@ -133,7 +135,9 @@
                                Text=""
                                FontFamily="Segoe UI Light"
                                FontSize="32"
-                               Foreground="White" />
+                               Foreground="White"
+                               HorizontalAlignment="Stretch"
+                               TextAlignment="Center" />
 
                     <!-- DialCanvas: 80x80 analog clock hands — toggled visible in dial mode.
                          Sits in the same inner Grid as PhraseText; both cannot be visible simultaneously.
