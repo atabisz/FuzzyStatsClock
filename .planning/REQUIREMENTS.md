@@ -18,7 +18,7 @@
 
 ### Layout
 
-- [ ] **CENTER-01**: In phrase mode, the phrase text is centered horizontally within the widget content area
+- [x] **CENTER-01**: In phrase mode, the phrase text is centered horizontally within the widget content area
 
 ## Future Requirements
 
@@ -39,7 +39,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CENTER-01 | Phase 25 | Pending |
+| CENTER-01 | Phase 25 | Complete (2026-03-02) |
 | GHOST-01 | Phase 26 | Pending |
 | GHOST-02 | Phase 26 | Pending |
 | GHOST-03 | Phase 26 | Pending |
@@ -53,4 +53,4 @@
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 — roadmap finalized; traceability confirmed*
+*Last updated: 2026-03-02 — CENTER-01 completed (Phase 25)*

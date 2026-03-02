@@ -30,7 +30,7 @@
 
 **Milestone Goal:** The widget gets out of your way automatically — it disappears when you hover over it and reappears when you move away, with Ctrl+Alt as the opt-in interaction modifier.
 
-- [ ] **Phase 25: Centered Phrase Text** - TextAlignment=Center on PhraseText and ShadowText TextBlocks; phrase text is horizontally centered in the widget content area
+- [x] **Phase 25: Centered Phrase Text** - TextAlignment=Center on PhraseText and ShadowText TextBlocks; phrase text is horizontally centered in the widget content area (completed 2026-03-02)
 - [ ] **Phase 26: Ghost Mode Core** - Widget becomes Opacity=0 and click-through (WS_EX_TRANSPARENT) on MouseEnter with no modifier; restores on mouse exit with all hover state cleanly reset
 - [ ] **Phase 27: Ctrl+Alt Interaction Modifier** - Holding left Ctrl+left Alt while hovering suppresses ghost activation; all existing hover behaviors (backdrop, fast-refresh, drag, right-click, scroll) activate normally
 
@@ -48,7 +48,7 @@
 **Plans**: 1 plan
 
 Plans:
-- [ ] 25-01-PLAN.md — Add TextAlignment=Center + HorizontalAlignment=Stretch to ShadowText and PhraseText; human verify centering at all font sizes
+- [x] 25-01-PLAN.md — Add TextAlignment=Center + HorizontalAlignment=Stretch to ShadowText and PhraseText; human verify centering at all font sizes (completed 2026-03-02)
 
 ### Phase 26: Ghost Mode Core
 **Goal**: Widget auto-hides when the mouse enters — becomes invisible and click-through — and restores to its configured state when the mouse leaves
@@ -78,9 +78,9 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1–23 | v1.0–v2.1 | All | Complete | See archives |
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
-| 25. Centered Phrase Text | v2.3 | 0/? | Not started | - |
+| 25. Centered Phrase Text | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | 0/? | Not started | - |
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-02 — v2.3 Ghost Mode roadmap created; phases 25–27 defined*
+*Last updated: 2026-03-02 — Phase 25 complete (CENTER-01); phrase text centered*
