@@ -57,6 +57,18 @@ public partial class MainWindow : Window
         IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
 
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
     private readonly List<System.Windows.Controls.TextBlock> _hourNumberElements = new();
@@ -136,8 +148,12 @@ public partial class MainWindow : Window
             _ghostRestoreTimer.Tick += (_, _) =>
             {
                 if (!_isGhostMode) return;
-                var pos = Mouse.GetPosition(this);
-                if (pos.X < 0 || pos.X > ActualWidth || pos.Y < 0 || pos.Y > ActualHeight)
+                // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
+                // receiving mouse messages when WS_EX_TRANSPARENT is active (Mouse.GetPosition(this)
+                // returns stale/wrong coords and causes immediate spurious restore + flicker loop).
+                if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
+                if (cursor.X < rect.Left || cursor.X > rect.Right ||
+                    cursor.Y < rect.Top  || cursor.Y > rect.Bottom)
                 {
                     _ghostRestoreTimer!.Stop();
                     _isGhostMode = false;
