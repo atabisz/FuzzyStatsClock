@@ -5,13 +5,13 @@
 See: .planning/PROJECT.md (updated 2026-03-02 — v2.3 Ghost Mode shipped)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.3 milestone archived — next milestone TBD
+**Current focus:** v2.4 Tray-Only Controls tagged — next milestone TBD
 
 ## Current Position
 
 Phase: 27 of 27 (all complete)
-Status: v2.3 Ghost Mode milestone shipped and archived
-Last activity: 2026-03-02 — v2.3 milestone complete (phases 25–27, requirements CENTER-01/GHOST-01/02/03/CTRLALT-01/02 all verified)
+Status: v2.4 Tray-Only Controls tagged (ad-hoc — no formal phases)
+Last activity: 2026-03-03 — tray menu migration (right-click removed, all settings in tray); tag v2.4 created
 
 Progress: [██████████] 100% (v2.3 complete)
 
@@ -50,7 +50,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-02
-Stopped at: v2.3 milestone archived — tag v2.3 created
+Last session: 2026-03-03
+Stopped at: v2.4 tagged — tray menu migration complete
 Resume file: None
 Next action: Run /gsd:new-milestone to start next milestone
