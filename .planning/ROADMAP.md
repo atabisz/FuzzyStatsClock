@@ -73,7 +73,10 @@ Plans:
   2. In Ctrl+Alt mode, all existing hover behaviors activate: semi-transparent backdrop appears, stats fast-refresh switches to 0.5s cadence
   3. In Ctrl+Alt mode, the widget is fully interactive: drag repositions it, right-click opens the context menu, scroll wheel adjusts opacity
   4. Releasing Ctrl+Alt and moving the mouse away, then hovering again with no modifier, triggers ghost mode normally
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 27-01-PLAN.md — Add GetAsyncKeyState P/Invoke + Ctrl+Alt guard in Window_MouseEnter; human verify modifier suppresses ghost and activates hover behaviors
 
 ## Progress
 
@@ -83,7 +86,7 @@ Plans:
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
 | 25. Centered Phrase Text | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
-| 27. Ctrl+Alt Interaction Modifier | v2.3 | 0/? | Not started | - |
+| 27. Ctrl+Alt Interaction Modifier | v2.3 | 0/1 | Planned | - |
 
 ---
-*Last updated: 2026-03-02 — Phase 26 complete (GHOST-01/02/03); ghost mode core active*
+*Last updated: 2026-03-02 — Phase 27 planned (CTRLALT-01/02); 1 plan created*
