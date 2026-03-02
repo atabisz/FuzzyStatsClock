@@ -1,193 +1,161 @@
 # Project Research Summary
 
-**Project:** FuzzyClock v2.1 — uptime display and rolling CPU load averages
-**Domain:** WPF transparent frameless desktop widget (Windows, .NET 10)
-**Researched:** 2026-02-27
+**Project:** FuzzyClock v2.3 — Ghost Mode
+**Domain:** WPF transparent frameless overlay — hover-hide + click-through + Ctrl+Alt interaction modifier
+**Researched:** 2026-03-02
 **Confidence:** HIGH
 
 ## Executive Summary
 
-FuzzyClock v2.1 is a tightly scoped, incremental feature addition to an already-validated WPF overlay widget. The milestone adds a single compact line below the existing stats panel showing system uptime in `up Xd Xh Xm` format alongside three rolling CPU load averages (`0.52  0.47  0.43`) styled in the accent color and toggleable via right-click. The entire implementation requires no new NuGet packages, no new services, no new timers, and no new files — only three existing files are modified (`AppSettings.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs`). All new APIs (`Environment.TickCount64`, `TimeSpan.FromMilliseconds`) are in-box .NET 10 with zero initialization cost.
+v2.3 adds "ghost mode" to FuzzyClock: when the mouse enters the widget, it becomes invisible and click-through, yielding the screen area entirely to whatever is beneath. Holding Ctrl+Alt while hovering suppresses ghost mode and keeps the widget interactive for drag, right-click, and opacity scroll. A third change — centering the phrase text — is a trivial XAML attribute addition with no behavioral complexity. The research consensus is clear: this is a small, focused milestone touching only two files (`MainWindow.xaml.cs` and `MainWindow.xaml`) and adding approximately 25 lines of code with no new NuGet packages or csproj changes.
 
-The recommended approach is to build in discrete, independently verifiable steps: first extend `AppSettings` with the `UptimeVisible` field (correctly defaulting to `true`), then add the XAML row and menu toggle with full settings plumbing, then implement uptime display alone, and finally layer in the rolling CPU average logic. This sequencing ensures the most dangerous pitfalls — violating the pre-Show() safety invariant, omitting the new field from `SaveSettings()`, and seeding the average buffer with cold-start zeros — are addressed at the structural level before data logic is written.
+The correct click-through mechanism is `WS_EX_TRANSPARENT` via `SetWindowLong`/`GetWindowLong` (user32.dll P/Invoke), combined with setting `Window.Opacity = 0`. These two operations must always be applied and removed together — Opacity=0 alone is insufficient because the HWND remains fully hit-testable; and the alternative WM_NCHITTEST HTTRANSPARENT hook approach fails to pass input to cross-thread windows (desktop, Explorer) so is not viable. PITFALLS.md Pitfall 2 is the authoritative ruling on this: use `WS_EX_TRANSPARENT`, not WM_NCHITTEST.
 
-The primary risks are all known, preventable, and well-documented from the existing codebase's established patterns. The three most consequential are: (1) corrupting rolling averages with zero-valued samples during StatsService cold-start; (2) corrupting average window sizes when hover fast-refresh fires at 0.5s intervals instead of the configured rate; and (3) violating the pre-Show() safety invariant by calling `SetUptimeRowVisible()` from `ApplySettings()`. All three have explicit, straightforward mitigations that must be applied at implementation time.
-
----
+The primary technical risk is state management around the hover event pipeline. Applying `WS_EX_TRANSPARENT` in `Window_MouseEnter` stops all Win32 mouse message delivery immediately, which means `Window_MouseLeave` never fires after ghost activation. All hover state cleanup (backdrop, stats timer interval, `_isHoverFastRefresh`) must be performed synthetically before WS_EX_TRANSPARENT is applied. Ctrl+Alt detection must use `GetAsyncKeyState` (not `Keyboard.IsKeyDown`) because the overlay never holds keyboard focus. One MEDIUM-confidence gap exists: whether `TrackMouseEvent` delivers WM_MOUSELEAVE after `WS_EX_TRANSPARENT` is set is not explicitly documented — a DispatcherTimer polling fallback is the documented safe alternative and must be verified during Phase 26 execution.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The v2.1 stack adds nothing beyond what already exists in the project. `Environment.TickCount64` (in-box `System.Runtime.dll`) replaces any need for WMI or PDH counters for uptime — it is a single sub-microsecond property read returning milliseconds since boot as `Int64`. `TimeSpan.FromMilliseconds()` with `.Days`/`.Hours`/`.Minutes` component properties handles all formatting without custom arithmetic. Rolling CPU averages are computed via a `Queue<float>` trimmed to a 15-minute window, using `LINQ .TakeLast()` and `.Average()` — both in-box .NET 10.
+v2.3 requires zero new NuGet packages and zero csproj changes. All additions are Win32 P/Invoke declarations against `user32.dll`, which is always available on Windows. The `HwndSource.AddHook` infrastructure is already established in the project from the v2.0 ColorDialog HWND adapter. One new `AppSettings` init-property (`GhostModeEnabled`, defaulting to `false`) may be added if a context menu toggle is shipped; the base spec does not require it.
 
-**Core technologies (additions only):**
-- `Environment.TickCount64`: system uptime source — zero-dependency, zero-latency, no threading concerns; preferred over WMI and PDH counter alternatives
-- `TimeSpan.FromMilliseconds(long)`: uptime decomposition — `.Days`/`.Hours`/`.Minutes` component semantics confirmed via official docs; no custom math needed
-- `Queue<float>` trimmed to 15-minute window: rolling CPU average storage — simple, readable, bounded at 900 entries max (negligible memory), trim-on-tick pattern avoids GC pressure
-- `AppSettings bool UptimeVisible = true`: settings persistence — identical init-property pattern to all prior boolean fields; one-line addition to existing record
-
-**No csproj changes. No new NuGet packages. All required assemblies already referenced.**
-
-See `.planning/research/STACK.md` for algorithm detail, ring buffer vs. queue tradeoff analysis, code samples, and alternatives considered.
+**Core technologies:**
+- `WS_EX_TRANSPARENT` + `WS_EX_LAYERED` (user32.dll `SetWindowLong`/`GetWindowLong`): click-through toggle — only mechanism that works cross-thread for desktop overlays; must OR the flag in, never replace the full extended style value
+- `SetWindowPos` with `SWP_FRAMECHANGED` (user32.dll): flushes the extended style change to the window manager — explicitly required by Microsoft docs after any `SetWindowLong` call
+- `GetAsyncKeyState` (user32.dll): physical Ctrl+Alt key state independent of window focus — `Keyboard.IsKeyDown` cannot be used because the overlay never has keyboard focus
+- `TrackMouseEvent` + `WM_MOUSELEAVE = 0x02A3` (user32.dll): one-shot OS notification when mouse leaves HWND rectangle — registered before going click-through; MEDIUM confidence on delivery post-transparency; DispatcherTimer polling is documented fallback
+- `HwndSource.AddHook` (System.Windows.Interop): WndProc hook registration — already used in project; must register in `ContentRendered`, never in constructor
 
 ### Expected Features
 
-The feature set is constrained by spec and best-practice convention. The 1m/5m/15m triplet on a single line is a universal convention — deviation (separate rows, different windows, different format) creates confusion without value. The "up" prefix and days/hours/minutes format matches Linux `uptime` output, which users of this class of widget already understand.
+**Must have (table stakes for v2.3):**
+- GHOST-01: Widget auto-hides (Opacity=0 + WS_EX_TRANSPARENT) on MouseEnter with no modifier — the entire value proposition of the milestone
+- GHOST-02: Ctrl+Alt modifier suppresses ghost activation, keeping the widget interactive for drag/right-click/scroll
+- CENTER-01: Phrase text uses `TextAlignment="Center"` in XAML — trivial, no interaction complexity
 
-**Must have (table stakes):**
-- `up Xd Xh Xm` uptime display with leading-zero-unit suppression (`up 5h 3m` not `up 0d 5h 3m`) — universal system monitor convention
-- Three rolling CPU load averages (1m/5m/15m) displayed as decimals (`0.52  0.47  0.43`) — the standard triplet, Linux-style normalized to [0.0, 1.0]
-- Combined single-line display below stats panel — compact, non-intrusive, matches spec
-- Accent color applied to the uptime/load row via `ApplyTheme()` — visual consistency with all other stats text
-- Visible by default (`UptimeVisible = true`) — new feature must be discoverable on first launch and after upgrade
-- Right-click toggle with persistence — all other rows support this; uptime must follow the same pattern
+**Should have (differentiators, deferred from v2.3 base):**
+- Ghost mode toggle in right-click context menu with `GhostModeEnabled` persisted to settings.json
+- Configurable hide delay (200–500ms DispatcherTimer) to prevent accidental hide on mouse pass-through
 
-**Differentiators (deferred to v2+):**
-- Boot time tooltip on hover over uptime
-- Peak load asterisk indicator when load exceeds 0.80
-- Separate update interval for uptime row (vs. stats timer rate)
-
-**Explicitly out of scope for v2.1:**
-- Seconds in uptime display (creates display churn, no informational value at widget scale)
-- Separate rows for uptime vs. load averages (contradicts single-line spec)
-- Configurable averaging windows (1/5/15 is a universal standard; deviation confuses users)
-- WMI-based uptime (heavyweight for equivalent result; `TickCount64` is sufficient)
-- Separate toggles for uptime portion vs. load portion (one line, one toggle)
-
-See `.planning/research/FEATURES.md` for edge case table, cold-start EWMA analysis, and full dependency graph.
+**Defer to v2.4+:**
+- Fade animation (gradual opacity transition) — creates intermediate states requiring complex management; instant Opacity=0 is cleaner
+- Proximity-based hide (before contact) — requires continuous background mouse tracking at all times
+- Configurable modifier keys — requires a settings UI that does not exist
+- Full permanent click-through with no modifier — kills DragMove, right-click, and scroll wheel; explicitly rejected
 
 ### Architecture Approach
 
-v2.1 follows the established code-behind-first WPF pattern without deviation. No MVVM, no new services, no new timers. The new `_cpuSamples Queue<float>` lives in `MainWindow.xaml.cs` alongside the existing timer state fields. `UpdateUptimeDisplay()` is a new private method called at the end of the existing `_statsTimer.Tick` handler — after `_statsService.Refresh()` has already fired, ensuring `CpuPercent` is current without a second Refresh call. The inner Grid gains a Row 2 for the `UptimeText` TextBlock, which is placed as a sibling of `StatsPanel` (not a child) to preserve independent visibility semantics.
+The implementation is contained entirely within `MainWindow.xaml.cs` (modified) and `MainWindow.xaml` (modified). No new files are needed. The ghost state lifecycle is: `Window_MouseEnter` fires → check `IsCtrlAltHeld()` via `GetAsyncKeyState` → if not held, run synthetic hover-state cleanup (backdrop clear, timer restore), then set `Opacity=0` and apply `WS_EX_TRANSPARENT` → widget is invisible and click-through → mouse physically leaves the widget area → OS delivers WM_MOUSELEAVE (via TrackMouseEvent registration) or restore-poll timer detects cursor out of bounds → remove `WS_EX_TRANSPARENT`, restore `Opacity = _windowOpacity`.
 
-**Modified files:**
-1. `AppSettings.cs` — add `bool UptimeVisible { get; init; } = true`
-2. `MainWindow.xaml` — add Row 2 `UptimeText` TextBlock (Width=180, FontSize=11) + `MenuUptimeVisible` IsCheckable toggle in Stats submenu
-3. `MainWindow.xaml.cs` — add `_cpuSamples` field and `ComputeAvg()`, extend `_statsTimer.Tick` with `UpdateUptimeDisplay()`, extend `ApplySettings()` / `SaveSettings()` / `ContextMenu_Opened()` / `ApplyTheme()`, add `MenuUptimeVisible_Click` and `SetUptimeRowVisible()`
+**Note on ARCHITECTURE.md divergence:** ARCHITECTURE.md proposes using WM_NCHITTEST HTTRANSPARENT (not WS_EX_TRANSPARENT) and assumes WPF `MouseLeave` fires as the restore trigger after HTTRANSPARENT return. PITFALLS.md Pitfall 2 explicitly rejects this: WM_NCHITTEST HTTRANSPARENT only routes input to same-thread windows; the desktop and other apps are on different threads and never receive the click. The phase must follow STACK.md + FEATURES.md + PITFALLS.md and use `WS_EX_TRANSPARENT`.
 
-**Unchanged:** `StatsService.cs` (except adding `bool IsReady` property exposing `_initialized`), `SettingsService.cs`, `App.xaml.cs`, `FuzzyClock.Core`
-
-**Key constraint:** The `UpdateUptimeDisplay()` method must include an early exit when `UptimeRow.Visibility != Visible`, preventing queue growth and string formatting when the row is hidden.
-
-See `.planning/research/ARCHITECTURE.md` for data flow diagrams, XAML layout spec, and the 6-step build order with per-step verification criteria.
+**Major components (all in MainWindow.xaml.cs):**
+1. P/Invoke declarations region — 5 `DllImport` statements, 1 struct (`TRACKMOUSEEVENT`), ~12 constants
+2. `_ghostMode` bool field — tracks current ghost state; never modify `_windowOpacity` alongside it
+3. Hook or restore mechanism — WndProcHook for WM_MOUSELEAVE (preferred) or `_ghostRestoreTimer` DispatcherTimer (fallback); registered in `ContentRendered`
+4. `Window_MouseEnter` (modified) — prepend `IsCtrlAltHeld()` check; ghost path exits early after cleanup + Opacity=0 + WS_EX_TRANSPARENT
+5. `Window_MouseLeave` (modified) — prepend `_ghostMode` check; ghost restore path: clear flag, remove WS_EX_TRANSPARENT, restore `_windowOpacity`
+6. `MainWindow.xaml` — add `TextAlignment="Center"` to both `PhraseText` and `ShadowText` TextBlocks
 
 ### Critical Pitfalls
 
-The research identified 12 pitfalls. The 5 most consequential for implementation correctness:
+1. **WS_EX_TRANSPARENT requires OR, not replace** — always `GetWindowLong` first, then OR in `WS_EX_TRANSPARENT`. Replacing removes `WS_EX_LAYERED` (breaks transparency, widget gets solid background) and `WS_EX_TOOLWINDOW` (widget reappears in Alt+Tab).
 
-1. **Rolling buffer seeded with StatsService zeros (P1)** — StatsService takes ~6s to initialize; samples pushed before `_initialized = true` are `0.0f`, depressing averages for the first minute. Mitigation: add `bool IsReady` property to StatsService and guard buffer pushes with `if (!_statsService.IsReady) return`.
+2. **WM_NCHITTEST HTTRANSPARENT fails for desktop click-through** — returning HTTRANSPARENT from WndProc only routes input to same-thread windows. Desktop and other applications are on different threads. Only `WS_EX_TRANSPARENT` achieves true desktop pass-through.
 
-2. **Hover fast-refresh corrupts average window sizes (P3)** — the 0.5s hover timer rate increases sample density 6x; count-based windows represent much shorter time spans than labeled. Mitigation: skip buffer push during hover fast-refresh ticks using an `_isHoverFastRefresh` flag.
+3. **Window_MouseLeave does not fire when WS_EX_TRANSPARENT is applied mid-hover** — Win32 stops delivering all mouse messages (including WM_MOUSELEAVE) immediately when `WS_EX_TRANSPARENT` is set. Hover state cleanup (backdrop, stats timer interval, `_isHoverFastRefresh = false`) must be performed synthetically before applying the style — every time, no exceptions.
 
-3. **`UptimeVisible` init default must be `true`, not `false` (P4)** — `bool` fields deserialize as `false` when absent from JSON; declaring without `= true` hides the uptime row on first launch and after upgrade. Mitigation: declare `public bool UptimeVisible { get; init; } = true`.
+4. **`Keyboard.IsKeyDown` is unreliable for unfocused overlays** — WPF keyboard state requires keyboard focus, which the transparent overlay never has. Use `GetAsyncKeyState(VK_CONTROL)` and `GetAsyncKeyState(VK_MENU)` via P/Invoke. MSB of the return value indicates the key is physically down.
 
-4. **`SaveSettings()` must include the new field (P7)** — omitting `UptimeVisible` from the inline `AppSettings` record construction silently resets the user's toggle choice to the init default on every restart. Mitigation: update `SaveSettings()` in the same commit as the `AppSettings` field addition.
-
-5. **Pre-Show() safety invariant violated by calling `SetUptimeRowVisible()` from `ApplySettings()` (P11)** — `SetUptimeRowVisible()` calls `UpdateLayout()` before `Show()`, producing `ActualHeight = 0` and corrupted position clamping. Mitigation: assign `UptimeRow.Visibility` directly in `ApplySettings()`, same as all other row visibility assignments.
-
-Additional moderate pitfalls: missing `ApplyTheme()` extension (P9, white text with non-white accents), missing `ContextMenu_Opened` sync (P10, inverts checkmark after first toggle), and missing `UpdateLayout()` + re-clamp in `SetUptimeRowVisible()` (P12, widget slides off screen near bottom edge when shown).
-
-See `.planning/research/PITFALLS.md` for all 12 pitfalls with code examples, detection symptoms, and a 12-item "looks done but isn't" verification checklist.
-
----
+5. **Never modify `_windowOpacity` in ghost mode** — `this.Opacity` is set to 0 during ghost; `_windowOpacity` is the user's configured value written by `SaveSettings()`. Conflating them persists ghost state to settings.json or corrupts opacity preset checkmarks on the context menu.
 
 ## Implications for Roadmap
 
-The research supports a clean 2-phase implementation structure that mirrors the existing codebase's separation of concerns. Each phase is independently testable and produces a fully shippable partial state.
+Based on combined research, 3 phases are recommended. The ordering is: isolated XAML change first (zero risk), then ghost core mechanism, then modifier key integration layered on top.
 
-### Phase 1: Infrastructure and Toggle (Settings + XAML + Wiring)
+### Phase 25: Centered Phrase Text
 
-**Rationale:** Settings plumbing and XAML layout have no dependencies on data logic, but data logic depends on them — the TextBlock must exist before it can be updated, and the settings field must exist before `ApplySettings()` can read it. Establishing this infrastructure first addresses the most dangerous pitfalls (P4, P7, P11) before any logic is written, and validates the full toggle lifecycle independently.
+**Rationale:** Fully isolated XAML change with zero behavioral risk. Validates the SizeToContent interaction before any ghost complexity is introduced.
+**Delivers:** `TextAlignment="Center"` on both `PhraseText` and `ShadowText` TextBlocks; centering is visible when StatsPanel is wider than phrase text.
+**Addresses:** CENTER-01
+**Avoids:** Pitfall 16 — centering requires a fixed-width container to have visual effect; verify both shadow and phrase blocks are updated together; verify centering works when StatsPanel is visible and has no apparent effect when stats panel is hidden (by design).
+**Research flag:** Skip — well-understood XAML property; SizeToContent interaction is fully documented in ARCHITECTURE.md.
 
-**Delivers:** A visible placeholder row (`up —`) in the correct position with correct accent color, toggleable via right-click menu, with state persisting across restarts. The widget is fully functional with no regression to existing behavior.
+### Phase 26: Ghost Mode Core (Click-Through)
 
-**Addresses:** UPT-02 (toggle visibility with persistence), AppSettings schema extension, XAML layout placement decision
+**Rationale:** Core click-through mechanism must be proven in isolation before the Ctrl+Alt modifier branch is added. This phase validates that Opacity=0 + WS_EX_TRANSPARENT makes the widget fully invisible and click-through, and that the restore path brings the widget back correctly with all hover state clean.
+**Delivers:** Always-on ghost mode: MouseEnter triggers Opacity=0 + WS_EX_TRANSPARENT; widget restores on mouse exit via WM_MOUSELEAVE (TrackMouseEvent) or DispatcherTimer fallback.
+**Uses:** `GetWindowLong`, `SetWindowLong`, `SetWindowPos` (SWP_FRAMECHANGED), `TrackMouseEvent` + WM_MOUSELEAVE 0x02A3, HwndSource.AddHook in ContentRendered.
+**Implements:** P/Invoke declarations block, `_ghostMode` field, hook/restore mechanism, modified MouseEnter (always-ghost path), modified MouseLeave (ghost restore path with synthetic cleanup).
+**Avoids:** Pitfall 1 (OR not replace), Pitfall 2 (WS_EX_TRANSPARENT not HTTRANSPARENT), Pitfall 3/7 (synthetic MouseLeave cleanup before applying WS_EX_TRANSPARENT), Pitfall 8 (Grid `#01000000` background never modified), Pitfall 13 (correct HWND via `WindowInteropHelper(this).Handle`), Pitfall 14 (UI thread — use DispatcherTimer not Task.Delay), Pitfall 15 (Opacity=0 alone insufficient).
+**Research flag:** MEDIUM confidence on TrackMouseEvent delivery post-WS_EX_TRANSPARENT. Attempt TrackMouseEvent first; if WM_MOUSELEAVE does not arrive in testing, switch to a 50–100ms DispatcherTimer polling `Mouse.GetPosition(this)` against `ActualWidth`/`ActualHeight` bounds. Both approaches are fully specified in STACK.md.
 
-**Avoids:**
-- P4: `UptimeVisible` init default set to `true` from the start
-- P6: UptimeRow placed as a sibling of StatsPanel (not a child), avoiding auto-collapse logic gap
-- P7: `SaveSettings()` updated in same commit as AppSettings field
-- P9: `ApplyTheme()` extended to cover UptimeText immediately
-- P10: `ContextMenu_Opened` sync added with the menu item
-- P11: `ApplySettings()` sets `UptimeRow.Visibility` directly, not via `SetUptimeRowVisible()`
-- P12: `SetUptimeRowVisible()` calls `UpdateLayout()` + re-clamp when showing the row
+### Phase 27: Ctrl+Alt Interaction Modifier
 
-**Stack:** `AppSettings bool UptimeVisible = true`, `TextBlock` in Row 2 of inner Grid, `SolidColorBrush` extension in `ApplyTheme()`
-
-**Research flag:** No deeper research needed — every pattern in this phase is directly established in the existing codebase. Zero novel patterns.
-
-### Phase 2: Data Display (Uptime + Rolling CPU Averages)
-
-**Rationale:** With the TextBlock and settings wired, display logic can be added incrementally. Implement uptime string first (stateless, trivially verifiable at any uptime value), then rolling averages (stateful, requires P1 and P3 guards). The stepwise approach within this phase allows uptime accuracy to be confirmed before introducing queue state and window-size logic.
-
-**Delivers:** Complete v2.1 feature — `up Xd Xh Xm  0.52  0.47  0.43` displayed in accent color, updating each stats timer tick, with accurate 1m/5m/15m averages that survive hover fast-refresh and StatsService cold-start.
-
-**Addresses:** UPT-01 (full display), uptime formatting edge cases (sub-hour, sub-day, multi-day, very long uptime), rolling average accuracy at all configured timer intervals (1s/3s/10s)
-
-**Avoids:**
-- P1: Buffer push guarded by `_statsService.IsReady`; requires adding `bool IsReady` property to StatsService
-- P2: `Environment.TickCount64` (Int64) used explicitly; `Environment.TickCount` (Int32, wraps at 24.9 days) never used
-- P3: Hover fast-refresh ticks excluded from buffer push
-- P8: Format string is `up {D}d {H}h {M}m` — no seconds component
-
-**Stack:** `Environment.TickCount64`, `TimeSpan.FromMilliseconds`, `Queue<float>` with interval-aware window sizing (`windowSamples = (int)Math.Ceiling(windowSeconds / _statsIntervalSeconds)`)
-
-**Architecture:** Extend `_statsTimer.Tick` handler with `UpdateUptimeDisplay()`, add `_cpuSamples` and `ComputeAvg()`, add `StatsService.IsReady` property
-
-**Research flag:** No deeper research needed — all algorithms are confirmed and fully specified in STACK.md and ARCHITECTURE.md with working code samples.
+**Rationale:** Built on verified ghost core. The modifier check is a single `if` statement prepended to `Window_MouseEnter`; if modifier is held, the existing backdrop + fast-refresh path runs unchanged.
+**Delivers:** Holding Ctrl+Alt on MouseEnter suppresses ghost activation; all existing hover interactions (drag, right-click, scroll) remain accessible. Next hover without modifier triggers ghost normally.
+**Uses:** `GetAsyncKeyState` with `VK_CONTROL` (0x11) + `VK_MENU` (0x12) — no new P/Invoke beyond Phase 26.
+**Avoids:** Pitfall 5 (Keyboard.IsKeyDown unreliable — use GetAsyncKeyState), Pitfall 6 (AltGr on European keyboards — documented acceptable limitation for US-English app; use `VK_LMENU` if deployment scope widens), Pitfall 4 (MouseEnter re-fires on WS_EX_TRANSPARENT removal — state machine handles re-entry correctly by design).
+**Research flag:** Skip — `GetAsyncKeyState` pattern is HIGH confidence official docs with verified constant values.
 
 ### Phase Ordering Rationale
 
-Phase 1 before Phase 2 is mandatory: the XAML element and settings field must exist before display logic can reference them at compile time. Within Phase 2, uptime string before rolling averages is strongly recommended: uptime is stateless and validates the display pipeline (TextBlock updates, format string, edge cases) without introducing queue state, interval-aware window sizing, or the cold-start and hover guards. Both phases are small enough to constitute a single v2.1 milestone delivery, but implementing them as distinct verifiable steps is consistent with the existing milestone delivery pattern established in ARCHITECTURE.md.
+- Phase 25 first because it is a zero-risk isolated XAML change that can ship independently and does not interact with ghost mode logic at all.
+- Phase 26 before Phase 27 because click-through verification must precede modifier logic — you cannot test "Ctrl+Alt suppresses ghost" until ghost itself works reliably.
+- Phase 27 strictly additive to Phase 26 — one `if` statement at the top of `Window_MouseEnter`.
+- In yolo mode, Phases 26 and 27 can be merged into one implementation pass given the small total line count (~20 lines C#). The split is for incremental human verification.
 
 ### Research Flags
 
-All phases have HIGH-confidence, complete code examples in the research files. No phase requires `/gsd:research-phase`.
+Phases needing deeper attention during execution:
+- **Phase 26 (Ghost Core):** TrackMouseEvent restore path has MEDIUM confidence — delivery after WS_EX_TRANSPARENT is applied is not explicitly documented. The executing agent must verify in code and fall back to DispatcherTimer polling if WM_MOUSELEAVE does not fire.
+- **Phase 26 (Ghost Core):** ARCHITECTURE.md and PITFALLS.md diverge on click-through mechanism. Phase execution must use `WS_EX_TRANSPARENT` (STACK.md + FEATURES.md + PITFALLS.md consensus), not WM_NCHITTEST (ARCHITECTURE.md).
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Infrastructure):** Every pattern directly established in the existing codebase — init-property AppSettings fields, XAML row addition, IsCheckable toggle wiring, pre-Show visibility assignment, ApplyTheme brush extension, SaveSettings record construction.
-- **Phase 2 (Data Display):** `Environment.TickCount64` confirmed via official .NET 10 docs; `TimeSpan` component semantics confirmed with numeric example; rolling average Queue pattern is standard and fully specified in STACK.md and ARCHITECTURE.md with working code.
-
----
+Phases with standard patterns (skip research-phase):
+- **Phase 25 (XAML centering):** Trivial XAML attribute addition; no research needed.
+- **Phase 27 (Ctrl+Alt):** GetAsyncKeyState pattern is HIGH confidence; no research needed.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All APIs confirmed via official .NET 10 docs; zero new dependencies; all patterns validated in v1.x–v2.0 milestones; ring buffer capacity arithmetic verified |
-| Features | HIGH | Scope constrained by spec; feature list grounded in direct codebase inspection and first-party PROJECT.md; no feature ambiguity |
-| Architecture | HIGH | Based on direct source code reading; build order is step-by-step verifiable; no inferences required; XAML layout fully specified |
-| Pitfalls | HIGH | All 12 pitfalls derived from reading actual source files and official API docs; not from general heuristics; working mitigations provided for all |
+| Stack | HIGH | All P/Invoke APIs sourced from official Microsoft docs; constant values verified; zero new dependencies |
+| Features | HIGH | MVP scope is tightly defined by spec and codebase inspection; feature boundaries are unambiguous |
+| Architecture | MEDIUM | ARCHITECTURE.md uses WM_NCHITTEST which PITFALLS.md definitively rejects; overall structure (Opacity=0 + style toggle + handler revision) is correct but restore mechanism requires verification |
+| Pitfalls | HIGH | 16 pitfalls, all grounded in direct source code reading or official Win32/WPF docs; critical mitigations are concrete and actionable |
 
-**Overall confidence:** HIGH
+**Overall confidence:** HIGH — the implementation is small and well-bounded. The MEDIUM architecture area has a clear resolution (use WS_EX_TRANSPARENT, not WM_NCHITTEST) and a documented fallback for the one MEDIUM-confidence API behavior (TrackMouseEvent restore).
 
 ### Gaps to Address
 
-- **`StatsService.IsReady` property:** The rolling average cold-start guard (P1) requires exposing `StatsService._initialized` as a public `bool IsReady` property. Research classified `StatsService.cs` as "unchanged," but this one-line addition is required for correctness. The implementation phase should add this property to `StatsService.cs` before wiring the buffer push guard.
+- **TrackMouseEvent restore path (MEDIUM confidence):** Whether `TrackMouseEvent` delivers WM_MOUSELEAVE after `WS_EX_TRANSPARENT` is applied is not explicitly documented by Microsoft. Phase 26 must verify this experimentally. If WM_MOUSELEAVE does not arrive, the fallback is a 50–100ms `DispatcherTimer` (`_ghostRestoreTimer`) polling `Mouse.GetPosition(this)` against `ActualWidth`/`ActualHeight` bounds — fully specified in FEATURES.md with state machine detail.
 
-- **Hover fast-refresh flag:** P3 mitigation requires knowing whether the current stats timer tick is a hover-rate tick. The implementation should verify at Phase 2 start whether `MainWindow.xaml.cs` already exposes an `_isHoverFastRefresh` flag or equivalent from the Phase 12 fast-refresh implementation, and add one if it does not exist.
+- **ARCHITECTURE.md divergence on click-through mechanism:** ARCHITECTURE.md describes WM_NCHITTEST HTTRANSPARENT as the click-through approach. This is rejected by PITFALLS.md Pitfall 2 (same-thread constraint). Phase execution must use `WS_EX_TRANSPARENT` per the STACK.md, FEATURES.md, and PITFALLS.md consensus. The ARCHITECTURE.md description of `Window_MouseLeave` as the restore trigger is only valid under the WM_NCHITTEST model and should not be relied upon.
 
-- **`TickCount64` suspend behavior:** Research confirms that `Environment.TickCount64` on .NET 10/Windows includes sleep/hibernate time per official docs. However, the docs note this behavior changes in .NET 11 (sleep time excluded). The implementation should include an explicit code comment documenting the deliberate choice of `TickCount64` over WMI, and noting that `.NET 10 includes suspend time` so future upgraders understand the semantic.
-
----
+- **AltGr keyboard behavior:** Using `VK_MENU` (any Alt) will trigger ghost suppression when AltGr is pressed on European keyboards during AltGr-character input in any application. This is documented and acceptable for a personal US-English deployment. If deployment target changes to include European keyboard layouts, switch to `VK_LMENU` (0xA4, left Alt only) to exclude AltGr.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `MainWindow.xaml.cs`, `StatsService.cs`, `AppSettings.cs`, `SettingsService.cs`, `MainWindow.xaml` — direct source code inspection, 2026-02-27
-- `PROJECT.md` Key Decisions table — 40+ validated architectural decisions, read directly
-- `Environment.TickCount64` (net-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.environment.tickcount64?view=net-10.0 — Int64, milliseconds since system start, Windows sleep-time behavior confirmed
-- `TimeSpan` struct (net-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.timespan?view=net-10.0 — `Days`/`Hours`/`Minutes` component semantics confirmed with numeric example; `FromMilliseconds(long)` overload confirmed
-- .NET 11 breaking change for `TickCount64` (sleep time excluded in .NET 11+): https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/11/environment-tickcount-windows-behavior
-- Win32 `GetTickCount64`: https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-gettickcount64
-- Prior milestone research (v1.2 StatsService, v1.4 PAG counter): `.planning/milestones/v1.2-phases/07-statsservice/07-RESEARCH.md`
+- `MainWindow.xaml.cs` — existing Window_MouseEnter, Window_MouseLeave, SetOpacity, ContentBorder, HwndSource patterns (codebase, inspected 2026-03-02)
+- `MainWindow.xaml` — AllowsTransparency, Background="#01000000" hit-test trick, SizeToContent (codebase, inspected 2026-03-02)
+- `PROJECT.md` — Key Decisions table including PreviewMouseWheel, hidden owner window, WinForms interop (codebase, inspected 2026-03-02)
+- Microsoft Win32 — Window Features / Layered Windows: WS_EX_TRANSPARENT behavior with WS_EX_LAYERED (learn.microsoft.com/en-us/windows/win32/winmsg/window-features, updated 2026-02-21)
+- Microsoft Win32 — Extended Window Styles: WS_EX_TRANSPARENT = 0x00000020 (learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles, updated 2025-07-14)
+- Microsoft Win32 — SetWindowPos Remarks: SWP_FRAMECHANGED requirement after SetWindowLong (learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)
+- Microsoft Win32 — GetWindowLongPtr / SetWindowLongPtr / GWL_EXSTYLE = -20 (learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw)
+- Microsoft Win32 — GetAsyncKeyState: physical key state, focus-independent; VK_CONTROL=0x11, VK_MENU=0x12 (learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate, updated 2026-01-29)
+- Microsoft Win32 — WM_NCHITTEST: HTTRANSPARENT same-thread constraint (learn.microsoft.com/en-us/windows/win32/inputdev/wm-nchittest, updated 2025-07-14)
+- Microsoft Win32 — TrackMouseEvent + TME_LEAVE; WM_MOUSELEAVE = 0x02A3 (learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent)
+- Microsoft Win32 — Virtual-Key Codes: VK_LCONTROL=0xA2, VK_LMENU=0xA4, VK_RMENU=0xA5 (learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes)
+- Microsoft .NET 10 — HwndSource.AddHook (learn.microsoft.com/en-us/dotnet/api/system.windows.interop.hwndsource, updated 2026-02-11)
+- Microsoft .NET 10 — Keyboard.Modifiers / ModifierKeys enum (learn.microsoft.com/en-us/dotnet/api/system.windows.input.keyboard.modifiers?view=windowsdesktop-10.0)
 
 ### Secondary (MEDIUM confidence)
-- EWMA formula (`α = 1 - e^(-t/window)`) — standard exponential moving average; Linux kernel `include/linux/sched/loadavg.h` as canonical reference; well-known algorithm
-- WMI `ManagementObjectSearcher` startup latency (100ms–2000ms) — established in Microsoft developer documentation; consistent with prior v1.2 research rejecting WMI for stats counters
-- `Environment.TickCount64` suspend behavior on ACPI platforms — partially platform/driver dependent; official docs confirm Windows .NET 10 behavior
+- TrackMouseEvent delivery after WS_EX_TRANSPARENT applied — HWND-keyed per docs but cross-transparency delivery not explicitly stated; verify during Phase 26 execution
+- WPF MouseLeave fires after HTTRANSPARENT return (ARCHITECTURE.md) — deducible from WPF InputManager architecture; rejected for production use by Pitfall 2 cross-thread analysis
+- AltGr = VK_LCONTROL + VK_RMENU synthesized by Windows OS input stack — established Windows behavior across all versions; consistent with GetAsyncKeyState documentation
 
 ---
-*Research completed: 2026-02-27*
+*Research completed: 2026-03-02*
 *Ready for roadmap: yes*

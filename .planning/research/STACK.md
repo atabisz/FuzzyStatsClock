@@ -1,33 +1,34 @@
-# Technology Stack: v2.1 Uptime and Rolling CPU Load Averages
+# Technology Stack: v2.3 Ghost Mode
 
-**Project:** FuzzyClock — uptime display + rolling 1m/5m/15m CPU load averages
-**Researched:** 2026-02-27
+**Project:** FuzzyClock — hover-hide (Opacity=0 + click-through) and Ctrl+Alt interaction modifier
+**Researched:** 2026-03-02
 **Scope:** Additions only — existing validated stack is unchanged
 **Confidence:** HIGH
 
 ---
 
-## What Changes vs v2.0
+## What Changes vs v2.2
 
-v2.0 stack (already validated, not re-researched):
+v2.2 stack (already validated, not re-researched):
 - .NET 10, C# 13, WPF (`net10.0-windows`)
+- `AllowsTransparency=True` / `WindowStyle=None` transparent frameless overlay
+- `WindowInteropHelper` for HWND access
+- `HwndSource.FromHwnd(hwnd)` + `HwndSource.AddHook` for Win32 message interception
+- `UseWindowsForms=true` (System.Drawing, NotifyIcon active since v2.0)
+- `Window.Opacity` property for whole-window opacity
+- WPF `MouseEnter` / `MouseLeave` events (used for hover-fast-refresh and backdrop)
 - `System.Text.Json` for settings persistence
-- `DispatcherTimer` for periodic UI updates
-- `System.Windows.Controls` (TextBlock, ContextMenu, Grid, Border)
-- `System.Windows.Shapes` (Line, Ellipse)
-- `System.Diagnostics.PerformanceCounter` (NuGet 10.0.0)
-- `System.Windows.Forms.ColorDialog` (UseWindowsForms=true)
-- Code-behind pattern — no MVVM, no data bindings
+- `System.Diagnostics.PerformanceCounter` NuGet 10.0.0
 
-v2.1 stack additions:
+v2.3 stack additions:
 
 | Layer | What's Added | csproj Change |
 |-------|-------------|---------------|
-| Uptime source | `Environment.TickCount64` (System namespace, System.Runtime.dll) | None — already referenced |
-| Uptime formatting | `TimeSpan.FromMilliseconds()` + `.Days` / `.Hours` / `.Minutes` (System namespace) | None — already referenced |
-| Rolling averages | Pure C# circular buffer (`float[]` + `long[]` timestamps) inside `StatsService` | None — no external dependency |
-| AppSettings extension | One new `bool` init-property: `UptimeVisible` | None — same pattern as all previous fields |
-| XAML row | One new `TextBlock` below stats panel | None — same pattern as existing stat rows |
+| Click-through toggle | `GetWindowLong` + `SetWindowLong` P/Invoke to read/write `WS_EX_TRANSPARENT` on `GWL_EXSTYLE` | None — `user32.dll` always available |
+| Style flush | `SetWindowPos` P/Invoke with `SWP_FRAMECHANGED` to commit extended style change | None — `user32.dll` |
+| Mouse-leave from transparent state | `TrackMouseEvent` P/Invoke + `WM_MOUSELEAVE` handler in `HwndSource` hook | None — `user32.dll` |
+| Modifier key check | `GetAsyncKeyState` P/Invoke, checked in `MouseEnter` handler | None — `user32.dll` |
+| AppSettings extension | One new `bool` init-property: `GhostModeEnabled` | None — same pattern |
 
 **Zero new NuGet packages. Zero csproj changes.**
 
@@ -39,189 +40,344 @@ v2.1 stack additions:
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `Environment.TickCount64` (static property) | net-10.0 (`System.Runtime.dll`, in-box) | Read milliseconds elapsed since system start — the raw uptime value | Single line: `TimeSpan uptime = TimeSpan.FromMilliseconds(Environment.TickCount64)`. No P/Invoke, no PDH counter, no WMI. Already available in `System` namespace which is globally imported. On .NET 10 / Windows, includes sleep/hibernate time — this matches standard OS uptime behavior (Task Manager, `net statistics server`, etc.). Overflows `Int32.MaxValue` (~49 days) gracefully because it returns `Int64` (overflows after ~292 million years). |
-| `TimeSpan.FromMilliseconds(long)` + `.Days` / `.Hours` / `.Minutes` | net-10.0 (`System.Runtime.dll`, in-box) | Convert raw milliseconds to structured time components for `up 3d 14h 22m` display | `TimeSpan.Days` returns the integer days component (not total — e.g., `3` for 3.5 days, `Hours` = 12 for the remaining hours). Standard format: `$"up {ts.Days}d {ts.Hours}h {ts.Minutes}m"` with conditional suppression of `0d` when uptime is under one day. No parsing, no custom math. |
-| Circular buffer in `StatsService` (pure C#, no library) | N/A — plain arrays | Accumulate time-stamped CPU samples to compute accurate 1m/5m/15m rolling averages | The existing `StatsService.Refresh()` is called by the stats `DispatcherTimer` at variable rates (0.5s hover / 1s / 3s / 10s). A fixed-size ring buffer of `(float value, long timestampMs)` pairs, combined with a LINQ-style walk that discards samples older than the window, produces accurate time-weighted or simple averages regardless of sample rate. Capacity of 1800 entries (one per second for 30 minutes) covers all three windows at any timer rate. `float[]` + `long[]` parallel arrays avoid boxing; `Queue<(float, long)>` is equivalent but slightly higher allocation. Plain array ring buffer is idiomatic for this pattern in embedded/desktop telemetry code. |
+| `GetWindowLong` / `SetWindowLong` (user32.dll) | Win32 (all Windows versions) | Read and write the extended window style to toggle `WS_EX_TRANSPARENT` | The only way to add/remove `WS_EX_TRANSPARENT` on an existing HWND at runtime. WPF has no managed API for extended window styles. `SetWindowLong` with `GWL_EXSTYLE` is the canonical Win32 mechanism. Use `GetWindowLong` first to preserve existing style bits. |
+| `SetWindowPos` (user32.dll) | Win32 (all Windows versions) | Flush the extended style change to the window manager | Per Microsoft docs: "If you have changed certain window data using SetWindowLong, you must call SetWindowPos for the changes to take effect." Required flags: `SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED`. Without this call, `WS_EX_TRANSPARENT` may not apply reliably. |
+| `TrackMouseEvent` (user32.dll) + `WM_MOUSELEAVE` | Win32 (all Windows versions) | Receive notification when mouse leaves the widget's HWND rectangle, even while the window is transparent and click-through | When `WS_EX_TRANSPARENT` is active, the window does not receive mouse events, so WPF's `MouseLeave` will never fire. `TrackMouseEvent` registers a one-shot OS-level notification tied to the HWND, not the hit-test state. The OS posts `WM_MOUSELEAVE` when the cursor exits the window's rectangle regardless of hit-test eligibility. Received via existing `HwndSource.AddHook` — zero new infrastructure. |
+| `GetAsyncKeyState` (user32.dll) | Win32 (all Windows versions) | Check physical Ctrl+Alt key state in `MouseEnter` handler | WPF's `Keyboard.IsKeyDown` only reflects state when the WPF window has keyboard focus. The transparent overlay does not normally hold focus. `GetAsyncKeyState` checks physical key state independently of focus, returning a `SHORT` whose MSB indicates the key is currently down. |
 
-### Rolling Average Algorithm Detail
+---
 
-The stats timer fires at variable rates (0.5s during hover, 1/3/10s configured). Accurate window averages require time-aware sampling, not count-based averaging:
+## Win32 P/Invoke Declarations
+
+### 1. GetWindowLong — Read Current Extended Style
+
+**Purpose:** Read `GWL_EXSTYLE` before OR-ing in `WS_EX_TRANSPARENT`, preserving all existing style bits.
+
+**Source:** [Microsoft Docs — GetWindowLongPtrW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw) (HIGH confidence)
 
 ```csharp
-// In StatsService — parallel ring buffer approach
-private const int LoadBufferCapacity = 1800;  // 30 min at 1-sample/sec maximum
-private float[] _loadValues     = new float[LoadBufferCapacity];
-private long[]  _loadTimestamps = new long[LoadBufferCapacity];  // Environment.TickCount64 ms
-private int     _loadHead       = 0;   // next write position (overwrites oldest)
-private int     _loadCount      = 0;   // total entries filled (capped at capacity)
+[DllImport("user32.dll", SetLastError = true)]
+private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+```
 
-// Called inside Refresh(), after CpuPercent is updated:
-private void RecordLoadSample()
+**Note:** In C# P/Invoke, `GetWindowLong` (not `GetWindowLongPtr`) is the correct name. The CLR marshals it correctly for both 32-bit and 64-bit processes. `GWL_EXSTYLE = -20` (documented constant value).
+
+---
+
+### 2. SetWindowLong — Toggle WS_EX_TRANSPARENT
+
+**Purpose:** Add `WS_EX_TRANSPARENT` to enter ghost mode; remove it to restore interactive mode.
+
+**Source:** [Microsoft Docs — SetWindowLongPtrW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongptrw) (HIGH confidence)
+
+```csharp
+[DllImport("user32.dll", SetLastError = true)]
+private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+```
+
+**Why `WS_EX_TRANSPARENT` and not just `Opacity=0`:** Setting `Window.Opacity=0` makes the window visually invisible but the HWND remains fully hit-testable. The OS still delivers `WM_NCHITTEST` to it and it intercepts clicks. `WS_EX_TRANSPARENT` instructs the OS to exclude this window from hit-testing entirely, passing mouse events to whatever is underneath. Both are required together: `Opacity=0` for visual invisibility, `WS_EX_TRANSPARENT` for input pass-through.
+
+**Sequence to enter ghost mode (in MouseEnter, when Ctrl+Alt not held):**
+```csharp
+// 1. Register leave notification BEFORE going transparent
+var tme = new TRACKMOUSEEVENT
 {
-    _loadValues[_loadHead]     = CpuPercent;
-    _loadTimestamps[_loadHead] = Environment.TickCount64;
-    _loadHead = (_loadHead + 1) % LoadBufferCapacity;
-    if (_loadCount < LoadBufferCapacity) _loadCount++;
+    cbSize    = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(),
+    dwFlags   = TME_LEAVE,
+    hwndTrack = _hwnd,
+    dwHoverTime = 0
+};
+TrackMouseEvent(ref tme);
+
+// 2. Set transparent + invisible
+int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
+SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+this.Opacity = 0.0;
+```
+
+**Sequence to restore (in WM_MOUSELEAVE handler):**
+```csharp
+this.Opacity = _savedUserOpacity;
+int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
+SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+```
+
+---
+
+### 3. SetWindowPos — Flush Style Change
+
+**Purpose:** Commit the `GWL_EXSTYLE` change to the window manager. Required by Windows after any `SetWindowLong` call.
+
+**Source:** [Microsoft Docs — SetWindowPos, Remarks section](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos) (HIGH confidence — explicitly documented requirement)
+
+```csharp
+[DllImport("user32.dll", SetLastError = true)]
+private static extern bool SetWindowPos(
+    IntPtr hWnd,
+    IntPtr hWndInsertAfter,
+    int X, int Y, int cx, int cy,
+    uint uFlags);
+```
+
+**Call pattern (no geometry change, flush style only):**
+```csharp
+SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+```
+
+`SWP_FRAMECHANGED = 0x0020` triggers `WM_NCCALCSIZE` and flushes the cached window data. This is the exact combination documented in the SetWindowPos Remarks: "Use the following combination for uFlags: `SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED`."
+
+---
+
+### 4. TrackMouseEvent — Subscribe to WM_MOUSELEAVE
+
+**Purpose:** Register a one-shot OS notification that fires `WM_MOUSELEAVE` when the mouse cursor exits the widget's HWND rectangle — even after `WS_EX_TRANSPARENT` has been set.
+
+**Source:** [Microsoft Docs — TrackMouseEvent](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent), [Microsoft Docs — WM_MOUSELEAVE](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mouseleave) (HIGH confidence)
+
+```csharp
+[DllImport("user32.dll")]
+private static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT lpEventTrack);
+
+[StructLayout(LayoutKind.Sequential)]
+private struct TRACKMOUSEEVENT
+{
+    public uint   cbSize;
+    public uint   dwFlags;
+    public IntPtr hwndTrack;
+    public uint   dwHoverTime;
 }
+```
 
-// Compute average for a window (e.g. windowMs = 60_000 for 1-minute)
-public float GetLoadAverage(long windowMs)
+**Call pattern (register for TME_LEAVE, called in MouseEnter BEFORE setting WS_EX_TRANSPARENT):**
+```csharp
+var tme = new TRACKMOUSEEVENT
 {
-    long cutoff = Environment.TickCount64 - windowMs;
-    float sum = 0f;
-    int   cnt = 0;
-    // Walk backwards from newest to oldest
-    for (int i = 1; i <= _loadCount; i++)
+    cbSize      = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(),
+    dwFlags     = TME_LEAVE,
+    hwndTrack   = _hwnd,
+    dwHoverTime = 0
+};
+TrackMouseEvent(ref tme);
+```
+
+**Critical behavior:** `TrackMouseEvent` is one-shot. When `WM_MOUSELEAVE` fires, the OS cancels all tracking for that HWND. The next time the mouse enters, `MouseEnter` fires again (because `WS_EX_TRANSPARENT` was removed at that point), and `TrackMouseEvent` must be called again. This is a natural re-registration pattern that matches the existing `MouseEnter` handler.
+
+**Why not WH_MOUSE_LL (global low-level mouse hook):** A global hook runs on the UI thread for every mouse move system-wide, degrading responsiveness for all applications. It is flagged by security software and antivirus tools. It requires careful unhooking to avoid leaving a dangling hook that stalls system input processing. `TrackMouseEvent` is the Windows-correct mechanism for this exact use case, delivers the notification at zero polling cost, and requires no system-wide interception.
+
+**Why not polling GetCursorPos on DispatcherTimer:** Polling introduces up to one poll-interval of latency (the mouse is visually gone but the window hasn't restored yet), burns CPU for the entire lifetime of the app, and requires tracking the widget's bounding rectangle manually. `WM_MOUSELEAVE` is edge-triggered with system-level accuracy.
+
+---
+
+### 5. WM_MOUSELEAVE — Message Constant for HwndSource Hook
+
+**Purpose:** The numeric constant for the Win32 message to handle inside the `HwndSourceHook` delegate.
+
+**Source:** [Microsoft Docs — WM_MOUSELEAVE](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mouseleave) (HIGH confidence)
+
+```csharp
+private const int WM_MOUSELEAVE = 0x02A3;
+```
+
+**Hook handler (added in ContentRendered via HwndSource.AddHook):**
+```csharp
+private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+{
+    if (msg == WM_MOUSELEAVE)
     {
-        int idx = (_loadHead - i + LoadBufferCapacity) % LoadBufferCapacity;
-        if (_loadTimestamps[idx] < cutoff) break;
-        sum += _loadValues[idx];
-        cnt++;
+        OnGhostMouseLeave();
+        handled = true;
     }
-    return cnt > 0 ? sum / cnt : 0f;
+    return IntPtr.Zero;
 }
-
-// Exposed properties (computed on demand during Refresh, cached as fields):
-public float Load1m  { get; private set; }
-public float Load5m  { get; private set; }
-public float Load15m { get; private set; }
 ```
 
-**Why "break on first old sample" is valid:** The ring buffer fills from oldest to newest; walking backwards from the current head means samples are in descending time order. The first sample older than the cutoff guarantees all remaining samples are also older. This makes the average O(n) in window size, not O(capacity).
-
-**Why cached properties not on-demand compute:** `MainWindow` reads load averages once per `_statsTimer` tick to update the UI. Caching `Load1m`/`Load5m`/`Load15m` in `Refresh()` avoids triple-iteration of the buffer per tick.
-
-**Confidence:** HIGH — `Environment.TickCount64` behavior on .NET 10 / Windows confirmed via official docs. Ring buffer algorithm is standard; no external source required.
+**Integration:** The project already obtains `HwndSource` via `HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)` for the v2.0 ColorDialog HWND adapter. Adding `hwndSource.AddHook(WndProc)` in `ContentRendered` is one line — zero new infrastructure.
 
 ---
 
-### Uptime Formatting Detail
+### 6. GetAsyncKeyState — Ctrl+Alt Modifier Detection
+
+**Purpose:** Test whether the user is holding Ctrl+Alt at the moment `MouseEnter` fires. If yes, suppress ghost mode and keep the widget visible and interactive.
+
+**Source:** [Microsoft Docs — GetAsyncKeyState](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate), [Microsoft Docs — Virtual-Key Codes](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes) (HIGH confidence)
 
 ```csharp
-// In StatsService or inline in MainWindow timer handler:
-public static string FormatUptime()
+[DllImport("user32.dll")]
+private static extern short GetAsyncKeyState(int vKey);
+```
+
+**Virtual key constants:**
+```csharp
+private const int VK_CONTROL = 0x11;  // Ctrl key (either left or right)
+private const int VK_MENU    = 0x12;  // Alt key (either left or right)
+```
+
+**Usage:**
+```csharp
+private static bool IsCtrlAltHeld()
 {
-    TimeSpan ts = TimeSpan.FromMilliseconds(Environment.TickCount64);
-    // "up 3d 14h 22m"  — suppress 0d for uptime under 1 day
-    return ts.Days > 0
-        ? $"up {ts.Days}d {ts.Hours}h {ts.Minutes}m"
-        : $"up {ts.Hours}h {ts.Minutes}m";
+    // The most significant bit of the return value is set when the key is down.
+    // A negative short value means the MSB is set.
+    return (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0
+        && (GetAsyncKeyState(VK_MENU)    & 0x8000) != 0;
 }
 ```
 
-`TimeSpan.Days` is the integer days component (0–int.MaxValue), confirmed correct. `TimeSpan.Hours` is 0–23 (the hours remainder after full days). `TimeSpan.Minutes` is 0–59 (the minutes remainder after full hours). No custom arithmetic needed.
+**Why `GetAsyncKeyState` and not `Keyboard.IsKeyDown`:** WPF's `Keyboard.IsKeyDown` only reports state for the keyboard message queue of the current WPF application when it has keyboard focus. The transparent widget overlay does not normally hold keyboard focus — it is designed to be a passive overlay. `GetAsyncKeyState` queries the physical key state at the OS level, independent of focus, as documented: "Determines whether a key is up or down at the time the function is called."
 
-**Confidence:** HIGH — `TimeSpan.Days`, `TimeSpan.Hours`, `TimeSpan.Minutes` component semantics confirmed in official net-10.0 docs (see example: 229 days 5 hours 30 minutes = `.Days=229`, `.Hours=5`, `.Minutes=30`).
+**Why `VK_CONTROL` / `VK_MENU` (not left/right variants):** These generic codes match either the left or right key, so Ctrl+Alt works with either hand. `VK_LCONTROL (0xA2)` / `VK_LMENU (0xA4)` would be more specific but unnecessarily restrictive.
+
+**AltGr note:** On European keyboards, AltGr sends `VK_LCONTROL` + `VK_RMENU` simultaneously. Because we use the generic `VK_CONTROL` + `VK_MENU`, AltGr will incorrectly trigger Ctrl+Alt mode on those keyboards. For a personal-use app on a US English layout, this is acceptable. If needed in future, use `VK_LCONTROL (0xA2)` + `VK_LMENU (0xA4)` to require strictly left-side keys.
 
 ---
 
-### AppSettings Extension
+## WM_NCHITTEST Override — NOT Required
+
+Handling `WM_NCHITTEST` to return `HTTRANSPARENT = -1` is an alternative click-through mechanism but has disadvantages for this use case:
+
+- It fires on every `WM_MOUSEMOVE` over the window, requiring a permanent `HwndSource` hook that routes every pointer event
+- The window still receives `WM_MOUSEMOVE` (it just declines hit-testing) — mouse events are not fully passed through at the OS level
+- `WS_EX_TRANSPARENT` is more complete: the OS excludes the window from hit-testing before `WM_NCHITTEST` is even generated
+
+Use `WS_EX_TRANSPARENT` via `SetWindowLong`. Do not implement `WM_NCHITTEST`.
+
+---
+
+## Mouse Enter/Leave Design: The Two-Phase Protocol
+
+### The Core Problem
+
+When the widget is in ghost mode (`WS_EX_TRANSPARENT` + `Opacity=0`), the HWND still exists but the OS skips it during hit-testing. No mouse messages reach it. WPF's `MouseLeave` will never fire. The widget would stay hidden forever unless another mechanism delivers the leave signal.
+
+### Solution: Register Before Going Transparent
+
+**Phase 1 — WPF MouseEnter (window is still hit-testable at this moment):**
+1. Check `IsCtrlAltHeld()`
+2. If Ctrl+Alt held: do nothing — window stays visible and interactive as before
+3. If not held: call `TrackMouseEvent(TME_LEAVE)` to register leave tracking, THEN set `WS_EX_TRANSPARENT` + `Opacity=0`
+
+**Phase 2 — Win32 WM_MOUSELEAVE arrives in HwndSource hook:**
+1. Remove `WS_EX_TRANSPARENT`
+2. Restore `Opacity = _savedUserOpacity`
+
+**Why the ordering matters:** `TrackMouseEvent` is called while the window is still hit-testable and can receive messages. The OS records the HWND registration. When the window subsequently becomes transparent (and stops receiving normal mouse events), the OS still delivers `WM_MOUSELEAVE` when the cursor exits the window rectangle because the tracking is keyed to the HWND identity, not its hit-test state.
+
+**Confidence for this ordering:** MEDIUM — the documented behavior of `TrackMouseEvent` states it "Posts messages when the mouse pointer leaves a window" and that tracking is tied to `hwndTrack`. The docs do not explicitly state delivery continues after `WS_EX_TRANSPARENT` is set. This specific sequence should be verified during phase execution. If it does not work, the fallback is a `DispatcherTimer` polling `GetCursorPos` against the widget's bounding rect (higher latency, more CPU, but reliable).
+
+---
+
+## Integration Points in Existing Code
+
+| Location | Change |
+|----------|--------|
+| `MainWindow.xaml.cs` — P/Invoke region | Add 5 `[DllImport]` declarations + 1 struct + all constants |
+| `ContentRendered` | Obtain `_hwnd`; get `HwndSource`; call `AddHook(WndProc)` |
+| `Window_MouseEnter` | Check `IsCtrlAltHeld()`; if not held, call `TrackMouseEvent` then set ghost mode |
+| New `WndProc` method | Handle `WM_MOUSELEAVE` — restore opacity and clear `WS_EX_TRANSPARENT` |
+| `ApplySettings()` | Cache `settings.Opacity` into `_savedUserOpacity` before any runtime changes |
+| `AppSettings` record | Add `bool GhostModeEnabled { get; init; } = true;` |
+
+**Conflict with existing MouseEnter/MouseLeave handlers:** The existing `Window_MouseEnter` and `Window_MouseLeave` handlers manage hover-fast-refresh and the semi-transparent backdrop (`ContentBorder.Background`). Ghost mode logic must be integrated at the top of `Window_MouseEnter` — if ghost mode activates, clear the backdrop (set to transparent) before going invisible to avoid a residual dark rectangle flash.
+
+**No new files required.** All P/Invoke and logic additions fit in `MainWindow.xaml.cs`.
+
+---
+
+## Complete P/Invoke Block (Ready to Copy)
 
 ```csharp
-// Add one field to the existing AppSettings record:
-public bool UptimeVisible { get; init; } = true;   // default: visible
+// --- Ghost Mode P/Invoke (v2.3) ---
+
+[DllImport("user32.dll", SetLastError = true)]
+private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+[DllImport("user32.dll", SetLastError = true)]
+private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+[DllImport("user32.dll", SetLastError = true)]
+private static extern bool SetWindowPos(
+    IntPtr hWnd, IntPtr hWndInsertAfter,
+    int X, int Y, int cx, int cy, uint uFlags);
+
+[DllImport("user32.dll")]
+private static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT lpEventTrack);
+
+[DllImport("user32.dll")]
+private static extern short GetAsyncKeyState(int vKey);
+
+[StructLayout(LayoutKind.Sequential)]
+private struct TRACKMOUSEEVENT
+{
+    public uint   cbSize;
+    public uint   dwFlags;
+    public IntPtr hwndTrack;
+    public uint   dwHoverTime;
+}
+
+// GWL_EXSTYLE
+private const int  GWL_EXSTYLE        = -20;
+// WS_EX_TRANSPARENT: window excluded from hit-testing; clicks pass through
+private const int  WS_EX_TRANSPARENT  = 0x00000020;
+// SetWindowPos flags
+private const uint SWP_NOSIZE         = 0x0001;
+private const uint SWP_NOMOVE         = 0x0002;
+private const uint SWP_NOZORDER       = 0x0004;
+private const uint SWP_FRAMECHANGED   = 0x0020;  // flush SetWindowLong changes
+// TrackMouseEvent flag
+private const uint TME_LEAVE          = 0x00000002;
+// Win32 message value
+private const int  WM_MOUSELEAVE      = 0x02A3;
+// Virtual key codes
+private const int  VK_CONTROL         = 0x11;    // Ctrl (either side)
+private const int  VK_MENU            = 0x12;    // Alt (either side)
 ```
 
-`bool` init-property follows the same pattern as `CpuVisible`, `GpuVisible`, `MemVisible`, `PagVisible`. `System.Text.Json` deserializes it natively. Old settings.json without this field loads the default (`true`) — forward-compatible with no migration needed.
-
-**Why default `true`:** The feature is new and opt-out. Users who have not yet toggled the menu see the row on first launch — they discover it exists, then can hide it if unwanted. Matches `StatsVisible = false` not being the right default here because uptime is a single compact line (low visual weight), not a full multi-row panel.
-
-**Confidence:** HIGH — `bool` init-property serialization pattern validated across all prior milestones (v1.2–v2.0).
-
 ---
 
-### XAML Addition
+## AppSettings Extension
 
-One new compact row below the stats panel, same structural pattern as the `StatsPanel` StackPanel rows:
-
-```xml
-<!-- Below StatsPanel in the main StackPanel/Grid: -->
-<TextBlock x:Name="UptimeLine"
-           FontFamily="Segoe UI Light"
-           FontSize="11"
-           Foreground="White"
-           Opacity="0.85"
-           TextWrapping="NoWrap"
-           Visibility="Visible"
-           Margin="0,2,0,0"
-           Text="up 0h 0m  0.0  0.0  0.0" />
+```csharp
+// Add to AppSettings record — one new field:
+public bool GhostModeEnabled { get; init; } = true;
 ```
 
-The `Text` is set entirely from code-behind in the stats timer handler, matching the existing pattern for `CpuText`, `MemText`, etc. The accent color applies to `Foreground` via `ApplyTheme()`, same as all other text elements.
-
-Format string: `$"up {uptime}  {load1m:F1}  {load5m:F1}  {load15m:F1}"` — compact single line, two spaces between segments to visually separate without extra controls.
-
-**Why one TextBlock not a structured row:** The uptime + load line is read-only telemetry, not interactive. There is no bar to render. A single `TextBlock` is the minimum control needed. Adding `Border`/`StackPanel`/`Grid` structure for a line with no bar would be unnecessary complexity.
-
-**Confidence:** HIGH — `TextBlock` in code-behind accent pattern is validated across all v1.x–v2.0 milestones.
-
----
-
-## Integration with Existing StatsService
-
-`StatsService` is the correct home for all three new data points:
-
-| Data | Where it goes | How it's triggered |
-|------|---------------|-------------------|
-| Uptime | `FormatUptime()` static helper (or inline in MainWindow) | Called in `_statsTimer` tick handler, same as CpuPercent/GpuPercent display update |
-| Load samples | `RecordLoadSample()` called at end of `Refresh()` | Automatic — every Refresh() call (hover fast-refresh included) produces a time-stamped sample |
-| Load averages | `Load1m`, `Load5m`, `Load15m` cached in `Refresh()` | Computed inside `Refresh()` after `RecordLoadSample()`; read by MainWindow tick handler |
-
-**Why uptime does NOT go in StatsService as a computed property:** Uptime is not a PDH counter and carries no initialization cost. It is a one-liner `TimeSpan.FromMilliseconds(Environment.TickCount64)` anywhere in the code. Putting it in `StatsService` would be over-engineering. Either a `static string FormatUptime()` utility or inline in the MainWindow tick handler is appropriate.
-
-**Hover fast-refresh interaction:** When the user hovers, `_statsTimer` fires at 0.5s instead of the configured rate. `Refresh()` is called more frequently, so load samples accumulate faster. This is correct — more samples in the buffer = more accurate short-window averages. The time-stamped buffer design ensures window averages remain accurate regardless of sample frequency; no special handling needed for hover mode.
-
-**Why 1800-entry buffer capacity:** At the fastest possible rate (0.5s hover), 1800 entries = 900 seconds = 15 minutes of samples. The 15-minute load average window requires samples back 15 minutes. At 0.5s rate, 1800 entries exactly covers the 15m window. At the slowest rate (10s), 1800 entries covers 5 hours — far more than needed, but memory cost is trivial: `1800 × (4 bytes float + 8 bytes long) = 21.6 KB`.
-
----
-
-## csproj Change Summary
-
-**No changes required.** All APIs used are in assemblies already referenced:
-- `Environment.TickCount64` — `System.Runtime.dll` (in-box, always referenced)
-- `TimeSpan` — `System.Runtime.dll` (in-box, always referenced)
-- `float[]` / `long[]` ring buffer — pure C#, no assembly
-
-The `System.Diagnostics.PerformanceCounter` NuGet package at 10.0.0 is unchanged.
-`UseWindowsForms=true` is unchanged (added in v2.0).
-
----
-
-## Alternatives Considered
-
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| `Environment.TickCount64` for uptime | `PerformanceCounter("System", "System Up Time")` | PDH counter works but requires async init (same pattern as CPU/GPU counters), adds to StatsService initialization complexity, returns a float of elapsed seconds — same data as TickCount64 but heavier; TickCount64 is one property read with no counter lifecycle to manage |
-| `Environment.TickCount64` for uptime | WMI `Win32_OperatingSystem.LastBootUpTime` | WMI queries are slow (20–200ms blocking) and require `ManagementObjectSearcher` — a heavier dependency than any existing code path; TickCount64 is instantaneous and in-box |
-| `Environment.TickCount64` for uptime | `DateTime.Now - Process.GetCurrentProcess().StartTime` | This gives the widget's own process uptime, not the system uptime — wrong data |
-| Time-stamped ring buffer for load averages | Fixed-count rolling average (e.g. last N samples) | Fixed-count approach produces wildly inaccurate results when timer rate changes (hover = 0.5s vs normal = 10s); a 1-minute average over the last 60 samples at 10s/sample is actually a 10-minute average — meaningless. Time-stamped buffer is the only correct approach given variable timer rates. |
-| Time-stamped ring buffer for load averages | Separate 1s DispatcherTimer dedicated to load sampling | A third timer adds complexity and coupling. The existing stats timer already samples CPU at the configured rate; piggy-backing load recording onto `Refresh()` is zero overhead and consistent with the existing architecture. |
-| `float[]` + `long[]` parallel arrays | `Queue<(float, long)>` or `List<(float, long)>` | Queue/List works but allocates on enqueue; ring buffer with fixed arrays is allocation-free after initialization. For a desktop widget that runs for days, allocation-free is worth the minor additional code complexity. |
-| Single `TextBlock` for uptime line | Separate TextBlock per segment (uptime, load1m, load5m, load15m) | Multiple TextBlocks in a row require a horizontal StackPanel and more XAML/code; a single formatted string in one TextBlock is the minimum viable implementation consistent with the widget's code-behind-first pattern |
+`bool` init-property follows the identical pattern as `CpuVisible`, `GpuVisible`, `UptimeVisible`. Default `true` means ghost mode is on by default for new installs. Existing settings.json without this field JSON-deserializes to the default (`true`) — forward-compatible with no migration needed.
 
 ---
 
 ## What NOT to Add
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| WMI (`ManagementObjectSearcher`, `Win32_OperatingSystem`) | 20–200ms blocking query; requires `System.Management` NuGet; heavyweight for a value available in 1 µs via `Environment.TickCount64` | `Environment.TickCount64` |
-| `PerformanceCounter("System", "System Up Time")` | Requires the same async init + priming pattern as CPU/GPU counters; adds to StatsService initialization path; returns identical data as TickCount64 | `Environment.TickCount64` |
-| Exponential Moving Average (EMA) for load averages | EMA requires careful alpha tuning; result depends on initial value and sample rate variance; harder to explain and validate than simple windowed average; Linux `uptime` uses EMA but the display convention is well-understood only because Linux sample rates are fixed | Simple windowed average over time-stamped buffer |
-| Seconds in the uptime display | The format `up 3d 14h 22m` matches the Linux `uptime` convention and is human-readable at widget scale; adding seconds makes the string longer and changes every second (defeating the stats timer's 1s-minimum update cycle for a compact info line) | `up Xd Yh Zm` format |
-| `Thread.Sleep` / background thread for load sampling | `Refresh()` is already called from the UI thread via `DispatcherTimer`; introducing a background thread for load sampling creates cross-thread access issues with the existing StatsService fields (`_initialized` volatile flag, counter reads) | Record samples inside existing `Refresh()` |
+| Rejected Approach | Reason | Use Instead |
+|-------------------|--------|-------------|
+| `WH_MOUSE_LL` global mouse hook | System-wide performance cost; security tool flags; requires careful cleanup; over-engineered for a single-window leave event | `TrackMouseEvent` + `WM_MOUSELEAVE` |
+| `WM_NCHITTEST` returning `HTTRANSPARENT` | Less complete than `WS_EX_TRANSPARENT`; fires on every mouse move; still delivers `WM_MOUSEMOVE` | `SetWindowLong` + `WS_EX_TRANSPARENT` |
+| `DispatcherTimer` polling `GetCursorPos` | Latency up to poll interval; CPU waste when idle; manual bounding-rect math | `TrackMouseEvent` + `WM_MOUSELEAVE` |
+| `Keyboard.IsKeyDown` for Ctrl+Alt | Only works with keyboard focus; overlay never has focus | `GetAsyncKeyState` |
+| New NuGet packages | None needed; all APIs in `user32.dll` (always available) | Existing P/Invoke pattern |
+| New C# source files | All fits in existing P/Invoke region of `MainWindow.xaml.cs` | In-file addition |
 
 ---
 
-## Version Compatibility
+## csproj Change Summary
 
-| Component | Version | Notes |
-|-----------|---------|-------|
-| `Environment.TickCount64` | net-10.0 (`System.Runtime.dll`) | Available since .NET Core 3.0; `Int64`, no overflow concern; includes sleep time on Windows in .NET 10 (expected behavior for OS uptime) |
-| `TimeSpan.FromMilliseconds(long)` | net-10.0 (`System.Runtime.dll`) | `long` overload available since .NET 7; avoids lossy `double` cast; `Days`/`Hours`/`Minutes` component properties stable since .NET 1.0 |
-| `float[]` ring buffer | Any .NET | No version dependency; pure language feature |
-| `AppSettings` bool init-property | net-10.0 (`System.Text.Json` in-box) | Same pattern as all prior AppSettings fields; no version concern |
-| `System.Diagnostics.PerformanceCounter` NuGet | 10.0.0 (unchanged) | No change |
+**No changes required.** All Win32 APIs are in `user32.dll`, which is always available on Windows. The existing `[DllImport]` pattern (`Win32Window` HWND adapter, `WinForms` color dialog support) is already established in the codebase.
+
+---
+
+## Alternatives Considered
+
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Click-through mechanism | `WS_EX_TRANSPARENT` via `SetWindowLong` | `WM_NCHITTEST` → `HTTRANSPARENT` | `WS_EX_TRANSPARENT` is OS-level and more complete; `WM_NCHITTEST` fires per mouse move and still delivers `WM_MOUSEMOVE` |
+| Mouse-leave detection | `TrackMouseEvent` + `WM_MOUSELEAVE` | `WH_MOUSE_LL` global hook | System-wide overhead, security flags, unnecessary complexity |
+| Mouse-leave detection | `TrackMouseEvent` + `WM_MOUSELEAVE` | `DispatcherTimer` polling `GetCursorPos` | Latency, CPU waste, manual bounds math |
+| Modifier check | `GetAsyncKeyState` | `Keyboard.IsKeyDown` | Requires keyboard focus; overlay has none |
+| Modifier check | `GetAsyncKeyState` | `WH_KEYBOARD_LL` keyboard hook | Global system overhead; `GetAsyncKeyState` is sufficient for a point-in-time check at hover time |
 
 ---
 
@@ -229,21 +385,30 @@ The `System.Diagnostics.PerformanceCounter` NuGet package at 10.0.0 is unchanged
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| `Environment.TickCount64` for uptime | HIGH | Official net-10.0 docs confirmed; return type `Int64`; Windows behavior (includes sleep) documented; assembly `System.Runtime.dll` confirmed |
-| `TimeSpan.FromMilliseconds(long)` overload | HIGH | Official net-10.0 docs confirmed; `Days`/`Hours`/`Minutes` component semantics confirmed with numeric example in docs |
-| Time-stamped ring buffer algorithm | HIGH | Standard pattern; no external library; correctness derivable from first principles; `Environment.TickCount64` as timestamp confirmed |
-| AppSettings `bool` init-property | HIGH | Validated pattern across v1.2–v2.0 milestones |
-| Buffer capacity (1800 entries) | HIGH | Arithmetic: 0.5s × 1800 = 900s = 15m; covers all three windows at maximum sample rate |
-| Zero csproj changes | HIGH | All required APIs in assemblies already referenced in `net10.0-windows` target |
+| `WS_EX_TRANSPARENT` value and behavior | HIGH | Official Microsoft docs, value 0x00000020 confirmed |
+| `GWL_EXSTYLE = -20` | HIGH | Official Microsoft docs |
+| `SetWindowPos` `SWP_FRAMECHANGED` requirement | HIGH | Explicitly documented in SetWindowPos Remarks: "you must call SetWindowPos for the changes to take effect" |
+| `SWP_*` flag values | HIGH | Official Microsoft docs, values verified |
+| `TrackMouseEvent` / `TME_LEAVE` / `WM_MOUSELEAVE = 0x02A3` | HIGH | Official Microsoft docs |
+| `TrackMouseEvent` delivers `WM_MOUSELEAVE` post-transparency | MEDIUM | Documented as HWND-keyed notification; not explicitly stated to survive `WS_EX_TRANSPARENT` — verify in execution |
+| `GetAsyncKeyState` MSB semantics | HIGH | Official docs with C++ example showing `< 0` check |
+| `VK_CONTROL = 0x11`, `VK_MENU = 0x12` | HIGH | Official Virtual-Key Codes table |
+| `HwndSource.AddHook` integration | HIGH | Established in project; used for ColorDialog owner HWND since v2.0 |
 
 ---
 
 ## Sources
 
-- `Environment.TickCount64` property (net-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.environment.tickcount64?view=net-10.0 — confirms `Int64` return type, milliseconds elapsed since system start, Windows behavior includes sleep time in .NET 10, `System.Runtime.dll` assembly
-- `TimeSpan` struct (net-10.0): https://learn.microsoft.com/en-us/dotnet/api/system.timespan?view=net-10.0 — confirms `Days`/`Hours`/`Minutes` as integer component properties (not totals), `FromMilliseconds(long)` overload, `System.Runtime.dll` assembly; numeric example confirms 229 days 5 hours 30 minutes component semantics
-- Prior milestone research (v1.2 StatsService, v1.4 PAG counter): `.planning/milestones/v1.2-phases/07-statsservice/07-RESEARCH.md` — confirms `PerformanceCounter` init pattern, `Refresh()` tick integration, existing architecture constraints
+- `WS_EX_TRANSPARENT`: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles — value 0x00000020; behavior: window excluded from hit-testing in multi-window z-order; updated 2025-07-14
+- `GetWindowLongPtr` / `GWL_EXSTYLE = -20`: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
+- `SetWindowLongPtr` / `GWL_EXSTYLE = -20`: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongptrw
+- `SetWindowPos` + `SWP_FRAMECHANGED` requirement: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos — Remarks: "use SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED"; updated 2025-07-01
+- `TrackMouseEvent` + `TME_LEAVE`: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent
+- `WM_MOUSELEAVE = 0x02A3`: https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mouseleave
+- `GetAsyncKeyState` MSB semantics + `VK_CONTROL`, `VK_MENU` usage example: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate — updated 2026-01-29
+- `VK_CONTROL = 0x11`, `VK_MENU = 0x12`: https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+- `HwndSource.AddHook` delegate signature: https://learn.microsoft.com/en-us/dotnet/api/system.windows.interop.hwndsource.addhook?view=windowsdesktop-10.0 — updated 2026-02-11
 
 ---
-*Stack research for: FuzzyClock v2.1 — uptime display and rolling CPU load averages*
-*Researched: 2026-02-27*
+*Stack research for: FuzzyClock v2.3 — Ghost Mode (hover-hide + Ctrl+Alt modifier)*
+*Researched: 2026-03-02*
