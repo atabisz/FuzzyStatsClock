@@ -424,13 +424,7 @@ public partial class MainWindow : Window
         // Uptime string — leading zero-unit suppression applies to ALL leading zero units.
         // Uses Environment.TickCount64 (Int64, ms since boot). Never use TickCount (Int32, wraps at ~24.9 days).
         TimeSpan uptime = TimeSpan.FromMilliseconds(Environment.TickCount64); // Int64 — never TickCount (Int32)
-        string uptimeStr;
-        if (uptime.Days > 0)
-            uptimeStr = $"up {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m";
-        else if (uptime.Hours > 0)
-            uptimeStr = $"up {uptime.Hours}h {uptime.Minutes}m";
-        else
-            uptimeStr = $"up {uptime.Minutes}m";
+        string uptimeStr = UptimeFormatter.Format(uptime);
 
         // Rolling CPU averages — interval-aware window sizing.
         // CpuPercent is 0-100; divide by 100 for load-average-style decimal display (0.52).
@@ -1108,8 +1102,8 @@ public partial class MainWindow : Window
 
         // Analog interpolation: minute hand sweeps full circle in 60 min;
         // hour hand sweeps full circle in 12 hours, with intra-hour interpolation.
-        double minuteAngle = (minute / 60.0) * 360.0;
-        double hourAngle   = ((hour % 12) / 12.0 + minute / 720.0) * 360.0;
+        double minuteAngle = DialGeometry.GetMinuteAngleDegrees(minute);
+        double hourAngle   = DialGeometry.GetHourAngleDegrees(hour, minute);
 
         // Convert to radians. Rotation is from 12 o'clock (top), clockwise.
         // Canvas center = (40, 40). Offset formula:
