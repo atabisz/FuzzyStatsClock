@@ -463,7 +463,7 @@ Plans:
 | 21. Custom Color Picker | v2.0 | 2/2 | Complete | 2026-02-27 |
 | 22. Infrastructure and Toggle | v2.1 | 1/1 | Complete | 2026-02-27 |
 | 23. Data Display | v2.1 | 1/1 | Complete | 2026-02-27 |
-| 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
+| 24. System Tray Icon | v2.2 | Complete    | 2026-03-02 | 2026-03-02 |
 
 ---
 *Last updated: 2026-03-02 — Phase 24 complete; v2.2 System Tray shipped*
