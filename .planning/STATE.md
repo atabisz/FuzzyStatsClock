@@ -2,24 +2,24 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-02 after v2.2 milestone)
+See: .planning/PROJECT.md (updated 2026-03-02 after v2.3 milestone start)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 25 — Centered Phrase Text (first phase of v2.3)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-02 — Milestone v2.3 started
+Phase: 25 of 27 (Centered Phrase Text)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-03-02 — v2.3 roadmap created; phases 25–27 defined
 
 Progress: [░░░░░░░░░░] 0% (v2.3: not started)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23 (v1.0 through v2.1)
+- Total plans completed: 25 (v1.0 through v2.2)
 - Average duration: 2.8 min
 - Total execution time: ~65 min
 
@@ -27,36 +27,14 @@ Progress: [░░░░░░░░░░] 0% (v2.3: not started)
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Phrase Engine | 2 | 4 min | 2 min |
-| 2. Window Shell | 3 | 3 min | 1 min |
-| 3. Integration | 2 | 7 min | 3.5 min |
-| 4. Settings + Drag | 2 | 12 min | 6 min |
-| 5. Font Size | 1 | 2 min | 2 min |
-| 6. AppSettings Migration | 1 | 2 min | 2 min |
-| 7. Stats Data Layer | 1 | 3 min | 3 min |
-| 8. XAML Layout and Stats Display | 2 | 8 min | 4 min |
-| 9. Controls Persistence and Edge Cases | 1 | 15 min | 15 min |
-| 11. PAG Stat Row | 2 | 3 min | 1.5 min |
-| 12. Hover Fast-Refresh | 1 | 2 min | 2 min |
-| 13. Dial Mode | 2 | 8 min | 4 min |
-| 14. Hover Backdrop + Drag Pause | 1 | 5 min | 5 min |
-| 15. Unconditional Hover Backdrop | 1 | 5 min | 5 min |
-| 16. Dial Face Decorations | 2 | 4 min | 2 min |
-| 17. Context-Aware Font Size Menu | 2 | 2 min | 1 min |
-| 18. AppSettings Schema Extension | 1 | 1 min | 1 min |
-| 19. Window Opacity | 2 | 2 min | 1 min |
-| 20. Accent Color Presets | 2 | 2 min | 1 min |
-| 21. Custom Color Picker | 2 | 1 min | 0.5 min |
-| 22. Infrastructure and Toggle | 1 | 2 min | 2 min |
-| 23. Data Display | 1 | 2 min | 2 min |
+| 1–23 | 23 plans | ~60 min | 2.6 min |
+| 24. System Tray Icon | 2 | 4 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 21-01 (1 min), 21-02 (0 min), 22-01 (2 min), 23-01 (2 min)
+- Last 5 plans: 22-01 (2 min), 23-01 (2 min), 24-01 (2 min), 24-02 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
-| Phase 24-system-tray-icon P01 | 1 | 2 tasks | 1 files |
-| Phase 24-system-tray-icon P02 | 0 | 1 task | 0 files |
 
 ## Accumulated Context
 
@@ -65,13 +43,12 @@ Progress: [░░░░░░░░░░] 0% (v2.3: not started)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Phase 23]: TickCount64 (Int64 ms) for uptime — never TickCount (Int32) which wraps at 24.9 days
-- [Phase 23]: _isHoverFastRefresh gates buffer push at 0.5s hover cadence
-- [Phase 21]: UseWindowsForms=true already active — NotifyIcon available with no new dependencies
-- [Phase 21]: Win32Window HWND adapter pattern for WinForms dialogs behind Topmost window
-- [Phase 24]: Programmatic bitmap icon (16x16 white circle) — no .ico file required, System.Drawing available via UseWindowsForms=true
-- [Phase 24]: Dispatcher.Invoke wraps WinForms ToolStripMenuItem Click handlers to marshal back to WPF Dispatcher thread
-- [Phase 24]: this.Closed for tray dispose (separate from OnClosing) — keeps shutdown responsibilities separated
+- [Phase 24]: Dispatcher.Invoke wraps WinForms ToolStripMenuItem Click handlers to marshal to WPF Dispatcher thread
+- [Phase 24]: this.Closed for tray dispose — keeps shutdown responsibilities separated from OnClosing
+- [Research v2.3]: WS_EX_TRANSPARENT (not WM_NCHITTEST HTTRANSPARENT) is the correct click-through mechanism — WM_NCHITTEST only routes to same-thread windows
+- [Research v2.3]: GetAsyncKeyState (not Keyboard.IsKeyDown) for Ctrl+Alt detection — overlay never holds keyboard focus
+- [Research v2.3]: Synthetic hover-state cleanup (backdrop, timer, _isHoverFastRefresh) must run BEFORE applying WS_EX_TRANSPARENT — MouseLeave will not fire after style is set
+- [Research v2.3]: TrackMouseEvent restore path is MEDIUM confidence — DispatcherTimer polling fallback must be verified during Phase 26
 
 ### Pending Todos
 
@@ -79,11 +56,11 @@ None.
 
 ### Blockers/Concerns
 
-None.
+- [Phase 26]: TrackMouseEvent delivery after WS_EX_TRANSPARENT is applied is not explicitly documented. Must verify experimentally during execution; fall back to DispatcherTimer polling Mouse.GetPosition(this) against ActualWidth/ActualHeight if WM_MOUSELEAVE does not arrive.
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 24-02-PLAN.md — all TRAY-01 through TRAY-06 verified by human
+Stopped at: v2.3 roadmap written — ROADMAP.md, STATE.md, REQUIREMENTS.md all up to date
 Resume file: None
-Next action: /gsd:plan-phase 25 to start execution
+Next action: /gsd:plan-phase 25
