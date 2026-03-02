@@ -31,7 +31,35 @@ public partial class MainWindow : Window
     private double _windowOpacity = 1.0;
     private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
     private System.Windows.Forms.NotifyIcon _trayIcon = null!;
-    private System.Windows.Forms.ToolStripMenuItem _ghostModeMenuItem = null!;
+    private System.Windows.Forms.ToolStripMenuItem _ghostModeMenuItem   = null!;
+    // Tray items needing programmatic updates (checkmarks or visibility)
+    private System.Windows.Forms.ToolStripMenuItem _trayFontSizeItem    = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayFontSmall       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayFontMedium      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayFontLarge       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayShowStats       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayCpuVisible      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayGpuVisible      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayMemVisible      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayPagVisible      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayUptimeVisible   = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayInterval1       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayInterval3       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayInterval10      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayDialMode        = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayDialFaceItem    = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayShowHourTicks   = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayShowMinuteDots  = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayShowHourNumbers = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayThemeWhite      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayThemeAmber      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayThemeIce        = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayThemeGreen      = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayThemePink       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayOpacity25       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayOpacity50       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayOpacity75       = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayOpacity100      = null!;
 
     // Ghost mode state (v2.3)
     private bool   _isGhostMode = false;
@@ -431,84 +459,45 @@ public partial class MainWindow : Window
         Top = Padding;
     }
 
-    private void CloseMenuItem_Click(object sender, RoutedEventArgs e)
+    private void TrayMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        // Application.Current.Shutdown() rather than this.Close() because the hidden
-        // owner window keeps the process alive if only the main window is closed.
-        Application.Current.Shutdown();
-    }
+        // Sync all tray item checkmarks from current state — mirrors the old ContextMenu_Opened pattern.
+        // Reading WPF element properties (Visibility) from WinForms thread follows the established
+        // pattern in SaveSettings() which already does this safely.
+        _trayFontSmall.Checked  = (_currentFontSize == 16);
+        _trayFontMedium.Checked = (_currentFontSize == 24);
+        _trayFontLarge.Checked  = (_currentFontSize == 32);
 
-    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
-    {
-        FontSmall.IsChecked  = (_currentFontSize == 16);
-        FontMedium.IsChecked = (_currentFontSize == 24);
-        FontLarge.IsChecked  = (_currentFontSize == 32);
+        _trayShowStats.Checked     = (StatsPanel.Visibility == Visibility.Visible);
+        _trayCpuVisible.Checked    = (CpuRow.Visibility     == Visibility.Visible);
+        _trayGpuVisible.Checked    = (GpuRow.Visibility     == Visibility.Visible);
+        _trayMemVisible.Checked    = (MemRow.Visibility     == Visibility.Visible);
+        _trayPagVisible.Checked    = (PagRow.Visibility     == Visibility.Visible);
+        _trayUptimeVisible.Checked = (UptimeText.Visibility == Visibility.Visible);
+        _trayInterval1.Checked  = (_statsIntervalSeconds == 1);
+        _trayInterval3.Checked  = (_statsIntervalSeconds == 3);
+        _trayInterval10.Checked = (_statsIntervalSeconds == 10);
 
-        MenuShowStats.IsChecked  = (StatsPanel.Visibility == Visibility.Visible);
-        MenuInterval1.IsChecked  = (_statsIntervalSeconds == 1);
-        MenuInterval3.IsChecked  = (_statsIntervalSeconds == 3);
-        MenuInterval10.IsChecked = (_statsIntervalSeconds == 10);
+        _trayDialMode.Checked        = _dialMode;
+        _trayShowHourTicks.Checked   = _showHourTicks;
+        _trayShowMinuteDots.Checked  = _showMinuteDots;
+        _trayShowHourNumbers.Checked = _showHourNumbers;
 
-        MenuCpuVisible.IsChecked = (CpuRow.Visibility == Visibility.Visible);
-        MenuGpuVisible.IsChecked = (GpuRow.Visibility == Visibility.Visible);
-        MenuMemVisible.IsChecked = (MemRow.Visibility == Visibility.Visible);
-        MenuPagVisible.IsChecked    = (PagRow.Visibility    == Visibility.Visible);
-        MenuUptimeVisible.IsChecked = (UptimeText.Visibility == Visibility.Visible);
-        MenuDialMode.IsChecked = _dialMode;
+        // Opacity preset sync — exact double comparison is reliable
+        _trayOpacity25.Checked  = (_windowOpacity == 0.25);
+        _trayOpacity50.Checked  = (_windowOpacity == 0.50);
+        _trayOpacity75.Checked  = (_windowOpacity == 0.75);
+        _trayOpacity100.Checked = (_windowOpacity == 1.00);
 
-        // MENU-01: Font Size submenu visible only in phrase mode (inverse of DIAL-09)
-        MenuFontSize.Visibility = _dialMode ? Visibility.Collapsed : Visibility.Visible;
-
-        // DIAL-09: Dial Face submenu visible only in dial mode
-        MenuDialFace.Visibility       = _dialMode ? Visibility.Visible : Visibility.Collapsed;
-        MenuShowHourTicks.IsChecked   = _showHourTicks;
-        MenuShowMinuteDots.IsChecked  = _showMinuteDots;
-        MenuShowHourNumbers.IsChecked = _showHourNumbers;
-
-        // Opacity preset sync — exact double comparison is reliable: _windowOpacity changes
-        // only via SetOpacity() (exact literal assignment) or Math.Clamp in 0.10 steps
-        MenuOpacity25.IsChecked  = (_windowOpacity == 0.25);
-        MenuOpacity50.IsChecked  = (_windowOpacity == 0.50);
-        MenuOpacity75.IsChecked  = (_windowOpacity == 0.75);
-        MenuOpacity100.IsChecked = (_windowOpacity == 1.00);
-        // Intermediate scroll-wheel values (e.g. 0.60) correctly show no checkmark
-
-        // Theme preset sync — compare hex from _accentColor to preset constants
-        // Single source of truth: derive hex from _accentColor; no secondary theme-name field
+        // Theme preset sync — derive hex from _accentColor; no secondary theme-name field needed
         string currentHex = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}";
-        MenuThemeWhite.IsChecked = (currentHex == "#FFFFFFFF");
-        MenuThemeAmber.IsChecked = (currentHex == "#FFFFC000");
-        MenuThemeIce.IsChecked   = (currentHex == "#FF87CEEB");
-        MenuThemeGreen.IsChecked = (currentHex == "#FF00C000");
-        MenuThemePink.IsChecked  = (currentHex == "#FFFF69B4");
-        // When a custom color is active (Phase 21), none match — no checkmark shown. Correct.
+        _trayThemeWhite.Checked = (currentHex == "#FFFFFFFF");
+        _trayThemeAmber.Checked = (currentHex == "#FFFFC000");
+        _trayThemeIce.Checked   = (currentHex == "#FF87CEEB");
+        _trayThemeGreen.Checked = (currentHex == "#FF00C000");
+        _trayThemePink.Checked  = (currentHex == "#FFFF69B4");
+        // Custom color active: none match — no checkmark shown. Correct.
     }
-
-    private void FontSmall_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(16);
-    private void FontMedium_Click(object sender, RoutedEventArgs e) => ApplyFontSize(24);
-    private void FontLarge_Click(object sender, RoutedEventArgs e)  => ApplyFontSize(32);
-
-    private void MenuShowStats_Click(object sender, RoutedEventArgs e)
-        => SetStatsVisible(StatsPanel.Visibility != Visibility.Visible);
-
-    private void MenuCpuVisible_Click(object sender, RoutedEventArgs e)
-        => SetStatRowVisible(CpuRow, CpuRow.Visibility != Visibility.Visible);
-
-    private void MenuGpuVisible_Click(object sender, RoutedEventArgs e)
-        => SetStatRowVisible(GpuRow, GpuRow.Visibility != Visibility.Visible);
-
-    private void MenuMemVisible_Click(object sender, RoutedEventArgs e)
-        => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible);
-
-    private void MenuPagVisible_Click(object sender, RoutedEventArgs e)
-        => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible);
-
-    private void MenuUptimeVisible_Click(object sender, RoutedEventArgs e)
-        => SetUptimeRowVisible(UptimeText.Visibility != Visibility.Visible);
-
-    private void MenuInterval1_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(1);
-    private void MenuInterval3_Click(object sender, RoutedEventArgs e)  => SetStatsInterval(3);
-    private void MenuInterval10_Click(object sender, RoutedEventArgs e) => SetStatsInterval(10);
 
     private void SetStatsVisible(bool visible)
     {
@@ -722,13 +711,11 @@ public partial class MainWindow : Window
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.Clear(System.Drawing.Color.Transparent);
 
-            // Clock face
             using var faceBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(30, 30, 30));
             g.FillEllipse(faceBrush, 1, 1, 14, 14);
             using var rimPen = new System.Drawing.Pen(System.Drawing.Color.White, 1.2f);
             g.DrawEllipse(rimPen, 1, 1, 14, 14);
 
-            // Hour hand — 10 o'clock (−60° from 12)
             double hourRad = -60.0 * Math.PI / 180.0;
             float hx = 8f + 3.5f * (float)Math.Sin(hourRad);
             float hy = 8f - 3.5f * (float)Math.Cos(hourRad);
@@ -736,7 +723,6 @@ public partial class MainWindow : Window
                 { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
             g.DrawLine(hourPen, 8f, 8f, hx, hy);
 
-            // Minute hand — 2 o'clock (+60° from 12)
             double minRad = 60.0 * Math.PI / 180.0;
             float mx = 8f + 5.5f * (float)Math.Sin(minRad);
             float my = 8f - 5.5f * (float)Math.Cos(minRad);
@@ -744,13 +730,14 @@ public partial class MainWindow : Window
                 { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
             g.DrawLine(minPen, 8f, 8f, mx, my);
 
-            // Center pivot
             g.FillEllipse(System.Drawing.Brushes.White, 6.5f, 6.5f, 3f, 3f);
         }
         var icon = System.Drawing.Icon.FromHandle(bmp.GetHicon());
 
         var menu = new System.Windows.Forms.ContextMenuStrip();
+        menu.Opening += TrayMenu_Opening;
 
+        // Ghost Mode
         _ghostModeMenuItem = new System.Windows.Forms.ToolStripMenuItem("Ghost Mode")
             { Checked = _ghostModeEnabled };
         _ghostModeMenuItem.Click += (_, _) =>
@@ -759,15 +746,106 @@ public partial class MainWindow : Window
             _ghostModeMenuItem.Checked = _ghostModeEnabled;
             SaveSettings();
         };
+        menu.Items.Add(_ghostModeMenuItem);
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        // Font Size submenu
+        _trayFontSmall  = new System.Windows.Forms.ToolStripMenuItem("Small (16pt)");
+        _trayFontMedium = new System.Windows.Forms.ToolStripMenuItem("Medium (24pt)");
+        _trayFontLarge  = new System.Windows.Forms.ToolStripMenuItem("Large (32pt)");
+        _trayFontSmall.Click  += (_, _) => Dispatcher.Invoke(() => ApplyFontSize(16));
+        _trayFontMedium.Click += (_, _) => Dispatcher.Invoke(() => ApplyFontSize(24));
+        _trayFontLarge.Click  += (_, _) => Dispatcher.Invoke(() => ApplyFontSize(32));
+        _trayFontSizeItem = new System.Windows.Forms.ToolStripMenuItem("Font Size", null,
+            _trayFontSmall, _trayFontMedium, _trayFontLarge);
+        _trayFontSizeItem.Visible = !_dialMode;
+        menu.Items.Add(_trayFontSizeItem);
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        // Stats submenu
+        _trayShowStats     = new System.Windows.Forms.ToolStripMenuItem("Show Stats");
+        _trayCpuVisible    = new System.Windows.Forms.ToolStripMenuItem("Show CPU");
+        _trayGpuVisible    = new System.Windows.Forms.ToolStripMenuItem("Show GPU");
+        _trayMemVisible    = new System.Windows.Forms.ToolStripMenuItem("Show MEM");
+        _trayPagVisible    = new System.Windows.Forms.ToolStripMenuItem("Show PAG");
+        _trayUptimeVisible = new System.Windows.Forms.ToolStripMenuItem("Show Uptime");
+        _trayInterval1     = new System.Windows.Forms.ToolStripMenuItem("1 second");
+        _trayInterval3     = new System.Windows.Forms.ToolStripMenuItem("3 seconds");
+        _trayInterval10    = new System.Windows.Forms.ToolStripMenuItem("10 seconds");
+        _trayShowStats.Click     += (_, _) => Dispatcher.Invoke(() => SetStatsVisible(StatsPanel.Visibility != Visibility.Visible));
+        _trayCpuVisible.Click    += (_, _) => Dispatcher.Invoke(() => SetStatRowVisible(CpuRow, CpuRow.Visibility != Visibility.Visible));
+        _trayGpuVisible.Click    += (_, _) => Dispatcher.Invoke(() => SetStatRowVisible(GpuRow, GpuRow.Visibility != Visibility.Visible));
+        _trayMemVisible.Click    += (_, _) => Dispatcher.Invoke(() => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible));
+        _trayPagVisible.Click    += (_, _) => Dispatcher.Invoke(() => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible));
+        _trayUptimeVisible.Click += (_, _) => Dispatcher.Invoke(() => SetUptimeRowVisible(UptimeText.Visibility != Visibility.Visible));
+        _trayInterval1.Click  += (_, _) => Dispatcher.Invoke(() => SetStatsInterval(1));
+        _trayInterval3.Click  += (_, _) => Dispatcher.Invoke(() => SetStatsInterval(3));
+        _trayInterval10.Click += (_, _) => Dispatcher.Invoke(() => SetStatsInterval(10));
+        var intervalItem = new System.Windows.Forms.ToolStripMenuItem("Update Interval", null,
+            _trayInterval1, _trayInterval3, _trayInterval10);
+        var statsItem = new System.Windows.Forms.ToolStripMenuItem("Stats", null,
+            _trayShowStats,
+            new System.Windows.Forms.ToolStripSeparator(),
+            _trayCpuVisible, _trayGpuVisible, _trayMemVisible, _trayPagVisible, _trayUptimeVisible,
+            intervalItem);
+        menu.Items.Add(statsItem);
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        // Dial Mode + Dial Face submenu
+        _trayDialMode = new System.Windows.Forms.ToolStripMenuItem("Dial Mode");
+        _trayDialMode.Click += (_, _) => Dispatcher.Invoke(() => SetDialMode(!_dialMode));
+        menu.Items.Add(_trayDialMode);
+
+        _trayShowHourTicks   = new System.Windows.Forms.ToolStripMenuItem("Show Hour Ticks");
+        _trayShowMinuteDots  = new System.Windows.Forms.ToolStripMenuItem("Show Minute Marks");
+        _trayShowHourNumbers = new System.Windows.Forms.ToolStripMenuItem("Show Hour Numbers");
+        _trayShowHourTicks.Click   += (_, _) => Dispatcher.Invoke(() => SetShowHourTicks(!_showHourTicks));
+        _trayShowMinuteDots.Click  += (_, _) => Dispatcher.Invoke(() => SetShowMinuteDots(!_showMinuteDots));
+        _trayShowHourNumbers.Click += (_, _) => Dispatcher.Invoke(() => SetShowHourNumbers(!_showHourNumbers));
+        _trayDialFaceItem = new System.Windows.Forms.ToolStripMenuItem("Dial Face", null,
+            _trayShowHourTicks, _trayShowMinuteDots, _trayShowHourNumbers);
+        _trayDialFaceItem.Visible = _dialMode;
+        menu.Items.Add(_trayDialFaceItem);
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        // Theme submenu
+        _trayThemeWhite = new System.Windows.Forms.ToolStripMenuItem("White");
+        _trayThemeAmber = new System.Windows.Forms.ToolStripMenuItem("Amber");
+        _trayThemeIce   = new System.Windows.Forms.ToolStripMenuItem("Ice Blue");
+        _trayThemeGreen = new System.Windows.Forms.ToolStripMenuItem("Green");
+        _trayThemePink  = new System.Windows.Forms.ToolStripMenuItem("Hello Kitty Pink");
+        var trayThemeCustom = new System.Windows.Forms.ToolStripMenuItem("Custom...");
+        _trayThemeWhite.Click += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetWhite));
+        _trayThemeAmber.Click += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetAmber));
+        _trayThemeIce.Click   += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetIce));
+        _trayThemeGreen.Click += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetGreen));
+        _trayThemePink.Click  += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetPink));
+        trayThemeCustom.Click += (_, _) => Dispatcher.Invoke(OpenCustomColorDialog);
+        var themeItem = new System.Windows.Forms.ToolStripMenuItem("Theme", null,
+            _trayThemeWhite, _trayThemeAmber, _trayThemeIce, _trayThemeGreen, _trayThemePink,
+            new System.Windows.Forms.ToolStripSeparator(),
+            trayThemeCustom);
+        menu.Items.Add(themeItem);
+
+        // Opacity submenu
+        _trayOpacity25  = new System.Windows.Forms.ToolStripMenuItem("25%");
+        _trayOpacity50  = new System.Windows.Forms.ToolStripMenuItem("50%");
+        _trayOpacity75  = new System.Windows.Forms.ToolStripMenuItem("75%");
+        _trayOpacity100 = new System.Windows.Forms.ToolStripMenuItem("100%");
+        _trayOpacity25.Click  += (_, _) => Dispatcher.Invoke(() => SetOpacity(0.25));
+        _trayOpacity50.Click  += (_, _) => Dispatcher.Invoke(() => SetOpacity(0.50));
+        _trayOpacity75.Click  += (_, _) => Dispatcher.Invoke(() => SetOpacity(0.75));
+        _trayOpacity100.Click += (_, _) => Dispatcher.Invoke(() => SetOpacity(1.00));
+        var opacityItem = new System.Windows.Forms.ToolStripMenuItem("Opacity", null,
+            _trayOpacity25, _trayOpacity50, _trayOpacity75, _trayOpacity100);
+        menu.Items.Add(opacityItem);
+
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
         var resetItem = new System.Windows.Forms.ToolStripMenuItem("Reset to Defaults");
         var quitItem  = new System.Windows.Forms.ToolStripMenuItem("Quit");
-
         resetItem.Click += (_, _) => Dispatcher.Invoke(ResetToDefaults);
         quitItem.Click  += (_, _) => Dispatcher.Invoke(() => Application.Current.Shutdown());
-
-        menu.Items.Add(_ghostModeMenuItem);
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
         menu.Items.Add(resetItem);
         menu.Items.Add(quitItem);
 
@@ -809,17 +887,6 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
-    private void MenuDialMode_Click(object sender, RoutedEventArgs e)
-        => SetDialMode(!_dialMode);
-
-    private void MenuShowHourTicks_Click(object sender, RoutedEventArgs e)
-        => SetShowHourTicks(!_showHourTicks);
-
-    private void MenuShowMinuteDots_Click(object sender, RoutedEventArgs e)
-        => SetShowMinuteDots(!_showMinuteDots);
-
-    private void MenuShowHourNumbers_Click(object sender, RoutedEventArgs e)
-        => SetShowHourNumbers(!_showHourNumbers);
 
     private void SetDialMode(bool dialMode)
     {
@@ -830,10 +897,10 @@ public partial class MainWindow : Window
         DialCanvas.Visibility  = dialMode ? Visibility.Visible   : Visibility.Collapsed;
 
         // DIAL-09: hide/show Dial Face submenu on mode switch
-        MenuDialFace.Visibility = dialMode ? Visibility.Visible : Visibility.Collapsed;
+        _trayDialFaceItem.Visible = dialMode;
 
         // MENU-01: hide Font Size submenu in dial mode, restore in phrase mode
-        MenuFontSize.Visibility = dialMode ? Visibility.Collapsed : Visibility.Visible;
+        _trayFontSizeItem.Visible = !dialMode;
 
         if (dialMode) UpdateDialDisplay();
 
@@ -871,10 +938,6 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
-    private void MenuOpacity25_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.25);
-    private void MenuOpacity50_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.50);
-    private void MenuOpacity75_Click(object sender, RoutedEventArgs e)  => SetOpacity(0.75);
-    private void MenuOpacity100_Click(object sender, RoutedEventArgs e) => SetOpacity(1.00);
 
     private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
@@ -1004,19 +1067,13 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
-    private void MenuThemeWhite_Click(object sender, RoutedEventArgs e) => SetAccentColor(PresetWhite);
-    private void MenuThemeAmber_Click(object sender, RoutedEventArgs e) => SetAccentColor(PresetAmber);
-    private void MenuThemeIce_Click(object sender, RoutedEventArgs e)   => SetAccentColor(PresetIce);
-    private void MenuThemeGreen_Click(object sender, RoutedEventArgs e) => SetAccentColor(PresetGreen);
-    private void MenuThemePink_Click(object sender, RoutedEventArgs e)  => SetAccentColor(PresetPink);
-
     private sealed class Win32Window : System.Windows.Forms.IWin32Window
     {
         public IntPtr Handle { get; }
         public Win32Window(IntPtr handle) => Handle = handle;
     }
 
-    private void MenuThemeCustom_Click(object sender, RoutedEventArgs e)
+    private void OpenCustomColorDialog()
     {
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
 
