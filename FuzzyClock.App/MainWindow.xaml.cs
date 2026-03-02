@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private bool _showHourNumbers = false;
     private double _windowOpacity = 1.0;
     private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
+    private System.Windows.Forms.NotifyIcon _trayIcon = null!;
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
     private readonly List<System.Windows.Controls.TextBlock> _hourNumberElements = new();
@@ -101,9 +102,15 @@ public partial class MainWindow : Window
             if (_dialMode) UpdateDialDisplay();
             InitDialDecorations();
             ApplyTheme();            // NEW: must come AFTER InitDialDecorations() — decoration lists are empty before this point
+            InitTrayIcon();
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
+        };
+
+        this.Closed += (_, _) =>
+        {
+            _trayIcon?.Dispose();
         };
     }
 
@@ -586,6 +593,60 @@ public partial class MainWindow : Window
         _statsService?.Dispose();
         SaveSettings();
         base.OnClosing(e);
+    }
+
+    private void InitTrayIcon()
+    {
+        // Create a simple 16x16 filled circle as the tray icon programmatically.
+        // No .ico file required — UseWindowsForms=true makes System.Drawing available.
+        var bmp = new System.Drawing.Bitmap(16, 16);
+        using (var g = System.Drawing.Graphics.FromImage(bmp))
+        {
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.Clear(System.Drawing.Color.Transparent);
+            g.FillEllipse(System.Drawing.Brushes.White, 1, 1, 14, 14);
+        }
+        var icon = System.Drawing.Icon.FromHandle(bmp.GetHicon());
+
+        var menu = new System.Windows.Forms.ContextMenuStrip();
+        var resetItem = new System.Windows.Forms.ToolStripMenuItem("Reset to Defaults");
+        var quitItem  = new System.Windows.Forms.ToolStripMenuItem("Quit");
+
+        resetItem.Click += (_, _) => Dispatcher.Invoke(ResetToDefaults);
+        quitItem.Click  += (_, _) => Dispatcher.Invoke(() => Application.Current.Shutdown());
+
+        menu.Items.Add(resetItem);
+        menu.Items.Add(quitItem);
+
+        _trayIcon = new System.Windows.Forms.NotifyIcon
+        {
+            Icon             = icon,
+            Text             = "FuzzyClock",
+            ContextMenuStrip = menu,
+            Visible          = true
+        };
+    }
+
+    private void ResetToDefaults()
+    {
+        // Reset accent color to White (same as PresetWhite constant = #FFFFFFFF)
+        SetAccentColor(PresetWhite);
+
+        // Reset opacity to 100%
+        SetOpacity(1.0);
+
+        // Update opacity submenu checkmarks (ContextMenu_Opened syncs them on next open,
+        // but _windowOpacity is already updated by SetOpacity above — no extra sync needed)
+
+        // Center on primary screen
+        // ActualWidth/ActualHeight are valid at runtime (ContentRendered has already fired)
+        Left = (SystemParameters.PrimaryScreenWidth  - ActualWidth)  / 2;
+        Top  = (SystemParameters.PrimaryScreenHeight - ActualHeight) / 2;
+        _hasUserPosition = true;   // treat centered position as user-set to prevent phrase-change snap
+
+        // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
+        // but we need to save the new position too — call once more with final state)
+        SaveSettings();
     }
 
     private void MenuDialMode_Click(object sender, RoutedEventArgs e)
