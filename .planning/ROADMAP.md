@@ -78,7 +78,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1–23 | v1.0–v2.1 | All | Complete | See archives |
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
-| 25. Centered Phrase Text | v2.3 | 1/1 | Complete | 2026-03-02 |
+| 25. Centered Phrase Text | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | 0/? | Not started | - |
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 0/? | Not started | - |
 
