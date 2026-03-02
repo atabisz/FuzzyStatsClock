@@ -79,7 +79,9 @@ Plans:
   2. UptimeFormatter.Format handles sub-hour (no days/hours prefix), exactly-1h boundary, hours-only, exactly-1d boundary, and days+hours+minutes — each case returns the correct "up ..." string
   3. DialGeometry.GetHandAngle for 12:00 returns 0 degrees for both hour and minute hands; 3:00 returns 90 degrees for the hour hand; 6:00 returns 180 degrees; 3:15 returns correct interpolated minute-hand angle
   4. The application builds, launches, and displays uptime/dial identically to before extraction — no behavior change visible at runtime
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 28-01-PLAN.md — Extract UptimeFormatter + DialGeometry into FuzzyClock.Core; add tests; update MainWindow call sites
 
 ### Phase 29: App Test Infrastructure + Settings Tests
 **Goal**: SettingsService validation and AppSettings JSON behavior are verified by an automated test suite in FuzzyClock.App.Tests
@@ -112,9 +114,9 @@ Plans:
 | 25. Centered Phrase Text | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 1/1 | Complete | 2026-03-02 |
-| 28. Core Logic Extraction + Tests | v2.5 | 0/? | Not started | - |
+| 28. Core Logic Extraction + Tests | v2.5 | 0/1 | Not started | - |
 | 29. App Test Infrastructure + Settings Tests | v2.5 | 0/? | Not started | - |
 | 30. CI Test Gate | v2.5 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-03 — v2.5 Unit Tests roadmap created; phases 28–30 defined*
+*Last updated: 2026-03-03 — Phase 28 planned (1 plan)*
