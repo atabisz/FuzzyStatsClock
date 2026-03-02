@@ -31,9 +31,11 @@ public partial class MainWindow : Window
     private double _windowOpacity = 1.0;
     private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
     private System.Windows.Forms.NotifyIcon _trayIcon = null!;
+    private System.Windows.Forms.ToolStripMenuItem _ghostModeMenuItem = null!;
 
     // Ghost mode state (v2.3)
     private bool   _isGhostMode = false;
+    private bool   _ghostModeEnabled = true;
     private IntPtr _hwnd;
     private DispatcherTimer? _ghostRestoreTimer;
 
@@ -231,6 +233,7 @@ public partial class MainWindow : Window
 
         _windowOpacity = s.Opacity;
         this.Opacity   = s.Opacity;
+        _ghostModeEnabled = s.GhostModeEnabled;
 
         // Parse AccentColor hex string to Color struct
         // SettingsService.Load() guards against null/empty; catch here for belt-and-suspenders safety
@@ -269,7 +272,8 @@ public partial class MainWindow : Window
             ShowMinuteDots  = _showMinuteDots,
             ShowHourNumbers = _showHourNumbers,
             Opacity = _windowOpacity,
-            AccentColor = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}"
+            AccentColor = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}",
+            GhostModeEnabled = _ghostModeEnabled
         });
     }
 
@@ -558,7 +562,7 @@ public partial class MainWindow : Window
         bool ctrlAltHeld = (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0
                         && (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
 
-        if (ctrlAltHeld)
+        if (ctrlAltHeld || !_ghostModeEnabled)
         {
             // Normal hover path (CTRLALT-01/02): show backdrop + activate fast-refresh.
             // WS_EX_TRANSPARENT is NOT applied — window stays fully interactive (drag, right-click, scroll).
@@ -746,12 +750,24 @@ public partial class MainWindow : Window
         var icon = System.Drawing.Icon.FromHandle(bmp.GetHicon());
 
         var menu = new System.Windows.Forms.ContextMenuStrip();
+
+        _ghostModeMenuItem = new System.Windows.Forms.ToolStripMenuItem("Ghost Mode")
+            { Checked = _ghostModeEnabled };
+        _ghostModeMenuItem.Click += (_, _) =>
+        {
+            _ghostModeEnabled = !_ghostModeEnabled;
+            _ghostModeMenuItem.Checked = _ghostModeEnabled;
+            SaveSettings();
+        };
+
         var resetItem = new System.Windows.Forms.ToolStripMenuItem("Reset to Defaults");
         var quitItem  = new System.Windows.Forms.ToolStripMenuItem("Quit");
 
         resetItem.Click += (_, _) => Dispatcher.Invoke(ResetToDefaults);
         quitItem.Click  += (_, _) => Dispatcher.Invoke(() => Application.Current.Shutdown());
 
+        menu.Items.Add(_ghostModeMenuItem);
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
         menu.Items.Add(resetItem);
         menu.Items.Add(quitItem);
 
@@ -783,6 +799,10 @@ public partial class MainWindow : Window
         Left = (SystemParameters.PrimaryScreenWidth  - ActualWidth)  / 2;
         Top  = (SystemParameters.PrimaryScreenHeight - ActualHeight) / 2;
         _hasUserPosition = true;   // treat centered position as user-set to prevent phrase-change snap
+
+        // Re-enable ghost mode
+        _ghostModeEnabled = true;
+        _ghostModeMenuItem.Checked = true;
 
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
