@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-02 after v2.2 milestone start)
 ## Current Position
 
 Phase: 24 of 24 (System Tray Icon)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-02 — Roadmap created for v2.2; Phase 24 defined
+Plan: 1 of 1 in current phase
+Status: In progress
+Last activity: 2026-03-02 — Executed 24-01-PLAN.md (system tray icon)
 
-Progress: [░░░░░░░░░░] 0% (v2.2: 0/1 phases complete)
+Progress: [██████████] 100% (v2.2: 1/1 plans complete)
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0% (v2.2: 0/1 phases complete)
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 24-system-tray-icon P01 | 1 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - [Phase 23]: _isHoverFastRefresh gates buffer push at 0.5s hover cadence
 - [Phase 21]: UseWindowsForms=true already active — NotifyIcon available with no new dependencies
 - [Phase 21]: Win32Window HWND adapter pattern for WinForms dialogs behind Topmost window
+- [Phase 24]: Programmatic bitmap icon (16x16 white circle) — no .ico file required, System.Drawing available via UseWindowsForms=true
+- [Phase 24]: Dispatcher.Invoke wraps WinForms ToolStripMenuItem Click handlers to marshal back to WPF Dispatcher thread
+- [Phase 24]: this.Closed for tray dispose (separate from OnClosing) — keeps shutdown responsibilities separated
 
 ### Pending Todos
 
@@ -79,6 +83,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Roadmap created — Phase 24 (System Tray Icon) defined with 5 success criteria, all 6 TRAY requirements mapped
+Stopped at: Completed 24-01-PLAN.md (system tray icon with Reset to Defaults and Quit)
 Resume file: None
-Next action: /gsd:plan-phase 24
+Next action: /gsd:audit-milestone or /gsd:complete-milestone

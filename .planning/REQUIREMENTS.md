@@ -7,12 +7,12 @@
 
 ### System Tray
 
-- [ ] **TRAY-01**: Application displays a system tray icon while running
-- [ ] **TRAY-02**: System tray icon shows a context menu with "Reset to Defaults" and "Quit" items
-- [ ] **TRAY-03**: "Reset to Defaults" sets accent color to White, opacity to 100%, and centers the widget on the primary screen
-- [ ] **TRAY-04**: "Reset to Defaults" saves the reset state to settings.json immediately
-- [ ] **TRAY-05**: "Quit" exits the application cleanly
-- [ ] **TRAY-06**: System tray icon is removed from the tray when the application exits
+- [x] **TRAY-01**: Application displays a system tray icon while running
+- [x] **TRAY-02**: System tray icon shows a context menu with "Reset to Defaults" and "Quit" items
+- [x] **TRAY-03**: "Reset to Defaults" sets accent color to White, opacity to 100%, and centers the widget on the primary screen
+- [x] **TRAY-04**: "Reset to Defaults" saves the reset state to settings.json immediately
+- [x] **TRAY-05**: "Quit" exits the application cleanly
+- [x] **TRAY-06**: System tray icon is removed from the tray when the application exits
 
 ## Future Requirements
 
@@ -37,12 +37,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TRAY-01 | Phase 24 | Pending |
-| TRAY-02 | Phase 24 | Pending |
-| TRAY-03 | Phase 24 | Pending |
-| TRAY-04 | Phase 24 | Pending |
-| TRAY-05 | Phase 24 | Pending |
-| TRAY-06 | Phase 24 | Pending |
+| TRAY-01 | Phase 24 | Complete |
+| TRAY-02 | Phase 24 | Complete |
+| TRAY-03 | Phase 24 | Complete |
+| TRAY-04 | Phase 24 | Complete |
+| TRAY-05 | Phase 24 | Complete |
+| TRAY-06 | Phase 24 | Complete |
 
 **Coverage:**
 - v2.2 requirements: 6 total
