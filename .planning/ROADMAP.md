@@ -15,7 +15,7 @@
 - ✅ **v2.0 Visual Identity** (2026-02-27) — Accent color themes (5 presets + custom picker) and window opacity control (presets + scroll wheel). 4 phases, 7 plans. → [Archive](milestones/v2.0-ROADMAP.md)
 - ✅ **v2.1 Uptime** (2026-02-27) — System uptime and rolling CPU load averages (1m/5m/15m) as a compact single line below the stats panel; toggleable and persisted. 2 phases, 2 plans. → [Archive](milestones/v2.1-ROADMAP.md)
 - ✅ **v2.2 System Tray** (2026-03-02) — System tray icon (analog clock face) with Reset to Defaults and Quit; clean icon removal on exit. 1 phase, 2 plans. → [Archive](milestones/v2.2-ROADMAP.md)
-- 🚧 **v2.3 Ghost Mode** — Phrase text centering; auto-hide on hover (Opacity=0 + click-through); Ctrl+Alt interaction modifier. 3 phases. (in progress)
+- ✅ **v2.3 Ghost Mode** (2026-03-02) — Phrase text centering; auto-hide on hover (Opacity=0 + click-through); Ctrl+Alt interaction modifier. 3 phases, 3 plans.
 
 ## Phases
 
@@ -26,7 +26,7 @@
 
 </details>
 
-### 🚧 v2.3 Ghost Mode (In Progress)
+### ✅ v2.3 Ghost Mode (Shipped 2026-03-02)
 
 **Milestone Goal:** The widget gets out of your way automatically — it disappears when you hover over it and reappears when you move away, with Ctrl+Alt as the opt-in interaction modifier.
 
@@ -76,7 +76,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 27-01-PLAN.md — Add GetAsyncKeyState P/Invoke + Ctrl+Alt guard in Window_MouseEnter; human verify modifier suppresses ghost and activates hover behaviors
+- [x] 27-01-PLAN.md — Add GetAsyncKeyState P/Invoke + Ctrl+Alt guard in Window_MouseEnter; human verify modifier suppresses ghost and activates hover behaviors (completed 2026-03-02)
 
 ## Progress
 
@@ -86,7 +86,7 @@ Plans:
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
 | 25. Centered Phrase Text | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
-| 27. Ctrl+Alt Interaction Modifier | 1/1 | Complete   | 2026-03-02 | - |
+| 27. Ctrl+Alt Interaction Modifier | v2.3 | 1/1 | Complete | 2026-03-02 |
 
 ---
-*Last updated: 2026-03-02 — Phase 27 planned (CTRLALT-01/02); 1 plan created*
+*Last updated: 2026-03-02 — Phase 27 complete; v2.3 milestone shipped; all 6 requirements verified*
