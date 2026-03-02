@@ -7,9 +7,9 @@
 
 ### Ghost Mode
 
-- [ ] **GHOST-01**: When the mouse enters the widget area (left Ctrl+Alt not held), the widget becomes fully invisible (Opacity=0) and click-through — mouse events pass to underlying windows
-- [ ] **GHOST-02**: When the mouse leaves the widget area, the widget restores its configured opacity and stops being click-through
-- [ ] **GHOST-03**: While ghost mode is active (widget invisible), hover backdrop and hover fast-refresh do not activate
+- [x] **GHOST-01**: When the mouse enters the widget area (left Ctrl+Alt not held), the widget becomes fully invisible (Opacity=0) and click-through — mouse events pass to underlying windows
+- [x] **GHOST-02**: When the mouse leaves the widget area, the widget restores its configured opacity and stops being click-through
+- [x] **GHOST-03**: While ghost mode is active (widget invisible), hover backdrop and hover fast-refresh do not activate
 
 ### Ctrl+Alt Modifier
 
@@ -40,9 +40,9 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CENTER-01 | Phase 25 | Complete (2026-03-02) |
-| GHOST-01 | Phase 26 | Pending |
-| GHOST-02 | Phase 26 | Pending |
-| GHOST-03 | Phase 26 | Pending |
+| GHOST-01 | Phase 26 | Complete |
+| GHOST-02 | Phase 26 | Complete |
+| GHOST-03 | Phase 26 | Complete |
 | CTRLALT-01 | Phase 27 | Pending |
 | CTRLALT-02 | Phase 27 | Pending |
 

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02 after v2.3 milestone start)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 25 — Centered Phrase Text (first phase of v2.3)
+**Current focus:** Phase 26 — Ghost Mode Core (second phase of v2.3)
 
 ## Current Position
 
-Phase: 25 of 27 (Centered Phrase Text)
+Phase: 26 of 27 (Ghost Mode Core)
 Plan: 1 of 1 in current phase — COMPLETE
-Status: Phase 25 complete; ready for Phase 26
-Last activity: 2026-03-02 — Phase 25 Plan 01 complete (CENTER-01 satisfied)
+Status: Phase 26 complete; ready for Phase 27
+Last activity: 2026-03-02 — Phase 26 Plan 01 complete (GHOST-01, GHOST-02, GHOST-03 satisfied)
 
-Progress: [█░░░░░░░░░] 33% (v2.3: 1/3 phases complete)
+Progress: [██░░░░░░░░] 67% (v2.3: 2/3 phases complete)
 
 ## Performance Metrics
 
@@ -30,10 +30,11 @@ Progress: [█░░░░░░░░░] 33% (v2.3: 1/3 phases complete)
 | 1–23 | 23 plans | ~60 min | 2.6 min |
 | 24. System Tray Icon | 2 | 4 min | 2 min |
 | 25. Centered Phrase Text | 1 | 3 min | 3 min |
+| 26. Ghost Mode Core | 1 | 15 min | 15 min |
 
 **Recent Trend:**
-- Last 5 plans: 23-01 (2 min), 24-01 (2 min), 24-02 (2 min), 25-01 (3 min)
-- Trend: Stable
+- Last 5 plans: 24-01 (2 min), 24-02 (2 min), 25-01 (3 min), 26-01 (15 min)
+- Trend: Longer due to 2 auto-fix deviations (WndProcHook approach replaced with DispatcherTimer+GetCursorPos)
 
 *Updated after each plan completion*
 
@@ -52,6 +53,7 @@ Recent decisions affecting current work:
 - [Research v2.3]: TrackMouseEvent restore path is MEDIUM confidence — DispatcherTimer polling fallback must be verified during Phase 26
 - [Phase 25-01]: TextAlignment=Center (not HorizontalAlignment=Center) centers glyphs within full layout-width box — HorizontalAlignment=Center collapses box to content size
 - [Phase 25-01]: Both ShadowText and PhraseText must carry identical TextAlignment so 2px TranslateTransform shadow offset remains visually correct at all phrase lengths
+- [Phase 26-ghost-mode-core]: DispatcherTimer+GetCursorPos+GetWindowRect for ghost restore — WS_EX_TRANSPARENT causes synthetic WM_MOUSELEAVE + WPF stale coords, bypassing WPF input system is required
 
 ### Pending Todos
 
@@ -59,11 +61,11 @@ None.
 
 ### Blockers/Concerns
 
-- [Phase 26]: TrackMouseEvent delivery after WS_EX_TRANSPARENT is applied is not explicitly documented. Must verify experimentally during execution; fall back to DispatcherTimer polling Mouse.GetPosition(this) against ActualWidth/ActualHeight if WM_MOUSELEAVE does not arrive.
+None. (Phase 26 blocker resolved: DispatcherTimer+GetCursorPos+GetWindowRect confirmed working; WndProcHook approach is incompatible with self-transparent windows.)
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Phase 25-01 complete — CENTER-01 satisfied, SUMMARY.md written
+Stopped at: Phase 26-01 complete — GHOST-01/02/03 satisfied, SUMMARY.md written
 Resume file: None
-Next action: /gsd:plan-phase 26
+Next action: /gsd:plan-phase 27

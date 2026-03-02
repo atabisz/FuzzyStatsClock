@@ -31,7 +31,7 @@
 **Milestone Goal:** The widget gets out of your way automatically — it disappears when you hover over it and reappears when you move away, with Ctrl+Alt as the opt-in interaction modifier.
 
 - [x] **Phase 25: Centered Phrase Text** - TextAlignment=Center on PhraseText and ShadowText TextBlocks; phrase text is horizontally centered in the widget content area (completed 2026-03-02)
-- [ ] **Phase 26: Ghost Mode Core** - Widget becomes Opacity=0 and click-through (WS_EX_TRANSPARENT) on MouseEnter with no modifier; restores on mouse exit with all hover state cleanly reset
+- [x] **Phase 26: Ghost Mode Core** - Widget becomes Opacity=0 and click-through (WS_EX_TRANSPARENT) on MouseEnter with no modifier; restores on mouse exit with all hover state cleanly reset (completed 2026-03-02)
 - [ ] **Phase 27: Ctrl+Alt Interaction Modifier** - Holding left Ctrl+left Alt while hovering suppresses ghost activation; all existing hover behaviors (backdrop, fast-refresh, drag, right-click, scroll) activate normally
 
 ## Phase Details
@@ -62,7 +62,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 26-01-PLAN.md — Implement ghost mode core (P/Invoke + WndProcHook) and human verify activation/restore/state correctness
+- [x] 26-01-PLAN.md — Implement ghost mode core (P/Invoke + DispatcherTimer+GetCursorPos) and human verify activation/restore/state correctness (completed 2026-03-02)
 
 ### Phase 27: Ctrl+Alt Interaction Modifier
 **Goal**: Holding left Ctrl + left Alt while hovering suppresses ghost mode and keeps the widget fully interactive
@@ -82,8 +82,8 @@ Plans:
 | 1–23 | v1.0–v2.1 | All | Complete | See archives |
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
 | 25. Centered Phrase Text | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
-| 26. Ghost Mode Core | v2.3 | 0/1 | Not started | - |
+| 26. Ghost Mode Core | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-02 — Phase 25 complete (CENTER-01); phrase text centered*
+*Last updated: 2026-03-02 — Phase 26 complete (GHOST-01/02/03); ghost mode core active*
