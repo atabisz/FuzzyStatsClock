@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -30,6 +31,45 @@ public partial class MainWindow : Window
     private double _windowOpacity = 1.0;
     private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
     private System.Windows.Forms.NotifyIcon _trayIcon = null!;
+
+    // Ghost mode state (v2.3)
+    private bool   _isGhostMode = false;
+    private IntPtr _hwnd;
+
+    // Ghost mode P/Invoke constants
+    private const int  GWL_EXSTYLE       = -20;
+    private const int  WS_EX_TRANSPARENT = 0x00000020;
+    private const uint SWP_NOSIZE        = 0x0001;
+    private const uint SWP_NOMOVE        = 0x0002;
+    private const uint SWP_NOZORDER      = 0x0004;
+    private const uint SWP_FRAMECHANGED  = 0x0020;
+    private const uint TME_LEAVE         = 0x00000002;
+    private const int  WM_MOUSELEAVE     = 0x02A3;
+
+    // Ghost mode P/Invoke declarations
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd, IntPtr hWndInsertAfter,
+        int X, int Y, int cx, int cy, uint uFlags);
+
+    [DllImport("user32.dll")]
+    private static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT lpEventTrack);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct TRACKMOUSEEVENT
+    {
+        public uint   cbSize;
+        public uint   dwFlags;
+        public IntPtr hwndTrack;
+        public uint   dwHoverTime;
+    }
+
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
     private readonly List<System.Windows.Controls.TextBlock> _hourNumberElements = new();
@@ -103,6 +143,9 @@ public partial class MainWindow : Window
             InitDialDecorations();
             ApplyTheme();            // NEW: must come AFTER InitDialDecorations() — decoration lists are empty before this point
             InitTrayIcon();
+
+            _hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            System.Windows.Interop.HwndSource.FromHwnd(_hwnd).AddHook(WndProcHook);
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
@@ -483,25 +526,51 @@ public partial class MainWindow : Window
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        // Backdrop (Phase 14/15): show semi-transparent background on hover (always)
-        ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
+        // Ghost mode activation (v2.3 Phase 26 — always-on; Phase 27 adds Ctrl+Alt check here)
 
-        if (StatsPanel.Visibility != Visibility.Visible) return;
-        // Fast-refresh (Phase 12): accelerate stats timer — only when stats visible
-        if (_statsTimer != null && _statsTimer.IsEnabled)
+        // Step 1: Run synthetic MouseLeave cleanup BEFORE going click-through.
+        // WS_EX_TRANSPARENT stops WM_MOUSELEAVE delivery. Backdrop and timer state
+        // must be clean before we disappear or they will be corrupted post-restore.
+        ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+        if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null)
         {
             _statsTimer.Stop();
-            _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
+            _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
             _statsTimer.Start();
         }
-        _isHoverFastRefresh = true;
+        _isHoverFastRefresh = false;
+
+        // Step 2: Register leave tracking BEFORE applying WS_EX_TRANSPARENT.
+        // TrackMouseEvent is HWND-keyed; OS should deliver WM_MOUSELEAVE when cursor
+        // exits window rectangle even after WS_EX_TRANSPARENT is set.
+        // (MEDIUM confidence — see WndProcHook for fallback if delivery fails)
+        var tme = new TRACKMOUSEEVENT
+        {
+            cbSize      = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(),
+            dwFlags     = TME_LEAVE,
+            hwndTrack   = _hwnd,
+            dwHoverTime = 0
+        };
+        TrackMouseEvent(ref tme);
+
+        // Step 3: Apply WS_EX_TRANSPARENT (always OR onto existing style — never replace).
+        // Must preserve WS_EX_LAYERED (AllowsTransparency) and WS_EX_TOOLWINDOW (Alt+Tab hide).
+        _isGhostMode = true;
+        int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+        SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
+        SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        this.Opacity = 0.0;
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
+        // Ghost mode guard: if _isGhostMode is true, ghost restore is handled by WndProcHook
+        // (or DispatcherTimer fallback). The hover-restore path below must NOT run during ghost state —
+        // backdrop and timer were never set by Window_MouseEnter when ghosting (Step 1 cleaned them up).
+        if (_isGhostMode) return;
+
         // Backdrop restore (Phase 14): always clear on leave regardless of stats state
-        // (stats may have been hidden while mouse was over widget — backdrop must still clear)
         ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
 
         if (StatsPanel.Visibility != Visibility.Visible) return;
@@ -513,6 +582,25 @@ public partial class MainWindow : Window
             _statsTimer.Start();
         }
         _isHoverFastRefresh = false;
+    }
+
+    private IntPtr WndProcHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_MOUSELEAVE && _isGhostMode)
+        {
+            // Ghost restore: clear WS_EX_TRANSPARENT and restore configured opacity.
+            // ContentBorder.Background was already cleared in Window_MouseEnter Step 1.
+            // Defensive clear below for safety against any future code path changes.
+            _isGhostMode = false;
+            int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+            SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
+            SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            this.Opacity = _windowOpacity;
+            ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+            handled = true;
+        }
+        return IntPtr.Zero;
     }
 
     private void SetStatRowVisible(Grid row, bool visible)
