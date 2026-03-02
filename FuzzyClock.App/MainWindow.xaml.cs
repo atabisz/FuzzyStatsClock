@@ -63,6 +63,12 @@ public partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    private const int VK_LCONTROL = 0xA2;   // Left Ctrl only (not VK_CONTROL=0x11 — avoids right-side ambiguity)
+    private const int VK_LMENU    = 0xA4;   // Left Alt only (not VK_MENU=0x12 — VK_MENU matches AltGr on EU keyboards)
+
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int X; public int Y; }
 
@@ -545,7 +551,33 @@ public partial class MainWindow : Window
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        // Ghost mode activation (v2.3 Phase 26 — always-on; Phase 27 adds Ctrl+Alt check here)
+        // Phase 27: Ctrl+Alt modifier — suppress ghost mode if left Ctrl + left Alt are held.
+        // Use GetAsyncKeyState (not Keyboard.IsKeyDown) — overlay has no keyboard focus.
+        // Use VK_LCONTROL + VK_LMENU (not generic VK_CONTROL/VK_MENU) — VK_MENU matches AltGr on EU keyboards.
+        // Mask with 0x8000: high bit = key currently pressed; low bit = toggled since last call (ignore).
+        bool ctrlAltHeld = (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0
+                        && (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
+
+        if (ctrlAltHeld)
+        {
+            // Normal hover path (CTRLALT-01/02): show backdrop + activate fast-refresh.
+            // WS_EX_TRANSPARENT is NOT applied — window stays fully interactive (drag, right-click, scroll).
+            // _ghostRestoreTimer is NOT started — normal Window_MouseLeave handles cleanup.
+            ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
+
+            if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null
+                && _statsTimer.IsEnabled)
+            {
+                _statsTimer.Stop();
+                _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
+                _statsTimer.Start();
+            }
+            _isHoverFastRefresh = true;
+            return;  // Skip ghost mode path — do NOT apply WS_EX_TRANSPARENT
+        }
+
+        // Ghost mode activation (v2.3 Phase 26)
 
         // Step 1: Run synthetic MouseLeave cleanup BEFORE going click-through.
         // WS_EX_TRANSPARENT stops WM_MOUSELEAVE delivery. Backdrop and timer state
@@ -559,11 +591,10 @@ public partial class MainWindow : Window
         }
         _isHoverFastRefresh = false;
 
-        // Step 2: Start DispatcherTimer polling — checks Mouse.GetPosition(this) every 75ms.
+        // Step 2: Start DispatcherTimer polling — checks GetCursorPos vs GetWindowRect every 75ms.
         // When the cursor exits the window rectangle, the timer stops and triggers ghost restore.
         // This fallback is used instead of TrackMouseEvent because WS_EX_TRANSPARENT causes Win32
-        // to deliver a synthetic WM_MOUSELEAVE immediately after the style is applied, which would
-        // trigger WndProcHook to restore opacity before the user moves away.
+        // to deliver a synthetic WM_MOUSELEAVE immediately after the style is applied.
         _ghostRestoreTimer!.Start();
 
         // Step 3: Apply WS_EX_TRANSPARENT (always OR onto existing style — never replace).
