@@ -635,8 +635,11 @@ public partial class MainWindow : Window
         // Reset opacity to 100%
         SetOpacity(1.0);
 
-        // Update opacity submenu checkmarks (ContextMenu_Opened syncs them on next open,
-        // but _windowOpacity is already updated by SetOpacity above — no extra sync needed)
+        // Reset font size to small (16pt)
+        ApplyFontSize(16);
+
+        // Reset to phrase (text) mode — disable dial if active
+        if (_dialMode) SetDialMode(false);
 
         // Center on primary screen
         // ActualWidth/ActualHeight are valid at runtime (ContentRendered has already fired)
