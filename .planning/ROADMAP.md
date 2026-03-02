@@ -59,7 +59,10 @@ Plans:
   2. When the mouse leaves the widget area, the widget restores to its configured opacity and is fully interactive again
   3. While the widget is in ghost state, the hover backdrop does not appear and the stats timer does not switch to 0.5s fast-refresh
   4. After ghost mode restore, the widget is correctly interactive: drag, right-click, and scroll wheel all work normally
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 26-01-PLAN.md — Implement ghost mode core (P/Invoke + WndProcHook) and human verify activation/restore/state correctness
 
 ### Phase 27: Ctrl+Alt Interaction Modifier
 **Goal**: Holding left Ctrl + left Alt while hovering suppresses ghost mode and keeps the widget fully interactive
@@ -79,7 +82,7 @@ Plans:
 | 1–23 | v1.0–v2.1 | All | Complete | See archives |
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
 | 25. Centered Phrase Text | v2.3 | Complete    | 2026-03-02 | 2026-03-02 |
-| 26. Ghost Mode Core | v2.3 | 0/? | Not started | - |
+| 26. Ghost Mode Core | v2.3 | 0/1 | Not started | - |
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 0/? | Not started | - |
 
 ---
