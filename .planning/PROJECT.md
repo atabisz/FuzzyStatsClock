@@ -10,9 +10,9 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v2.3 shipped: 2026-03-02** — Next milestone: TBD
+**v2.5 shipped: 2026-03-03** — Next milestone: TBD
 
-All v2.3 requirements delivered. CENTER-01, GHOST-01/02/03, CTRLALT-01/02 human-verified.
+73 MSTest tests (64 Core + 9 App) passing. CI gate enforced. SettingsService validation and AppSettings JSON behavior testable without file I/O or WPF dispatcher.
 
 - Ghost mode: `Opacity=0` + `WS_EX_TRANSPARENT` on `MouseEnter` (no modifier); `DispatcherTimer` 75ms `GetCursorPos+GetWindowRect` restore; synthetic hover-state cleanup before going transparent; `_isGhostMode` guard in `Window_MouseLeave`
 - Ctrl+Alt modifier: `GetAsyncKeyState(VK_LCONTROL/VK_LMENU) & 0x8000` at top of `Window_MouseEnter`; if held (or ghost mode disabled), fires normal hover path (backdrop + fast-refresh) and returns early — no WS_EX_TRANSPARENT
@@ -120,20 +120,25 @@ All v2.3 requirements delivered. CENTER-01, GHOST-01/02/03, CTRLALT-01/02 human-
 - ✓ CTRLALT-01: When user holds left Ctrl+Alt while hovering, ghost mode is suppressed — widget stays visible and interactive — v2.3
 - ✓ CTRLALT-02: In Ctrl+Alt mode, existing hover behaviors activate normally (backdrop, fast-refresh, drag, right-click, scroll) — v2.3
 
-### Active (v2.5 Unit Tests)
+### Validated (v2.5)
 
-- [ ] EXTRACT-01: UptimeFormatter.Format(TimeSpan) extracted from MainWindow into FuzzyClock.Core
-- [ ] EXTRACT-02: DialGeometry.GetHandAngle extracted from MainWindow into FuzzyClock.Core
-- [ ] TINFRA-01: FuzzyClock.App.Tests project (net10.0-windows, MSTest) added to solution
-- [ ] STEST-01: AppSettings JSON round-trip test passes (serialize → deserialize → all fields match)
-- [ ] STEST-02: AppSettings deserialization with absent field returns init default, not C# type default
-- [ ] STEST-03: SettingsService validation logic (StatsIntervalSeconds ≤ 0) is unit testable and tested
-- [ ] STEST-04: SettingsService validation logic (Opacity ≤ 0.0) is unit testable and tested
-- [ ] STEST-05: SettingsService validation logic (AccentColor null/empty) is unit testable and tested
-- [ ] STEST-06: SettingsService.Clamp() pure overload clamps Left/Top within provided bounds
-- [ ] UTEST-01: UptimeFormatter tests cover sub-hour, exactly-1h, hours-only, exactly-1d, days+hours+minutes
-- [ ] UTEST-02: DialGeometry tests cover 12:00, 3:00, 6:00, 3:15 and intermediate angle positions
-- [ ] CI-01: GitHub Actions release.yml runs dotnet test before dotnet publish; workflow fails if tests fail
+- ✓ EXTRACT-01: UptimeFormatter.Format(TimeSpan) extracted from MainWindow into FuzzyClock.Core; MainWindow calls it with no behavior change — v2.5
+- ✓ EXTRACT-02: DialGeometry.GetHourAngleDegrees/GetMinuteAngleDegrees extracted from MainWindow into FuzzyClock.Core; MainWindow calls both with no behavior change — v2.5
+- ✓ UTEST-01: UptimeFormatter tests cover sub-hour, exactly-1h, hours-only, exactly-1d, days+hours+minutes — 7 test cases, all passing — v2.5
+- ✓ UTEST-02: DialGeometry tests cover 12:00, 3:00, 6:00, 9:00, 3:15 interpolation, 12:30 wrap — 6 test cases, all passing — v2.5
+- ✓ TINFRA-01: FuzzyClock.App.Tests (net10.0-windows, MSTest 4.0.1, UseWPF=true) added to FuzzyClock.slnx; runs via `dotnet test` with zero failures — v2.5
+- ✓ STEST-01: AppSettings JSON round-trip test passes (serialize → deserialize → all 17 fields match) — v2.5
+- ✓ STEST-02: AppSettings deserialization with UptimeVisible absent returns true (init default, not C# false default) — v2.5
+- ✓ STEST-03: SettingsService.Validate() corrects StatsIntervalSeconds=0 to 3 — v2.5
+- ✓ STEST-04: SettingsService.Validate() corrects Opacity=0.0 to 1.0 — v2.5
+- ✓ STEST-05: SettingsService.Validate() corrects null/whitespace AccentColor to "#FFFFFFFF" — v2.5
+- ✓ STEST-06: SettingsService.Clamp() pure overload clamps Left/Top out-of-bounds into screen bounds — v2.5
+- ✓ STEST-07: SettingsService.Clamp() pure overload leaves already-in-bounds Left/Top unchanged — v2.5
+- ✓ CI-01: GitHub Actions release.yml runs dotnet test before dotnet publish; no continue-on-error; all 73 tests gate the release artifact — v2.5
+
+### Active (Next Milestone)
+
+*(No active requirements — define with `/gsd:new-milestone`)*
 
 ### Deferred (v2+)
 
@@ -246,6 +251,12 @@ All v2.3 requirements delivered. CENTER-01, GHOST-01/02/03, CTRLALT-01/02 human-
 | TextAlignment=Center (not HorizontalAlignment=Center) for phrase centering | HorizontalAlignment=Center collapses the layout box to content size — centering relative to text width is a no-op visually; TextAlignment=Center centers glyphs within the full Stretch-width layout box | ✓ Validated — phrase text visually centered in widget area at all three font sizes |
 | ctrlAltHeld \|\| !_ghostModeEnabled combined condition | Both cases (modifier held, ghost disabled via tray) route to the same normal hover path; single early-return handles both without code duplication | ✓ Validated — Ctrl+Alt suppression and tray toggle both work correctly; no regression to either path |
 | GhostModeEnabled init default = true | Ghost mode is the primary UX of v2.3; users must explicitly disable if unwanted; default-true ensures ghost is active on first install and on upgrade from v2.2 | ✓ Validated — ghost mode active on fresh install and settings.json upgrade |
+| Extract only angle degrees from DialGeometry (not radians/canvas) | Canvas geometry and radian conversion depend on WPF layout; only the pure angle values are testable in isolation | ✓ Validated — GetHourAngleDegrees/GetMinuteAngleDegrees are fully testable; MainWindow retains radian math |
+| TimeSpan component properties in UptimeFormatter (not .TotalHours etc.) | `.TotalHours` accumulates days; component properties (Days/Hours/Minutes) match the existing MainWindow if/else logic exactly | ✓ Validated — UptimeFormatter behavior identical to pre-extraction MainWindow |
+| net10.0-windows + UseWPF=true in App.Tests | FuzzyClock.App is a WinExe WPF project; plain net10.0 test project cannot resolve WPF assemblies at test runner load time | ✓ Validated — dotnet test discovers and runs App.Tests correctly |
+| SettingsService.Validate() extracted from Load() | Making validation a pure static method with no file I/O allows direct unit testing; Load() delegates to Validate() — tested code is the production code path | ✓ Validated — 5 Validate/Clamp test cases pass; Load() behavior identical |
+| Pure Clamp() overload with explicit screen bounds | SystemParameters.VirtualScreen* requires a running WPF dispatcher context — unavailable in test runner | ✓ Validated — existing Clamp(AppSettings) delegates to pure overload; same code path tested and deployed |
+| GitHub Actions default fail-fast for CI gate | No explicit configuration needed; sequential step order with no continue-on-error means a non-zero dotnet test exit code naturally prevents publish from executing | ✓ Validated — step order verified; no bypass mechanism; local suite 73/73 green |
 
 ---
-*Last updated: 2026-03-03 — v2.5 Unit Tests milestone started*
+*Last updated: 2026-03-03 — v2.5 Unit Tests milestone complete*

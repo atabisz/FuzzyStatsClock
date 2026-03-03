@@ -192,3 +192,17 @@
 
 ---
 
+
+## v2.5 Unit Tests (Shipped: 2026-03-03)
+
+**Phases completed:** 3 phases (28–30), 3 plans, 8 tasks
+**Test suite:** 73 tests (64 Core + 9 App), 0 failures
+**Files changed:** 10 new files created, 5 modified — 2095 insertions, 70 deletions
+
+**Key accomplishments:**
+- `UptimeFormatter.Format(TimeSpan)` and `DialGeometry.GetHour/MinuteAngleDegrees()` extracted from MainWindow into `FuzzyClock.Core` as pure static classes — 13 MSTest boundary-condition tests (7 + 6) all passing
+- `FuzzyClock.App.Tests` project added (net10.0-windows, MSTest 4.0.1, UseWPF=true) with `SettingsService.Validate()` pure static method and pure `Clamp()` overload (no file I/O, no SystemParameters dependency) — 9 test cases covering AppSettings round-trip, absent-field init defaults, and all three Validate guards
+- GitHub Actions `release.yml` hardened with `dotnet restore → dotnet test → dotnet publish` step order; no `continue-on-error` — all 73 tests gate the release artifact; a broken test prevents `FuzzyClock.exe` from being produced
+
+---
+
