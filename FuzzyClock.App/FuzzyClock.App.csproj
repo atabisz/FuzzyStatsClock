@@ -17,10 +17,10 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <NoWarn>NU1510</NoWarn>
-    <Version>2.6.0</Version>
-    <AssemblyVersion>2.6.0.0</AssemblyVersion>
-    <FileVersion>2.6.0.0</FileVersion>
-    <InformationalVersion>2.6</InformationalVersion>
+    <Version>2.7.0</Version>
+    <AssemblyVersion>2.7.0.0</AssemblyVersion>
+    <FileVersion>2.7.0.0</FileVersion>
+    <InformationalVersion>2.7</InformationalVersion>
     <Product>FuzzyClock</Product>
     <Description>Fuzzy time and system stats desktop overlay</Description>
     <Copyright>Alex Tabisz</Copyright>
