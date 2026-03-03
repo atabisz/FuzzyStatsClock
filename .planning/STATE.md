@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-03 — v2.5 Unit Tests started)
 **Milestone:** v2.5 Unit Tests
 **Phase:** 29 — App Test Infrastructure + Settings Tests (complete)
 **Plan:** 29-01 complete
-**Status:** In Progress (Phase 30 remaining)
+**Status:** Milestone complete
 
 Progress: [███░░░░░░░] 67% (2/3 phases complete)
 

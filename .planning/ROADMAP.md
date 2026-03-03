@@ -117,7 +117,7 @@ Plans:
 | 26. Ghost Mode Core | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 28. Core Logic Extraction + Tests | v2.5 | 1/1 | Complete | 2026-03-02 |
-| 29. App Test Infrastructure + Settings Tests | 1/1 | Complete   | 2026-03-03 | - |
+| 29. App Test Infrastructure + Settings Tests | 1/1 | Complete    | 2026-03-03 | - |
 | 30. CI Test Gate | v2.5 | 0/? | Not started | - |
 
 ---
