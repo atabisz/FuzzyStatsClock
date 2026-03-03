@@ -8,35 +8,34 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v2.6 Polish
+## Current Milestone: v2.7 Auto-Contrast
 
-**Goal:** Add auto-launch at Windows login and per-monitor position memory so the widget is effortless to set up and always returns to the right place.
+**Goal:** Widget text remains readable regardless of what is on the screen behind it.
 
 **Target features:**
-- Auto-launch on Windows login (registry toggle via tray)
-- Per-monitor position persistence (remember last position per display)
+- Auto-contrast mode: screen-color sampling under widget footprint, WCAG-based text switch to black/white when contrast is insufficient
 
 ## Current State
 
-**v2.5 shipped: 2026-03-03** — v2.6 Polish in progress
+**v2.6 shipped: 2026-03-03** — v2.7 Auto-Contrast planned (Phase 33)
 
-73 MSTest tests (64 Core + 9 App) passing. CI gate enforced. SettingsService validation and AppSettings JSON behavior testable without file I/O or WPF dispatcher.
+78 MSTest tests (64 Core + 14 App) passing. CI gate enforced. Per-monitor position memory and auto-launch at login fully implemented.
 
+- Auto-launch: `AutoLaunchService` writes/removes `HKCU\...\Run` entry; tray toggle updates checkmark; registry synced on startup via `AppSettings.AutoLaunchEnabled` (default false)
+- Per-monitor: `MonitorService` (QueryDisplayConfig P/Invoke) returns friendly names; `Dictionary<string, MonitorPosition>` in AppSettings + `LastActiveMonitor` sentinel; drag-end upsert with source-clear on cross-monitor drag; startup restores last-active monitor or centers on primary
 - Ghost mode: `Opacity=0` + `WS_EX_TRANSPARENT` on `MouseEnter` (no modifier); `DispatcherTimer` 75ms `GetCursorPos+GetWindowRect` restore; synthetic hover-state cleanup before going transparent; `_isGhostMode` guard in `Window_MouseLeave`
 - Ctrl+Alt modifier: `GetAsyncKeyState(VK_LCONTROL/VK_LMENU) & 0x8000` at top of `Window_MouseEnter`; if held (or ghost mode disabled), fires normal hover path (backdrop + fast-refresh) and returns early — no WS_EX_TRANSPARENT
 - Ghost mode tray toggle: checkable "Ghost Mode" tray menu item; `AppSettings.GhostModeEnabled` (default true); persisted
 - Phrase text: `TextAlignment=Center` + `HorizontalAlignment=Stretch` on both PhraseText and ShadowText TextBlocks
-- System tray icon: 16×16 analog clock face; tray context menu: Ghost Mode ✓ (toggle), Reset to Defaults, Quit
+- System tray icon: 16×16 analog clock face; tray context menu: Auto-Launch ✓, Ghost Mode ✓, Reset to Defaults, Quit
 - Uptime row: `up Xd Xh Xm   0.52  0.47  0.43` format; rolling CPU 1m/5m/15m via `Queue<float>`; interval-aware window sizing; cold-start guard
 - Accent color: 5 presets + custom color picker; applied to 15 elements; persisted as hex string
 - Window opacity: right-click submenu (25/50/75/100%) + scroll wheel (10% steps, 10% floor); persisted
 - Stats panel: CPU / GPU / MEM / PAG horizontal bars + %; per-row visibility toggles; auto-collapse when all hidden; persisted
 - Dial mode: minimal analog dial (hour + minute hands, no face); dial face decorations (tick marks, minute marks, hour numbers); persisted
 - Context-aware menus: Font Size hidden in dial mode; Dial Face hidden in phrase mode
-- Position persistence: drag to any position, saved immediately, restored on launch
-- Font size: Small (16pt) / Medium (24pt) / Large (32pt); persisted
 - Settings: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~1,440 LOC C# / XAML (main files: MainWindow.xaml.cs 1068, MainWindow.xaml 269, StatsService.cs 141, SettingsService.cs 78, AppSettings.cs 24)
+- ~2,526 LOC C# / XAML (main files: MainWindow.xaml.cs ~1200, MonitorService.cs 268, SettingsService.cs ~120, AppSettings.cs ~45, AutoLaunchService.cs ~40)
 
 ## Requirements
 
@@ -144,14 +143,21 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ STEST-07: SettingsService.Clamp() pure overload leaves already-in-bounds Left/Top unchanged — v2.5
 - ✓ CI-01: GitHub Actions release.yml runs dotnet test before dotnet publish; no continue-on-error; all 73 tests gate the release artifact — v2.5
 
-### Active (v2.6)
+### Validated (v2.6)
 
-- STRT-01: User can toggle auto-launch at Windows login via tray context menu; toggle state shown as checkmark
-- STRT-02: Auto-launch setting persists to settings.json and restores on launch
-- STRT-03: When auto-launch is enabled, HKCU\...\CurrentVersion\Run registry entry is written; when disabled, entry is removed
-- MON-01: Widget tracks and remembers the last-used position for each connected monitor using monitor identity as key
-- MON-02: On startup, widget restores to the position last used on the currently connected monitor
-- MON-03: If the last-used monitor is not connected at startup, widget centers on the primary screen
+- ✓ STRT-01: User can toggle auto-launch at Windows login via tray context menu; toggle state shown as checkmark — v2.6
+- ✓ STRT-02: Auto-launch setting persists to settings.json and restores on launch — v2.6
+- ✓ STRT-03: When auto-launch is enabled, HKCU\...\CurrentVersion\Run registry entry is written; when disabled, entry is removed — v2.6
+- ✓ MON-01: Widget tracks and remembers the last-used position for each connected monitor using monitor identity as key — v2.6
+- ✓ MON-02: On startup, widget restores to the position last used on the currently connected monitor — v2.6
+- ✓ MON-03: If the last-used monitor is not connected at startup, widget centers on the primary screen — v2.6
+
+### Active (v2.7)
+
+- CONTRAST-01: User can enable/disable auto-contrast mode via tray menu; off by default; persisted to settings.json
+- CONTRAST-02: When enabled, widget samples screen color under its footprint at each timer tick
+- CONTRAST-03: When accent color vs background contrast is insufficient (WCAG threshold), widget elements switch to whichever of black or white gives better contrast against the background
+- CONTRAST-04: Widget elements restore to configured accent color when background contrast is sufficient again
 
 ### Deferred (v2+)
 
@@ -268,6 +274,16 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | SettingsService.Validate() extracted from Load() | Making validation a pure static method with no file I/O allows direct unit testing; Load() delegates to Validate() — tested code is the production code path | ✓ Validated — 5 Validate/Clamp test cases pass; Load() behavior identical |
 | Pure Clamp() overload with explicit screen bounds | SystemParameters.VirtualScreen* requires a running WPF dispatcher context — unavailable in test runner | ✓ Validated — existing Clamp(AppSettings) delegates to pure overload; same code path tested and deployed |
 | GitHub Actions default fail-fast for CI gate | No explicit configuration needed; sequential step order with no continue-on-error means a non-zero dotnet test exit code naturally prevents publish from executing | ✓ Validated — step order verified; no bypass mechanism; local suite 73/73 green |
+| AutoLaunchService static helper (not instance service) | AutoLaunch has no mutable state — just read/write registry; static class avoids constructor injection plumbing for a pure Win32 operation | ✓ Validated — `AutoLaunchService.IsEnabled()`, `Enable()`, `Disable()` work without any DI wiring |
+| AutoLaunchEnabled init default = false | Auto-launch is opt-in; default true would silently add startup entries for users who never asked for it on upgrade from v2.5 | ✓ Validated — registry entry absent until user explicitly enables; upgrade-safe |
+| Registry sync on ApplySettings() startup | Registry state may diverge from settings.json (e.g. user deleted Run entry manually); re-applying the persisted preference on every startup self-heals without an explicit repair flow | ✓ Validated — idempotent sync; no duplicate entries; removes stale entry when false |
+| Monitor key = QueryDisplayConfig friendly name, lowercase | Human-readable (e.g. "dell u2720q") survives driver updates; GDI device name (e.g. "\\\\.\\DISPLAY1") changes on reconnect and is a poor key | ✓ Validated — friendly name stable across reboots; GDI fallback for monitors that return empty name |
+| Duplicate monitor name dedup via -2/-3 suffix | Two identical monitors have no distinguishing identity; suffix by Screen.AllScreens index order provides stable differentiation within a session | ✓ Validated — "dell u2720q" and "dell u2720q-2" maintained correctly across restarts |
+| Lazy _keyMap cache with length invalidation | Screen.AllScreens enumeration + QueryDisplayConfig P/Invoke is expensive; re-running on every position save would be wasteful; AllScreens.Length change is the cheapest change-detection signal | ✓ Validated — map rebuilt when monitor count changes; stable for same-count configuration |
+| MonitorPositions replaces flat Left/Top | Flat Left/Top cannot represent per-monitor memory without a new parallel structure; Dictionary<string, MonitorPosition> is extensible to N monitors natively | ✓ Validated — single AppSettings field handles 1–N monitors; dictionary serializes cleanly via System.Text.Json |
+| JsonDocument pre-parse migration probe | Deserializing into the new AppSettings type (without Left/Top) would silently drop old position data; pre-parse detects the old schema before deserializing, enabling a one-time migration | ✓ Validated — users upgrading from v2.5 keep their saved primary-monitor position; Left=-1 (no position) correctly skipped |
+| Cross-monitor drag: clear source entry | Keeping both source and destination entries would mean the widget "appears" on both monitors at next launch depending on LastActiveMonitor; clean one-entry-at-a-time model avoids ambiguity | ✓ Validated — only the destination monitor entry survives after a cross-monitor drag |
+| _settings field cached in ApplySettings | SaveSettings needs to build a new AppSettings `with` expression; without the cached _settings, it must reconstruct all fields from UI state — fragile and incomplete as fields grow | ✓ Validated — _settings with { MonitorPositions = ..., LastActiveMonitor = ... } preserves all other fields cleanly |
 
 ---
-*Last updated: 2026-03-03 — v2.6 Polish milestone started*
+*Last updated: 2026-03-03 — v2.6 shipped; v2.7 Auto-Contrast is next*

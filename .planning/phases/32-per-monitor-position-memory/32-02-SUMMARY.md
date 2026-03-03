@@ -72,7 +72,7 @@ Each task was committed atomically:
 1. **Task 1: Rewrite SettingsService — Defaults, Validate, migration, new Clamp overloads** - `de0fe11` (feat)
 2. **Task 2: Update SettingsServiceTests — fix Defaults assertions, add MonitorPosition Clamp tests** - `1bce537` (test)
 
-**Plan metadata:** (docs commit follows)
+**Plan metadata:** `9885e70` (docs: complete plan)
 
 ## Files Created/Modified
 - `FuzzyClock.App/SettingsService.cs` - Rewritten: migration in Load(), new Clamp(MonitorPosition,...) overloads, updated Defaults(), null-guard in Validate()
@@ -97,6 +97,15 @@ None - no external service configuration required.
 - SettingsService fully updated for per-monitor schema
 - All non-MainWindow code compiles with 0 errors
 - Ready for Plan 03: MainWindow.xaml.cs wiring (position save/restore logic using new SettingsService API)
+
+## Self-Check: PASSED
+
+- FOUND: FuzzyClock.App/SettingsService.cs
+- FOUND: FuzzyClock.App.Tests/SettingsServiceTests.cs
+- FOUND: .planning/phases/32-per-monitor-position-memory/32-02-SUMMARY.md
+- FOUND: commit de0fe11 (feat: rewrite SettingsService)
+- FOUND: commit 1bce537 (test: update SettingsServiceTests)
+- FOUND: commit 9885e70 (docs: complete plan metadata)
 
 ---
 *Phase: 32-per-monitor-position-memory*

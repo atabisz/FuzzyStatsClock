@@ -99,6 +99,15 @@ None - no external service configuration required.
 - Plan 02 must update SettingsService (Clamp, Defaults, migration) to eliminate Left/Top references
 - Plan 03 must update MainWindow to call MonitorService.GetCurrentMonitorKey and restore from MonitorPositions
 
+## Self-Check: PASSED
+
+- FOUND: `FuzzyClock.App/MonitorService.cs`
+- FOUND: `FuzzyClock.App/AppSettings.cs`
+- FOUND: `.planning/phases/32-per-monitor-position-memory/32-01-SUMMARY.md`
+- FOUND commit `8e1997f` (Task 1)
+- FOUND commit `06c0a04` (Task 2)
+- FOUND commit `acccb15` (docs metadata)
+
 ---
 *Phase: 32-per-monitor-position-memory*
 *Completed: 2026-03-03*

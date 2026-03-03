@@ -206,3 +206,20 @@
 
 ---
 
+
+## v2.6 Polish (Shipped: 2026-03-03)
+
+**Phases completed:** 2 phases (31–32), 4 plans
+**Test suite:** 78 tests (up from 73), 0 failures
+**Files changed:** 37 files changed, +2696 lines
+
+**Key accomplishments:**
+- `AutoLaunchService` writes/removes `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` registry entry; tray menu toggle updates checkmark on `Opening`; `AppSettings.AutoLaunchEnabled` (default false) persists to settings.json and is re-synced with the registry on every launch
+- `MonitorService` enumerates monitors via `QueryDisplayConfig` P/Invoke for human-readable friendly names (e.g. "Dell U2720Q"); deduplicates identical names with `-2`/`-3` suffixes by `Screen.AllScreens` order; falls back to GDI device name when no friendly name available
+- `AppSettings` migrated from flat `Left`/`Top` doubles to `Dictionary<string, MonitorPosition>` + `LastActiveMonitor` string; `SettingsService.Load()` migrates old settings.json via `JsonDocument` pre-parse probe — users keep their saved position on the primary monitor after upgrade
+- Per-monitor position save/restore: drag-end upserts to destination monitor key; cross-monitor drag clears source entry before save; startup restores `MonitorPositions[LastActiveMonitor]` or centers on primary if monitor absent
+- Startup clamping uses `FindScreenForKey(_currentMonitorKey)` + `SettingsService.Clamp(MonitorPosition, width, height, screen)` against the target screen's `WorkingArea` — position stays valid even after resolution changes
+- Test suite extended to 78 MSTest tests: 5 new tests covering `MonitorPosition` clamp bounds, `AppSettings` init defaults for `MonitorPositions` and `LastActiveMonitor`, and the migration probe round-trip
+
+---
+
