@@ -28,5 +28,6 @@ public record AppSettings
     public double Opacity              { get; init; } = 1.0;          // 0.0–1.0; default = fully opaque
     public bool   GhostModeEnabled     { get; init; } = true;
     public bool   AutoLaunchEnabled    { get; init; } = false;
+    public bool   AutoContrastEnabled  { get; init; } = false;
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"
