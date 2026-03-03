@@ -94,7 +94,7 @@ Plans:
 | 30. CI Test Gate | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 31. Auto-Launch at Login | v2.6 | 1/1 | Complete | 2026-03-03 |
 | 32. Per-Monitor Position Memory | v2.6 | 3/3 | Complete | 2026-03-03 |
-| 33. Auto-Contrast | 3/3 | Complete   | 2026-03-03 | - |
+| 33. Auto-Contrast | 3/3 | Complete    | 2026-03-03 | - |
 
 ---
 *Last updated: 2026-03-03 — Phase 33 Plan 01 (ContrastService TDD) complete; Plan 02 is next*
