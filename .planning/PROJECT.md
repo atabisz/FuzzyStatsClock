@@ -8,9 +8,17 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v2.6 Polish
+
+**Goal:** Add auto-launch at Windows login and per-monitor position memory so the widget is effortless to set up and always returns to the right place.
+
+**Target features:**
+- Auto-launch on Windows login (registry toggle via tray)
+- Per-monitor position persistence (remember last position per display)
+
 ## Current State
 
-**v2.5 shipped: 2026-03-03** — Next milestone: TBD
+**v2.5 shipped: 2026-03-03** — v2.6 Polish in progress
 
 73 MSTest tests (64 Core + 9 App) passing. CI gate enforced. SettingsService validation and AppSettings JSON behavior testable without file I/O or WPF dispatcher.
 
@@ -136,14 +144,17 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ STEST-07: SettingsService.Clamp() pure overload leaves already-in-bounds Left/Top unchanged — v2.5
 - ✓ CI-01: GitHub Actions release.yml runs dotnet test before dotnet publish; no continue-on-error; all 73 tests gate the release artifact — v2.5
 
-### Active (Next Milestone)
+### Active (v2.6)
 
-*(No active requirements — define with `/gsd:new-milestone`)*
+- STRT-01: User can toggle auto-launch at Windows login via tray context menu; toggle state shown as checkmark
+- STRT-02: Auto-launch setting persists to settings.json and restores on launch
+- STRT-03: When auto-launch is enabled, HKCU\...\CurrentVersion\Run registry entry is written; when disabled, entry is removed
+- MON-01: Widget tracks and remembers the last-used position for each connected monitor using monitor identity as key
+- MON-02: On startup, widget restores to the position last used on the currently connected monitor
+- MON-03: If the last-used monitor is not connected at startup, widget centers on the primary screen
 
 ### Deferred (v2+)
 
-- STRT-01: Auto-launch on Windows login (registry key)
-- WIN-06: Widget position persists per monitor (multi-monitor identity via screen handle)
 - WIN-07: Widget snaps to screen edges when dragged near them
 
 ### Out of Scope
@@ -259,4 +270,4 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | GitHub Actions default fail-fast for CI gate | No explicit configuration needed; sequential step order with no continue-on-error means a non-zero dotnet test exit code naturally prevents publish from executing | ✓ Validated — step order verified; no bypass mechanism; local suite 73/73 green |
 
 ---
-*Last updated: 2026-03-03 — v2.5 Unit Tests milestone complete*
+*Last updated: 2026-03-03 — v2.6 Polish milestone started*

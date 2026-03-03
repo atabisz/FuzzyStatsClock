@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-03 — v2.5 Unit Tests complete)
+See: .planning/PROJECT.md (updated 2026-03-03 — v2.6 Polish started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** v2.6 Polish — auto-launch + per-monitor position
 
 ## Current Position
 
-**Milestone:** v2.5 Unit Tests — SHIPPED 2026-03-03
-**Status:** Milestone archived. Ready for next milestone.
-
-Progress: [██████████] 100% — v2.5 complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-03 — Milestone v2.6 started
 
 ## Performance Metrics
 
@@ -37,6 +37,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: v2.5 milestone archived
+Stopped at: v2.6 milestone started — requirements phase
 Resume file: None
-Next action: /gsd:new-milestone
+Next action: /gsd:plan-phase 31
