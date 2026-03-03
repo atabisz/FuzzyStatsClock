@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03 — v2.5 Unit Tests started)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.5 Unit Tests — Phase 28: Core Logic Extraction + Tests
+**Current focus:** v2.5 Unit Tests — Phase 29: App Test Infrastructure + Settings Tests
 
 ## Current Position
 
 **Milestone:** v2.5 Unit Tests
-**Phase:** 28 — Core Logic Extraction + Tests (in progress — plan 01 complete)
-**Plan:** 28-01 complete
-**Status:** Milestone complete
+**Phase:** 29 — App Test Infrastructure + Settings Tests (complete)
+**Plan:** 29-01 complete
+**Status:** In Progress (Phase 30 remaining)
 
-Progress: [█░░░░░░░░░] 11% (0.33/3 phases complete)
+Progress: [███░░░░░░░] 67% (2/3 phases complete)
 
 ## Performance Metrics
 
@@ -35,6 +35,7 @@ Progress: [█░░░░░░░░░] 11% (0.33/3 phases complete)
 
 *Updated after each plan completion*
 | Phase 28-core-logic-extraction-tests P01 | 5 | 3 tasks | 5 files |
+| Phase 29-app-test-infrastructure-settings-tests P01 | 3min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -43,6 +44,9 @@ Progress: [█░░░░░░░░░] 11% (0.33/3 phases complete)
 Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 28-core-logic-extraction-tests]: Extract only angle degrees from DialGeometry (not radian conversion or canvas positioning) — testable pure values only
 - [Phase 28-core-logic-extraction-tests]: Use component TimeSpan properties (Days/Hours/Minutes) not totals in UptimeFormatter — matches existing MainWindow behavior exactly
+- [Phase 29-app-test-infrastructure-settings-tests]: net10.0-windows + UseWPF=true in test project — required to resolve WPF assembly references from FuzzyClock.App
+- [Phase 29-app-test-infrastructure-settings-tests]: SettingsService.Validate() extracted from Load() — pure static method with no file I/O, testable without filesystem
+- [Phase 29-app-test-infrastructure-settings-tests]: Pure Clamp() overload with explicit vLeft/vTop/vWidth/vHeight — avoids SystemParameters dependency in test runner
 
 ### Technical Context for v2.5
 
@@ -63,6 +67,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 28-01-PLAN.md
+Stopped at: Completed 29-01-PLAN.md
 Resume file: None
-Next action: /gsd:plan-phase 29
+Next action: /gsd:plan-phase 30
