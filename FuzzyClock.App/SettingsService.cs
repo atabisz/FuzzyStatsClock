@@ -1,11 +1,11 @@
 // Sources:
 //   Environment.SpecialFolder: https://learn.microsoft.com/en-us/dotnet/api/system.environment.specialfolder
 //   System.Text.Json: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/overview
-//   SystemParameters.VirtualScreen*: https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.virtualscreenwidth
 //   File.Move overwrite: .NET 3.0+ BCL
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using System.Windows;
+using System.Windows.Forms;
 
 namespace FuzzyClock.App;
 
@@ -21,7 +21,35 @@ public static class SettingsService
         {
             if (!File.Exists(FilePath)) return Defaults();
             var json = File.ReadAllText(FilePath);
+
+            // Detect old Left/Top fields for migration
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            bool hasOldLeft      = doc.RootElement.TryGetProperty("Left", out var leftEl);
+            bool hasNewPositions = doc.RootElement.TryGetProperty("MonitorPositions", out _);
+
             var loaded = JsonSerializer.Deserialize<AppSettings>(json) ?? Defaults();
+
+            if (hasOldLeft && !hasNewPositions)
+            {
+                // Migrate: put the old position under the primary monitor key
+                double oldLeft = leftEl.GetDouble();
+                // Only migrate if Left != -1 (old sentinel for "no saved position")
+                if (oldLeft != -1)
+                {
+                    var topEl = doc.RootElement.GetProperty("Top");
+                    double oldTop = topEl.GetDouble();
+                    string primaryKey = MonitorService.GetPrimaryMonitorKey();
+                    loaded = loaded with
+                    {
+                        MonitorPositions = new Dictionary<string, MonitorPosition>
+                        {
+                            [primaryKey] = new MonitorPosition { Left = oldLeft, Top = oldTop }
+                        },
+                        LastActiveMonitor = primaryKey
+                    };
+                }
+            }
+
             return Validate(loaded);
         }
         catch { return Defaults(); }
@@ -48,6 +76,10 @@ public static class SettingsService
         // (protects against "AccentColor":null or "AccentColor":"" in a manually edited settings file)
         if (string.IsNullOrWhiteSpace(loaded.AccentColor))
             loaded = loaded with { AccentColor = Defaults().AccentColor };
+        // MonitorPositions null guard — null can occur if someone manually edits settings.json
+        // and writes "MonitorPositions":null
+        if (loaded.MonitorPositions == null)
+            loaded = loaded with { MonitorPositions = new Dictionary<string, MonitorPosition>() };
         return loaded;
     }
 
@@ -59,39 +91,41 @@ public static class SettingsService
         File.Move(tempPath, FilePath, overwrite: true);
     }
 
-    // Left = -1: sentinel for "no saved position"
     public static AppSettings Defaults() => new()
     {
-        Left = -1, Top = 20, FontSize = 32,
+        FontSize = 32,
         StatsVisible = false, StatsIntervalSeconds = 3,
         CpuVisible = true, GpuVisible = true, MemVisible = true,
-        PagVisible = true, DialMode = false,
+        PagVisible = true, UptimeVisible = true, DialMode = false,
+        ShowHourTicks = false, ShowMinuteDots = false, ShowHourNumbers = false,
         AccentColor = "#FFFFFFFF",
-        Opacity = 1.0
+        Opacity = 1.0,
+        GhostModeEnabled = true,
+        AutoLaunchEnabled = false,
+        MonitorPositions = new Dictionary<string, MonitorPosition>(),
+        LastActiveMonitor = ""
     };
 
     /// <summary>
-    /// Clamp Left/Top so the entire window is within the virtual screen bounds.
-    /// Must be called after ActualWidth/ActualHeight are valid (ContentRendered or later).
+    /// Clamps a MonitorPosition so the window stays within the specified screen's working area.
+    /// Uses WorkingArea (not Bounds) to avoid positioning under the taskbar.
     /// </summary>
-    public static AppSettings Clamp(AppSettings s, double windowWidth, double windowHeight)
+    public static MonitorPosition Clamp(MonitorPosition pos, double windowWidth, double windowHeight,
+        System.Windows.Forms.Screen screen)
     {
-        double vLeft   = SystemParameters.VirtualScreenLeft;
-        double vTop    = SystemParameters.VirtualScreenTop;
-        double vWidth  = SystemParameters.VirtualScreenWidth;
-        double vHeight = SystemParameters.VirtualScreenHeight;
-        return Clamp(s, windowWidth, windowHeight, vLeft, vTop, vWidth, vHeight);
+        var b = screen.WorkingArea;
+        return Clamp(pos, windowWidth, windowHeight, b.Left, b.Top, b.Width, b.Height);
     }
 
     /// <summary>
-    /// Pure overload: clamp Left/Top within explicit screen bounds.
-    /// No WPF SystemParameters dependency — safe to call from unit tests.
+    /// Pure overload: clamp MonitorPosition within explicit bounds.
+    /// No WPF or WinForms dependency — safe to call from unit tests.
     /// </summary>
-    public static AppSettings Clamp(AppSettings s, double windowWidth, double windowHeight,
-        double vLeft, double vTop, double vWidth, double vHeight)
+    public static MonitorPosition Clamp(MonitorPosition pos, double windowWidth, double windowHeight,
+        double bLeft, double bTop, double bWidth, double bHeight)
     {
-        double left = Math.Clamp(s.Left, vLeft, vLeft + vWidth  - windowWidth);
-        double top  = Math.Clamp(s.Top,  vTop,  vTop  + vHeight - windowHeight);
-        return s with { Left = left, Top = top };
+        double left = Math.Clamp(pos.Left, bLeft, bLeft + bWidth  - windowWidth);
+        double top  = Math.Clamp(pos.Top,  bTop,  bTop  + bHeight - windowHeight);
+        return pos with { Left = left, Top = top };
     }
 }
