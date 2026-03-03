@@ -35,22 +35,6 @@
                     CornerRadius="5"
                     Padding="6">
                 <Grid>
-                    <!-- Shadow layer: manual offset copy — DropShadowEffect is unreliable on
-                         AllowsTransparency windows (.NET 5+ GPU path disabled for layered HWNDs).
-                         This always works regardless of rendering path. -->
-                    <TextBlock x:Name="ShadowText"
-                               Text=""
-                               FontFamily="Segoe UI Light"
-                               FontSize="32"
-                               Foreground="#BB000000"
-                               IsHitTestVisible="False"
-                               HorizontalAlignment="Stretch"
-                               TextAlignment="Center">
-                        <TextBlock.RenderTransform>
-                            <TranslateTransform X="2" Y="2" />
-                        </TextBlock.RenderTransform>
-                    </TextBlock>
-
                     <!-- PhraseText: live phrase wired in Phase 3 via SetInitialPhrase() and
                          UpdatePhraseIfChanged(). Text is set in code-behind before Show(). -->
                     <TextBlock x:Name="PhraseText"

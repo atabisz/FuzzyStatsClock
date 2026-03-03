@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -32,101 +31,26 @@ public partial class MainWindow : Window
     private double _windowOpacity = 1.0;
     private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
     private System.Windows.Forms.NotifyIcon _trayIcon = null!;
-    private System.Windows.Forms.ToolStripMenuItem _ghostModeMenuItem   = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayAutoLaunch = null!;
+    private TrayMenuBuilder _trayMenu = null!;
     private bool _autoLaunchEnabled = false;
-    private DispatcherTimer? _contrastTimer;
-    private bool _autoContrastEnabled = false;
-    private ContrastState _contrastState = ContrastState.Normal;
     private bool _isDragging = false;   // true between DragMove() start and end — freezes display color
-    private System.Windows.Forms.ToolStripMenuItem _trayAutoContrast = null!;
-    // Tray items needing programmatic updates (checkmarks or visibility)
-    private System.Windows.Forms.ToolStripMenuItem  _trayFontSizeItem    = null!;
-    private System.Windows.Forms.ToolStripSeparator _trayFontSizeSep    = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayFontSmall       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayFontMedium      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayFontLarge       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayShowStats       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayCpuVisible      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayGpuVisible      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayMemVisible      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayPagVisible      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayUptimeVisible   = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayInterval1       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayInterval3       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayInterval10      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayDialMode        = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayDialFaceItem    = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayShowHourTicks   = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayShowMinuteDots  = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayShowHourNumbers = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayThemeWhite      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayThemeAmber      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayThemeIce        = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayThemeGreen      = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayThemePink       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayOpacity25       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayOpacity50       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayOpacity75       = null!;
-    private System.Windows.Forms.ToolStripMenuItem _trayOpacity100      = null!;
-
-    // Ghost mode state (v2.3)
-    private bool   _isGhostMode = false;
-    private bool   _ghostModeEnabled = true;
-    private IntPtr _hwnd;
-    private DispatcherTimer? _ghostRestoreTimer;
-
-    // Ghost mode P/Invoke constants
-    private const int  GWL_EXSTYLE       = -20;
-    private const int  WS_EX_TRANSPARENT = 0x00000020;
-    private const uint SWP_NOSIZE        = 0x0001;
-    private const uint SWP_NOMOVE        = 0x0002;
-    private const uint SWP_NOZORDER      = 0x0004;
-    private const uint SWP_FRAMECHANGED  = 0x0020;
-
-    // Ghost mode P/Invoke declarations
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPos(
-        IntPtr hWnd, IntPtr hWndInsertAfter,
-        int X, int Y, int cx, int cy, uint uFlags);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetCursorPos(out POINT lpPoint);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
-
-    private const int VK_LCONTROL = 0xA2;   // Left Ctrl only (not VK_CONTROL=0x11 — avoids right-side ambiguity)
-    private const int VK_LMENU    = 0xA4;   // Left Alt only (not VK_MENU=0x12 — VK_MENU matches AltGr on EU keyboards)
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int X; public int Y; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+    private GhostModeController _ghostMode = null!;
+    private ContrastRefreshController _contrast = new();
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
     private readonly List<System.Windows.Controls.TextBlock> _hourNumberElements = new();
 
-    private static readonly System.Windows.Media.Color PresetWhite = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-    private static readonly System.Windows.Media.Color PresetAmber = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0xC0, 0x00);
-    private static readonly System.Windows.Media.Color PresetIce   = System.Windows.Media.Color.FromArgb(0xFF, 0x87, 0xCE, 0xEB);
-    private static readonly System.Windows.Media.Color PresetGreen = System.Windows.Media.Color.FromArgb(0xFF, 0x00, 0xC0, 0x00);
-    private static readonly System.Windows.Media.Color PresetPink  = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4);
+    internal static readonly System.Windows.Media.Color PresetWhite = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
+    internal static readonly System.Windows.Media.Color PresetAmber = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0xC0, 0x00);
+    internal static readonly System.Windows.Media.Color PresetIce   = System.Windows.Media.Color.FromArgb(0xFF, 0x87, 0xCE, 0xEB);
+    internal static readonly System.Windows.Media.Color PresetGreen = System.Windows.Media.Color.FromArgb(0xFF, 0x00, 0xC0, 0x00);
+    internal static readonly System.Windows.Media.Color PresetPink  = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4);
 
     public MainWindow()
     {
         InitializeComponent();
+        _ghostMode = new GhostModeController();
 
         // Set _hasUserPosition flag after any window move (covers drag completion via LocationChanged).
         // LocationChanged fires reliably after DragMove() returns (the window has moved).
@@ -191,35 +115,57 @@ public partial class MainWindow : Window
             InitDialDecorations();
             ApplyTheme();            // NEW: must come AFTER InitDialDecorations() — decoration lists are empty before this point
 
-            // Contrast sampler timer (500ms per CONTEXT.md decision)
-            _contrastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            _contrastTimer.Tick += ContrastTimer_Tick;
-            if (_autoContrastEnabled) _contrastTimer.Start();
+            // Contrast refresh controller (500ms sampling timer)
+            _contrast.ColorChanged += ApplyDisplayColor;
+            _contrast.Cleared      += ApplyTheme;
+            _contrast.Initialize(
+                this,
+                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging,
+                () => new RgbColor(_accentColor.R, _accentColor.G, _accentColor.B));
 
-            InitTrayIcon();
-
-            _hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-            _ghostRestoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(75) };
-            _ghostRestoreTimer.Tick += (_, _) =>
+            // Ghost mode controller — initialize now that HWND is available
+            _ghostMode.Restored += () =>
             {
-                if (!_isGhostMode) return;
-                // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
-                // receiving mouse messages when WS_EX_TRANSPARENT is active (Mouse.GetPosition(this)
-                // returns stale/wrong coords and causes immediate spurious restore + flicker loop).
-                if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
-                if (cursor.X < rect.Left || cursor.X > rect.Right ||
-                    cursor.Y < rect.Top  || cursor.Y > rect.Bottom)
-                {
-                    _ghostRestoreTimer!.Stop();
-                    _isGhostMode = false;
-                    int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-                    SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
-                    SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-                    this.Opacity = _windowOpacity;
-                    ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
-                }
+                this.Opacity = _windowOpacity;
+                ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
             };
+            _ghostMode.Initialize(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+
+            // Tray icon
+            _trayMenu = new TrayMenuBuilder(new TrayMenuCallbacks
+            {
+                ToggleGhostMode       = () => Dispatcher.Invoke(() => { _ghostMode.IsEnabled = !_ghostMode.IsEnabled; SaveSettings(); }),
+                ToggleAutoLaunch      = () => Dispatcher.Invoke(() =>
+                {
+                    _autoLaunchEnabled = !_autoLaunchEnabled;
+                    string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
+                    if (_autoLaunchEnabled) AutoLaunchService.Enable(exePath); else AutoLaunchService.Disable();
+                    SaveSettings();
+                }),
+                ToggleAutoContrast    = () => Dispatcher.Invoke(() =>
+                {
+                    _contrast.SetEnabled(!_contrast.IsEnabled);
+                    SaveSettings();
+                }),
+                ApplyFontSize         = size => Dispatcher.Invoke(() => ApplyFontSize(size)),
+                ToggleStatsVisible    = () => Dispatcher.Invoke(() => SetStatsVisible(StatsPanel.Visibility != Visibility.Visible)),
+                ToggleCpuVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(CpuRow, CpuRow.Visibility != Visibility.Visible)),
+                ToggleGpuVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(GpuRow, GpuRow.Visibility != Visibility.Visible)),
+                ToggleMemVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible)),
+                TogglePagVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible)),
+                ToggleUptimeVisible   = () => Dispatcher.Invoke(() => SetUptimeRowVisible(UptimeText.Visibility != Visibility.Visible)),
+                SetStatsInterval      = s  => Dispatcher.Invoke(() => SetStatsInterval(s)),
+                ToggleDialMode        = () => Dispatcher.Invoke(() => SetDialMode(!_dialMode)),
+                ToggleShowHourTicks   = () => Dispatcher.Invoke(() => SetShowHourTicks(!_showHourTicks)),
+                ToggleShowMinuteDots  = () => Dispatcher.Invoke(() => SetShowMinuteDots(!_showMinuteDots)),
+                ToggleShowHourNumbers = () => Dispatcher.Invoke(() => SetShowHourNumbers(!_showHourNumbers)),
+                SetAccentColor        = c  => Dispatcher.Invoke(() => SetAccentColor(c)),
+                OpenCustomColorDialog = () => Dispatcher.Invoke(OpenCustomColorDialog),
+                SetOpacity            = o  => Dispatcher.Invoke(() => SetOpacity(o)),
+                ResetToDefaults       = () => Dispatcher.Invoke(ResetToDefaults),
+                Quit                  = () => Dispatcher.Invoke(() => Application.Current.Shutdown()),
+            });
+            _trayIcon = _trayMenu.Build(GetCurrentTrayState(), GetCurrentTrayState);
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
@@ -228,6 +174,8 @@ public partial class MainWindow : Window
         this.Closed += (_, _) =>
         {
             _trayIcon?.Dispose();
+            _ghostMode.Dispose();
+            _contrast.Dispose();
         };
     }
 
@@ -240,7 +188,6 @@ public partial class MainWindow : Window
     {
         _currentFontSize = s.FontSize;
         PhraseText.FontSize = s.FontSize;
-        ShadowText.FontSize = s.FontSize;
 
         _settings = s;  // cache for SaveSettings use
 
@@ -274,7 +221,6 @@ public partial class MainWindow : Window
         // Apply dial mode directly (NOT via SetDialMode — unsafe before Show(), same invariant as StatsPanel).
         _dialMode = s.DialMode;
         PhraseText.Visibility = s.DialMode ? Visibility.Collapsed : Visibility.Visible;
-        ShadowText.Visibility = s.DialMode ? Visibility.Collapsed : Visibility.Visible;
         DialCanvas.Visibility = s.DialMode ? Visibility.Visible   : Visibility.Collapsed;
 
         _showHourTicks   = s.ShowHourTicks;
@@ -284,7 +230,7 @@ public partial class MainWindow : Window
 
         _windowOpacity = s.Opacity;
         this.Opacity   = s.Opacity;
-        _ghostModeEnabled = s.GhostModeEnabled;
+        _ghostMode.IsEnabled = s.GhostModeEnabled;
 
         _autoLaunchEnabled = s.AutoLaunchEnabled;
         // Restore registry entry to match persisted setting.
@@ -295,9 +241,9 @@ public partial class MainWindow : Window
         else
             AutoLaunchService.Disable();
 
-        _autoContrastEnabled = s.AutoContrastEnabled;
-        // Sampler timer is created in ContentRendered; here we just cache the setting.
-        // ContentRendered checks _autoContrastEnabled to decide whether to start the timer.
+        _contrast.IsEnabled = s.AutoContrastEnabled;
+        // Sampler timer is wired in ContentRendered; here we just cache the setting.
+        // Initialize() reads IsEnabled to decide whether to start the timer immediately.
 
         // Parse AccentColor hex string to Color struct
         // SettingsService.Load() guards against null/empty; catch here for belt-and-suspenders safety
@@ -312,6 +258,27 @@ public partial class MainWindow : Window
         }
         // Do NOT call ApplyTheme() here — _hourTickElements etc. are empty until ContentRendered
     }
+
+    private TrayMenuState GetCurrentTrayState() => new TrayMenuState
+    {
+        GhostModeEnabled     = _ghostMode.IsEnabled,
+        AutoLaunchEnabled    = _autoLaunchEnabled,
+        AutoContrastEnabled  = _contrast.IsEnabled,
+        FontSize             = _currentFontSize,
+        StatsVisible         = StatsPanel.Visibility == Visibility.Visible,
+        CpuVisible           = CpuRow.Visibility     == Visibility.Visible,
+        GpuVisible           = GpuRow.Visibility     == Visibility.Visible,
+        MemVisible           = MemRow.Visibility     == Visibility.Visible,
+        PagVisible           = PagRow.Visibility     == Visibility.Visible,
+        UptimeVisible        = UptimeText.Visibility == Visibility.Visible,
+        StatsIntervalSeconds = _statsIntervalSeconds,
+        DialMode             = _dialMode,
+        ShowHourTicks        = _showHourTicks,
+        ShowMinuteDots       = _showMinuteDots,
+        ShowHourNumbers      = _showHourNumbers,
+        WindowOpacity        = _windowOpacity,
+        AccentColor          = _accentColor,
+    };
 
     /// <summary>
     /// Saves current window position and font size to settings.json.
@@ -345,9 +312,9 @@ public partial class MainWindow : Window
             ShowHourNumbers      = _showHourNumbers,
             AccentColor          = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}",
             Opacity              = _windowOpacity,
-            GhostModeEnabled     = _ghostModeEnabled,
+            GhostModeEnabled     = _ghostMode.IsEnabled,
             AutoLaunchEnabled    = _autoLaunchEnabled,
-            AutoContrastEnabled  = _autoContrastEnabled,
+            AutoContrastEnabled  = _contrast.IsEnabled,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -361,7 +328,6 @@ public partial class MainWindow : Window
     /// </summary>
     internal void SetInitialPhrase(string phrase)
     {
-        ShadowText.Text = phrase;
         PhraseText.Text = phrase;
     }
 
@@ -401,7 +367,6 @@ public partial class MainWindow : Window
         string newPhrase = PhraseEngine.GetPhrase(DateTime.Now);
         if (newPhrase == PhraseText.Text) return;  // No change — skip layout work
 
-        ShadowText.Text = newPhrase;
         PhraseText.Text = newPhrase;
 
         // Force layout pass before repositioning — ActualWidth is stale until layout runs
@@ -529,48 +494,6 @@ public partial class MainWindow : Window
                ?? System.Windows.Forms.Screen.AllScreens[0];
     }
 
-    private void TrayMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
-    {
-        // Sync all tray item checkmarks from current state — mirrors the old ContextMenu_Opened pattern.
-        // Reading WPF element properties (Visibility) from WinForms thread follows the established
-        // pattern in SaveSettings() which already does this safely.
-        _trayAutoLaunch.Checked    = _autoLaunchEnabled;
-        _trayAutoContrast.Checked  = _autoContrastEnabled;
-        _trayFontSmall.Checked  = (_currentFontSize == 16);
-        _trayFontMedium.Checked = (_currentFontSize == 24);
-        _trayFontLarge.Checked  = (_currentFontSize == 32);
-
-        _trayShowStats.Checked     = (StatsPanel.Visibility == Visibility.Visible);
-        _trayCpuVisible.Checked    = (CpuRow.Visibility     == Visibility.Visible);
-        _trayGpuVisible.Checked    = (GpuRow.Visibility     == Visibility.Visible);
-        _trayMemVisible.Checked    = (MemRow.Visibility     == Visibility.Visible);
-        _trayPagVisible.Checked    = (PagRow.Visibility     == Visibility.Visible);
-        _trayUptimeVisible.Checked = (UptimeText.Visibility == Visibility.Visible);
-        _trayInterval1.Checked  = (_statsIntervalSeconds == 1);
-        _trayInterval3.Checked  = (_statsIntervalSeconds == 3);
-        _trayInterval10.Checked = (_statsIntervalSeconds == 10);
-
-        _trayDialMode.Checked        = _dialMode;
-        _trayShowHourTicks.Checked   = _showHourTicks;
-        _trayShowMinuteDots.Checked  = _showMinuteDots;
-        _trayShowHourNumbers.Checked = _showHourNumbers;
-
-        // Opacity preset sync — exact double comparison is reliable
-        _trayOpacity25.Checked  = (_windowOpacity == 0.25);
-        _trayOpacity50.Checked  = (_windowOpacity == 0.50);
-        _trayOpacity75.Checked  = (_windowOpacity == 0.75);
-        _trayOpacity100.Checked = (_windowOpacity == 1.00);
-
-        // Theme preset sync — derive hex from _accentColor; no secondary theme-name field needed
-        string currentHex = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}";
-        _trayThemeWhite.Checked = (currentHex == "#FFFFFFFF");
-        _trayThemeAmber.Checked = (currentHex == "#FFFFC000");
-        _trayThemeIce.Checked   = (currentHex == "#FF87CEEB");
-        _trayThemeGreen.Checked = (currentHex == "#FF00C000");
-        _trayThemePink.Checked  = (currentHex == "#FFFF69B4");
-        // Custom color active: none match — no checkmark shown. Correct.
-    }
-
     private void SetStatsVisible(bool visible)
     {
         StatsPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
@@ -618,18 +541,10 @@ public partial class MainWindow : Window
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        // Phase 27: Ctrl+Alt modifier — suppress ghost mode if left Ctrl + left Alt are held.
-        // Use GetAsyncKeyState (not Keyboard.IsKeyDown) — overlay has no keyboard focus.
-        // Use VK_LCONTROL + VK_LMENU (not generic VK_CONTROL/VK_MENU) — VK_MENU matches AltGr on EU keyboards.
-        // Mask with 0x8000: high bit = key currently pressed; low bit = toggled since last call (ignore).
-        bool ctrlAltHeld = (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0
-                        && (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
-
-        if (ctrlAltHeld || !_ghostModeEnabled)
+        if (_ghostMode.IsCtrlAltHeld() || !_ghostMode.IsEnabled)
         {
             // Normal hover path (CTRLALT-01/02): show backdrop + activate fast-refresh.
             // WS_EX_TRANSPARENT is NOT applied — window stays fully interactive (drag, right-click, scroll).
-            // _ghostRestoreTimer is NOT started — normal Window_MouseLeave handles cleanup.
             ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
                 System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
 
@@ -658,28 +573,16 @@ public partial class MainWindow : Window
         }
         _isHoverFastRefresh = false;
 
-        // Step 2: Start DispatcherTimer polling — checks GetCursorPos vs GetWindowRect every 75ms.
-        // When the cursor exits the window rectangle, the timer stops and triggers ghost restore.
-        // This fallback is used instead of TrackMouseEvent because WS_EX_TRANSPARENT causes Win32
-        // to deliver a synthetic WM_MOUSELEAVE immediately after the style is applied.
-        _ghostRestoreTimer!.Start();
-
-        // Step 3: Apply WS_EX_TRANSPARENT (always OR onto existing style — never replace).
-        // Must preserve WS_EX_LAYERED (AllowsTransparency) and WS_EX_TOOLWINDOW (Alt+Tab hide).
-        _isGhostMode = true;
-        int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-        SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
-        SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        // Step 2 & 3: Start polling timer and apply WS_EX_TRANSPARENT via controller.
+        _ghostMode.Activate();
         this.Opacity = 0.0;
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
-        // Ghost mode guard: if _isGhostMode is true, ghost restore is handled by _ghostRestoreTimer
-        // polling Mouse.GetPosition(this). The hover-restore path below must NOT run during ghost state —
-        // backdrop and timer were never set by Window_MouseEnter when ghosting (Step 1 cleaned them up).
-        if (_isGhostMode) return;
+        // Ghost mode guard: if ghost is active, restore is handled by GhostModeController's polling timer.
+        // The hover-restore path below must NOT run during ghost state.
+        if (_ghostMode.IsActive) return;
 
         // Backdrop restore (Phase 14): always clear on leave regardless of stats state
         ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
@@ -756,7 +659,6 @@ public partial class MainWindow : Window
     {
         _currentFontSize    = size;
         PhraseText.FontSize = size;
-        ShadowText.FontSize = size;
         // Re-clamp: font size change resizes window (SizeToContent=WidthAndHeight).
         // Must call UpdateLayout() before Clamp() — ActualWidth/ActualHeight are stale until layout runs.
         UpdateLayout();
@@ -779,219 +681,6 @@ public partial class MainWindow : Window
         _statsService?.Dispose();
         SaveSettings();
         base.OnClosing(e);
-    }
-
-    private void InitTrayIcon()
-    {
-        // Create a 16x16 analog clock face icon programmatically.
-        // Dark circle face, white rim, hour + minute hands at 10:10.
-        var bmp = new System.Drawing.Bitmap(16, 16);
-        using (var g = System.Drawing.Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.Clear(System.Drawing.Color.Transparent);
-
-            using var faceBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(30, 30, 30));
-            g.FillEllipse(faceBrush, 1, 1, 14, 14);
-            using var rimPen = new System.Drawing.Pen(System.Drawing.Color.White, 1.2f);
-            g.DrawEllipse(rimPen, 1, 1, 14, 14);
-
-            double hourRad = -60.0 * Math.PI / 180.0;
-            float hx = 8f + 3.5f * (float)Math.Sin(hourRad);
-            float hy = 8f - 3.5f * (float)Math.Cos(hourRad);
-            using var hourPen = new System.Drawing.Pen(System.Drawing.Color.White, 1.8f)
-                { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
-            g.DrawLine(hourPen, 8f, 8f, hx, hy);
-
-            double minRad = 60.0 * Math.PI / 180.0;
-            float mx = 8f + 5.5f * (float)Math.Sin(minRad);
-            float my = 8f - 5.5f * (float)Math.Cos(minRad);
-            using var minPen = new System.Drawing.Pen(System.Drawing.Color.White, 1.2f)
-                { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
-            g.DrawLine(minPen, 8f, 8f, mx, my);
-
-            g.FillEllipse(System.Drawing.Brushes.White, 6.5f, 6.5f, 3f, 3f);
-        }
-        var icon = System.Drawing.Icon.FromHandle(bmp.GetHicon());
-
-        var menu = new System.Windows.Forms.ContextMenuStrip();
-        menu.Opening += TrayMenu_Opening;
-
-        // Ghost Mode
-        _ghostModeMenuItem = new System.Windows.Forms.ToolStripMenuItem("Ghost Mode")
-            { Checked = _ghostModeEnabled };
-        _ghostModeMenuItem.Click += (_, _) =>
-        {
-            _ghostModeEnabled = !_ghostModeEnabled;
-            _ghostModeMenuItem.Checked = _ghostModeEnabled;
-            SaveSettings();
-        };
-        menu.Items.Add(_ghostModeMenuItem);
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-
-        // Auto-Launch at Login
-        _trayAutoLaunch = new System.Windows.Forms.ToolStripMenuItem("Auto-Launch at Login")
-            { Checked = _autoLaunchEnabled };
-        _trayAutoLaunch.Click += (_, _) =>
-        {
-            _autoLaunchEnabled = !_autoLaunchEnabled;
-            _trayAutoLaunch.Checked = _autoLaunchEnabled;
-            string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
-            if (_autoLaunchEnabled)
-                AutoLaunchService.Enable(exePath);
-            else
-                AutoLaunchService.Disable();
-            SaveSettings();
-        };
-        menu.Items.Add(_trayAutoLaunch);
-
-        // Auto-Contrast toggle
-        _trayAutoContrast = new System.Windows.Forms.ToolStripMenuItem("Auto-Contrast")
-            { Checked = _autoContrastEnabled };
-        _trayAutoContrast.Click += (_, _) =>
-        {
-            _autoContrastEnabled = !_autoContrastEnabled;
-            _trayAutoContrast.Checked = _autoContrastEnabled;
-            if (_autoContrastEnabled)
-            {
-                _contrastState = ContrastState.Normal; // reset state on enable
-                _contrastTimer?.Start();
-            }
-            else
-            {
-                _contrastTimer?.Stop();
-                _contrastState = ContrastState.Normal;
-                ApplyTheme(); // restore accent color immediately when disabled
-            }
-            SaveSettings();
-        };
-        menu.Items.Add(_trayAutoContrast);
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-
-        // Font Size submenu
-        _trayFontSmall  = new System.Windows.Forms.ToolStripMenuItem("Small (16pt)");
-        _trayFontMedium = new System.Windows.Forms.ToolStripMenuItem("Medium (24pt)");
-        _trayFontLarge  = new System.Windows.Forms.ToolStripMenuItem("Large (32pt)");
-        _trayFontSmall.Click  += (_, _) => Dispatcher.Invoke(() => ApplyFontSize(16));
-        _trayFontMedium.Click += (_, _) => Dispatcher.Invoke(() => ApplyFontSize(24));
-        _trayFontLarge.Click  += (_, _) => Dispatcher.Invoke(() => ApplyFontSize(32));
-        _trayFontSizeItem = new System.Windows.Forms.ToolStripMenuItem("Font Size", null,
-            _trayFontSmall, _trayFontMedium, _trayFontLarge);
-        _trayFontSizeSep = new System.Windows.Forms.ToolStripSeparator();
-        _trayFontSizeItem.Visible = !_dialMode;
-        _trayFontSizeSep.Visible  = !_dialMode;
-        menu.Items.Add(_trayFontSizeItem);
-        menu.Items.Add(_trayFontSizeSep);
-
-        // Stats submenu
-        _trayShowStats     = new System.Windows.Forms.ToolStripMenuItem("Show Stats");
-        _trayCpuVisible    = new System.Windows.Forms.ToolStripMenuItem("Show CPU");
-        _trayGpuVisible    = new System.Windows.Forms.ToolStripMenuItem("Show GPU");
-        _trayMemVisible    = new System.Windows.Forms.ToolStripMenuItem("Show MEM");
-        _trayPagVisible    = new System.Windows.Forms.ToolStripMenuItem("Show PAG");
-        _trayUptimeVisible = new System.Windows.Forms.ToolStripMenuItem("Show Uptime");
-        _trayInterval1     = new System.Windows.Forms.ToolStripMenuItem("1 second");
-        _trayInterval3     = new System.Windows.Forms.ToolStripMenuItem("3 seconds");
-        _trayInterval10    = new System.Windows.Forms.ToolStripMenuItem("10 seconds");
-        _trayShowStats.Click     += (_, _) => Dispatcher.Invoke(() => SetStatsVisible(StatsPanel.Visibility != Visibility.Visible));
-        _trayCpuVisible.Click    += (_, _) => Dispatcher.Invoke(() => SetStatRowVisible(CpuRow, CpuRow.Visibility != Visibility.Visible));
-        _trayGpuVisible.Click    += (_, _) => Dispatcher.Invoke(() => SetStatRowVisible(GpuRow, GpuRow.Visibility != Visibility.Visible));
-        _trayMemVisible.Click    += (_, _) => Dispatcher.Invoke(() => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible));
-        _trayPagVisible.Click    += (_, _) => Dispatcher.Invoke(() => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible));
-        _trayUptimeVisible.Click += (_, _) => Dispatcher.Invoke(() => SetUptimeRowVisible(UptimeText.Visibility != Visibility.Visible));
-        _trayInterval1.Click  += (_, _) => Dispatcher.Invoke(() => SetStatsInterval(1));
-        _trayInterval3.Click  += (_, _) => Dispatcher.Invoke(() => SetStatsInterval(3));
-        _trayInterval10.Click += (_, _) => Dispatcher.Invoke(() => SetStatsInterval(10));
-        var intervalItem = new System.Windows.Forms.ToolStripMenuItem("Update Interval", null,
-            _trayInterval1, _trayInterval3, _trayInterval10);
-        var statsItem = new System.Windows.Forms.ToolStripMenuItem("Stats", null,
-            _trayShowStats,
-            new System.Windows.Forms.ToolStripSeparator(),
-            _trayCpuVisible, _trayGpuVisible, _trayMemVisible, _trayPagVisible, _trayUptimeVisible,
-            intervalItem);
-        menu.Items.Add(statsItem);
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-
-        // Dial Mode + Dial Face submenu
-        _trayDialMode = new System.Windows.Forms.ToolStripMenuItem("Dial Mode");
-        _trayDialMode.Click += (_, _) => Dispatcher.Invoke(() => SetDialMode(!_dialMode));
-        menu.Items.Add(_trayDialMode);
-
-        _trayShowHourTicks   = new System.Windows.Forms.ToolStripMenuItem("Show Hour Ticks");
-        _trayShowMinuteDots  = new System.Windows.Forms.ToolStripMenuItem("Show Minute Marks");
-        _trayShowHourNumbers = new System.Windows.Forms.ToolStripMenuItem("Show Hour Numbers");
-        _trayShowHourTicks.Click   += (_, _) => Dispatcher.Invoke(() => SetShowHourTicks(!_showHourTicks));
-        _trayShowMinuteDots.Click  += (_, _) => Dispatcher.Invoke(() => SetShowMinuteDots(!_showMinuteDots));
-        _trayShowHourNumbers.Click += (_, _) => Dispatcher.Invoke(() => SetShowHourNumbers(!_showHourNumbers));
-        _trayDialFaceItem = new System.Windows.Forms.ToolStripMenuItem("Dial Face", null,
-            _trayShowHourTicks, _trayShowMinuteDots, _trayShowHourNumbers);
-        _trayDialFaceItem.Visible = _dialMode;
-        menu.Items.Add(_trayDialFaceItem);
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-
-        // Theme submenu
-        _trayThemeWhite = new System.Windows.Forms.ToolStripMenuItem("White");
-        _trayThemeAmber = new System.Windows.Forms.ToolStripMenuItem("Amber");
-        _trayThemeIce   = new System.Windows.Forms.ToolStripMenuItem("Ice Blue");
-        _trayThemeGreen = new System.Windows.Forms.ToolStripMenuItem("Green");
-        _trayThemePink  = new System.Windows.Forms.ToolStripMenuItem("Hello Kitty Pink");
-        var trayThemeCustom = new System.Windows.Forms.ToolStripMenuItem("Custom...");
-        _trayThemeWhite.Click += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetWhite));
-        _trayThemeAmber.Click += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetAmber));
-        _trayThemeIce.Click   += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetIce));
-        _trayThemeGreen.Click += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetGreen));
-        _trayThemePink.Click  += (_, _) => Dispatcher.Invoke(() => SetAccentColor(PresetPink));
-        trayThemeCustom.Click += (_, _) => Dispatcher.Invoke(OpenCustomColorDialog);
-        var themeItem = new System.Windows.Forms.ToolStripMenuItem("Theme", null,
-            _trayThemeWhite, _trayThemeAmber, _trayThemeIce, _trayThemeGreen, _trayThemePink,
-            new System.Windows.Forms.ToolStripSeparator(),
-            trayThemeCustom);
-        menu.Items.Add(themeItem);
-
-        // Opacity submenu
-        _trayOpacity25  = new System.Windows.Forms.ToolStripMenuItem("25%");
-        _trayOpacity50  = new System.Windows.Forms.ToolStripMenuItem("50%");
-        _trayOpacity75  = new System.Windows.Forms.ToolStripMenuItem("75%");
-        _trayOpacity100 = new System.Windows.Forms.ToolStripMenuItem("100%");
-        _trayOpacity25.Click  += (_, _) => Dispatcher.Invoke(() => SetOpacity(0.25));
-        _trayOpacity50.Click  += (_, _) => Dispatcher.Invoke(() => SetOpacity(0.50));
-        _trayOpacity75.Click  += (_, _) => Dispatcher.Invoke(() => SetOpacity(0.75));
-        _trayOpacity100.Click += (_, _) => Dispatcher.Invoke(() => SetOpacity(1.00));
-        var opacityItem = new System.Windows.Forms.ToolStripMenuItem("Opacity", null,
-            _trayOpacity25, _trayOpacity50, _trayOpacity75, _trayOpacity100);
-        menu.Items.Add(opacityItem);
-
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-
-        var resetItem = new System.Windows.Forms.ToolStripMenuItem("Reset to Defaults");
-        var quitItem  = new System.Windows.Forms.ToolStripMenuItem("Quit");
-        resetItem.Click += (_, _) => Dispatcher.Invoke(ResetToDefaults);
-        quitItem.Click  += (_, _) => Dispatcher.Invoke(() => Application.Current.Shutdown());
-        menu.Items.Add(resetItem);
-
-        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-
-        var aboutItem = new System.Windows.Forms.ToolStripMenuItem("About");
-        aboutItem.Click += (_, _) => Dispatcher.Invoke(() =>
-        {
-            var ver = typeof(MainWindow).Assembly.GetName().Version;
-            var versionStr = ver is null ? "2.5" : $"{ver.Major}.{ver.Minor}";
-            System.Windows.MessageBox.Show(
-                $"FuzzyClock v{versionStr}\n\nA fuzzy time & system stats desktop overlay.\n\nBuilt as a Claude + GSD experiment\nby Alex Tabisz.",
-                "About FuzzyClock",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Information);
-        });
-        menu.Items.Add(aboutItem);
-        menu.Items.Add(quitItem);
-
-        _trayIcon = new System.Windows.Forms.NotifyIcon
-        {
-            Icon             = icon,
-            Text             = "FuzzyClock",
-            ContextMenuStrip = menu,
-            Visible          = true
-        };
     }
 
     private void ResetToDefaults()
@@ -1018,20 +707,14 @@ public partial class MainWindow : Window
         _settings = _settings with { MonitorPositions = new System.Collections.Generic.Dictionary<string, MonitorPosition>() };
 
         // Re-enable ghost mode
-        _ghostModeEnabled = true;
-        _ghostModeMenuItem.Checked = true;
+        _ghostMode.IsEnabled = true;
 
         // Reset auto-launch: disable on reset
         _autoLaunchEnabled = false;
-        _trayAutoLaunch.Checked = false;
         AutoLaunchService.Disable();
 
-        // Reset auto-contrast: disable on reset
-        _autoContrastEnabled = false;
-        _trayAutoContrast.Checked = false;
-        _contrastTimer?.Stop();
-        _contrastState = ContrastState.Normal;
-        ApplyTheme(); // restore accent color on reset
+        // Reset auto-contrast: disable on reset (SetEnabled fires Cleared → ApplyTheme)
+        _contrast.SetEnabled(false);
 
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
@@ -1043,16 +726,11 @@ public partial class MainWindow : Window
     {
         _dialMode = dialMode;
 
-        PhraseText.Visibility  = dialMode ? Visibility.Collapsed : Visibility.Visible;
-        ShadowText.Visibility  = dialMode ? Visibility.Collapsed : Visibility.Visible;
+        PhraseText.Visibility = dialMode ? Visibility.Collapsed : Visibility.Visible;
         DialCanvas.Visibility  = dialMode ? Visibility.Visible   : Visibility.Collapsed;
 
-        // DIAL-09: hide/show Dial Face submenu on mode switch
-        _trayDialFaceItem.Visible = dialMode;
-
-        // MENU-01: hide Font Size submenu (and its trailing separator) in dial mode
-        _trayFontSizeItem.Visible = !dialMode;
-        _trayFontSizeSep.Visible  = !dialMode;
+        // DIAL-09: hide/show Dial Face submenu; MENU-01: hide Font Size submenu in dial mode
+        _trayMenu.UpdateDialModeVisibility(dialMode);
 
         if (dialMode) UpdateDialDisplay();
 
@@ -1180,7 +858,6 @@ public partial class MainWindow : Window
 
         // Phrase mode
         PhraseText.Foreground = brush;
-        // ShadowText deliberately excluded — stays #BB000000 always
 
         // Dial mode (static XAML elements)
         HourHand.Stroke   = brush;
@@ -1214,31 +891,8 @@ public partial class MainWindow : Window
         // Uptime row text (accent color)
         UptimeText.Foreground = brush;
 
-        // Deliberately excluded: ShadowText, CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack,
+        // Deliberately excluded: CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack,
         // ContentBorder.Background
-    }
-
-    private void ContrastTimer_Tick(object? sender, EventArgs e)
-    {
-        // Pause when ghost mode is active or window is fully transparent
-        if (_isGhostMode || _windowOpacity == 0.0) return;
-        // Freeze display color during drag (loop stays running, color not updated)
-        if (_isDragging) return;
-
-        // Get pixel coordinates via DPI transform
-        var ps = System.Windows.PresentationSource.FromVisual(this);
-        if (ps?.CompositionTarget == null) return;
-        var transform = ps.CompositionTarget.TransformToDevice;
-        int px = (int)Math.Round(Left   * transform.M11);
-        int py = (int)Math.Round(Top    * transform.M22);
-        int pw = (int)Math.Round(ActualWidth  * transform.M11);
-        int ph = (int)Math.Round(ActualHeight * transform.M22);
-
-        var bgSample  = ContrastSamplerService.Sample(px, py, pw, ph);
-        var accentRgb = new RgbColor(_accentColor.R, _accentColor.G, _accentColor.B);
-        var (displayColor, newState) = ContrastService.ComputeDisplayColor(bgSample, accentRgb, _contrastState);
-        _contrastState = newState;
-        ApplyDisplayColor(displayColor);
     }
 
     private void ApplyDisplayColor(RgbColor rgb)
