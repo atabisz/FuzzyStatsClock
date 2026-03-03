@@ -92,7 +92,7 @@ public class AppSettingsTests
         var result = JsonSerializer.Deserialize<AppSettings>(json)!;
 
         Assert.IsNotNull(result.MonitorPositions, "MonitorPositions should not be null when absent from JSON");
-        Assert.AreEqual(0, result.MonitorPositions.Count, "MonitorPositions should be empty when absent from JSON");
+        Assert.IsEmpty(result.MonitorPositions, "MonitorPositions should be empty when absent from JSON");
         Assert.AreEqual("", result.LastActiveMonitor, "LastActiveMonitor should default to empty string");
     }
 }

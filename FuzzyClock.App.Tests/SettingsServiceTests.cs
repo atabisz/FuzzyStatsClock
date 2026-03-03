@@ -94,7 +94,7 @@ public class SettingsServiceTests
     {
         var defaults = SettingsService.Defaults();
         Assert.IsNotNull(defaults.MonitorPositions);
-        Assert.AreEqual(0, defaults.MonitorPositions.Count);
+        Assert.IsEmpty(defaults.MonitorPositions);
         Assert.AreEqual("", defaults.LastActiveMonitor);
     }
 }
