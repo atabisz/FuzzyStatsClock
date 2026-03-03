@@ -51,7 +51,7 @@
 **Milestone Goal:** Widget is effortless to set up — launches automatically at Windows login and always returns to the right position on the right monitor.
 
 - [x] **Phase 31: Auto-Launch at Login** — Tray toggle writes/removes HKCU Run registry entry; state shown as checkmark; persisted to settings.json (completed 2026-03-03)
-- [ ] **Phase 32: Per-Monitor Position Memory** — Widget tracks last-used position per monitor by identity; restores to correct monitor on startup; centers on primary if monitor absent
+- [x] **Phase 32: Per-Monitor Position Memory** — Widget tracks last-used position per monitor by identity; restores to correct monitor on startup; centers on primary if monitor absent (completed 2026-03-03)
 - [ ] **Phase 33: Auto-Contrast** — Tray toggle enables screen-color sampling under widget footprint; switches text to black or white when WCAG contrast insufficient; restores accent color when contrast is sufficient again
 
 ## Phase Details
@@ -108,7 +108,7 @@ Plans:
 | 29. App Test Infrastructure + Settings Tests | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 30. CI Test Gate | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 31. Auto-Launch at Login | v2.6 | 1/1 | Complete | 2026-03-03 |
-| 32. Per-Monitor Position Memory | 2/3 | In Progress|  | - |
+| 32. Per-Monitor Position Memory | 3/3 | Complete   | 2026-03-03 | - |
 | 33. Auto-Contrast | v2.6 | 0/? | Not started | - |
 
 ---

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03 — v2.6 Polish roadmap created)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.6 Polish — Phase 32: Per-Monitor Position
+**Current focus:** v2.6 Polish — Phase 33: Auto-Contrast
 
 ## Current Position
 
-Phase: 32 of 33 (Per-Monitor Position)
-Plan: 2 of 3 in current phase
-Status: Phase 32 in progress — Plan 02 complete (SettingsService per-monitor schema + migration)
-Last activity: 2026-03-03 — Phase 32 Plan 02 complete (32-02-PLAN.md)
+Phase: 33 of 33 (Auto-Contrast)
+Plan: 0 of ? in current phase
+Status: Phase 32 complete — all 3 plans done (MonitorService + AppSettings schema, SettingsService migration, MainWindow wiring)
+Last activity: 2026-03-03 — Phase 32 Plan 03 complete (32-03-PLAN.md)
 
-Progress: [███░░░░░░░] 33% (v2.6 phases — 1/3 phases complete; Phase 32 in progress)
+Progress: [██████░░░░] 67% (v2.6 phases — 2/3 phases complete; Phase 33 pending)
 
 ## Performance Metrics
 
@@ -39,6 +39,9 @@ Key patterns relevant to v2.6:
 - [Phase 32-01]: MonitorPositions Dictionary<string, MonitorPosition> replaces flat Left/Top in AppSettings; LastActiveMonitor="" is "no saved monitor" sentinel
 - [Phase 32-02]: SettingsService.Load() migrates old Left/Top JSON to MonitorPositions[primaryKey] only when Left != -1; uses JsonDocument.Parse pre-check before Deserialize
 - [Phase 32-02]: Clamp(MonitorPosition,...) replaces Clamp(AppSettings,...); Screen overload uses WorkingArea; pure bounds overload has no WinForms dependency
+- [Phase 32]: _settings field cached in ApplySettings so SaveSettings can use record with-expression; preserves all non-position fields and future-proofs for new fields
+- [Phase 32]: Cross-monitor drag: compare prevKey vs newKey, remove source entry before SaveSettings writes destination — ensures clean per-monitor mapping
+- [Phase 32]: FindScreenForKey uses MonitorService.GetKeyForScreen for matching to ensure same deduplication logic at write and lookup time
 
 ### Pending Todos
 
@@ -46,12 +49,12 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 32 (per-monitor position): Plans 01 and 02 complete. MonitorService, AppSettings schema, and SettingsService all updated. MainWindow has expected compile errors to be fixed in Plan 03.
+- Phase 32 (per-monitor position): COMPLETE. All 3 plans done. MonitorService, AppSettings schema, SettingsService migration, and MainWindow position save/restore all implemented.
 - Phase 33 (auto-contrast): Screen color sampling under a transparent WPF window requires capturing the desktop bitmap behind the widget. BitBlt from desktop DC into a 1x1 or small sample region is the likely approach. WCAG relative luminance formula must be applied correctly (linearize sRGB values before computing ratio).
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 32-per-monitor-position-memory 32-02-PLAN.md
+Stopped at: Completed 32-per-monitor-position-memory 32-03-PLAN.md
 Resume file: None
-Next action: Execute 32-03-PLAN.md
+Next action: Plan and execute Phase 33 (auto-contrast)
