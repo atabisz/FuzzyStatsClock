@@ -37,7 +37,7 @@ Tests for AppSettings JSON round-trip, upgrade safety, and SettingsService valid
 
 ### CI Integration
 
-- [ ] **CI-01**: GitHub Actions release.yml runs `dotnet test` before `dotnet publish`; workflow fails fast if any test fails — release is never created from a broken build
+- [x] **CI-01**: GitHub Actions release.yml runs `dotnet test` before `dotnet publish`; workflow fails fast if any test fails — release is never created from a broken build
 
 ## v3+ Requirements
 
@@ -76,7 +76,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STEST-05 | Phase 29 | Complete |
 | STEST-06 | Phase 29 | Complete |
 | STEST-07 | Phase 29 | Complete |
-| CI-01 | Phase 30 | Pending |
+| CI-01 | Phase 30 | Complete |
 
 **Coverage:**
 - v2.5 requirements: 12 total

@@ -66,7 +66,7 @@ Plans:
 
 - [x] **Phase 28: Core Logic Extraction + Tests** — Extract UptimeFormatter and DialGeometry into FuzzyClock.Core; add tests for both in FuzzyClock.Core.Tests (completed 2026-03-02)
 - [x] **Phase 29: App Test Infrastructure + Settings Tests** — Add FuzzyClock.App.Tests project; refactor SettingsService for testability (Validate method + pure Clamp overload); write all settings tests (completed 2026-03-03)
-- [ ] **Phase 30: CI Test Gate** — Add dotnet test step to release.yml before dotnet publish; workflow fails fast on test failure
+- [x] **Phase 30: CI Test Gate** — Add dotnet test step to release.yml before dotnet publish; workflow fails fast on test failure (completed 2026-03-03)
 
 ## Phase Details
 
@@ -120,7 +120,7 @@ Plans:
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 28. Core Logic Extraction + Tests | v2.5 | 1/1 | Complete | 2026-03-02 |
 | 29. App Test Infrastructure + Settings Tests | 1/1 | Complete    | 2026-03-03 | - |
-| 30. CI Test Gate | v2.5 | 0/? | Not started | - |
+| 30. CI Test Gate | 1/1 | Complete   | 2026-03-03 | - |
 
 ---
 *Last updated: 2026-03-03 — Phase 30 planned (1 plan)*
