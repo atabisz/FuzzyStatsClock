@@ -34,6 +34,7 @@ jobs:
           --self-contained true
           -p:PublishSingleFile=true
           -p:PublishReadyToRun=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
           -o publish/
 
       - name: Create GitHub Release
