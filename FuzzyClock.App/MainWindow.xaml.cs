@@ -32,6 +32,8 @@ public partial class MainWindow : Window
     private System.Windows.Media.Color _accentColor = System.Windows.Media.Colors.White;
     private System.Windows.Forms.NotifyIcon _trayIcon = null!;
     private System.Windows.Forms.ToolStripMenuItem _ghostModeMenuItem   = null!;
+    private System.Windows.Forms.ToolStripMenuItem _trayAutoLaunch = null!;
+    private bool _autoLaunchEnabled = false;
     // Tray items needing programmatic updates (checkmarks or visibility)
     private System.Windows.Forms.ToolStripMenuItem  _trayFontSizeItem    = null!;
     private System.Windows.Forms.ToolStripSeparator _trayFontSizeSep    = null!;
@@ -264,6 +266,15 @@ public partial class MainWindow : Window
         this.Opacity   = s.Opacity;
         _ghostModeEnabled = s.GhostModeEnabled;
 
+        _autoLaunchEnabled = s.AutoLaunchEnabled;
+        // Restore registry entry to match persisted setting.
+        // Called before ContentRendered; exe path is stable at this point.
+        if (_autoLaunchEnabled)
+            AutoLaunchService.Enable(
+                System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName);
+        else
+            AutoLaunchService.Disable();
+
         // Parse AccentColor hex string to Color struct
         // SettingsService.Load() guards against null/empty; catch here for belt-and-suspenders safety
         try
@@ -302,7 +313,8 @@ public partial class MainWindow : Window
             ShowHourNumbers = _showHourNumbers,
             Opacity = _windowOpacity,
             AccentColor = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}",
-            GhostModeEnabled = _ghostModeEnabled
+            GhostModeEnabled = _ghostModeEnabled,
+            AutoLaunchEnabled = _autoLaunchEnabled
         });
     }
 
@@ -459,6 +471,7 @@ public partial class MainWindow : Window
         // Sync all tray item checkmarks from current state — mirrors the old ContextMenu_Opened pattern.
         // Reading WPF element properties (Visibility) from WinForms thread follows the established
         // pattern in SaveSettings() which already does this safely.
+        _trayAutoLaunch.Checked = _autoLaunchEnabled;
         _trayFontSmall.Checked  = (_currentFontSize == 16);
         _trayFontMedium.Checked = (_currentFontSize == 24);
         _trayFontLarge.Checked  = (_currentFontSize == 32);
@@ -744,6 +757,23 @@ public partial class MainWindow : Window
         menu.Items.Add(_ghostModeMenuItem);
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
+        // Auto-Launch at Login
+        _trayAutoLaunch = new System.Windows.Forms.ToolStripMenuItem("Auto-Launch at Login")
+            { Checked = _autoLaunchEnabled };
+        _trayAutoLaunch.Click += (_, _) =>
+        {
+            _autoLaunchEnabled = !_autoLaunchEnabled;
+            _trayAutoLaunch.Checked = _autoLaunchEnabled;
+            string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
+            if (_autoLaunchEnabled)
+                AutoLaunchService.Enable(exePath);
+            else
+                AutoLaunchService.Disable();
+            SaveSettings();
+        };
+        menu.Items.Add(_trayAutoLaunch);
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
         // Font Size submenu
         _trayFontSmall  = new System.Windows.Forms.ToolStripMenuItem("Small (16pt)");
         _trayFontMedium = new System.Windows.Forms.ToolStripMenuItem("Medium (24pt)");
@@ -844,6 +874,21 @@ public partial class MainWindow : Window
         resetItem.Click += (_, _) => Dispatcher.Invoke(ResetToDefaults);
         quitItem.Click  += (_, _) => Dispatcher.Invoke(() => Application.Current.Shutdown());
         menu.Items.Add(resetItem);
+
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        var aboutItem = new System.Windows.Forms.ToolStripMenuItem("About");
+        aboutItem.Click += (_, _) => Dispatcher.Invoke(() =>
+        {
+            var ver = typeof(MainWindow).Assembly.GetName().Version;
+            var versionStr = ver is null ? "2.5" : $"{ver.Major}.{ver.Minor}";
+            System.Windows.MessageBox.Show(
+                $"FuzzyClock v{versionStr}\n\nA fuzzy time & system stats desktop overlay.\n\nBuilt as a Claude + GSD experiment\nby Alex Tabisz.",
+                "About FuzzyClock",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+        });
+        menu.Items.Add(aboutItem);
         menu.Items.Add(quitItem);
 
         _trayIcon = new System.Windows.Forms.NotifyIcon
@@ -878,6 +923,11 @@ public partial class MainWindow : Window
         // Re-enable ghost mode
         _ghostModeEnabled = true;
         _ghostModeMenuItem.Checked = true;
+
+        // Reset auto-launch: disable on reset
+        _autoLaunchEnabled = false;
+        _trayAutoLaunch.Checked = false;
+        AutoLaunchService.Disable();
 
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
