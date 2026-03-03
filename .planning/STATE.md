@@ -5,22 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-03 — v2.6 Polish roadmap created)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.6 Polish — Phase 31: Auto-Launch at Login
+**Current focus:** v2.6 Polish — Phase 32: Per-Monitor Position
 
 ## Current Position
 
-Phase: 31 of 33 (Auto-Launch at Login)
+Phase: 32 of 33 (Per-Monitor Position)
 Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-03 — Roadmap created for v2.6 (3 phases, 10 requirements)
+Status: Phase 31 complete — ready to plan Phase 32
+Last activity: 2026-03-03 — Phase 31 (Auto-Launch at Login) complete (31-01-PLAN.md)
 
-Progress: [░░░░░░░░░░] 0% (v2.6 phases)
+Progress: [███░░░░░░░] 33% (v2.6 phases — 1/3 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31 (v1.0 through v2.5)
+- Total plans completed: 32 (v1.0 through v2.6 Phase 31)
 - v2.5 duration: 9 min (3 plans: 5min + 3min + 1min)
+- Phase 31 duration: 3 min (1 plan)
 
 ## Accumulated Context
 
@@ -33,6 +34,7 @@ Key patterns relevant to v2.6:
 - SettingsService atomic write via temp + File.Move — no change needed
 - Tray menu items follow the Ghost Mode tray toggle pattern (checkable ToolStripMenuItem, sync state on menu open)
 - Per-monitor key: use monitor device name or bounds hash as dictionary key in AppSettings
+- [Phase 31-auto-launch-at-login]: AutoLaunchEnabled defaults false; AutoLaunchService static registry helper isolates UI from Win32; ApplySettings restores registry on startup
 
 ### Pending Todos
 
@@ -46,6 +48,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: v2.6 roadmap written — ready to plan Phase 31
+Stopped at: Completed 31-auto-launch-at-login 31-01-PLAN.md
 Resume file: None
-Next action: /gsd:plan-phase 31
+Next action: /gsd:plan-phase 32

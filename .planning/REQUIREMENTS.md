@@ -7,9 +7,9 @@
 
 ### Auto-Launch at Login
 
-- [ ] **STRT-01**: User can toggle auto-launch at Windows login via tray context menu; toggle state shown as checkmark
-- [ ] **STRT-02**: Auto-launch setting persists to settings.json and restores on launch
-- [ ] **STRT-03**: When auto-launch is enabled, HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run registry entry is written; when disabled, the entry is removed
+- [x] **STRT-01**: User can toggle auto-launch at Windows login via tray context menu; toggle state shown as checkmark
+- [x] **STRT-02**: Auto-launch setting persists to settings.json and restores on launch
+- [x] **STRT-03**: When auto-launch is enabled, HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run registry entry is written; when disabled, the entry is removed
 
 ### Per-Monitor Position
 
@@ -43,9 +43,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STRT-01 | Phase 31 | Pending |
-| STRT-02 | Phase 31 | Pending |
-| STRT-03 | Phase 31 | Pending |
+| STRT-01 | Phase 31 | Complete |
+| STRT-02 | Phase 31 | Complete |
+| STRT-03 | Phase 31 | Complete |
 | MON-01 | Phase 32 | Pending |
 | MON-02 | Phase 32 | Pending |
 | MON-03 | Phase 32 | Pending |
