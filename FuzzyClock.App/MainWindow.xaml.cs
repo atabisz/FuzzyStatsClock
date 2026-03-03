@@ -22,7 +22,8 @@ public partial class MainWindow : Window
     // StatsPanel.Width(180) - label column(35) - text column(36) = 109
     private const double StatsBarTrackWidth = 109.0;
     private int _currentFontSize = 32;
-    private bool _savedPositionLoaded = false;
+    private string _currentMonitorKey = "";      // monitor key for the screen currently hosting the window
+    private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
     private bool _hasUserPosition = false;
     private bool _dialMode;
     private bool _showHourTicks   = false;
@@ -131,16 +132,20 @@ public partial class MainWindow : Window
         // so ActualWidth is 0 in the constructor — positioning must be deferred.
         ContentRendered += (_, _) =>
         {
-            if (_savedPositionLoaded)
+            if (_hasUserPosition)
             {
-                // Clamp here — ActualWidth/ActualHeight are valid after first layout pass.
-                // ApplySettings() set the raw loaded position; ContentRendered adjusts it to
-                // stay within virtual screen bounds (handles monitor disconnect scenarios).
+                // Clamp to the monitor where the saved position was; if monitor absent, use primary.
+                // ActualWidth/ActualHeight are valid after first layout pass.
+                var targetScreen = FindScreenForKey(_currentMonitorKey);
                 var clamped = SettingsService.Clamp(
-                    new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
-                    ActualWidth, ActualHeight);
+                    new MonitorPosition { Left = Left, Top = Top },
+                    ActualWidth, ActualHeight, targetScreen);
                 Left = clamped.Left;
                 Top  = clamped.Top;
+                // If the monitor is absent, _currentMonitorKey may not match any connected screen.
+                // FindScreenForKey already falls back to primary, so the clamp is correct.
+                // Update _currentMonitorKey to the actual screen now hosting the window.
+                _currentMonitorKey = MonitorService.GetCurrentMonitorKey(this);
             }
             else
             {
@@ -226,13 +231,17 @@ public partial class MainWindow : Window
         PhraseText.FontSize = s.FontSize;
         ShadowText.FontSize = s.FontSize;
 
-        if (s.Left != -1)
+        _settings = s;  // cache for SaveSettings use
+
+        if (!string.IsNullOrEmpty(s.LastActiveMonitor) &&
+            s.MonitorPositions.TryGetValue(s.LastActiveMonitor, out var savedPos))
         {
-            Left = s.Left;
-            Top  = s.Top;
-            _savedPositionLoaded = true;
+            Left = savedPos.Left;
+            Top  = savedPos.Top;
+            _currentMonitorKey = s.LastActiveMonitor;
             _hasUserPosition = true;
         }
+        // else: no saved position — ContentRendered will call PositionTopRight()
 
         _statsIntervalSeconds = s.StatsIntervalSeconds;
 
@@ -295,27 +304,38 @@ public partial class MainWindow : Window
     /// </summary>
     internal void SaveSettings()
     {
-        SettingsService.Save(new AppSettings
+        // Update current monitor key at save time
+        _currentMonitorKey = MonitorService.GetCurrentMonitorKey(this);
+
+        // Build updated MonitorPositions: preserve all existing entries, upsert current monitor
+        var positions = new System.Collections.Generic.Dictionary<string, MonitorPosition>(
+            _settings.MonitorPositions)
         {
-            Left = Left,
-            Top = Top,
-            FontSize = _currentFontSize,
-            StatsVisible = (StatsPanel.Visibility == Visibility.Visible),
+            [_currentMonitorKey] = new MonitorPosition { Left = Left, Top = Top }
+        };
+
+        _settings = _settings with
+        {
+            FontSize             = _currentFontSize,
+            StatsVisible         = (StatsPanel.Visibility == Visibility.Visible),
             StatsIntervalSeconds = _statsIntervalSeconds,
-            CpuVisible = (CpuRow.Visibility == Visibility.Visible),
-            GpuVisible = (GpuRow.Visibility == Visibility.Visible),
-            MemVisible = (MemRow.Visibility == Visibility.Visible),
-            PagVisible = (PagRow.Visibility == Visibility.Visible),
-            UptimeVisible = (UptimeText.Visibility == Visibility.Visible),
-            DialMode = _dialMode,
-            ShowHourTicks   = _showHourTicks,
-            ShowMinuteDots  = _showMinuteDots,
-            ShowHourNumbers = _showHourNumbers,
-            Opacity = _windowOpacity,
-            AccentColor = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}",
-            GhostModeEnabled = _ghostModeEnabled,
-            AutoLaunchEnabled = _autoLaunchEnabled
-        });
+            CpuVisible           = (CpuRow.Visibility    == Visibility.Visible),
+            GpuVisible           = (GpuRow.Visibility    == Visibility.Visible),
+            MemVisible           = (MemRow.Visibility    == Visibility.Visible),
+            PagVisible           = (PagRow.Visibility    == Visibility.Visible),
+            UptimeVisible        = (UptimeText.Visibility == Visibility.Visible),
+            DialMode             = _dialMode,
+            ShowHourTicks        = _showHourTicks,
+            ShowMinuteDots       = _showMinuteDots,
+            ShowHourNumbers      = _showHourNumbers,
+            AccentColor          = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}",
+            Opacity              = _windowOpacity,
+            GhostModeEnabled     = _ghostModeEnabled,
+            AutoLaunchEnabled    = _autoLaunchEnabled,
+            MonitorPositions     = positions,
+            LastActiveMonitor    = _currentMonitorKey
+        };
+        SettingsService.Save(_settings);
     }
 
     /// <summary>
@@ -343,6 +363,17 @@ public partial class MainWindow : Window
         DragMove();
         // LocationChanged fires during DragMove — _hasUserPosition is already true here.
 
+        // Cross-monitor drag: remove source monitor's saved position (per design decision)
+        string prevKey = _currentMonitorKey;
+        string newKey  = MonitorService.GetCurrentMonitorKey(this);
+        if (!string.IsNullOrEmpty(prevKey) && prevKey != newKey)
+        {
+            var updatedPos = new System.Collections.Generic.Dictionary<string, MonitorPosition>(
+                _settings.MonitorPositions);
+            updatedPos.Remove(prevKey);
+            _settings = _settings with { MonitorPositions = updatedPos };
+        }
+
         if (statsTimerWasRunning) _statsTimer!.Start();
         SaveSettings();
     }
@@ -368,9 +399,11 @@ public partial class MainWindow : Window
         {
             // Re-clamp after phrase change — SizeToContent may resize the window,
             // pushing it partially off-screen if positioned near an edge.
+            var screen = System.Windows.Forms.Screen.FromPoint(
+                new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
             var clamped = SettingsService.Clamp(
-                new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
-                ActualWidth, ActualHeight);
+                new MonitorPosition { Left = Left, Top = Top },
+                ActualWidth, ActualHeight, screen);
             Left = clamped.Left;
             Top  = clamped.Top;
         }
@@ -466,6 +499,18 @@ public partial class MainWindow : Window
         Top = Padding;
     }
 
+    private static System.Windows.Forms.Screen FindScreenForKey(string key)
+    {
+        if (!string.IsNullOrEmpty(key))
+        {
+            var match = System.Windows.Forms.Screen.AllScreens
+                .FirstOrDefault(s => MonitorService.GetKeyForScreen(s) == key);
+            if (match != null) return match;
+        }
+        return System.Windows.Forms.Screen.PrimaryScreen
+               ?? System.Windows.Forms.Screen.AllScreens[0];
+    }
+
     private void TrayMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         // Sync all tray item checkmarks from current state — mirrors the old ContextMenu_Opened pattern.
@@ -521,9 +566,11 @@ public partial class MainWindow : Window
             UpdateLayout();
             if (_hasUserPosition)
             {
+                var screen = System.Windows.Forms.Screen.FromPoint(
+                    new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
                 var clamped = SettingsService.Clamp(
-                    new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
-                    ActualWidth, ActualHeight);
+                    new MonitorPosition { Left = Left, Top = Top },
+                    ActualWidth, ActualHeight, screen);
                 Left = clamped.Left;
                 Top  = clamped.Top;
             }
@@ -651,9 +698,11 @@ public partial class MainWindow : Window
             UpdateLayout();
             if (_hasUserPosition)
             {
+                var screen = System.Windows.Forms.Screen.FromPoint(
+                    new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
                 var clamped = SettingsService.Clamp(
-                    new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
-                    ActualWidth, ActualHeight);
+                    new MonitorPosition { Left = Left, Top = Top },
+                    ActualWidth, ActualHeight, screen);
                 Left = clamped.Left;
                 Top  = clamped.Top;
             }
@@ -672,9 +721,11 @@ public partial class MainWindow : Window
         if (visible && _hasUserPosition && StatsPanel.Visibility == Visibility.Visible)
         {
             UpdateLayout();
+            var screen = System.Windows.Forms.Screen.FromPoint(
+                new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
             var clamped = SettingsService.Clamp(
-                new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
-                ActualWidth, ActualHeight);
+                new MonitorPosition { Left = Left, Top = Top },
+                ActualWidth, ActualHeight, screen);
             Left = clamped.Left;
             Top  = clamped.Top;
         }
@@ -692,9 +743,11 @@ public partial class MainWindow : Window
         UpdateLayout();
         if (_hasUserPosition)
         {
+            var screen = System.Windows.Forms.Screen.FromPoint(
+                new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
             var clamped = SettingsService.Clamp(
-                new AppSettings { Left = Left, Top = Top, FontSize = _currentFontSize },
-                ActualWidth, ActualHeight);
+                new MonitorPosition { Left = Left, Top = Top },
+                ActualWidth, ActualHeight, screen);
             Left = clamped.Left;
             Top  = clamped.Top;
         }
@@ -919,6 +972,9 @@ public partial class MainWindow : Window
         Left = (SystemParameters.PrimaryScreenWidth  - ActualWidth)  / 2;
         Top  = (SystemParameters.PrimaryScreenHeight - ActualHeight) / 2;
         _hasUserPosition = true;   // treat centered position as user-set to prevent phrase-change snap
+        _currentMonitorKey = MonitorService.GetPrimaryMonitorKey();
+        // Clear all saved positions so reset gives a clean slate
+        _settings = _settings with { MonitorPositions = new System.Collections.Generic.Dictionary<string, MonitorPosition>() };
 
         // Re-enable ghost mode
         _ghostModeEnabled = true;
