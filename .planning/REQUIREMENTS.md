@@ -61,4 +61,4 @@
 
 ---
 *Requirements defined: 2026-03-03*
-*Last updated: 2026-03-03 after initial v2.6 definition*
+*Last updated: 2026-03-03 — traceability confirmed after roadmap creation*

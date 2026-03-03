@@ -46,6 +46,49 @@
 
 </details>
 
+### v2.6 Polish (In Progress)
+
+**Milestone Goal:** Widget is effortless to set up — launches automatically at Windows login and always returns to the right position on the right monitor.
+
+- [ ] **Phase 31: Auto-Launch at Login** — Tray toggle writes/removes HKCU Run registry entry; state shown as checkmark; persisted to settings.json
+- [ ] **Phase 32: Per-Monitor Position Memory** — Widget tracks last-used position per monitor by identity; restores to correct monitor on startup; centers on primary if monitor absent
+- [ ] **Phase 33: Auto-Contrast** — Tray toggle enables screen-color sampling under widget footprint; switches text to black or white when WCAG contrast insufficient; restores accent color when contrast is sufficient again
+
+## Phase Details
+
+### Phase 31: Auto-Launch at Login
+**Goal**: User can make the widget start automatically at Windows login, controlled from the tray menu
+**Depends on**: Phase 30
+**Requirements**: STRT-01, STRT-02, STRT-03
+**Success Criteria** (what must be TRUE):
+  1. Tray context menu has an "Auto-Launch at Login" item with a checkmark that reflects the current state each time the menu opens
+  2. Clicking the item toggles auto-launch on and off; the checkmark updates immediately
+  3. When auto-launch is enabled, a registry entry under HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run points to the application executable
+  4. When auto-launch is disabled, the registry entry is absent
+  5. The auto-launch preference survives an application restart (persisted to settings.json and restored on launch)
+**Plans**: TBD
+
+### Phase 32: Per-Monitor Position Memory
+**Goal**: Widget restores to the last-used position on the active monitor, not a fixed default
+**Depends on**: Phase 31
+**Requirements**: MON-01, MON-02, MON-03
+**Success Criteria** (what must be TRUE):
+  1. After dragging the widget on a given monitor and restarting, the widget appears at the saved position on that same monitor
+  2. With two monitors connected, positions saved on each monitor are independent — moving the widget on monitor A does not affect the saved position on monitor B
+  3. When a previously-used monitor is not connected at startup, the widget centers on the primary screen instead of appearing off-screen
+**Plans**: TBD
+
+### Phase 33: Auto-Contrast
+**Goal**: Widget text remains readable regardless of what is on the screen behind it
+**Depends on**: Phase 32
+**Requirements**: CONTRAST-01, CONTRAST-02, CONTRAST-03, CONTRAST-04
+**Success Criteria** (what must be TRUE):
+  1. Tray context menu has an "Auto-Contrast" item (off by default); clicking it enables the feature; clicking again disables it; state persisted to settings.json
+  2. When auto-contrast is enabled and the widget is over a light background, the text switches to black (or white, whichever provides better contrast) automatically
+  3. When the background behind the widget becomes dark enough that the configured accent color meets the WCAG contrast threshold, the text restores to the configured accent color
+  4. When auto-contrast is disabled, text always displays in the configured accent color regardless of background
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -58,6 +101,9 @@
 | 28. Core Logic Extraction + Tests | v2.5 | 1/1 | Complete | 2026-03-02 |
 | 29. App Test Infrastructure + Settings Tests | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 30. CI Test Gate | v2.5 | 1/1 | Complete | 2026-03-03 |
+| 31. Auto-Launch at Login | v2.6 | 0/? | Not started | - |
+| 32. Per-Monitor Position Memory | v2.6 | 0/? | Not started | - |
+| 33. Auto-Contrast | v2.6 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-03 — v2.5 Unit Tests shipped*
+*Last updated: 2026-03-03 — v2.6 Polish roadmap created*
