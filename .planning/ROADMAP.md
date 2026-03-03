@@ -73,7 +73,12 @@
   2. When auto-contrast is enabled and the widget is over a light background, the text switches to black (or white, whichever provides better contrast) automatically
   3. When the background behind the widget becomes dark enough that the configured accent color meets the WCAG contrast threshold, the text restores to the configured accent color
   4. When auto-contrast is disabled, text always displays in the configured accent color regardless of background
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 33-01-PLAN.md — ContrastService TDD: WCAG luminance, hysteresis state machine, accent adjustment, black/white fallback
+- [ ] 33-02-PLAN.md — AppSettings AutoContrastEnabled + ContrastSamplerService (BitBlt) + MainWindow wiring (sampler timer, tray toggle, pause/freeze)
+- [ ] 33-03-PLAN.md — Version bump to 2.7.0 + human verification of all 4 CONTRAST requirements
 
 ## Progress
 
@@ -89,7 +94,7 @@
 | 30. CI Test Gate | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 31. Auto-Launch at Login | v2.6 | 1/1 | Complete | 2026-03-03 |
 | 32. Per-Monitor Position Memory | v2.6 | 3/3 | Complete | 2026-03-03 |
-| 33. Auto-Contrast | v2.7 | 0/? | Not started | - |
+| 33. Auto-Contrast | v2.7 | 0/3 | Not started | - |
 
 ---
 *Last updated: 2026-03-03 — v2.6 archived; v2.7 Auto-Contrast (Phase 33) is next*
