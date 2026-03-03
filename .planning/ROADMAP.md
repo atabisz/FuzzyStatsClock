@@ -93,7 +93,9 @@ Plans:
   3. Deserializing JSON that omits the UptimeVisible field yields UptimeVisible=true (the init default), confirming the absent-field-as-init-default pattern is enforced
   4. SettingsService.Validate() is a callable static method with no file I/O dependency; tests confirm it corrects StatsIntervalSeconds=0 to 3, Opacity=0.0 to 1.0, and null/whitespace AccentColor to "#FFFFFFFF"
   5. SettingsService.Clamp() pure overload (taking explicit vLeft/vTop/vWidth/vHeight parameters) clamps out-of-bounds positions into bounds and leaves already-in-bounds positions unchanged
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 29-01-PLAN.md — Create FuzzyClock.App.Tests project; refactor SettingsService (Validate + pure Clamp); write AppSettingsTests + SettingsServiceTests; verify dotnet test passes
 
 ### Phase 30: CI Test Gate
 **Goal**: A broken build cannot produce a GitHub release artifact
@@ -114,9 +116,9 @@ Plans:
 | 25. Centered Phrase Text | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 27. Ctrl+Alt Interaction Modifier | v2.3 | 1/1 | Complete | 2026-03-02 |
-| 28. Core Logic Extraction + Tests | 1/1 | Complete    | 2026-03-02 | - |
-| 29. App Test Infrastructure + Settings Tests | v2.5 | 0/? | Not started | - |
+| 28. Core Logic Extraction + Tests | v2.5 | 1/1 | Complete | 2026-03-02 |
+| 29. App Test Infrastructure + Settings Tests | v2.5 | 0/1 | Not started | - |
 | 30. CI Test Gate | v2.5 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-03 — Phase 28 planned (1 plan)*
+*Last updated: 2026-03-03 — Phase 29 planned (1 plan)*
