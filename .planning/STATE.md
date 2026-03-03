@@ -5,24 +5,25 @@
 See: .planning/PROJECT.md (updated 2026-03-03 — v2.6 archived)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.7 Auto-Contrast — Phase 33 (Plans 01-02 complete)
+**Current focus:** v2.7 Auto-Contrast — Phase 33 complete (all 3 plans done)
 
 ## Current Position
 
 Phase: 33 of 33 (Auto-Contrast)
-Plan: 2 of ? in current phase
-Status: v2.7 in progress — Phase 33 Plan 02 (screen sampler + MainWindow wiring) complete
-Last activity: 2026-03-03 — Phase 33 Plan 02 executed (ContrastSamplerService + MainWindow tray toggle)
+Plan: 3 of 3 in current phase
+Status: v2.7 Phase 33 complete — all plans executed, ready for audit/milestone
+Last activity: 2026-03-03 — Phase 33 Plan 03 executed (version bump to 2.7.0, human verification, stats label bug fix)
 
-Progress: [██░░░░░░░░] ~20% (v2.7 Phase 33 — 2/? plans complete)
+Progress: [████████░░] ~80% (v2.7 Phase 33 — 3/3 plans complete, pending audit)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37 (v1.0 through v2.7 Phase 33 Plan 01)
+- Total plans completed: 40 (v1.0 through v2.7 Phase 33 Plan 03)
 - v2.6 duration: Phase 31 ~3 min (1 plan), Phase 32 ~15 min (3 plans)
 - Phase 33 Plan 01: ~4 min (2 tasks, TDD)
 - Phase 33 Plan 02: ~3 min (2 tasks)
+- Phase 33 Plan 03: ~10 min (2 tasks + inline bug fix)
 
 ## Accumulated Context
 
@@ -46,6 +47,8 @@ Key patterns relevant to v2.7:
 - [Phase 33 Plan 02]: InternalsVisibleTo "FuzzyClock" (App AssemblyName) added to Core.csproj so ContrastService (internal) is accessible from MainWindow without making it public
 - [Phase 33 Plan 02]: ContrastSamplerService takes physical pixel coords; caller converts via PresentationSource.CompositionTarget.TransformToDevice; step-sampling at 200px cap per dimension
 - [Phase 33 Plan 02]: _isDragging flag wraps DragMove() to freeze display color (not timer) during drag; ContrastTimer_Tick returns early when _isDragging is true
+- [Phase 33 Plan 03]: Stats row label TextBlocks (CPU/GPU/MEM/PAG) must have x:Name attributes so ApplyDisplayColor and ApplyTheme can reach them; unnamed XAML elements are unreachable from code-behind
+- [Phase 33 Plan 03]: Both ApplyDisplayColor (auto-contrast path) and ApplyTheme (accent restore path) must update the same full set of colored elements
 
 ### Pending Todos
 
@@ -53,11 +56,11 @@ None.
 
 ### Blockers/Concerns
 
-None — Auto-contrast end-to-end is wired. Feature is functional.
+None — Auto-contrast feature complete and human-verified. Ready for `/gsd:audit-milestone`.
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 33-auto-contrast 33-02-PLAN.md
+Stopped at: Completed 33-auto-contrast 33-03-PLAN.md
 Resume file: None
-Next action: Execute Plan 03 if planned, or audit/complete Phase 33
+Next action: /gsd:audit-milestone to audit v2.7 before tagging
