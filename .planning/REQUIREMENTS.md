@@ -21,19 +21,19 @@ Pure functions extracted from MainWindow into FuzzyClock.Core for independent te
 
 ### Test Infrastructure
 
-- [ ] **TINFRA-01**: FuzzyClock.App.Tests project (net10.0-windows, MSTest) is added to FuzzyClock.slnx and runs via `dotnet test` with zero failures
+- [x] **TINFRA-01**: FuzzyClock.App.Tests project (net10.0-windows, MSTest) is added to FuzzyClock.slnx and runs via `dotnet test` with zero failures
 
 ### Unit Tests — Settings
 
 Tests for AppSettings JSON round-trip, upgrade safety, and SettingsService validation logic. SettingsService is refactored minimally (Validate method + pure Clamp overload) to enable these without touching file I/O.
 
-- [ ] **STEST-01**: AppSettings JSON round-trip test: serialize a fully-populated AppSettings → deserialize → all fields match original
-- [ ] **STEST-02**: AppSettings deserialization from JSON with UptimeVisible field absent returns UptimeVisible=true (init default), not false (C# bool default) — validates the absent-field-as-init-default pattern
-- [ ] **STEST-03**: SettingsService.Validate() (extracted pure method) returns StatsIntervalSeconds=3 when input is 0
-- [ ] **STEST-04**: SettingsService.Validate() returns Opacity=1.0 when input Opacity is 0.0
-- [ ] **STEST-05**: SettingsService.Validate() returns AccentColor="#FFFFFFFF" when input is null or whitespace
-- [ ] **STEST-06**: SettingsService.Clamp() pure overload (explicit screen bounds) clamps Left/Top to keep window fully within bounds
-- [ ] **STEST-07**: SettingsService.Clamp() pure overload does not modify Left/Top when already within bounds
+- [x] **STEST-01**: AppSettings JSON round-trip test: serialize a fully-populated AppSettings → deserialize → all fields match original
+- [x] **STEST-02**: AppSettings deserialization from JSON with UptimeVisible field absent returns UptimeVisible=true (init default), not false (C# bool default) — validates the absent-field-as-init-default pattern
+- [x] **STEST-03**: SettingsService.Validate() (extracted pure method) returns StatsIntervalSeconds=3 when input is 0
+- [x] **STEST-04**: SettingsService.Validate() returns Opacity=1.0 when input Opacity is 0.0
+- [x] **STEST-05**: SettingsService.Validate() returns AccentColor="#FFFFFFFF" when input is null or whitespace
+- [x] **STEST-06**: SettingsService.Clamp() pure overload (explicit screen bounds) clamps Left/Top to keep window fully within bounds
+- [x] **STEST-07**: SettingsService.Clamp() pure overload does not modify Left/Top when already within bounds
 
 ### CI Integration
 
@@ -68,14 +68,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXTRACT-02 | Phase 28 | Complete |
 | UTEST-01 | Phase 28 | Complete |
 | UTEST-02 | Phase 28 | Complete |
-| TINFRA-01 | Phase 29 | Pending |
-| STEST-01 | Phase 29 | Pending |
-| STEST-02 | Phase 29 | Pending |
-| STEST-03 | Phase 29 | Pending |
-| STEST-04 | Phase 29 | Pending |
-| STEST-05 | Phase 29 | Pending |
-| STEST-06 | Phase 29 | Pending |
-| STEST-07 | Phase 29 | Pending |
+| TINFRA-01 | Phase 29 | Complete |
+| STEST-01 | Phase 29 | Complete |
+| STEST-02 | Phase 29 | Complete |
+| STEST-03 | Phase 29 | Complete |
+| STEST-04 | Phase 29 | Complete |
+| STEST-05 | Phase 29 | Complete |
+| STEST-06 | Phase 29 | Complete |
+| STEST-07 | Phase 29 | Complete |
 | CI-01 | Phase 30 | Pending |
 
 **Coverage:**
