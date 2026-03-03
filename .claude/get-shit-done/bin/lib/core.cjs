@@ -6,6 +6,13 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// ─── Path helpers ────────────────────────────────────────────────────────────
+
+/** Normalize a relative path to always use forward slashes (cross-platform). */
+function toPosixPath(p) {
+  return p.split(path.sep).join('/');
+}
+
 // ─── Model Profile Table ─────────────────────────────────────────────────────
 
 const MODEL_PROFILES = {
@@ -69,6 +76,7 @@ function loadConfig(cwd) {
     research: true,
     plan_checker: true,
     verifier: true,
+    nyquist_validation: false,
     parallelization: true,
     brave_search: false,
   };
@@ -102,8 +110,10 @@ function loadConfig(cwd) {
       research: get('research', { section: 'workflow', field: 'research' }) ?? defaults.research,
       plan_checker: get('plan_checker', { section: 'workflow', field: 'plan_check' }) ?? defaults.plan_checker,
       verifier: get('verifier', { section: 'workflow', field: 'verifier' }) ?? defaults.verifier,
+      nyquist_validation: get('nyquist_validation', { section: 'workflow', field: 'nyquist_validation' }) ?? defaults.nyquist_validation,
       parallelization,
       brave_search: get('brave_search') ?? defaults.brave_search,
+      model_overrides: parsed.model_overrides || null,
     };
   } catch {
     return defaults;
@@ -147,8 +157,12 @@ function execGit(cwd, args) {
 
 // ─── Phase utilities ──────────────────────────────────────────────────────────
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function normalizePhaseName(phase) {
-  const match = phase.match(/^(\d+)([A-Z])?(\.\d+)?/i);
+  const match = String(phase).match(/^(\d+)([A-Z])?((?:\.\d+)*)/i);
   if (!match) return phase;
   const padded = match[1].padStart(2, '0');
   const letter = match[2] ? match[2].toUpperCase() : '';
@@ -157,8 +171,8 @@ function normalizePhaseName(phase) {
 }
 
 function comparePhaseNum(a, b) {
-  const pa = String(a).match(/^(\d+)([A-Z])?(\.\d+)?/i);
-  const pb = String(b).match(/^(\d+)([A-Z])?(\.\d+)?/i);
+  const pa = String(a).match(/^(\d+)([A-Z])?((?:\.\d+)*)/i);
+  const pb = String(b).match(/^(\d+)([A-Z])?((?:\.\d+)*)/i);
   if (!pa || !pb) return String(a).localeCompare(String(b));
   const intDiff = parseInt(pa[1], 10) - parseInt(pb[1], 10);
   if (intDiff !== 0) return intDiff;
@@ -170,10 +184,18 @@ function comparePhaseNum(a, b) {
     if (!lb) return 1;
     return la < lb ? -1 : 1;
   }
-  // No decimal sorts before decimal: 12A < 12A.1 < 12A.2
-  const da = pa[3] ? parseFloat(pa[3]) : -1;
-  const db = pb[3] ? parseFloat(pb[3]) : -1;
-  return da - db;
+  // Segment-by-segment decimal comparison: 12A < 12A.1 < 12A.1.2 < 12A.2
+  const aDecParts = pa[3] ? pa[3].slice(1).split('.').map(p => parseInt(p, 10)) : [];
+  const bDecParts = pb[3] ? pb[3].slice(1).split('.').map(p => parseInt(p, 10)) : [];
+  const maxLen = Math.max(aDecParts.length, bDecParts.length);
+  if (aDecParts.length === 0 && bDecParts.length > 0) return -1;
+  if (bDecParts.length === 0 && aDecParts.length > 0) return 1;
+  for (let i = 0; i < maxLen; i++) {
+    const av = Number.isFinite(aDecParts[i]) ? aDecParts[i] : 0;
+    const bv = Number.isFinite(bDecParts[i]) ? bDecParts[i] : 0;
+    if (av !== bv) return av - bv;
+  }
+  return 0;
 }
 
 function searchPhaseInDir(baseDir, relBase, normalized) {
@@ -183,7 +205,7 @@ function searchPhaseInDir(baseDir, relBase, normalized) {
     const match = dirs.find(d => d.startsWith(normalized));
     if (!match) return null;
 
-    const dirMatch = match.match(/^(\d+[A-Z]?(?:\.\d+)?)-?(.*)/i);
+    const dirMatch = match.match(/^(\d+[A-Z]?(?:\.\d+)*)-?(.*)/i);
     const phaseNumber = dirMatch ? dirMatch[1] : normalized;
     const phaseName = dirMatch && dirMatch[2] ? dirMatch[2] : null;
     const phaseDir = path.join(baseDir, match);
@@ -205,7 +227,7 @@ function searchPhaseInDir(baseDir, relBase, normalized) {
 
     return {
       found: true,
-      directory: path.join(relBase, match),
+      directory: toPosixPath(path.join(relBase, match)),
       phase_number: phaseNumber,
       phase_name: phaseName,
       phase_slug: phaseName ? phaseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') : null,
@@ -228,7 +250,7 @@ function findPhaseInternal(cwd, phase) {
   const normalized = normalizePhaseName(phase);
 
   // Search current phases first
-  const current = searchPhaseInDir(phasesDir, path.join('.planning', 'phases'), normalized);
+  const current = searchPhaseInDir(phasesDir, '.planning/phases', normalized);
   if (current) return current;
 
   // Search archived milestone phases (newest first)
@@ -246,7 +268,7 @@ function findPhaseInternal(cwd, phase) {
     for (const archiveName of archiveDirs) {
       const version = archiveName.match(/^(v[\d.]+)-phases$/)[1];
       const archivePath = path.join(milestonesDir, archiveName);
-      const relBase = path.join('.planning', 'milestones', archiveName);
+      const relBase = '.planning/milestones/' + archiveName;
       const result = searchPhaseInDir(archivePath, relBase, normalized);
       if (result) {
         result.archived = version;
@@ -302,7 +324,7 @@ function getRoadmapPhaseInternal(cwd, phaseNum) {
 
   try {
     const content = fs.readFileSync(roadmapPath, 'utf-8');
-    const escapedPhase = phaseNum.toString().replace(/\./g, '\\.');
+    const escapedPhase = escapeRegex(phaseNum.toString());
     const phasePattern = new RegExp(`#{2,4}\\s*Phase\\s+${escapedPhase}:\\s*([^\\n]+)`, 'i');
     const headerMatch = content.match(phasePattern);
     if (!headerMatch) return null;
@@ -366,11 +388,21 @@ function generateSlugInternal(text) {
 function getMilestoneInfo(cwd) {
   try {
     const roadmap = fs.readFileSync(path.join(cwd, '.planning', 'ROADMAP.md'), 'utf-8');
-    const versionMatch = roadmap.match(/v(\d+\.\d+)/);
-    const nameMatch = roadmap.match(/## .*v\d+\.\d+[:\s]+([^\n(]+)/);
+    // Strip <details>...</details> blocks so shipped milestones don't interfere
+    const cleaned = roadmap.replace(/<details>[\s\S]*?<\/details>/gi, '');
+    // Extract version and name from the same ## heading for consistency
+    const headingMatch = cleaned.match(/## .*v(\d+\.\d+)[:\s]+([^\n(]+)/);
+    if (headingMatch) {
+      return {
+        version: 'v' + headingMatch[1],
+        name: headingMatch[2].trim(),
+      };
+    }
+    // Fallback: try bare version match
+    const versionMatch = cleaned.match(/v(\d+\.\d+)/);
     return {
       version: versionMatch ? versionMatch[0] : 'v1.0',
-      name: nameMatch ? nameMatch[1].trim() : 'milestone',
+      name: 'milestone',
     };
   } catch {
     return { version: 'v1.0', name: 'milestone' };
@@ -385,6 +417,7 @@ module.exports = {
   loadConfig,
   isGitIgnored,
   execGit,
+  escapeRegex,
   normalizePhaseName,
   comparePhaseNum,
   searchPhaseInDir,
@@ -395,4 +428,5 @@ module.exports = {
   pathExistsInternal,
   generateSlugInternal,
   getMilestoneInfo,
+  toPosixPath,
 };
