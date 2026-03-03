@@ -22,24 +22,33 @@ public static class SettingsService
             if (!File.Exists(FilePath)) return Defaults();
             var json = File.ReadAllText(FilePath);
             var loaded = JsonSerializer.Deserialize<AppSettings>(json) ?? Defaults();
-            // Guard: StatsIntervalSeconds=0 means the field was absent in an old settings
-            // file or the file is corrupted. A zero-interval DispatcherTimer fires at
-            // maximum rate, causing a CPU spike. Replace with the safe default.
-            if (loaded.StatsIntervalSeconds <= 0)
-                loaded = loaded with { StatsIntervalSeconds = Defaults().StatsIntervalSeconds };
-            // NEW: Opacity guard — prevents invisible-widget regression on v1.9 upgrade
-            // (C# double type default is 0.0; "Opacity":0.0 in malformed JSON or an explicit
-            // zero written by a future bug would make the widget fully transparent with no
-            // way to recover without deleting settings.json)
-            if (loaded.Opacity <= 0.0)
-                loaded = loaded with { Opacity = Defaults().Opacity };
-            // NEW: AccentColor guard — prevents NullReferenceException in ColorConverter.ConvertFromString
-            // (protects against "AccentColor":null or "AccentColor":"" in a manually edited settings file)
-            if (string.IsNullOrWhiteSpace(loaded.AccentColor))
-                loaded = loaded with { AccentColor = Defaults().AccentColor };
-            return loaded;
+            return Validate(loaded);
         }
         catch { return Defaults(); }
+    }
+
+    /// <summary>
+    /// Applies safety guards to a deserialized AppSettings instance.
+    /// Pure: no file I/O, no WPF dependencies. Safe to call from unit tests.
+    /// </summary>
+    public static AppSettings Validate(AppSettings loaded)
+    {
+        // Guard: StatsIntervalSeconds=0 means the field was absent in an old settings
+        // file or the file is corrupted. A zero-interval DispatcherTimer fires at
+        // maximum rate, causing a CPU spike. Replace with the safe default.
+        if (loaded.StatsIntervalSeconds <= 0)
+            loaded = loaded with { StatsIntervalSeconds = Defaults().StatsIntervalSeconds };
+        // Opacity guard — prevents invisible-widget regression on v1.9 upgrade
+        // (C# double type default is 0.0; "Opacity":0.0 in malformed JSON or an explicit
+        // zero written by a future bug would make the widget fully transparent with no
+        // way to recover without deleting settings.json)
+        if (loaded.Opacity <= 0.0)
+            loaded = loaded with { Opacity = Defaults().Opacity };
+        // AccentColor guard — prevents NullReferenceException in ColorConverter.ConvertFromString
+        // (protects against "AccentColor":null or "AccentColor":"" in a manually edited settings file)
+        if (string.IsNullOrWhiteSpace(loaded.AccentColor))
+            loaded = loaded with { AccentColor = Defaults().AccentColor };
+        return loaded;
     }
 
     public static void Save(AppSettings s)
@@ -71,6 +80,16 @@ public static class SettingsService
         double vTop    = SystemParameters.VirtualScreenTop;
         double vWidth  = SystemParameters.VirtualScreenWidth;
         double vHeight = SystemParameters.VirtualScreenHeight;
+        return Clamp(s, windowWidth, windowHeight, vLeft, vTop, vWidth, vHeight);
+    }
+
+    /// <summary>
+    /// Pure overload: clamp Left/Top within explicit screen bounds.
+    /// No WPF SystemParameters dependency — safe to call from unit tests.
+    /// </summary>
+    public static AppSettings Clamp(AppSettings s, double windowWidth, double windowHeight,
+        double vLeft, double vTop, double vWidth, double vHeight)
+    {
         double left = Math.Clamp(s.Left, vLeft, vLeft + vWidth  - windowWidth);
         double top  = Math.Clamp(s.Top,  vTop,  vTop  + vHeight - windowHeight);
         return s with { Left = left, Top = top };
