@@ -98,7 +98,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="36" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="CPU"
+                    <TextBlock Grid.Column="0" x:Name="CpuLabel" Text="CPU"
                                Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
                                VerticalAlignment="Center" />
                     <Border Grid.Column="1" x:Name="CpuBarTrack"
@@ -119,7 +119,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="36" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="GPU"
+                    <TextBlock Grid.Column="0" x:Name="GpuLabel" Text="GPU"
                                Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
                                VerticalAlignment="Center" />
                     <Border Grid.Column="1" x:Name="GpuBarTrack"
@@ -140,7 +140,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="36" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="MEM"
+                    <TextBlock Grid.Column="0" x:Name="MemLabel" Text="MEM"
                                Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
                                VerticalAlignment="Center" />
                     <Border Grid.Column="1" x:Name="MemBarTrack"
@@ -161,7 +161,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="36" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="PAG"
+                    <TextBlock Grid.Column="0" x:Name="PagLabel" Text="PAG"
                                Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
                                VerticalAlignment="Center" />
                     <Border Grid.Column="1" x:Name="PagBarTrack"

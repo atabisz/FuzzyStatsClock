@@ -1199,6 +1199,12 @@ public partial class MainWindow : Window
         MemBar.Background = brush;
         PagBar.Background = brush;
 
+        // Stats row labels (CPU/GPU/MEM/PAG — named so auto-contrast can update them)
+        CpuLabel.Foreground = brush;
+        GpuLabel.Foreground = brush;
+        MemLabel.Foreground = brush;
+        PagLabel.Foreground = brush;
+
         // Stats percentage text (accent color)
         CpuText.Foreground = brush;
         GpuText.Foreground = brush;
@@ -1209,7 +1215,7 @@ public partial class MainWindow : Window
         UptimeText.Foreground = brush;
 
         // Deliberately excluded: ShadowText, CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack,
-        // row label TextBlocks (CPU/GPU/MEM/PAG — no x:Name), ContentBorder.Background
+        // ContentBorder.Background
     }
 
     private void ContrastTimer_Tick(object? sender, EventArgs e)
@@ -1248,6 +1254,8 @@ public partial class MainWindow : Window
         foreach (var el in _hourNumberElements) el.Foreground = brush;
         CpuBar.Background  = brush; GpuBar.Background  = brush;
         MemBar.Background  = brush; PagBar.Background  = brush;
+        CpuLabel.Foreground = brush; GpuLabel.Foreground = brush;
+        MemLabel.Foreground = brush; PagLabel.Foreground = brush;
         CpuText.Foreground = brush; GpuText.Foreground = brush;
         MemText.Foreground = brush; PagText.Foreground = brush;
         UptimeText.Foreground = brush;
