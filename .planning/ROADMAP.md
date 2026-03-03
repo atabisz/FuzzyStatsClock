@@ -108,7 +108,7 @@ Plans:
 | 29. App Test Infrastructure + Settings Tests | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 30. CI Test Gate | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 31. Auto-Launch at Login | v2.6 | 1/1 | Complete | 2026-03-03 |
-| 32. Per-Monitor Position Memory | v2.6 | 0/3 | Not started | - |
+| 32. Per-Monitor Position Memory | 1/3 | In Progress|  | - |
 | 33. Auto-Contrast | v2.6 | 0/? | Not started | - |
 
 ---

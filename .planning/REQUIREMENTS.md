@@ -13,7 +13,7 @@
 
 ### Per-Monitor Position
 
-- [ ] **MON-01**: Widget tracks last-used position per connected monitor using monitor identity as key
+- [x] **MON-01**: Widget tracks last-used position per connected monitor using monitor identity as key
 - [ ] **MON-02**: On startup, widget restores to the position last used on the currently connected monitor
 - [ ] **MON-03**: If the last-used monitor is not connected at startup, widget centers on the primary screen
 
@@ -46,7 +46,7 @@
 | STRT-01 | Phase 31 | Complete |
 | STRT-02 | Phase 31 | Complete |
 | STRT-03 | Phase 31 | Complete |
-| MON-01 | Phase 32 | Pending |
+| MON-01 | Phase 32 | Complete |
 | MON-02 | Phase 32 | Pending |
 | MON-03 | Phase 32 | Pending |
 | CONTRAST-01 | Phase 33 | Pending |
