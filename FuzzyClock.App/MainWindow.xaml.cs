@@ -35,6 +35,11 @@ public partial class MainWindow : Window
     private System.Windows.Forms.ToolStripMenuItem _ghostModeMenuItem   = null!;
     private System.Windows.Forms.ToolStripMenuItem _trayAutoLaunch = null!;
     private bool _autoLaunchEnabled = false;
+    private DispatcherTimer? _contrastTimer;
+    private bool _autoContrastEnabled = false;
+    private ContrastState _contrastState = ContrastState.Normal;
+    private bool _isDragging = false;   // true between DragMove() start and end — freezes display color
+    private System.Windows.Forms.ToolStripMenuItem _trayAutoContrast = null!;
     // Tray items needing programmatic updates (checkmarks or visibility)
     private System.Windows.Forms.ToolStripMenuItem  _trayFontSizeItem    = null!;
     private System.Windows.Forms.ToolStripSeparator _trayFontSizeSep    = null!;
@@ -185,6 +190,12 @@ public partial class MainWindow : Window
             if (_dialMode) UpdateDialDisplay();
             InitDialDecorations();
             ApplyTheme();            // NEW: must come AFTER InitDialDecorations() — decoration lists are empty before this point
+
+            // Contrast sampler timer (500ms per CONTEXT.md decision)
+            _contrastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _contrastTimer.Tick += ContrastTimer_Tick;
+            if (_autoContrastEnabled) _contrastTimer.Start();
+
             InitTrayIcon();
 
             _hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
@@ -284,6 +295,10 @@ public partial class MainWindow : Window
         else
             AutoLaunchService.Disable();
 
+        _autoContrastEnabled = s.AutoContrastEnabled;
+        // Sampler timer is created in ContentRendered; here we just cache the setting.
+        // ContentRendered checks _autoContrastEnabled to decide whether to start the timer.
+
         // Parse AccentColor hex string to Color struct
         // SettingsService.Load() guards against null/empty; catch here for belt-and-suspenders safety
         try
@@ -332,6 +347,7 @@ public partial class MainWindow : Window
             Opacity              = _windowOpacity,
             GhostModeEnabled     = _ghostModeEnabled,
             AutoLaunchEnabled    = _autoLaunchEnabled,
+            AutoContrastEnabled  = _autoContrastEnabled,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -360,7 +376,9 @@ public partial class MainWindow : Window
         // is released. Left and Top reflect the final dropped position immediately after return.
         // Do NOT defer with BeginInvoke or await — DragMove() throws if the left button is
         // not held down at the Win32 level at the moment of the call.
+        _isDragging = true;
         DragMove();
+        _isDragging = false;
         // LocationChanged fires during DragMove — _hasUserPosition is already true here.
 
         // Cross-monitor drag: remove source monitor's saved position (per design decision)
@@ -516,7 +534,8 @@ public partial class MainWindow : Window
         // Sync all tray item checkmarks from current state — mirrors the old ContextMenu_Opened pattern.
         // Reading WPF element properties (Visibility) from WinForms thread follows the established
         // pattern in SaveSettings() which already does this safely.
-        _trayAutoLaunch.Checked = _autoLaunchEnabled;
+        _trayAutoLaunch.Checked    = _autoLaunchEnabled;
+        _trayAutoContrast.Checked  = _autoContrastEnabled;
         _trayFontSmall.Checked  = (_currentFontSize == 16);
         _trayFontMedium.Checked = (_currentFontSize == 24);
         _trayFontLarge.Checked  = (_currentFontSize == 32);
@@ -825,6 +844,28 @@ public partial class MainWindow : Window
             SaveSettings();
         };
         menu.Items.Add(_trayAutoLaunch);
+
+        // Auto-Contrast toggle
+        _trayAutoContrast = new System.Windows.Forms.ToolStripMenuItem("Auto-Contrast")
+            { Checked = _autoContrastEnabled };
+        _trayAutoContrast.Click += (_, _) =>
+        {
+            _autoContrastEnabled = !_autoContrastEnabled;
+            _trayAutoContrast.Checked = _autoContrastEnabled;
+            if (_autoContrastEnabled)
+            {
+                _contrastState = ContrastState.Normal; // reset state on enable
+                _contrastTimer?.Start();
+            }
+            else
+            {
+                _contrastTimer?.Stop();
+                _contrastState = ContrastState.Normal;
+                ApplyTheme(); // restore accent color immediately when disabled
+            }
+            SaveSettings();
+        };
+        menu.Items.Add(_trayAutoContrast);
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
         // Font Size submenu
@@ -984,6 +1025,13 @@ public partial class MainWindow : Window
         _autoLaunchEnabled = false;
         _trayAutoLaunch.Checked = false;
         AutoLaunchService.Disable();
+
+        // Reset auto-contrast: disable on reset
+        _autoContrastEnabled = false;
+        _trayAutoContrast.Checked = false;
+        _contrastTimer?.Stop();
+        _contrastState = ContrastState.Normal;
+        ApplyTheme(); // restore accent color on reset
 
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
@@ -1162,6 +1210,47 @@ public partial class MainWindow : Window
 
         // Deliberately excluded: ShadowText, CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack,
         // row label TextBlocks (CPU/GPU/MEM/PAG — no x:Name), ContentBorder.Background
+    }
+
+    private void ContrastTimer_Tick(object? sender, EventArgs e)
+    {
+        // Pause when ghost mode is active or window is fully transparent
+        if (_isGhostMode || _windowOpacity == 0.0) return;
+        // Freeze display color during drag (loop stays running, color not updated)
+        if (_isDragging) return;
+
+        // Get pixel coordinates via DPI transform
+        var ps = System.Windows.PresentationSource.FromVisual(this);
+        if (ps?.CompositionTarget == null) return;
+        var transform = ps.CompositionTarget.TransformToDevice;
+        int px = (int)Math.Round(Left   * transform.M11);
+        int py = (int)Math.Round(Top    * transform.M22);
+        int pw = (int)Math.Round(ActualWidth  * transform.M11);
+        int ph = (int)Math.Round(ActualHeight * transform.M22);
+
+        var bgSample  = ContrastSamplerService.Sample(px, py, pw, ph);
+        var accentRgb = new RgbColor(_accentColor.R, _accentColor.G, _accentColor.B);
+        var (displayColor, newState) = ContrastService.ComputeDisplayColor(bgSample, accentRgb, _contrastState);
+        _contrastState = newState;
+        ApplyDisplayColor(displayColor);
+    }
+
+    private void ApplyDisplayColor(RgbColor rgb)
+    {
+        var color = System.Windows.Media.Color.FromRgb(rgb.R, rgb.G, rgb.B);
+        var brush = new System.Windows.Media.SolidColorBrush(color);
+
+        PhraseText.Foreground = brush;
+        HourHand.Stroke       = brush;
+        MinuteHand.Stroke     = brush;
+        foreach (var el in _hourTickElements)   el.Stroke     = brush;
+        foreach (var el in _minuteDotElements)  el.Fill       = brush;
+        foreach (var el in _hourNumberElements) el.Foreground = brush;
+        CpuBar.Background  = brush; GpuBar.Background  = brush;
+        MemBar.Background  = brush; PagBar.Background  = brush;
+        CpuText.Foreground = brush; GpuText.Foreground = brush;
+        MemText.Foreground = brush; PagText.Foreground = brush;
+        UptimeText.Foreground = brush;
     }
 
     private void SetAccentColor(System.Windows.Media.Color color)
