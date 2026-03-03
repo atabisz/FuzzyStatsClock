@@ -20,5 +20,6 @@ public record AppSettings
     public string AccentColor          { get; init; } = "#FFFFFFFF";  // AARRGGBB hex; default = White (matches existing Foreground="White" in XAML)
     public double Opacity              { get; init; } = 1.0;          // 0.0–1.0; default = fully opaque
     public bool   GhostModeEnabled     { get; init; } = true;
+    public bool   AutoLaunchEnabled    { get; init; } = false;
 }
 // Left = -1 is the sentinel for "no saved position — use PositionTopRight() fallback"
