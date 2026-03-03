@@ -2,40 +2,32 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. A system tray icon provides Reset to Defaults and Quit. Users can drag the widget anywhere on any monitor, choose a comfortable font size, toggle overall stats visibility or each row independently, toggle the uptime row, switch between phrase and dial mode, and all preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides all settings toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, and Quit. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v2.7 Auto-Contrast
-
-**Goal:** Widget text remains readable regardless of what is on the screen behind it.
-
-**Target features:**
-- Auto-contrast mode: screen-color sampling under widget footprint, WCAG-based text switch to black/white when contrast is insufficient
-
 ## Current State
 
-**v2.6 shipped: 2026-03-03** — v2.7 Auto-Contrast planned (Phase 33)
+**v2.7 shipped: 2026-03-03** — Auto-contrast, auto-launch, per-monitor position memory
 
-78 MSTest tests (64 Core + 14 App) passing. CI gate enforced. Per-monitor position memory and auto-launch at login fully implemented.
+88 MSTest tests (74 Core + 14 App) passing. CI gate enforced. ~3,055 LOC C# / XAML.
 
+- Auto-contrast: `ContrastSamplerService` (BitBlt screen capture); `ContrastService` (WCAG 2.1 luminance, hysteresis 4.5/5.5, HSL accent adjust ±5 steps up to ±40, black/white fallback); 500ms `DispatcherTimer`; pauses on ghost mode/opacity=0/drag; tray toggle; `AppSettings.AutoContrastEnabled` (default false)
+- Stats label TextBlocks (CPU/GPU/MEM/PAG) named (`CpuLabel/GpuLabel/MemLabel/PagLabel`) and covered by both `ApplyDisplayColor` (auto-contrast path) and `ApplyTheme` (accent restore)
 - Auto-launch: `AutoLaunchService` writes/removes `HKCU\...\Run` entry; tray toggle updates checkmark; registry synced on startup via `AppSettings.AutoLaunchEnabled` (default false)
 - Per-monitor: `MonitorService` (QueryDisplayConfig P/Invoke) returns friendly names; `Dictionary<string, MonitorPosition>` in AppSettings + `LastActiveMonitor` sentinel; drag-end upsert with source-clear on cross-monitor drag; startup restores last-active monitor or centers on primary
-- Ghost mode: `Opacity=0` + `WS_EX_TRANSPARENT` on `MouseEnter` (no modifier); `DispatcherTimer` 75ms `GetCursorPos+GetWindowRect` restore; synthetic hover-state cleanup before going transparent; `_isGhostMode` guard in `Window_MouseLeave`
-- Ctrl+Alt modifier: `GetAsyncKeyState(VK_LCONTROL/VK_LMENU) & 0x8000` at top of `Window_MouseEnter`; if held (or ghost mode disabled), fires normal hover path (backdrop + fast-refresh) and returns early — no WS_EX_TRANSPARENT
-- Ghost mode tray toggle: checkable "Ghost Mode" tray menu item; `AppSettings.GhostModeEnabled` (default true); persisted
-- Phrase text: `TextAlignment=Center` + `HorizontalAlignment=Stretch` on both PhraseText and ShadowText TextBlocks
-- System tray icon: 16×16 analog clock face; tray context menu: Auto-Launch ✓, Ghost Mode ✓, Reset to Defaults, Quit
-- Uptime row: `up Xd Xh Xm   0.52  0.47  0.43` format; rolling CPU 1m/5m/15m via `Queue<float>`; interval-aware window sizing; cold-start guard
-- Accent color: 5 presets + custom color picker; applied to 15 elements; persisted as hex string
-- Window opacity: right-click submenu (25/50/75/100%) + scroll wheel (10% steps, 10% floor); persisted
-- Stats panel: CPU / GPU / MEM / PAG horizontal bars + %; per-row visibility toggles; auto-collapse when all hidden; persisted
-- Dial mode: minimal analog dial (hour + minute hands, no face); dial face decorations (tick marks, minute marks, hour numbers); persisted
-- Context-aware menus: Font Size hidden in dial mode; Dial Face hidden in phrase mode
+- Ghost mode: `Opacity=0` + `WS_EX_TRANSPARENT` on `MouseEnter` (no modifier); `DispatcherTimer` 75ms `GetCursorPos+GetWindowRect` restore; synthetic hover-state cleanup before going transparent
+- Ctrl+Alt modifier: `GetAsyncKeyState(VK_LCONTROL/VK_LMENU) & 0x8000`; suppresses ghost, fires normal hover path; `VK_LMENU` avoids AltGr false-positives
+- System tray icon: 16×16 analog clock face; tray context menu: Auto-Launch ✓, Ghost Mode ✓, Auto-Contrast ✓, Reset to Defaults, Quit
+- Uptime row: `up Xd Xh Xm   0.52  0.47  0.43`; rolling CPU 1m/5m/15m via `Queue<float>`; interval-aware window sizing; cold-start guard
+- Accent color: 5 presets + custom color picker; applied to 17+ elements; persisted as hex string
+- Window opacity: right-click submenu (25/50/75/100%) + scroll wheel; persisted
+- Stats panel: CPU / GPU / MEM / PAG horizontal bars + %; per-row visibility toggles; persisted
+- Dial mode: minimal analog dial with optional decorations; persisted
 - Settings: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- ~2,526 LOC C# / XAML (main files: MainWindow.xaml.cs ~1200, MonitorService.cs 268, SettingsService.cs ~120, AppSettings.cs ~45, AutoLaunchService.cs ~40)
+- Main files: MainWindow.xaml.cs ~1300, MonitorService.cs 268, ContrastSamplerService.cs ~80, ContrastService.cs ~197, SettingsService.cs ~120
 
 ## Requirements
 
@@ -152,12 +144,16 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ MON-02: On startup, widget restores to the position last used on the currently connected monitor — v2.6
 - ✓ MON-03: If the last-used monitor is not connected at startup, widget centers on the primary screen — v2.6
 
-### Active (v2.7)
+### Validated (v2.7)
 
-- CONTRAST-01: User can enable/disable auto-contrast mode via tray menu; off by default; persisted to settings.json
-- CONTRAST-02: When enabled, widget samples screen color under its footprint at each timer tick
-- CONTRAST-03: When accent color vs background contrast is insufficient (WCAG threshold), widget elements switch to whichever of black or white gives better contrast against the background
-- CONTRAST-04: Widget elements restore to configured accent color when background contrast is sufficient again
+- ✓ CONTRAST-01: User can enable/disable auto-contrast mode via tray menu; off by default; persisted to settings.json — v2.7
+- ✓ CONTRAST-02: When enabled, widget samples screen color under its footprint at each timer tick — v2.7
+- ✓ CONTRAST-03: When accent color vs background contrast is insufficient (WCAG threshold), widget elements switch to whichever of black or white gives better contrast against the background — v2.7
+- ✓ CONTRAST-04: Widget elements restore to configured accent color when background contrast is sufficient again — v2.7
+
+### Active (next milestone)
+
+(No active requirements — define in /gsd:new-milestone)
 
 ### Deferred (v2+)
 
@@ -284,6 +280,12 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | JsonDocument pre-parse migration probe | Deserializing into the new AppSettings type (without Left/Top) would silently drop old position data; pre-parse detects the old schema before deserializing, enabling a one-time migration | ✓ Validated — users upgrading from v2.5 keep their saved primary-monitor position; Left=-1 (no position) correctly skipped |
 | Cross-monitor drag: clear source entry | Keeping both source and destination entries would mean the widget "appears" on both monitors at next launch depending on LastActiveMonitor; clean one-entry-at-a-time model avoids ambiguity | ✓ Validated — only the destination monitor entry survives after a cross-monitor drag |
 | _settings field cached in ApplySettings | SaveSettings needs to build a new AppSettings `with` expression; without the cached _settings, it must reconstruct all fields from UI state — fragile and incomplete as fields grow | ✓ Validated — _settings with { MonitorPositions = ..., LastActiveMonitor = ... } preserves all other fields cleanly |
+| ContrastService internal with InternalsVisibleTo for App + Tests | Contrast logic is Core-layer only; internal keeps API surface minimal; InternalsVisibleTo is the minimal-invasive way to expose to App and test projects without making it public | ✓ Validated — two InternalsVisibleTo entries in Core.csproj (FuzzyClock + FuzzyClock.Core.Tests); zero public surface added |
+| RgbColor readonly record struct (no WPF types) | ContrastService lives in FuzzyClock.Core (net10.0, no WPF); WPF System.Windows.Media.Color cannot be referenced; lightweight record struct carries R/G/B with zero dependencies | ✓ Validated — MainWindow converts at call site; Core remains WPF-free and testable without WinForms TFM |
+| Hysteresis band 4.5/5.5 for contrast override | Single threshold causes flicker at boundary (background luminance oscillates around threshold); two thresholds create stable dead band; 4.5 = WCAG AA minimum, 5.5 = comfortable margin above it | ✓ Validated — no flicker observed during human verification on mixed backgrounds |
+| BitBlt step-sampling capped at 200px per dimension | Widget is small; full-resolution sampling would be fast but unnecessary; 200px cap keeps loop ≤40k iterations even on large monitors, well within 500ms budget | ✓ Validated — 500ms tick shows no UI stutter; step-sampling produces accurate average background color |
+| Stats label TextBlocks must have x:Name for code-behind access | Unnamed XAML elements are not reachable from code-behind; both ApplyDisplayColor and ApplyTheme must cover the same element set; bug discovered during verification when label TextBlocks lacked names | ✓ Validated — CpuLabel/GpuLabel/MemLabel/PagLabel added; color now updates consistently on contrast change |
+| _isDragging flag freezes display color during drag (not the timer) | Stopping the timer during drag and restarting it on release would reset ContrastState, causing a flash on drop; freezing the display color while leaving the timer running avoids state reset | ✓ Validated — no contrast flash when dropping widget; timer catches up on next tick after drag ends |
 
 ---
-*Last updated: 2026-03-03 — v2.6 shipped; v2.7 Auto-Contrast is next*
+*Last updated: 2026-03-03 after v2.7 milestone*

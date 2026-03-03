@@ -223,3 +223,20 @@
 
 ---
 
+
+## v2.7 Auto-Contrast (Shipped: 2026-03-03)
+
+**Phases completed:** 1 phase (33), 3 plans
+**Test suite:** 88 tests (74 Core + 14 App), 0 failures
+**Files changed:** 21 files changed, +1981 lines
+
+**Key accomplishments:**
+- `ContrastService` (FuzzyClock.Core): pure WCAG 2.1 relative luminance + contrast ratio math, hysteresis state machine (enter override at ratio <4.5, exit at ratio >5.5), HSL accent adjustment (±5 steps up to ±40), black/white fallback — TDD with 10 new MSTest methods
+- `ContrastSamplerService` (FuzzyClock.App): BitBlt screen capture from desktop DC under widget footprint, step-sampling at 200px cap per dimension, full GDI resource cleanup in try/finally
+- 500ms `DispatcherTimer` in MainWindow: sample → `ContrastService.ComputeDisplayColor` → `ApplyDisplayColor`; pauses when ghost mode active or `Opacity=0`; freezes color during drag via `_isDragging` flag
+- Tray "Auto-Contrast" checkable toggle: off by default, persisted to `settings.json`, restores on launch, disabled by Reset to Defaults; `AppSettings.AutoContrastEnabled` init-property (default false)
+- Bug found and fixed during human verification: stats row label TextBlocks (CPU/GPU/MEM/PAG) were unnamed in XAML and missing from `ApplyDisplayColor` and `ApplyTheme`; added `x:Name` and full coverage to both methods
+- Version bumped to 2.7.0; 88 tests passing (74 Core + 14 App), 0 build errors, 0 warnings
+
+---
+
