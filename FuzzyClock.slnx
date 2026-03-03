@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="FuzzyClock.App/FuzzyClock.App.csproj" />
+  <Project Path="FuzzyClock.App.Tests/FuzzyClock.App.Tests.csproj" />
   <Project Path="FuzzyClock.Core.Tests/FuzzyClock.Core.Tests.csproj" />
   <Project Path="FuzzyClock.Core/FuzzyClock.Core.csproj" />
 </Solution>
