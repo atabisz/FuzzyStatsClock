@@ -60,13 +60,15 @@
 **Goal**: User can make the widget start automatically at Windows login, controlled from the tray menu
 **Depends on**: Phase 30
 **Requirements**: STRT-01, STRT-02, STRT-03
+**Plans**: 1 plan
+Plans:
+- [ ] 31-01-PLAN.md — Add AutoLaunchEnabled to AppSettings, create AutoLaunchService, wire tray toggle
 **Success Criteria** (what must be TRUE):
   1. Tray context menu has an "Auto-Launch at Login" item with a checkmark that reflects the current state each time the menu opens
   2. Clicking the item toggles auto-launch on and off; the checkmark updates immediately
   3. When auto-launch is enabled, a registry entry under HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run points to the application executable
   4. When auto-launch is disabled, the registry entry is absent
   5. The auto-launch preference survives an application restart (persisted to settings.json and restored on launch)
-**Plans**: TBD
 
 ### Phase 32: Per-Monitor Position Memory
 **Goal**: Widget restores to the last-used position on the active monitor, not a fixed default
@@ -101,9 +103,9 @@
 | 28. Core Logic Extraction + Tests | v2.5 | 1/1 | Complete | 2026-03-02 |
 | 29. App Test Infrastructure + Settings Tests | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 30. CI Test Gate | v2.5 | 1/1 | Complete | 2026-03-03 |
-| 31. Auto-Launch at Login | v2.6 | 0/? | Not started | - |
+| 31. Auto-Launch at Login | v2.6 | 0/1 | Not started | - |
 | 32. Per-Monitor Position Memory | v2.6 | 0/? | Not started | - |
 | 33. Auto-Contrast | v2.6 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-03 — v2.6 Polish roadmap created*
+*Last updated: 2026-03-03 — Phase 31 planned (1 plan)*
