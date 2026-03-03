@@ -5,22 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-03 — v2.6 archived)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.7 Auto-Contrast — Phase 33 (not yet planned)
+**Current focus:** v2.7 Auto-Contrast — Phase 33 (Plan 01 complete)
 
 ## Current Position
 
 Phase: 33 of 33 (Auto-Contrast)
-Plan: 0 of ? in current phase
-Status: v2.6 SHIPPED — Phase 33 is first phase of v2.7; no plans created yet
-Last activity: 2026-03-03 — v2.6 milestone archived (phases 31–32 complete)
+Plan: 1 of ? in current phase
+Status: v2.7 in progress — Phase 33 Plan 01 (ContrastService TDD) complete
+Last activity: 2026-03-03 — Phase 33 Plan 01 executed (ContrastService + tests)
 
-Progress: [██████████] 100% (v2.6 phases — 2/2 phases complete)
+Progress: [█░░░░░░░░░] ~10% (v2.7 Phase 33 — 1/? plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36 (v1.0 through v2.6 Phase 32)
+- Total plans completed: 37 (v1.0 through v2.7 Phase 33 Plan 01)
 - v2.6 duration: Phase 31 ~3 min (1 plan), Phase 32 ~15 min (3 plans)
+- Phase 33 Plan 01: ~4 min (2 tasks, TDD)
 
 ## Accumulated Context
 
@@ -37,6 +38,10 @@ Key patterns relevant to v2.7:
 - [Phase 32]: Monitor keys = lowercased friendly names via QueryDisplayConfig; GDI fallback when unavailable; duplicate names get -2/-3 suffixes by Screen.AllScreens order
 - [Phase 32]: MonitorPositions Dictionary<string, MonitorPosition> + LastActiveMonitor=""; Clamp(MonitorPosition,...) uses screen.WorkingArea
 - [Phase 32]: _settings field cached in ApplySettings for SaveSettings with-expression; cross-monitor drag clears source entry before writing destination
+- [Phase 33 Plan 01]: RgbColor readonly record struct is the WPF-free color type for ContrastService; MainWindow converts System.Windows.Media.Color to RgbColor at call site
+- [Phase 33 Plan 01]: ContrastService is internal; InternalsVisibleTo via AssemblyAttribute MSBuild item exposes it to Core.Tests; RgbColor and ContrastState are public for App project access
+- [Phase 33 Plan 01]: MSTest 4 IsGreaterThanOrEqualTo(lowerBound, value) — lowerBound is first arg, value is second (checks value >= lowerBound)
+- [Phase 33 Plan 01]: Hysteresis: enter override at ratio < 4.5, exit only at ratio > 5.5; AdjustAccent steps HSL lightness by 5 units up to ±40 max
 
 ### Pending Todos
 
@@ -44,11 +49,11 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 33 (auto-contrast): Screen color sampling under a transparent WPF window requires capturing the desktop bitmap behind the widget. BitBlt from desktop DC into a 1×1 or small sample region is the likely approach. WCAG relative luminance formula must be applied correctly (linearize sRGB values before computing ratio). No UI needed — tray toggle only.
+None — ContrastService pure math is complete. Next plan implements screen sampling and MainWindow wiring.
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: v2.6 milestone archived
+Stopped at: Completed 33-auto-contrast 33-01-PLAN.md
 Resume file: None
-Next action: `/gsd:new-milestone` or `/gsd:discuss-phase 33` to start v2.7 planning
+Next action: Execute Plan 02 (screen color sampling + MainWindow wiring + tray toggle)
