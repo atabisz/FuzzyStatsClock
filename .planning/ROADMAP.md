@@ -74,11 +74,15 @@ Plans:
 **Goal**: Widget restores to the last-used position on the active monitor, not a fixed default
 **Depends on**: Phase 31
 **Requirements**: MON-01, MON-02, MON-03
+**Plans**: 3 plans
+Plans:
+- [ ] 32-01-PLAN.md — Create MonitorService and update AppSettings schema (MonitorPositions + LastActiveMonitor)
+- [ ] 32-02-PLAN.md — Update SettingsService (migration, new Clamp overloads, tests)
+- [ ] 32-03-PLAN.md — Wire MainWindow (ApplySettings restore, SaveSettings per-monitor, cross-monitor drag)
 **Success Criteria** (what must be TRUE):
   1. After dragging the widget on a given monitor and restarting, the widget appears at the saved position on that same monitor
   2. With two monitors connected, positions saved on each monitor are independent — moving the widget on monitor A does not affect the saved position on monitor B
   3. When a previously-used monitor is not connected at startup, the widget centers on the primary screen instead of appearing off-screen
-**Plans**: TBD
 
 ### Phase 33: Auto-Contrast
 **Goal**: Widget text remains readable regardless of what is on the screen behind it
@@ -103,9 +107,9 @@ Plans:
 | 28. Core Logic Extraction + Tests | v2.5 | 1/1 | Complete | 2026-03-02 |
 | 29. App Test Infrastructure + Settings Tests | v2.5 | 1/1 | Complete | 2026-03-03 |
 | 30. CI Test Gate | v2.5 | 1/1 | Complete | 2026-03-03 |
-| 31. Auto-Launch at Login | 1/1 | Complete    | 2026-03-03 | - |
-| 32. Per-Monitor Position Memory | v2.6 | 0/? | Not started | - |
+| 31. Auto-Launch at Login | v2.6 | 1/1 | Complete | 2026-03-03 |
+| 32. Per-Monitor Position Memory | v2.6 | 0/3 | Not started | - |
 | 33. Auto-Contrast | v2.6 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-03 — Phase 31 planned (1 plan)*
+*Last updated: 2026-03-03 — Phase 32 planned (3 plans)*
