@@ -79,7 +79,7 @@ public class ContrastServiceTests
         // Returned color must NOT be white (must have sufficient contrast against white)
         Assert.AreNotEqual(new RgbColor(255, 255, 255), displayColor);
         double ratio = ContrastService.ContrastRatio(new RgbColor(255, 255, 255), displayColor);
-        Assert.IsTrue(ratio >= 4.5, $"Expected ratio >= 4.5 but got {ratio:F2}");
+        Assert.IsGreaterThanOrEqualTo(4.5, ratio, $"Expected ratio >= 4.5 but got {ratio:F2}");
     }
 
     [TestMethod]
@@ -94,7 +94,7 @@ public class ContrastServiceTests
         Assert.AreEqual(ContrastState.Override, newState);
         Assert.AreNotEqual(new RgbColor(0, 0, 0), displayColor);
         double ratio = ContrastService.ContrastRatio(new RgbColor(0, 0, 0), displayColor);
-        Assert.IsTrue(ratio >= 4.5, $"Expected ratio >= 4.5 but got {ratio:F2}");
+        Assert.IsGreaterThanOrEqualTo(4.5, ratio, $"Expected ratio >= 4.5 but got {ratio:F2}");
     }
 
     // ----- ComputeDisplayColor — Hysteresis -----
@@ -102,34 +102,19 @@ public class ContrastServiceTests
     [TestMethod]
     public void ComputeDisplayColor_HysteresisRetainsOverride_WhenRatioBetween4_5And5_5()
     {
-        // Find a background/accent pair that gives ratio in 4.5–5.5 band.
-        // Use a light gray background and dark-but-not-black accent.
-        // We need ratio between 4.5 and 5.5 — test the logic by verifying that
-        // currentState=Override stays Override even when ratio is between 4.5 and 5.5.
-        // #FFFFFF bg + #767676 accent ≈ 4.54:1 (just above 4.5 enter threshold)
-        // In Override state with ratio < 5.5 → should STAY in Override.
+        // #FFFFFF bg + #767676 accent ≈ 4.54:1 (inside hysteresis band 4.5–5.5).
+        // When currentState=Override, must stay Override even though ratio passes 4.5.
         var bg = new RgbColor(255, 255, 255);
-        var accent = new RgbColor(0x76, 0x76, 0x76);  // ~4.54:1 against white
+        var accent = new RgbColor(0x76, 0x76, 0x76);
         double ratio = ContrastService.ContrastRatio(bg, accent);
 
-        // Only run this test if ratio is actually in the hysteresis band
-        if (ratio >= 4.5 && ratio <= 5.5)
-        {
-            var (_, newState) = ContrastService.ComputeDisplayColor(bg, accent, ContrastState.Override);
-            Assert.AreEqual(ContrastState.Override, newState,
-                $"Expected Override to be retained (ratio={ratio:F2} in hysteresis band 4.5–5.5)");
-        }
-        else
-        {
-            // Adjust: use a slightly different pair that definitely hits the band
-            // #FFFFFF bg + #737373 is approximately 4.6:1
-            var accent2 = new RgbColor(0x73, 0x73, 0x73);
-            double ratio2 = ContrastService.ContrastRatio(bg, accent2);
-            Assert.IsTrue(ratio2 >= 4.5 && ratio2 <= 5.5,
-                $"Test setup: expected ratio in 4.5–5.5, got {ratio2:F2}");
-            var (_, newState2) = ContrastService.ComputeDisplayColor(bg, accent2, ContrastState.Override);
-            Assert.AreEqual(ContrastState.Override, newState2);
-        }
+        // Confirm test precondition: ratio must be in hysteresis band.
+        Assert.IsGreaterThanOrEqualTo(4.5, ratio, $"Precondition: ratio={ratio:F2} must be >= 4.5");
+        Assert.IsLessThanOrEqualTo(5.5, ratio, $"Precondition: ratio={ratio:F2} must be <= 5.5");
+
+        var (_, newState) = ContrastService.ComputeDisplayColor(bg, accent, ContrastState.Override);
+        Assert.AreEqual(ContrastState.Override, newState,
+            $"Expected Override to be retained (ratio={ratio:F2} in hysteresis band 4.5–5.5)");
     }
 
     [TestMethod]
@@ -140,7 +125,7 @@ public class ContrastServiceTests
         var bg = new RgbColor(255, 255, 255);
         var accent = new RgbColor(0x59, 0x59, 0x59);
         double ratio = ContrastService.ContrastRatio(bg, accent);
-        Assert.IsTrue(ratio > 5.5, $"Test setup: expected ratio > 5.5, got {ratio:F2}");
+        Assert.IsGreaterThan(5.5, ratio, $"Test setup: expected ratio > 5.5, got {ratio:F2}");
 
         var (displayColor, newState) = ContrastService.ComputeDisplayColor(bg, accent, ContrastState.Override);
 
