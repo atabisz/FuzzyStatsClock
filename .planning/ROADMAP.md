@@ -105,7 +105,9 @@ Plans:
   1. release.yml contains a `dotnet test` step that runs before any `dotnet publish` step
   2. Introducing a deliberate failing test assertion causes the GitHub Actions workflow to fail before the publish/upload steps execute — no release artifact is created
   3. Reverting the deliberate failure and pushing a clean build produces the release artifact as before — no regressions to the existing release workflow
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 30-01-PLAN.md — Insert dotnet restore + dotnet test steps into release.yml before dotnet publish; verify local test suite passes
 
 ## Progress
 
@@ -121,4 +123,4 @@ Plans:
 | 30. CI Test Gate | v2.5 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-03 — Phase 29 planned (1 plan)*
+*Last updated: 2026-03-03 — Phase 30 planned (1 plan)*
