@@ -20,6 +20,7 @@
 - **v2.5 Unit Tests** (2026-03-03) — Core logic extraction (UptimeFormatter + DialGeometry); FuzzyClock.App.Tests; SettingsService testability refactor; CI test gate. 3 phases, 3 plans. → [Archive](milestones/v2.5-ROADMAP.md)
 - **v2.6 Polish** (2026-03-03) — Auto-launch at login (registry toggle via tray) and per-monitor position memory (MonitorService + AppSettings migration). 2 phases, 4 plans. → [Archive](milestones/v2.6-ROADMAP.md)
 - **v2.7 Auto-Contrast** (2026-03-03) — WCAG screen-color sampling under widget footprint; text switches to black/white when contrast insufficient; restores accent when contrast is sufficient. 1 phase, 3 plans. → [Archive](milestones/v2.7-ROADMAP.md)
+- **v2.8 Uptime and Docs** (in progress) — Process count on uptime line; README rewrite. 1 phase.
 
 ## Phases
 
@@ -63,6 +64,25 @@
 
 </details>
 
+### v2.8 Uptime and Docs (In Progress)
+
+**Milestone Goal:** Formalize already-implemented features: process count on the uptime line and fully updated README.
+
+- [ ] **Phase 34: Uptime Process Count + README** — Verify process count appended to uptime line; README accurately reflects all v2.7+ features and interaction model
+
+## Phase Details
+
+### Phase 34: Uptime Process Count + README
+**Goal**: The app and its documentation accurately reflect current capabilities — process count visible on the uptime line, and README covers all features and interactions
+**Depends on**: Phase 33
+**Requirements**: PROC-01, DOCS-01, DOCS-02
+**Success Criteria** (what must be TRUE):
+  1. The uptime line displays process count appended in `{N}p` format (e.g. `up 5h 3m   0.52  0.47  0.43  142p`)
+  2. The process count updates on each stats tick alongside the rest of the uptime line
+  3. README lists all current features: ghost mode, auto-contrast, tray controls, accent colors, opacity, uptime row, auto-launch, per-monitor position memory
+  4. README usage section explains all three interaction modes: right-click context menu, mouse interactions (drag + scroll wheel), and system tray controls
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -78,6 +98,7 @@
 | 31. Auto-Launch at Login | v2.6 | 1/1 | Complete | 2026-03-03 |
 | 32. Per-Monitor Position Memory | v2.6 | 3/3 | Complete | 2026-03-03 |
 | 33. Auto-Contrast | v2.7 | 3/3 | Complete | 2026-03-03 |
+| 34. Uptime Process Count + README | v2.8 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-03 — v2.7 Auto-Contrast shipped (Phase 33 complete)*
+*Last updated: 2026-03-04 — v2.8 Uptime and Docs roadmap created (Phase 34)*
