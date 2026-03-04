@@ -7,7 +7,7 @@
 
 ### Uptime Display
 
-- [ ] **PROC-01**: Uptime line shows count of active processes appended as `{N}p` at the end of the line (e.g. `up 5h 3m   0.52  0.47  0.43  142p`)
+- [x] **PROC-01**: Uptime line shows count of active processes appended as `{N}p` at the end of the line (e.g. `up 5h 3m   0.52  0.47  0.43  142p`)
 
 ### Documentation
 
@@ -29,7 +29,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROC-01 | Phase 34 | Pending |
+| PROC-01 | Phase 34 | Complete |
 | DOCS-01 | Phase 34 | Pending |
 | DOCS-02 | Phase 34 | Pending |
 
