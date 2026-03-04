@@ -81,7 +81,11 @@
   2. The process count updates on each stats tick alongside the rest of the uptime line
   3. README lists all current features: ghost mode, auto-contrast, tray controls, accent colors, opacity, uptime row, auto-launch, per-monitor position memory
   4. README usage section explains all three interaction modes: right-click context menu, mouse interactions (drag + scroll wheel), and system tray controls
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 34-01-PLAN.md — Verify PROC-01 process count implementation in UpdateUptimeDisplay()
+- [ ] 34-02-PLAN.md — Audit and update README for DOCS-01 and DOCS-02 compliance
 
 ## Progress
 
