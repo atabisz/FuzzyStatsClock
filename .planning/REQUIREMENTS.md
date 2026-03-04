@@ -11,8 +11,8 @@
 
 ### Documentation
 
-- [ ] **DOCS-01**: README accurately describes current app features (ghost mode, auto-contrast, tray controls, accent colors, opacity, uptime row, auto-launch, per-monitor position memory)
-- [ ] **DOCS-02**: README usage section covers right-click context menu, mouse interactions (drag, scroll wheel), and system tray controls
+- [x] **DOCS-01**: README accurately describes current app features (ghost mode, auto-contrast, tray controls, accent colors, opacity, uptime row, auto-launch, per-monitor position memory)
+- [x] **DOCS-02**: README usage section covers right-click context menu, mouse interactions (drag, scroll wheel), and system tray controls
 
 ## Future Requirements
 
@@ -30,8 +30,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PROC-01 | Phase 34 | Complete |
-| DOCS-01 | Phase 34 | Pending |
-| DOCS-02 | Phase 34 | Pending |
+| DOCS-01 | Phase 34 | Complete |
+| DOCS-02 | Phase 34 | Complete |
 
 **Coverage:**
 - v2.8 requirements: 3 total

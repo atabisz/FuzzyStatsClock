@@ -68,7 +68,7 @@
 
 **Milestone Goal:** Formalize already-implemented features: process count on the uptime line and fully updated README.
 
-- [ ] **Phase 34: Uptime Process Count + README** — Verify process count appended to uptime line; README accurately reflects all v2.7+ features and interaction model
+- [x] **Phase 34: Uptime Process Count + README** — Verify process count appended to uptime line; README accurately reflects all v2.7+ features and interaction model (completed 2026-03-04)
 
 ## Phase Details
 
@@ -102,7 +102,7 @@ Plans:
 | 31. Auto-Launch at Login | v2.6 | 1/1 | Complete | 2026-03-03 |
 | 32. Per-Monitor Position Memory | v2.6 | 3/3 | Complete | 2026-03-03 |
 | 33. Auto-Contrast | v2.7 | 3/3 | Complete | 2026-03-03 |
-| 34. Uptime Process Count + README | 1/2 | In Progress|  | - |
+| 34. Uptime Process Count + README | 2/2 | Complete   | 2026-03-04 | - |
 
 ---
 *Last updated: 2026-03-04 — v2.8 Uptime and Docs roadmap created (Phase 34)*
