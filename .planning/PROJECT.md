@@ -10,6 +10,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v2.8 in progress: 2026-03-04** — Uptime process count + README
+
 **v2.7 shipped: 2026-03-03** — Auto-contrast, auto-launch, per-monitor position memory
 
 88 MSTest tests (74 Core + 14 App) passing. CI gate enforced. ~3,055 LOC C# / XAML.
@@ -151,9 +153,10 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ CONTRAST-03: When accent color vs background contrast is insufficient (WCAG threshold), widget elements switch to whichever of black or white gives better contrast against the background — v2.7
 - ✓ CONTRAST-04: Widget elements restore to configured accent color when background contrast is sufficient again — v2.7
 
-### Active (next milestone)
+### Active (v2.8)
 
-(No active requirements — define in /gsd:new-milestone)
+- [ ] PROC-01: Uptime line shows active process count at the end (`142p` format) — in progress
+- [ ] DOCS-01: README updated to reflect current v2.7.1 app features, usage, and project structure — in progress
 
 ### Deferred (v2+)
 
@@ -288,4 +291,4 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | _isDragging flag freezes display color during drag (not the timer) | Stopping the timer during drag and restarting it on release would reset ContrastState, causing a flash on drop; freezing the display color while leaving the timer running avoids state reset | ✓ Validated — no contrast flash when dropping widget; timer catches up on next tick after drag ends |
 
 ---
-*Last updated: 2026-03-03 after v2.7 milestone*
+*Last updated: 2026-03-04 after v2.8 milestone start*
