@@ -18,6 +18,8 @@ public partial class MainWindow : Window
     private bool _isHoverFastRefresh = false;
     private readonly Queue<float> _cpuSamples = new();
     // Bounded by trim logic in UpdateUptimeDisplay(). Max 900 entries at 1s interval (~3.5KB).
+    private Dictionary<int, TimeSpan> _prevProcTimes = new();
+    private DateTime _prevProcSample = DateTime.MinValue;
     // StatsPanel.Width(180) - label column(35) - text column(36) = 109
     private const double StatsBarTrackWidth = 109.0;
     private int _currentFontSize = 32;
@@ -460,7 +462,35 @@ public partial class MainWindow : Window
         float avg5m  = ComputeAvg(_cpuSamples, (int)Math.Ceiling(300.0 / _statsIntervalSeconds));
         float avg15m = _cpuSamples.Count > 0 ? _cpuSamples.Average() : 0f;
 
-        string newText = $"{uptimeStr}   {avg1m / 100f:F2}  {avg5m / 100f:F2}  {avg15m / 100f:F2}";
+        // Count processes with >= 5% CPU utilization by comparing TotalProcessorTime deltas.
+        // First tick has no prior sample — yields 0 active processes until the next tick.
+        var now = DateTime.UtcNow;
+        var procs = System.Diagnostics.Process.GetProcesses();
+        var newProcTimes = new Dictionary<int, TimeSpan>(procs.Length);
+        int procCount = 0;
+        double elapsedMs = _prevProcSample == DateTime.MinValue
+            ? 0
+            : (now - _prevProcSample).TotalMilliseconds;
+        foreach (var p in procs)
+        {
+            try
+            {
+                var cpuTime = p.TotalProcessorTime;
+                newProcTimes[p.Id] = cpuTime;
+                if (elapsedMs > 0 && _prevProcTimes.TryGetValue(p.Id, out var prev))
+                {
+                    double pct = (cpuTime - prev).TotalMilliseconds
+                                 / (elapsedMs * Environment.ProcessorCount) * 100.0;
+                    if (pct >= 5.0) procCount++;
+                }
+            }
+            catch { /* process exited or access denied — skip */ }
+            finally { p.Dispose(); }
+        }
+        _prevProcTimes = newProcTimes;
+        _prevProcSample = now;
+
+        string newText = $"{uptimeStr}   {avg1m / 100f:F2}  {avg5m / 100f:F2}  {avg15m / 100f:F2}  {procCount}p";
 
         // Change guard: minutes component changes at most once per minute.
         // Prevents spurious TextBlock invalidation on every 1s tick.
