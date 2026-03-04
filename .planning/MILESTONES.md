@@ -240,3 +240,18 @@
 
 ---
 
+
+## v2.8 Uptime and Docs (Shipped: 2026-03-04)
+
+**Phases completed:** 1 phase (34), 2 plans
+**Files changed:** 14 files changed, +1142 lines
+
+**Key accomplishments:**
+- Verified active process count (`pct >= 5.0` CPU threshold, `{N}p` format) appended to uptime line in `UpdateUptimeDisplay()` — PROC-01 already fully implemented; 88 tests passing, 0 failures
+- README updated to accurately list all 8 v2.7+ features: ghost mode, auto-contrast, tray controls, accent colors, opacity, uptime row with `142p` example, auto-launch, per-monitor position memory
+- Fixed stale "right-click is the primary UI" text — correctly identifies system tray as primary settings surface (v2.4 migration)
+- Expanded tray menu table with complete item list (Ghost Mode, Auto-Launch, Auto-Contrast, Reset to Defaults, Quit) previously undocumented
+- Fixed cosmetic README label: "Phrase Mode / Dial Mode" → "Dial Mode" (reflects single toggle, not two-item choice)
+
+---
+

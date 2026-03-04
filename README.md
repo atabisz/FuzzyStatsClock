@@ -63,7 +63,7 @@ Right-click the system tray icon to access all settings:
 | **Ghost Mode** | Enable/disable hover-to-hide |
 | **Auto-Launch at Login** | Enable/disable start at Windows login |
 | **Auto-Contrast** | Enable/disable automatic text contrast adjustment |
-| **Phrase Mode / Dial Mode** | Switch between clock display modes |
+| **Dial Mode** | Toggle between phrase clock and analog dial display |
 | **Font Size** | Small (16pt) / Medium (24pt) / Large (32pt) — phrase mode only |
 | **Dial Face** | Toggle hour ticks, minute marks, hour numbers — dial mode only |
 | **Stats** | Show/hide the stats panel; toggle individual rows (CPU/GPU/MEM/PAG/Uptime); set update interval |
