@@ -96,3 +96,13 @@ None - no external service configuration required.
 ---
 *Phase: 34-uptime-process-count-readme*
 *Completed: 2026-03-04*
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/34-uptime-process-count-readme/34-01-SUMMARY.md`
+- FOUND: Commit `e17b7ab` (docs(34-01): complete PROC-01 process count verification plan)
+- FOUND: All 88 tests pass (74 Core + 14 App, 0 failures)
+- FOUND: `Process.GetProcesses()` in `UpdateUptimeDisplay()` at line 468
+- FOUND: `pct >= 5.0` threshold at line 484
+- FOUND: `{procCount}p` format at line 493
+- FOUND: `UpdateUptimeDisplay()` called in `_statsTimer.Tick` at line 105
