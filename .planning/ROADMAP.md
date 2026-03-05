@@ -109,7 +109,7 @@ Plans:
 | 32. Per-Monitor Position Memory | v2.6 | 3/3 | Complete | 2026-03-03 |
 | 33. Auto-Contrast | v2.7 | 3/3 | Complete | 2026-03-03 |
 | 34. Uptime Process Count + README | v2.8 | 2/2 | Complete | 2026-03-04 |
-| 35. Process Count Threshold | 1/1 | Complete   | 2026-03-05 | - |
+| 35. Process Count Threshold | 1/1 | Complete    | 2026-03-05 | - |
 
 ---
 *Last updated: 2026-03-05 — Phase 35 planned (1 plan)*
