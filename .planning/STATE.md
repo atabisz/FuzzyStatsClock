@@ -18,10 +18,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05 after v2.9 milestone start)
+See: .planning/PROJECT.md (updated 2026-03-05 after v2.9 milestone)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v2.9 — Phase 35: Process Count Threshold
+**Current focus:** Planning next milestone
 
 ## Current Position
 
@@ -49,12 +49,7 @@ Progress: [██████████] 100%
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Phase 34: Process count threshold is 5.0% CPU by default (hardcoded in v2.8); THRESH-01/02 make this user-configurable
-- Pattern: update interval selectors in TrayMenuBuilder.cs use mutually-exclusive checkmarks — follow same pattern for threshold items
-- Phase 35: Three fixed ladder values (2/5/10%) with Validate() guard against invalid persisted values; exact double comparison reliable for checkmark sync
+Decisions are logged in PROJECT.md Key Decisions table. v2.9 milestone complete — see PROJECT.md for decisions log.
 
 ### Pending Todos
 

@@ -10,7 +10,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v2.9 in progress: 2026-03-05** — Configurable process count threshold
+**v2.9 shipped: 2026-03-05** — Configurable process count threshold (2%/5%/10% tray submenu)
 
 **v2.8 shipped: 2026-03-04** — Active process count on uptime line + README accuracy pass
 
@@ -161,10 +161,10 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ DOCS-01: README accurately describes all current app features (ghost mode, auto-contrast, tray controls, accent colors, opacity, uptime row with `142p`, auto-launch, per-monitor position memory) — v2.8
 - ✓ DOCS-02: README usage section covers right-click/tray context menu, mouse interactions (drag, scroll wheel), and system tray controls in dedicated subsections — v2.8
 
-### Active (v2.9)
+### Validated (v2.9)
 
-- [ ] THRESH-01: User can set the active process count threshold (2% / 5% / 10% CPU) via tray Stats submenu; current selection shown as checkmark; default 5%
-- [ ] THRESH-02: Threshold persists to settings.json and restores on launch; UpdateUptimeDisplay() uses the persisted value
+- ✓ THRESH-01: User can set the active process count threshold (2% / 5% / 10% CPU) via tray Stats submenu; current selection shown as checkmark; default 5% — v2.9
+- ✓ THRESH-02: Threshold persists to settings.json and restores on launch; UpdateUptimeDisplay() uses the persisted value — v2.9
 
 ### Deferred (v2+)
 
@@ -297,6 +297,9 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | BitBlt step-sampling capped at 200px per dimension | Widget is small; full-resolution sampling would be fast but unnecessary; 200px cap keeps loop ≤40k iterations even on large monitors, well within 500ms budget | ✓ Validated — 500ms tick shows no UI stutter; step-sampling produces accurate average background color |
 | Stats label TextBlocks must have x:Name for code-behind access | Unnamed XAML elements are not reachable from code-behind; both ApplyDisplayColor and ApplyTheme must cover the same element set; bug discovered during verification when label TextBlocks lacked names | ✓ Validated — CpuLabel/GpuLabel/MemLabel/PagLabel added; color now updates consistently on contrast change |
 | _isDragging flag freezes display color during drag (not the timer) | Stopping the timer during drag and restarting it on release would reset ContrastState, causing a flash on drop; freezing the display color while leaving the timer running avoids state reset | ✓ Validated — no contrast flash when dropping widget; timer catches up on next tick after drag ends |
+| Three fixed threshold values (2/5/10%) with Validate() guard | Free-entry spinner adds text-input complexity with little benefit; ladder values cover meaningful range; Validate() guards against invalid persisted values (resets to 5.0) | ✓ Validated — ladder sufficient for use case; guard protects against manually edited settings.json |
+| Exact double comparison for threshold checkmark sync | Same pattern as opacity preset sync; threshold values are always set from the fixed ladder (never from arithmetic), so exact comparison is reliable | ✓ Validated — SyncCheckmarks correctly checks exactly one item across all threshold transitions |
+| SetProcessThreshold() calls UpdateStatsDisplay() for immediate refresh | Without the call, visual count lags by up to one timer interval after selection — discovered during audit; mirrors SetStatsInterval() timer-restart pattern | ✓ Validated — {N}p count updates immediately on threshold change; no perceptible lag |
 
 ---
-*Last updated: 2026-03-05 after v2.9 milestone start*
+*Last updated: 2026-03-05 after v2.9 milestone*

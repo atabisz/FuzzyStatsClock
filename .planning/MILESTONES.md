@@ -255,3 +255,17 @@
 
 ---
 
+
+## v2.9 Process Threshold (Shipped: 2026-03-05)
+
+**Phases completed:** 1 phase (35), 1 plan, 2 tasks
+
+**Key accomplishments:**
+- `AppSettings.ProcessCountThresholdPercent` (double, default 5.0) added with `SettingsService.Validate()` guard constraining to {2.0, 5.0, 10.0} ladder
+- Tray Stats submenu gains "Process Threshold" sub-submenu with three mutually-exclusive checkable items (2%/5%/10%); `SyncCheckmarks` enforces exactly one checked at all times
+- `UpdateUptimeDisplay()` replaces hardcoded `pct >= 5.0` with `pct >= _processCountThreshold` — threshold is now fully user-configurable
+- `SetProcessThreshold()` immediately refreshes the `{N}p` display and persists to settings.json; Reset to Defaults restores 5%
+- Also fixed: `AutoContrastEnabled = false` omission in `SettingsService.Defaults()` (cosmetic; record default was already false)
+
+---
+
