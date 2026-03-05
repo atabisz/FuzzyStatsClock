@@ -14,7 +14,8 @@ public partial class MainWindow : Window
     private DispatcherTimer _timer = null!;
     private DispatcherTimer _statsTimer = null!;
     private StatsService _statsService = null!;
-    private int _statsIntervalSeconds = 3;   // default matches AppSettings.StatsIntervalSeconds default
+    private int _statsIntervalSeconds = 3;       // default matches AppSettings.StatsIntervalSeconds default
+    private double _processCountThreshold = 5.0; // default matches AppSettings.ProcessCountThresholdPercent default
     private bool _isHoverFastRefresh = false;
     private readonly Queue<float> _cpuSamples = new();
     // Bounded by trim logic in UpdateUptimeDisplay(). Max 900 entries at 1s interval (~3.5KB).
@@ -157,6 +158,7 @@ public partial class MainWindow : Window
                 TogglePagVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible)),
                 ToggleUptimeVisible   = () => Dispatcher.Invoke(() => SetUptimeRowVisible(UptimeText.Visibility != Visibility.Visible)),
                 SetStatsInterval      = s  => Dispatcher.Invoke(() => SetStatsInterval(s)),
+                SetProcessThreshold   = t  => Dispatcher.Invoke(() => SetProcessThreshold(t)),
                 ToggleDialMode        = () => Dispatcher.Invoke(() => SetDialMode(!_dialMode)),
                 ToggleShowHourTicks   = () => Dispatcher.Invoke(() => SetShowHourTicks(!_showHourTicks)),
                 ToggleShowMinuteDots  = () => Dispatcher.Invoke(() => SetShowMinuteDots(!_showMinuteDots)),
@@ -204,6 +206,7 @@ public partial class MainWindow : Window
         // else: no saved position — ContentRendered will call PositionTopRight()
 
         _statsIntervalSeconds = s.StatsIntervalSeconds;
+        _processCountThreshold = s.ProcessCountThresholdPercent;
 
         // Apply stats visibility directly (NOT via SetStatsVisible — that calls UpdateLayout()+Clamp()
         // which are unsafe before Show(), where ActualHeight is 0).
@@ -274,6 +277,7 @@ public partial class MainWindow : Window
         PagVisible           = PagRow.Visibility     == Visibility.Visible,
         UptimeVisible        = UptimeText.Visibility == Visibility.Visible,
         StatsIntervalSeconds = _statsIntervalSeconds,
+        ProcessCountThreshold = _processCountThreshold,
         DialMode             = _dialMode,
         ShowHourTicks        = _showHourTicks,
         ShowMinuteDots       = _showMinuteDots,
@@ -317,6 +321,7 @@ public partial class MainWindow : Window
             GhostModeEnabled     = _ghostMode.IsEnabled,
             AutoLaunchEnabled    = _autoLaunchEnabled,
             AutoContrastEnabled  = _contrast.IsEnabled,
+            ProcessCountThresholdPercent = _processCountThreshold,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -481,7 +486,7 @@ public partial class MainWindow : Window
                 {
                     double pct = (cpuTime - prev).TotalMilliseconds
                                  / (elapsedMs * Environment.ProcessorCount) * 100.0;
-                    if (pct >= 5.0) procCount++;
+                    if (pct >= _processCountThreshold) procCount++;
                 }
             }
             catch { /* process exited or access denied — skip */ }
@@ -566,6 +571,12 @@ public partial class MainWindow : Window
         if (wasRunning)
             _statsTimer?.Start();
 
+        SaveSettings();
+    }
+
+    private void SetProcessThreshold(double threshold)
+    {
+        _processCountThreshold = threshold;
         SaveSettings();
     }
 
@@ -745,6 +756,9 @@ public partial class MainWindow : Window
 
         // Reset auto-contrast: disable on reset (SetEnabled fires Cleared → ApplyTheme)
         _contrast.SetEnabled(false);
+
+        // Reset process count threshold to default (5%)
+        SetProcessThreshold(5.0);
 
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)

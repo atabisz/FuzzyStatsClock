@@ -17,6 +17,7 @@ internal sealed record TrayMenuState
     public bool   PagVisible          { get; init; }
     public bool   UptimeVisible       { get; init; }
     public int    StatsIntervalSeconds { get; init; }
+    public double ProcessCountThreshold { get; init; }
     public bool   DialMode            { get; init; }
     public bool   ShowHourTicks       { get; init; }
     public bool   ShowMinuteDots      { get; init; }
@@ -42,6 +43,7 @@ internal sealed class TrayMenuCallbacks
     public required Action         TogglePagVisible     { get; init; }
     public required Action         ToggleUptimeVisible  { get; init; }
     public required Action<int>    SetStatsInterval     { get; init; }
+    public required Action<double> SetProcessThreshold  { get; init; }
     public required Action         ToggleDialMode       { get; init; }
     public required Action         ToggleShowHourTicks  { get; init; }
     public required Action         ToggleShowMinuteDots { get; init; }
@@ -79,6 +81,9 @@ internal sealed class TrayMenuBuilder
     private System.Windows.Forms.ToolStripMenuItem  _interval1       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _interval3       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _interval10      = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _thresh2         = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _thresh5         = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _thresh10        = null!;
     private System.Windows.Forms.ToolStripMenuItem  _dialMode        = null!;
     private System.Windows.Forms.ToolStripMenuItem  _dialFaceItem    = null!;
     private System.Windows.Forms.ToolStripMenuItem  _showHourTicks   = null!;
@@ -192,11 +197,20 @@ internal sealed class TrayMenuBuilder
         _interval10.Click += (_, _) => _cb.SetStatsInterval(10);
         var intervalItem = new System.Windows.Forms.ToolStripMenuItem("Update Interval", null,
             _interval1, _interval3, _interval10);
+        _thresh2  = new System.Windows.Forms.ToolStripMenuItem("Process Threshold: 2%");
+        _thresh5  = new System.Windows.Forms.ToolStripMenuItem("Process Threshold: 5%");
+        _thresh10 = new System.Windows.Forms.ToolStripMenuItem("Process Threshold: 10%");
+        _thresh2.Click  += (_, _) => _cb.SetProcessThreshold(2.0);
+        _thresh5.Click  += (_, _) => _cb.SetProcessThreshold(5.0);
+        _thresh10.Click += (_, _) => _cb.SetProcessThreshold(10.0);
+        var threshItem = new System.Windows.Forms.ToolStripMenuItem("Process Threshold", null,
+            _thresh2, _thresh5, _thresh10);
         var statsItem = new System.Windows.Forms.ToolStripMenuItem("Stats", null,
             _showStats,
             new System.Windows.Forms.ToolStripSeparator(),
             _cpuVisible, _gpuVisible, _memVisible, _pagVisible, _uptimeVisible,
-            intervalItem);
+            intervalItem,
+            threshItem);
         menu.Items.Add(statsItem);
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
@@ -316,6 +330,9 @@ internal sealed class TrayMenuBuilder
         _interval1.Checked  = (s.StatsIntervalSeconds == 1);
         _interval3.Checked  = (s.StatsIntervalSeconds == 3);
         _interval10.Checked = (s.StatsIntervalSeconds == 10);
+        _thresh2.Checked  = (s.ProcessCountThreshold == 2.0);
+        _thresh5.Checked  = (s.ProcessCountThreshold == 5.0);
+        _thresh10.Checked = (s.ProcessCountThreshold == 10.0);
 
         _dialMode.Checked        = s.DialMode;
         _showHourTicks.Checked   = s.ShowHourTicks;
