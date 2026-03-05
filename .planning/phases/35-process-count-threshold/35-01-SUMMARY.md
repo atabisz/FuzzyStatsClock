@@ -114,3 +114,14 @@ None - no external service configuration required.
 ---
 *Phase: 35-process-count-threshold*
 *Completed: 2026-03-05*
+
+## Self-Check: PASSED
+
+- FOUND: FuzzyClock.App/AppSettings.cs
+- FOUND: FuzzyClock.App/SettingsService.cs
+- FOUND: FuzzyClock.App/TrayMenuBuilder.cs
+- FOUND: FuzzyClock.App/MainWindow.xaml.cs
+- FOUND: .planning/phases/35-process-count-threshold/35-01-SUMMARY.md
+- FOUND: b36d010 feat(35-01): add ProcessCountThresholdPercent to AppSettings and SettingsService
+- FOUND: 135d2ac feat(35-01): wire process count threshold through TrayMenuBuilder and MainWindow
+- Tests: 88 passed (74 Core + 14 App), 0 failures
