@@ -10,6 +10,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v2.9 in progress: 2026-03-05** — Configurable process count threshold
+
 **v2.8 shipped: 2026-03-04** — Active process count on uptime line + README accuracy pass
 
 **v2.7 shipped: 2026-03-03** — Auto-contrast, auto-launch, per-monitor position memory
@@ -159,9 +161,10 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ DOCS-01: README accurately describes all current app features (ghost mode, auto-contrast, tray controls, accent colors, opacity, uptime row with `142p`, auto-launch, per-monitor position memory) — v2.8
 - ✓ DOCS-02: README usage section covers right-click/tray context menu, mouse interactions (drag, scroll wheel), and system tray controls in dedicated subsections — v2.8
 
-### Active
+### Active (v2.9)
 
-*(None — planning next milestone)*
+- [ ] THRESH-01: User can set the active process count threshold (2% / 5% / 10% CPU) via tray Stats submenu; current selection shown as checkmark; default 5%
+- [ ] THRESH-02: Threshold persists to settings.json and restores on launch; UpdateUptimeDisplay() uses the persisted value
 
 ### Deferred (v2+)
 
@@ -296,4 +299,4 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | _isDragging flag freezes display color during drag (not the timer) | Stopping the timer during drag and restarting it on release would reset ContrastState, causing a flash on drop; freezing the display color while leaving the timer running avoids state reset | ✓ Validated — no contrast flash when dropping widget; timer catches up on next tick after drag ends |
 
 ---
-*Last updated: 2026-03-04 after v2.8 milestone*
+*Last updated: 2026-03-05 after v2.9 milestone start*
