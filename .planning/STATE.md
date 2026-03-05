@@ -5,7 +5,7 @@ milestone_name: Process Threshold
 status: complete
 stopped_at: Completed 35-01-PLAN.md — Phase 35 execution done
 last_updated: "2026-03-05"
-last_activity: 2026-03-05 — Executed Phase 35 Plan 01; all 88 tests pass; THRESH-01 + THRESH-02 complete
+last_activity: 2026-03-05 - Completed quick task 1: fix SetProcessThreshold immediate display refresh + stale comment
 progress:
   total_phases: 1
   completed_phases: 1
@@ -63,6 +63,12 @@ None.
 ### Blockers/Concerns
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | fix: call UpdateStatsDisplay() at end of SetProcessThreshold() and fix stale comment at line 470 | 2026-03-05 | a0ecf14 | [1-fix-call-updatestatsdisplay-at-end-of-se](./quick/1-fix-call-updatestatsdisplay-at-end-of-se/) |
 
 ## Session Continuity
 
