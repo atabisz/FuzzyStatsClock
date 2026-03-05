@@ -76,6 +76,11 @@ public static class SettingsService
         // (protects against "AccentColor":null or "AccentColor":"" in a manually edited settings file)
         if (string.IsNullOrWhiteSpace(loaded.AccentColor))
             loaded = loaded with { AccentColor = Defaults().AccentColor };
+        // ProcessCountThresholdPercent guard — only 2.0, 5.0, 10.0 are valid ladder values
+        // (protects against manually edited settings files with invalid values)
+        double[] validThresholds = { 2.0, 5.0, 10.0 };
+        if (!validThresholds.Contains(loaded.ProcessCountThresholdPercent))
+            loaded = loaded with { ProcessCountThresholdPercent = Defaults().ProcessCountThresholdPercent };
         // MonitorPositions null guard — null can occur if someone manually edits settings.json
         // and writes "MonitorPositions":null
         if (loaded.MonitorPositions == null)
@@ -102,6 +107,8 @@ public static class SettingsService
         Opacity = 1.0,
         GhostModeEnabled = true,
         AutoLaunchEnabled = false,
+        AutoContrastEnabled = false,
+        ProcessCountThresholdPercent = 5.0,
         MonitorPositions = new Dictionary<string, MonitorPosition>(),
         LastActiveMonitor = ""
     };
