@@ -88,7 +88,10 @@
   2. Selecting a threshold immediately changes the `{N}p` count on the uptime line to reflect only processes at or above the newly selected CPU percentage
   3. The selected threshold persists to settings.json and is correctly restored as the checked item when the app restarts
   4. "Reset to Defaults" restores the threshold to 5% and the 5% menu item becomes the checked item
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 35-01-PLAN.md — Add ProcessCountThresholdPercent to settings, wire threshold submenu through TrayMenuBuilder and MainWindow
 
 ## Progress
 
@@ -106,7 +109,7 @@
 | 32. Per-Monitor Position Memory | v2.6 | 3/3 | Complete | 2026-03-03 |
 | 33. Auto-Contrast | v2.7 | 3/3 | Complete | 2026-03-03 |
 | 34. Uptime Process Count + README | v2.8 | 2/2 | Complete | 2026-03-04 |
-| 35. Process Count Threshold | v2.9 | 0/? | Not started | - |
+| 35. Process Count Threshold | v2.9 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-03-05 — v2.9 Process Threshold roadmap created*
+*Last updated: 2026-03-05 — Phase 35 planned (1 plan)*
