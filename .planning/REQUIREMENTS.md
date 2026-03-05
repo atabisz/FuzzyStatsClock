@@ -7,8 +7,8 @@
 
 ### Process Threshold
 
-- [ ] **THRESH-01**: User can set the active process count threshold (2% / 5% / 10% CPU) via tray Stats submenu; current selection shown as checkmark; default 5%
-- [ ] **THRESH-02**: Threshold persists to settings.json and restores on launch; UpdateUptimeDisplay() uses the persisted value
+- [x] **THRESH-01**: User can set the active process count threshold (2% / 5% / 10% CPU) via tray Stats submenu; current selection shown as checkmark; default 5%
+- [x] **THRESH-02**: Threshold persists to settings.json and restores on launch; UpdateUptimeDisplay() uses the persisted value
 
 ## Future Requirements
 
@@ -25,8 +25,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THRESH-01 | Phase 35 | Pending |
-| THRESH-02 | Phase 35 | Pending |
+| THRESH-01 | Phase 35 | Complete |
+| THRESH-02 | Phase 35 | Complete |
 
 **Coverage:**
 - v2.9 requirements: 2 total

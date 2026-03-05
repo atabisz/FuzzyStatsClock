@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.9
 milestone_name: Process Threshold
-status: planning
-stopped_at: Roadmap created — Phase 35 ready to plan
+status: complete
+stopped_at: Completed 35-01-PLAN.md — Phase 35 execution done
 last_updated: "2026-03-05"
-last_activity: 2026-03-05 — Roadmap created for v2.9 (Phase 35)
+last_activity: 2026-03-05 — Executed Phase 35 Plan 01; all 88 tests pass; THRESH-01 + THRESH-02 complete
 progress:
   total_phases: 1
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 100
 ---
 
 # Project State
@@ -26,24 +26,24 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v2.9 milestone start)
 ## Current Position
 
 Phase: 35 of 35 (Process Count Threshold)
-Plan: — of — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-05 — Roadmap created; Phase 35 scoped to THRESH-01 + THRESH-02
+Plan: 1 of 1 (35-01 complete)
+Status: Complete
+Last activity: 2026-03-05 — Phase 35 Plan 01 executed; configurable process threshold shipped
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0 (this milestone)
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 1 (this milestone)
+- Average duration: 5 min
+- Total execution time: 5 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 35 | TBD | - | - |
+| 35 | 1 | 5 min | 5 min |
 
 ## Accumulated Context
 
@@ -54,6 +54,7 @@ Recent decisions affecting current work:
 
 - Phase 34: Process count threshold is 5.0% CPU by default (hardcoded in v2.8); THRESH-01/02 make this user-configurable
 - Pattern: update interval selectors in TrayMenuBuilder.cs use mutually-exclusive checkmarks — follow same pattern for threshold items
+- Phase 35: Three fixed ladder values (2/5/10%) with Validate() guard against invalid persisted values; exact double comparison reliable for checkmark sync
 
 ### Pending Todos
 
@@ -66,5 +67,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Roadmap created — Phase 35 defined with 4 success criteria, covering THRESH-01 and THRESH-02
+Stopped at: Completed 35-01-PLAN.md — Phase 35 Process Count Threshold complete
 Resume file: None

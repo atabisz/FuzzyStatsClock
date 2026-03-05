@@ -75,7 +75,7 @@
 
 **Milestone Goal:** User can configure which CPU activity level counts toward the `{N}p` process count, selecting from 2%/5%/10% thresholds via the tray Stats submenu.
 
-- [ ] **Phase 35: Process Count Threshold** — Add `ProcessCountThresholdPercent` to AppSettings (default 5.0); wire three mutually-exclusive checkable tray Stats submenu items (2%/5%/10%); UpdateUptimeDisplay() uses persisted threshold; Reset to Defaults restores 5%
+- [x] **Phase 35: Process Count Threshold** — Add `ProcessCountThresholdPercent` to AppSettings (default 5.0); wire three mutually-exclusive checkable tray Stats submenu items (2%/5%/10%); UpdateUptimeDisplay() uses persisted threshold; Reset to Defaults restores 5% (completed 2026-03-05)
 
 ## Phase Details
 
@@ -109,7 +109,7 @@ Plans:
 | 32. Per-Monitor Position Memory | v2.6 | 3/3 | Complete | 2026-03-03 |
 | 33. Auto-Contrast | v2.7 | 3/3 | Complete | 2026-03-03 |
 | 34. Uptime Process Count + README | v2.8 | 2/2 | Complete | 2026-03-04 |
-| 35. Process Count Threshold | v2.9 | 0/1 | Not started | - |
+| 35. Process Count Threshold | 1/1 | Complete   | 2026-03-05 | - |
 
 ---
 *Last updated: 2026-03-05 — Phase 35 planned (1 plan)*
