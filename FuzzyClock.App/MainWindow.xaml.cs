@@ -467,7 +467,7 @@ public partial class MainWindow : Window
         float avg5m  = ComputeAvg(_cpuSamples, (int)Math.Ceiling(300.0 / _statsIntervalSeconds));
         float avg15m = _cpuSamples.Count > 0 ? _cpuSamples.Average() : 0f;
 
-        // Count processes with >= 5% CPU utilization by comparing TotalProcessorTime deltas.
+        // Count processes with >= _processCountThreshold% CPU utilization by comparing TotalProcessorTime deltas.
         // First tick has no prior sample — yields 0 active processes until the next tick.
         var now = DateTime.UtcNow;
         var procs = System.Diagnostics.Process.GetProcesses();
@@ -578,6 +578,7 @@ public partial class MainWindow : Window
     {
         _processCountThreshold = threshold;
         SaveSettings();
+        UpdateStatsDisplay();
     }
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
