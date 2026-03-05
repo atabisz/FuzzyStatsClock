@@ -71,6 +71,25 @@
 
 </details>
 
+### v2.9 Process Threshold (In Progress)
+
+**Milestone Goal:** User can configure which CPU activity level counts toward the `{N}p` process count, selecting from 2%/5%/10% thresholds via the tray Stats submenu.
+
+- [ ] **Phase 35: Process Count Threshold** — Add `ProcessCountThresholdPercent` to AppSettings (default 5.0); wire three mutually-exclusive checkable tray Stats submenu items (2%/5%/10%); UpdateUptimeDisplay() uses persisted threshold; Reset to Defaults restores 5%
+
+## Phase Details
+
+### Phase 35: Process Count Threshold
+**Goal**: User can select the CPU activity threshold (2%/5%/10%) that determines which processes are counted in the uptime line's `{N}p` display
+**Depends on**: Phase 34
+**Requirements**: THRESH-01, THRESH-02
+**Success Criteria** (what must be TRUE):
+  1. Tray Stats submenu shows three checkable items "Process Threshold: 2%", "Process Threshold: 5%", and "Process Threshold: 10%"; exactly one is checked at all times
+  2. Selecting a threshold immediately changes the `{N}p` count on the uptime line to reflect only processes at or above the newly selected CPU percentage
+  3. The selected threshold persists to settings.json and is correctly restored as the checked item when the app restarts
+  4. "Reset to Defaults" restores the threshold to 5% and the 5% menu item becomes the checked item
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -87,6 +106,7 @@
 | 32. Per-Monitor Position Memory | v2.6 | 3/3 | Complete | 2026-03-03 |
 | 33. Auto-Contrast | v2.7 | 3/3 | Complete | 2026-03-03 |
 | 34. Uptime Process Count + README | v2.8 | 2/2 | Complete | 2026-03-04 |
+| 35. Process Count Threshold | v2.9 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-04 — v2.8 Uptime and Docs complete*
+*Last updated: 2026-03-05 — v2.9 Process Threshold roadmap created*
