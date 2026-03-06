@@ -51,6 +51,10 @@ Progress: [██████████] 100%
 
 Decisions are logged in PROJECT.md Key Decisions table. v2.9 milestone complete — see PROJECT.md for decisions log.
 
+### Roadmap Evolution
+
+- Phase 36 added: Add a date display under the clock
+
 ### Pending Todos
 
 None.
