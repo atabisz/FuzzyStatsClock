@@ -315,6 +315,7 @@ public partial class MainWindow : Window
         ShowHourNumbers      = _showHourNumbers,
         WindowOpacity        = _windowOpacity,
         AccentColor          = _accentColor,
+        TextStyle            = _currentTextStyle,
     };
 
     /// <summary>
@@ -418,13 +419,19 @@ public partial class MainWindow : Window
         QualifierText.Text = qualifier;
         EmphasisText.Text  = emphasis;
 
+        // Force layout pass before repositioning — ActualWidth is stale until layout runs
+        // (SizeToContent=WidthAndHeight: ActualWidth reflects old phrase until layout re-measures)
         UpdateLayout();
+        // Guard: do NOT call PositionTopRight() after the user has set a custom position.
+        // Without this guard, every 5-minute phrase change snaps the widget to top-right.
         if (!_hasUserPosition)
         {
             PositionTopRight();
         }
         else
         {
+            // Re-clamp after phrase change — SizeToContent may resize the window,
+            // pushing it partially off-screen if positioned near an edge.
             var screen = System.Windows.Forms.Screen.FromPoint(
                 new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
             var clamped = SettingsService.Clamp(
