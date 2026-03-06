@@ -55,4 +55,48 @@ public static class PhraseEngine
         // Should never reach here given the :55 bucket covers minutes 0-59
         throw new InvalidOperationException($"No bucket matched minute={minute}");
     }
+
+    /// <summary>
+    /// Decomposes the fuzzy time phrase into a qualifier (context) and emphasis (the key word).
+    /// Used by split-layout text styles to apply typographic hierarchy.
+    /// Rules:
+    /// - noon/midnight: qualifier="", emphasis=full word
+    /// - "{h} o'clock": qualifier="", emphasis=full phrase ("three o'clock")
+    /// - All other templates: qualifier=text before hour token (trimmed), emphasis=resolved hour word
+    /// </summary>
+    public static (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt)
+    {
+        int totalMinutes = dt.Hour * 60 + dt.Minute;
+        if (totalMinutes == 720) return ("", "noon");
+        if (totalMinutes == 0)   return ("", "midnight");
+
+        int minute = dt.Minute;
+        int hour12     = dt.Hour % 12;
+        if (hour12 == 0) hour12 = 12;
+        int nextHour12 = (hour12 % 12) + 1;
+
+        foreach (var (upperBound, template) in Buckets)
+        {
+            if (minute <= upperBound)
+            {
+                if (template == "{h} o'clock")
+                    return ("", template.Replace("{h}", HourWords[hour12]));
+
+                if (template.EndsWith("{h}"))
+                {
+                    string qualifier = template[..^"{h}".Length].TrimEnd();
+                    return (qualifier, HourWords[hour12]);
+                }
+                if (template.EndsWith("{h1}"))
+                {
+                    string qualifier = template[..^"{h1}".Length].TrimEnd();
+                    return (qualifier, HourWords[nextHour12]);
+                }
+
+                return ("", template.Replace("{h}", HourWords[hour12]).Replace("{h1}", HourWords[nextHour12]));
+            }
+        }
+
+        throw new InvalidOperationException($"No bucket matched minute={minute}");
+    }
 }

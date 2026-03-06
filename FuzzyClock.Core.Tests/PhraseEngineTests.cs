@@ -208,3 +208,69 @@ public class PhraseEngineTests
         Assert.AreEqual("half past three", first);
     }
 }
+
+// ----- GetStructuredPhrase -----
+
+[TestClass]
+public class GetStructuredPhraseTests
+{
+    private static DateTime T(int hour, int minute) =>
+        new DateTime(2024, 1, 15, hour, minute, 0);
+
+    [TestMethod]
+    [DataRow(12, 0, "",           "noon")]
+    [DataRow(0,  0, "",           "midnight")]
+    public void SpecialCases_NoQualifier(int hour, int minute, string expectedQual, string expectedEmph)
+    {
+        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        Assert.AreEqual(expectedQual, q);
+        Assert.AreEqual(expectedEmph, e);
+    }
+
+    [TestMethod]
+    [DataRow(3,  0, "",           "three o'clock")]
+    [DataRow(9,  0, "",           "nine o'clock")]
+    public void OClockBucket_WholeExpressionIsEmphasis(int hour, int minute, string expectedQual, string expectedEmph)
+    {
+        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        Assert.AreEqual(expectedQual, q);
+        Assert.AreEqual(expectedEmph, e);
+    }
+
+    [TestMethod]
+    [DataRow(3,  5, "just after",              "three")]
+    [DataRow(3, 10, "ten past",                "three")]
+    [DataRow(3, 15, "a quarter past",          "three")]
+    [DataRow(3, 20, "just after quarter past", "three")]
+    [DataRow(3, 25, "almost half past",        "three")]
+    [DataRow(3, 30, "half past",               "three")]
+    [DataRow(3, 35, "just past half past",     "three")]
+    public void CurrentHourTemplates_QualifierAndEmphasis(int hour, int minute, string expectedQual, string expectedEmph)
+    {
+        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        Assert.AreEqual(expectedQual, q);
+        Assert.AreEqual(expectedEmph, e);
+    }
+
+    [TestMethod]
+    [DataRow(3, 40, "almost a quarter before", "four")]
+    [DataRow(3, 45, "a quarter before",        "four")]
+    [DataRow(3, 50, "nearly",                  "four")]
+    [DataRow(3, 55, "almost",                  "four")]
+    public void NextHourTemplates_QualifierAndEmphasis(int hour, int minute, string expectedQual, string expectedEmph)
+    {
+        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        Assert.AreEqual(expectedQual, q);
+        Assert.AreEqual(expectedEmph, e);
+    }
+
+    [TestMethod]
+    [DataRow(12, 55, "almost", "one")]
+    [DataRow(11, 50, "nearly", "twelve")]
+    public void HourWrap_QualifierAndEmphasis(int hour, int minute, string expectedQual, string expectedEmph)
+    {
+        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        Assert.AreEqual(expectedQual, q);
+        Assert.AreEqual(expectedEmph, e);
+    }
+}
