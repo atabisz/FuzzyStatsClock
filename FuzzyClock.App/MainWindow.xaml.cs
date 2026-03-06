@@ -164,6 +164,7 @@ public partial class MainWindow : Window
                 ToggleShowHourTicks   = () => Dispatcher.Invoke(() => SetShowHourTicks(!_showHourTicks)),
                 ToggleShowMinuteDots  = () => Dispatcher.Invoke(() => SetShowMinuteDots(!_showMinuteDots)),
                 ToggleShowHourNumbers = () => Dispatcher.Invoke(() => SetShowHourNumbers(!_showHourNumbers)),
+                SetTextStyle          = style => Dispatcher.Invoke(() => SetTextStyle(style)),
                 SetAccentColor        = c  => Dispatcher.Invoke(() => SetAccentColor(c)),
                 OpenCustomColorDialog = () => Dispatcher.Invoke(OpenCustomColorDialog),
                 SetOpacity            = o  => Dispatcher.Invoke(() => SetOpacity(o)),

@@ -24,6 +24,7 @@ internal sealed record TrayMenuState
     public bool   ShowHourNumbers     { get; init; }
     public double WindowOpacity       { get; init; }
     public System.Windows.Media.Color AccentColor { get; init; }
+    public string TextStyle { get; init; } = "Classic";
 }
 
 /// <summary>
@@ -51,6 +52,7 @@ internal sealed class TrayMenuCallbacks
     public required Action<System.Windows.Media.Color> SetAccentColor { get; init; }
     public required Action         OpenCustomColorDialog { get; init; }
     public required Action<double> SetOpacity           { get; init; }
+    public required Action<string> SetTextStyle         { get; init; }
     public required Action         ResetToDefaults      { get; init; }
     public required Action         Quit                 { get; init; }
 }
@@ -94,6 +96,10 @@ internal sealed class TrayMenuBuilder
     private System.Windows.Forms.ToolStripMenuItem  _themeIce        = null!;
     private System.Windows.Forms.ToolStripMenuItem  _themeGreen      = null!;
     private System.Windows.Forms.ToolStripMenuItem  _themePink       = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _styleClassic    = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _styleSplit      = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _styleLiterary   = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _styleExpressive = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity25       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity50       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity75       = null!;
@@ -250,6 +256,19 @@ internal sealed class TrayMenuBuilder
             themeCustom);
         menu.Items.Add(themeItem);
 
+        // Text Style submenu
+        _styleClassic    = new System.Windows.Forms.ToolStripMenuItem("Classic");
+        _styleSplit      = new System.Windows.Forms.ToolStripMenuItem("Split");
+        _styleLiterary   = new System.Windows.Forms.ToolStripMenuItem("Literary");
+        _styleExpressive = new System.Windows.Forms.ToolStripMenuItem("Expressive");
+        _styleClassic.Click    += (_, _) => _cb.SetTextStyle("Classic");
+        _styleSplit.Click      += (_, _) => _cb.SetTextStyle("Split");
+        _styleLiterary.Click   += (_, _) => _cb.SetTextStyle("Literary");
+        _styleExpressive.Click += (_, _) => _cb.SetTextStyle("Expressive");
+        var textStyleItem = new System.Windows.Forms.ToolStripMenuItem("Text Style", null,
+            _styleClassic, _styleSplit, _styleLiterary, _styleExpressive);
+        menu.Items.Add(textStyleItem);
+
         // Opacity submenu
         _opacity25  = new System.Windows.Forms.ToolStripMenuItem("25%");
         _opacity50  = new System.Windows.Forms.ToolStripMenuItem("50%");
@@ -353,5 +372,11 @@ internal sealed class TrayMenuBuilder
         _themeGreen.Checked = (hex == "#FF00C000");
         _themePink.Checked  = (hex == "#FFFF69B4");
         // Custom color active: none match — no checkmark shown. Correct.
+
+        // Text style sync
+        _styleClassic.Checked    = (s.TextStyle == "Classic");
+        _styleSplit.Checked      = (s.TextStyle == "Split");
+        _styleLiterary.Checked   = (s.TextStyle == "Literary");
+        _styleExpressive.Checked = (s.TextStyle == "Expressive");
     }
 }
