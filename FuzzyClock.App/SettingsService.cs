@@ -81,6 +81,10 @@ public static class SettingsService
         double[] validThresholds = { 2.0, 5.0, 10.0 };
         if (!validThresholds.Contains(loaded.ProcessCountThresholdPercent))
             loaded = loaded with { ProcessCountThresholdPercent = Defaults().ProcessCountThresholdPercent };
+        // TextStyle guard — only the four named presets are valid
+        string[] validStyles = { "Classic", "Split", "Literary", "Expressive" };
+        if (string.IsNullOrWhiteSpace(loaded.TextStyle) || !validStyles.Contains(loaded.TextStyle))
+            loaded = loaded with { TextStyle = Defaults().TextStyle };
         // MonitorPositions null guard — null can occur if someone manually edits settings.json
         // and writes "MonitorPositions":null
         if (loaded.MonitorPositions == null)
@@ -109,6 +113,7 @@ public static class SettingsService
         AutoLaunchEnabled = false,
         AutoContrastEnabled = false,
         ProcessCountThresholdPercent = 5.0,
+        TextStyle = "Classic",
         MonitorPositions = new Dictionary<string, MonitorPosition>(),
         LastActiveMonitor = ""
     };

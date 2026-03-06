@@ -97,4 +97,32 @@ public class SettingsServiceTests
         Assert.IsEmpty(defaults.MonitorPositions);
         Assert.AreEqual("", defaults.LastActiveMonitor);
     }
+
+    [TestMethod]
+    public void Validate_InvalidTextStyle_ResetsToClassic()
+    {
+        var s = new AppSettings { TextStyle = "NotAStyle" };
+        var result = SettingsService.Validate(s);
+        Assert.AreEqual("Classic", result.TextStyle);
+    }
+
+    [TestMethod]
+    public void Validate_EmptyTextStyle_ResetsToClassic()
+    {
+        var s = new AppSettings { TextStyle = "" };
+        var result = SettingsService.Validate(s);
+        Assert.AreEqual("Classic", result.TextStyle);
+    }
+
+    [TestMethod]
+    [DataRow("Classic")]
+    [DataRow("Split")]
+    [DataRow("Literary")]
+    [DataRow("Expressive")]
+    public void Validate_ValidTextStyle_Preserved(string style)
+    {
+        var s = new AppSettings { TextStyle = style };
+        var result = SettingsService.Validate(s);
+        Assert.AreEqual(style, result.TextStyle);
+    }
 }

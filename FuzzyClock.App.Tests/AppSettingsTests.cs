@@ -83,6 +83,31 @@ public class AppSettingsTests
             "UptimeVisible should default to true when absent from JSON (init default), not false (C# bool default)");
     }
 
+    [TestMethod]
+    public void AppSettings_TextStyle_DefaultIsClassic()
+    {
+        var s = new AppSettings();
+        Assert.AreEqual("Classic", s.TextStyle);
+    }
+
+    [TestMethod]
+    public void AppSettings_TextStyle_RoundTrips()
+    {
+        var original = new AppSettings { TextStyle = "Expressive" };
+        var json = System.Text.Json.JsonSerializer.Serialize(original);
+        var loaded = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual("Expressive", loaded.TextStyle);
+    }
+
+    [TestMethod]
+    public void AppSettings_MissingTextStyle_DefaultsToClassic()
+    {
+        // Simulate old settings.json without TextStyle field
+        var json = "{\"FontSize\":32}";
+        var loaded = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual("Classic", loaded.TextStyle);
+    }
+
     // STEST-03: Deserialize JSON with MonitorPositions absent yields empty dictionary, not null.
     [TestMethod]
     public void Deserialize_MissingMonitorPositions_DefaultsToEmptyDict()
