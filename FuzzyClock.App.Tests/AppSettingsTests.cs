@@ -40,6 +40,8 @@ public class AppSettingsTests
             AccentColor          = "#FF123456",
             Opacity              = 0.75,
             GhostModeEnabled     = false,
+            TextStyle            = "Expressive",
+            ProcessCountThresholdPercent = 2.0,
         };
 
         string json = JsonSerializer.Serialize(original);
@@ -64,6 +66,8 @@ public class AppSettingsTests
         Assert.AreEqual(original.AccentColor,          result.AccentColor,                       "AccentColor");
         Assert.AreEqual(original.Opacity,              result.Opacity,              0.0001,       "Opacity");
         Assert.AreEqual(original.GhostModeEnabled,     result.GhostModeEnabled,                  "GhostModeEnabled");
+        Assert.AreEqual(original.TextStyle,             result.TextStyle,                          "TextStyle");
+        Assert.AreEqual(original.ProcessCountThresholdPercent, result.ProcessCountThresholdPercent, 0.0001, "ProcessCountThresholdPercent");
     }
 
     // STEST-02: Deserialize JSON that omits the UptimeVisible field entirely.
