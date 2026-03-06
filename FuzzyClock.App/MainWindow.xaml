@@ -45,6 +45,31 @@
                                HorizontalAlignment="Stretch"
                                TextAlignment="Center" />
 
+                    <!-- Split layout container — visible in Split/Expressive text styles.
+                         QualifierText: small faded qualifier (e.g. "just after").
+                         EmphasisText: large prominent hour word (e.g. "three").
+                         Both hidden by default — SetTextStyle activates on style change. -->
+                    <StackPanel x:Name="SplitPhrasePanel"
+                                Orientation="Vertical"
+                                HorizontalAlignment="Center"
+                                Visibility="Collapsed">
+                        <TextBlock x:Name="QualifierText"
+                                   Text=""
+                                   FontFamily="Segoe UI Light"
+                                   FontSize="20"
+                                   Foreground="White"
+                                   Opacity="0.55"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center" />
+                        <TextBlock x:Name="EmphasisText"
+                                   Text=""
+                                   FontFamily="Segoe UI Light"
+                                   FontSize="44"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center" />
+                    </StackPanel>
+
                     <!-- DialCanvas: 80x80 analog clock hands — toggled visible in dial mode.
                          Sits in the same inner Grid as PhraseText; both cannot be visible simultaneously.
                          Center = (40,40). Hand X1/Y1 are set from center; X2/Y2 computed via trig in code-behind.
