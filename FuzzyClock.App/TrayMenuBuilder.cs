@@ -59,7 +59,7 @@ internal sealed class TrayMenuCallbacks
 
 /// <summary>
 /// Builds the system tray NotifyIcon and ContextMenuStrip.
-/// Owns all 35 ToolStripMenuItem references; syncs their checkmarks via SyncCheckmarks on Opening.
+/// Owns all 38 ToolStripMenuItem references; syncs their checkmarks via SyncCheckmarks on Opening.
 /// </summary>
 internal sealed class TrayMenuBuilder
 {
