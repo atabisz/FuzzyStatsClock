@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Windows;
-using FuzzyClock.Core;
 // Disambiguate System.Windows.Application vs System.Windows.Forms.Application (UseWindowsForms=true)
 using Application = System.Windows.Application;
 
@@ -48,7 +47,7 @@ public partial class App : Application
         var mainWindow = new MainWindow();
         mainWindow.Owner = hiddenOwner;
         mainWindow.ApplySettings(settings);                     // before Show() — critical ordering
-        mainWindow.SetInitialPhrase(PhraseEngine.GetPhrase(DateTime.Now));
+        mainWindow.SetInitialPhrase(DateTime.Now);
         mainWindow.Show();
 
         // Session-end backup save: Window.Closing is NOT raised on Windows log-off or shutdown.

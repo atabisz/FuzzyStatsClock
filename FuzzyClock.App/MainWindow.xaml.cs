@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
     private bool _hasUserPosition = false;
     private bool _dialMode;
+    private string _currentTextStyle = "Classic";
     private bool _showHourTicks   = false;
     private bool _showMinuteDots  = false;
     private bool _showHourNumbers = false;
@@ -225,8 +226,19 @@ public partial class MainWindow : Window
 
         // Apply dial mode directly (NOT via SetDialMode — unsafe before Show(), same invariant as StatsPanel).
         _dialMode = s.DialMode;
-        PhraseText.Visibility = s.DialMode ? Visibility.Collapsed : Visibility.Visible;
-        DialCanvas.Visibility = s.DialMode ? Visibility.Visible   : Visibility.Collapsed;
+        if (s.DialMode)
+        {
+            PhraseText.Visibility       = Visibility.Collapsed;
+            SplitPhrasePanel.Visibility = Visibility.Collapsed;
+            DialCanvas.Visibility       = Visibility.Visible;
+        }
+        else
+        {
+            DialCanvas.Visibility = Visibility.Collapsed;
+            // TextStyle visibility handled below after _currentTextStyle is set
+            PhraseText.Visibility = Visibility.Visible;
+            SplitPhrasePanel.Visibility = Visibility.Collapsed;
+        }
 
         _showHourTicks   = s.ShowHourTicks;
         _showMinuteDots  = s.ShowMinuteDots;
@@ -262,6 +274,25 @@ public partial class MainWindow : Window
             _accentColor = System.Windows.Media.Colors.White;  // fallback on any parse failure
         }
         // Do NOT call ApplyTheme() here — _hourTickElements etc. are empty until ContentRendered
+
+        // Apply text style directly (NOT via SetTextStyle — that calls UpdateLayout()+SaveSettings() unsafe before Show())
+        _currentTextStyle = s.TextStyle;
+        bool isSerifStyle = s.TextStyle == "Literary" || s.TextStyle == "Expressive";
+        var styleFamily = new System.Windows.Media.FontFamily(isSerifStyle ? "Palatino Linotype" : "Segoe UI Light");
+        PhraseText.FontFamily    = styleFamily;
+        QualifierText.FontFamily = styleFamily;
+        EmphasisText.FontFamily  = styleFamily;
+        QualifierText.FontSize   = (int)(s.FontSize * 0.65);
+        EmphasisText.FontSize    = (int)(s.FontSize * 1.40);
+
+        // Layout visibility — accounts for DialMode (already applied above in this method)
+        if (!s.DialMode)
+        {
+            bool isSplitStyle = s.TextStyle == "Split" || s.TextStyle == "Expressive";
+            PhraseText.Visibility       = isSplitStyle ? Visibility.Collapsed : Visibility.Visible;
+            SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
+        }
+        // If s.DialMode is true: both PhraseText and SplitPhrasePanel are already Collapsed by the DialMode block above
     }
 
     private TrayMenuState GetCurrentTrayState() => new TrayMenuState
@@ -322,6 +353,7 @@ public partial class MainWindow : Window
             AutoLaunchEnabled    = _autoLaunchEnabled,
             AutoContrastEnabled  = _contrast.IsEnabled,
             ProcessCountThresholdPercent = _processCountThreshold,
+            TextStyle            = _currentTextStyle,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -333,9 +365,14 @@ public partial class MainWindow : Window
     /// No UpdateLayout() or PositionTopRight() needed here — ContentRendered handles both
     /// after Show() triggers the first layout pass.
     /// </summary>
-    internal void SetInitialPhrase(string phrase)
+    internal void SetInitialPhrase(DateTime dt)
     {
-        PhraseText.Text = phrase;
+        string fullPhrase = PhraseEngine.GetPhrase(dt);
+        PhraseText.Text = fullPhrase;
+
+        var (qualifier, emphasis) = PhraseEngine.GetStructuredPhrase(dt);
+        QualifierText.Text = qualifier;
+        EmphasisText.Text  = emphasis;
     }
 
     private void Grid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -376,19 +413,18 @@ public partial class MainWindow : Window
 
         PhraseText.Text = newPhrase;
 
-        // Force layout pass before repositioning — ActualWidth is stale until layout runs
-        // (SizeToContent=WidthAndHeight: ActualWidth reflects old phrase until layout re-measures)
+        // Always update split TextBlocks (no cost if SplitPhrasePanel is Collapsed)
+        var (qualifier, emphasis) = PhraseEngine.GetStructuredPhrase(DateTime.Now);
+        QualifierText.Text = qualifier;
+        EmphasisText.Text  = emphasis;
+
         UpdateLayout();
-        // Guard: do NOT call PositionTopRight() after the user has set a custom position.
-        // Without this guard, every 5-minute phrase change snaps the widget to top-right.
         if (!_hasUserPosition)
         {
             PositionTopRight();
         }
         else
         {
-            // Re-clamp after phrase change — SizeToContent may resize the window,
-            // pushing it partially off-screen if positioned near an edge.
             var screen = System.Windows.Forms.Screen.FromPoint(
                 new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
             var clamped = SettingsService.Clamp(
@@ -701,6 +737,8 @@ public partial class MainWindow : Window
     {
         _currentFontSize    = size;
         PhraseText.FontSize = size;
+        QualifierText.FontSize = (int)(size * 0.65);
+        EmphasisText.FontSize  = (int)(size * 1.40);
         // Re-clamp: font size change resizes window (SizeToContent=WidthAndHeight).
         // Must call UpdateLayout() before Clamp() — ActualWidth/ActualHeight are stale until layout runs.
         UpdateLayout();
@@ -761,6 +799,9 @@ public partial class MainWindow : Window
         // Reset process count threshold to default (5%)
         SetProcessThreshold(5.0);
 
+        // Reset text style to Classic
+        SetTextStyle("Classic");
+
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
         SaveSettings();
@@ -771,8 +812,19 @@ public partial class MainWindow : Window
     {
         _dialMode = dialMode;
 
-        PhraseText.Visibility = dialMode ? Visibility.Collapsed : Visibility.Visible;
-        DialCanvas.Visibility  = dialMode ? Visibility.Visible   : Visibility.Collapsed;
+        if (dialMode)
+        {
+            PhraseText.Visibility       = Visibility.Collapsed;
+            SplitPhrasePanel.Visibility = Visibility.Collapsed;
+            DialCanvas.Visibility       = Visibility.Visible;
+        }
+        else
+        {
+            DialCanvas.Visibility = Visibility.Collapsed;
+            bool isSplit = _currentTextStyle == "Split" || _currentTextStyle == "Expressive";
+            PhraseText.Visibility       = isSplit ? Visibility.Collapsed : Visibility.Visible;
+            SplitPhrasePanel.Visibility = isSplit ? Visibility.Visible   : Visibility.Collapsed;
+        }
 
         // DIAL-09: hide/show Dial Face submenu; MENU-01: hide Font Size submenu in dial mode
         _trayMenu.UpdateDialModeVisibility(dialMode);
@@ -810,6 +862,44 @@ public partial class MainWindow : Window
     {
         _windowOpacity = opacity;
         this.Opacity   = opacity;
+        SaveSettings();
+    }
+
+    private void SetTextStyle(string style)
+    {
+        _currentTextStyle = style;
+
+        // Font family: Palatino Linotype for Literary/Expressive, Segoe UI Light for Classic/Split
+        bool isSerif = style == "Literary" || style == "Expressive";
+        var family = new System.Windows.Media.FontFamily(isSerif ? "Palatino Linotype" : "Segoe UI Light");
+        PhraseText.FontFamily    = family;
+        QualifierText.FontFamily = family;
+        EmphasisText.FontFamily  = family;
+
+        // Apply current font sizes to split TextBlocks
+        QualifierText.FontSize = (int)(_currentFontSize * 0.65);
+        EmphasisText.FontSize  = (int)(_currentFontSize * 1.40);
+
+        // Layout visibility: split modes show SplitPhrasePanel; inline modes show PhraseText
+        // (no changes when dial mode is active — dial hides all phrase elements)
+        if (!_dialMode)
+        {
+            bool isSplit = style == "Split" || style == "Expressive";
+            PhraseText.Visibility       = isSplit ? Visibility.Collapsed : Visibility.Visible;
+            SplitPhrasePanel.Visibility = isSplit ? Visibility.Visible   : Visibility.Collapsed;
+        }
+
+        UpdateLayout();
+        if (_hasUserPosition)
+        {
+            var screen = System.Windows.Forms.Screen.FromPoint(
+                new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+            var clamped = SettingsService.Clamp(
+                new MonitorPosition { Left = Left, Top = Top },
+                ActualWidth, ActualHeight, screen);
+            Left = clamped.Left;
+            Top  = clamped.Top;
+        }
         SaveSettings();
     }
 
@@ -899,10 +989,18 @@ public partial class MainWindow : Window
 
     private void ApplyTheme()
     {
+        // Full-opacity brush for EmphasisText and all other elements
         var brush = new System.Windows.Media.SolidColorBrush(_accentColor);
 
+        // Dimmed brush for QualifierText (55% alpha of accent color)
+        var qualifierColor = System.Windows.Media.Color.FromArgb(
+            0x8C, _accentColor.R, _accentColor.G, _accentColor.B);
+        var qualifierBrush = new System.Windows.Media.SolidColorBrush(qualifierColor);
+
         // Phrase mode
-        PhraseText.Foreground = brush;
+        PhraseText.Foreground    = brush;
+        QualifierText.Foreground = qualifierBrush;
+        EmphasisText.Foreground  = brush;
 
         // Dial mode (static XAML elements)
         HourHand.Stroke   = brush;
@@ -946,6 +1044,13 @@ public partial class MainWindow : Window
         var brush = new System.Windows.Media.SolidColorBrush(color);
 
         PhraseText.Foreground = brush;
+
+        // Qualifier: same hue/saturation as display override, but dimmed to 55% alpha
+        var qualifierDisplayColor = System.Windows.Media.Color.FromArgb(
+            0x8C, rgb.R, rgb.G, rgb.B);
+        QualifierText.Foreground = new System.Windows.Media.SolidColorBrush(qualifierDisplayColor);
+        EmphasisText.Foreground  = brush;
+
         HourHand.Stroke       = brush;
         MinuteHand.Stroke     = brush;
         foreach (var el in _hourTickElements)   el.Stroke     = brush;
