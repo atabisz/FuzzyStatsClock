@@ -278,8 +278,10 @@ public partial class MainWindow : Window
 
         // Apply text style directly (NOT via SetTextStyle — that calls UpdateLayout()+SaveSettings() unsafe before Show())
         _currentTextStyle = s.TextStyle;
-        bool isSerifStyle = s.TextStyle == "Literary" || s.TextStyle == "Expressive";
-        var styleFamily = new System.Windows.Media.FontFamily(isSerifStyle ? "Palatino Linotype" : "Segoe UI Light");
+        bool isSerifStyle = s.TextStyle == "Literary";
+        bool isMonoStyle  = s.TextStyle == "Mono";
+        string styleFontName = isSerifStyle ? "Palatino Linotype" : isMonoStyle ? "Consolas" : "Segoe UI Light";
+        var styleFamily = new System.Windows.Media.FontFamily(styleFontName);
         PhraseText.FontFamily    = styleFamily;
         QualifierText.FontFamily = styleFamily;
         EmphasisText.FontFamily  = styleFamily;
@@ -289,7 +291,7 @@ public partial class MainWindow : Window
         // Layout visibility — accounts for DialMode (already applied above in this method)
         if (!s.DialMode)
         {
-            bool isSplitStyle = s.TextStyle == "Split" || s.TextStyle == "Expressive";
+            bool isSplitStyle = s.TextStyle == "Split";
             PhraseText.Visibility       = isSplitStyle ? Visibility.Collapsed : Visibility.Visible;
             SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
         }
@@ -829,7 +831,7 @@ public partial class MainWindow : Window
         else
         {
             DialCanvas.Visibility = Visibility.Collapsed;
-            bool isSplit = _currentTextStyle == "Split" || _currentTextStyle == "Expressive";
+            bool isSplit = _currentTextStyle == "Split";
             PhraseText.Visibility       = isSplit ? Visibility.Collapsed : Visibility.Visible;
             SplitPhrasePanel.Visibility = isSplit ? Visibility.Visible   : Visibility.Collapsed;
         }
@@ -877,9 +879,11 @@ public partial class MainWindow : Window
     {
         _currentTextStyle = style;
 
-        // Font family: Palatino Linotype for Literary/Expressive, Segoe UI Light for Classic/Split
-        bool isSerif = style == "Literary" || style == "Expressive";
-        var family = new System.Windows.Media.FontFamily(isSerif ? "Palatino Linotype" : "Segoe UI Light");
+        // Font family: Palatino Linotype for Literary, Consolas for Mono, Segoe UI Light for Classic/Split
+        bool isSerif = style == "Literary";
+        bool isMono  = style == "Mono";
+        string fontName = isSerif ? "Palatino Linotype" : isMono ? "Consolas" : "Segoe UI Light";
+        var family = new System.Windows.Media.FontFamily(fontName);
         PhraseText.FontFamily    = family;
         QualifierText.FontFamily = family;
         EmphasisText.FontFamily  = family;
@@ -892,7 +896,7 @@ public partial class MainWindow : Window
         // (no changes when dial mode is active — dial hides all phrase elements)
         if (!_dialMode)
         {
-            bool isSplit = style == "Split" || style == "Expressive";
+            bool isSplit = style == "Split";
             PhraseText.Visibility       = isSplit ? Visibility.Collapsed : Visibility.Visible;
             SplitPhrasePanel.Visibility = isSplit ? Visibility.Visible   : Visibility.Collapsed;
         }

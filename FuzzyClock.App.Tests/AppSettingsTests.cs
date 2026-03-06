@@ -40,7 +40,7 @@ public class AppSettingsTests
             AccentColor          = "#FF123456",
             Opacity              = 0.75,
             GhostModeEnabled     = false,
-            TextStyle            = "Expressive",
+            TextStyle            = "Mono",
             ProcessCountThresholdPercent = 2.0,
         };
 
@@ -97,10 +97,10 @@ public class AppSettingsTests
     [TestMethod]
     public void AppSettings_TextStyle_RoundTrips()
     {
-        var original = new AppSettings { TextStyle = "Expressive" };
+        var original = new AppSettings { TextStyle = "Mono" };
         var json = System.Text.Json.JsonSerializer.Serialize(original);
         var loaded = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json)!;
-        Assert.AreEqual("Expressive", loaded.TextStyle);
+        Assert.AreEqual("Mono", loaded.TextStyle);
     }
 
     [TestMethod]

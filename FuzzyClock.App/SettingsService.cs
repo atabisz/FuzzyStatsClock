@@ -82,7 +82,7 @@ public static class SettingsService
         if (!validThresholds.Contains(loaded.ProcessCountThresholdPercent))
             loaded = loaded with { ProcessCountThresholdPercent = Defaults().ProcessCountThresholdPercent };
         // TextStyle guard — only the four named presets are valid
-        string[] validStyles = { "Classic", "Split", "Literary", "Expressive" };
+        string[] validStyles = { "Classic", "Split", "Literary", "Mono" };
         if (string.IsNullOrWhiteSpace(loaded.TextStyle) || !validStyles.Contains(loaded.TextStyle))
             loaded = loaded with { TextStyle = Defaults().TextStyle };
         // MonitorPositions null guard — null can occur if someone manually edits settings.json

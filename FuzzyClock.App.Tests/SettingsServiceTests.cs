@@ -118,7 +118,7 @@ public class SettingsServiceTests
     [DataRow("Classic")]
     [DataRow("Split")]
     [DataRow("Literary")]
-    [DataRow("Expressive")]
+    [DataRow("Mono")]
     public void Validate_ValidTextStyle_Preserved(string style)
     {
         var s = new AppSettings { TextStyle = style };

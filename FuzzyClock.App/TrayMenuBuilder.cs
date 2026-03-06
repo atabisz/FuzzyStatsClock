@@ -99,7 +99,7 @@ internal sealed class TrayMenuBuilder
     private System.Windows.Forms.ToolStripMenuItem  _styleClassic    = null!;
     private System.Windows.Forms.ToolStripMenuItem  _styleSplit      = null!;
     private System.Windows.Forms.ToolStripMenuItem  _styleLiterary   = null!;
-    private System.Windows.Forms.ToolStripMenuItem  _styleExpressive = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _styleMono = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity25       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity50       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity75       = null!;
@@ -260,13 +260,13 @@ internal sealed class TrayMenuBuilder
         _styleClassic    = new System.Windows.Forms.ToolStripMenuItem("Classic");
         _styleSplit      = new System.Windows.Forms.ToolStripMenuItem("Split");
         _styleLiterary   = new System.Windows.Forms.ToolStripMenuItem("Literary");
-        _styleExpressive = new System.Windows.Forms.ToolStripMenuItem("Expressive");
+        _styleMono = new System.Windows.Forms.ToolStripMenuItem("Mono");
         _styleClassic.Click    += (_, _) => _cb.SetTextStyle("Classic");
         _styleSplit.Click      += (_, _) => _cb.SetTextStyle("Split");
         _styleLiterary.Click   += (_, _) => _cb.SetTextStyle("Literary");
-        _styleExpressive.Click += (_, _) => _cb.SetTextStyle("Expressive");
+        _styleMono.Click += (_, _) => _cb.SetTextStyle("Mono");
         var textStyleItem = new System.Windows.Forms.ToolStripMenuItem("Text Style", null,
-            _styleClassic, _styleSplit, _styleLiterary, _styleExpressive);
+            _styleClassic, _styleSplit, _styleLiterary, _styleMono);
         menu.Items.Add(textStyleItem);
 
         // Opacity submenu
@@ -377,6 +377,6 @@ internal sealed class TrayMenuBuilder
         _styleClassic.Checked    = (s.TextStyle == "Classic");
         _styleSplit.Checked      = (s.TextStyle == "Split");
         _styleLiterary.Checked   = (s.TextStyle == "Literary");
-        _styleExpressive.Checked = (s.TextStyle == "Expressive");
+        _styleMono.Checked = (s.TextStyle == "Mono");
     }
 }
