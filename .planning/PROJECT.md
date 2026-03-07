@@ -8,7 +8,19 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v3.1 Quality + Battery
+
+**Goal:** Quality pass (tests, docs, code cleanup) and battery stat row
+
+**Target features:**
+- Battery % stat row (new) — enabled by default, toggleable, N/A on desktops
+- Tests for v3.0 date display (DateFormatter extraction + AppSettings round-trip)
+- README accuracy pass for v3.0 features
+- MainWindow.xaml.cs cleanup — extract pure logic into FuzzyClock.Core, improve testability
+
 ## Current State
+
+**v3.0 shipped: 2026-03-07** — Date display under clock (Show Date toggle, 4 format options, persisted)
 
 **v2.9 shipped: 2026-03-05** — Configurable process count threshold (2%/5%/10% tray submenu)
 
@@ -166,6 +178,20 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ THRESH-01: User can set the active process count threshold (2% / 5% / 10% CPU) via tray Stats submenu; current selection shown as checkmark; default 5% — v2.9
 - ✓ THRESH-02: Threshold persists to settings.json and restores on launch; UpdateUptimeDisplay() uses the persisted value — v2.9
 
+### Active
+
+<!-- Current scope for v3.1 Quality + Battery. Building toward these. -->
+
+- [ ] BATT-01: Stats panel shows battery charge % as a horizontal bar + percentage text below PAG row
+- [ ] BATT-02: Battery row shows "N/A" (no exception) when no battery is present (e.g. desktop)
+- [ ] BATT-03: User can toggle battery row visibility via tray Stats submenu; checkmark reflects state
+- [ ] BATT-04: Hiding all five stat rows auto-collapses the stats panel
+- [ ] BATT-05: Battery row visibility persists to settings.json and restores on launch; default true
+- [ ] UTEST-03: DateFormatter logic extracted from MainWindow into FuzzyClock.Core with unit tests
+- [ ] STEST-08: AppSettings round-trip includes DateVisible and DateFormat fields
+- [ ] DOCS-03: README updated to reflect v3.0 date display feature and battery row
+- [ ] CLEAN-01: Pure logic extracted from MainWindow.xaml.cs into FuzzyClock.Core; MainWindow LOC reduced
+
 ### Deferred (v2+)
 
 - WIN-07: Widget snaps to screen edges when dragged near them
@@ -302,4 +328,4 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | SetProcessThreshold() calls UpdateStatsDisplay() for immediate refresh | Without the call, visual count lags by up to one timer interval after selection — discovered during audit; mirrors SetStatsInterval() timer-restart pattern | ✓ Validated — {N}p count updates immediately on threshold change; no perceptible lag |
 
 ---
-*Last updated: 2026-03-05 after v2.9 milestone*
+*Last updated: 2026-03-07 after v3.1 milestone started*
