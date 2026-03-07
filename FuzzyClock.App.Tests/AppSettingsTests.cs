@@ -42,6 +42,8 @@ public class AppSettingsTests
             GhostModeEnabled     = false,
             TextStyle            = "Mono",
             ProcessCountThresholdPercent = 2.0,
+            ShowDate   = false,
+            DateFormat = "ISO",
         };
 
         string json = JsonSerializer.Serialize(original);
@@ -68,6 +70,8 @@ public class AppSettingsTests
         Assert.AreEqual(original.GhostModeEnabled,     result.GhostModeEnabled,                  "GhostModeEnabled");
         Assert.AreEqual(original.TextStyle,             result.TextStyle,                          "TextStyle");
         Assert.AreEqual(original.ProcessCountThresholdPercent, result.ProcessCountThresholdPercent, 0.0001, "ProcessCountThresholdPercent");
+        Assert.AreEqual(original.ShowDate,   result.ShowDate,   "ShowDate");
+        Assert.AreEqual(original.DateFormat, result.DateFormat, "DateFormat");
     }
 
     // STEST-02: Deserialize JSON that omits the UptimeVisible field entirely.
@@ -110,6 +114,26 @@ public class AppSettingsTests
         var json = "{\"FontSize\":32}";
         var loaded = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json)!;
         Assert.AreEqual("Classic", loaded.TextStyle);
+    }
+
+    // STEST-08: ShowDate absent → defaults to true
+    [TestMethod]
+    public void Deserialize_MissingShowDate_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.ShowDate,
+            "ShowDate should default to true when absent from JSON (init default), not false (C# bool default)");
+    }
+
+    // STEST-08: DateFormat absent → defaults to "Short"
+    [TestMethod]
+    public void Deserialize_MissingDateFormat_DefaultsToShort()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual("Short", result.DateFormat,
+            "DateFormat should default to Short when absent from JSON (init default), not null/empty");
     }
 
     // STEST-03: Deserialize JSON with MonitorPositions absent yields empty dictionary, not null.
