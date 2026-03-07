@@ -30,6 +30,8 @@ public record AppSettings
     public bool   AutoLaunchEnabled    { get; init; } = false;
     public bool   AutoContrastEnabled  { get; init; } = false;
     public double ProcessCountThresholdPercent { get; init; } = 5.0;
-    public string TextStyle { get; init; } = "Classic";  // "Classic"|"Split"|"Literary"|"Mono"
+    public string TextStyle  { get; init; } = "Classic";  // "Classic"|"Split"|"Literary"|"Mono"
+    public bool   ShowDate   { get; init; } = true;
+    public string DateFormat { get; init; } = "Short";   // "Short"|"Long"|"Numeric"|"ISO"
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"

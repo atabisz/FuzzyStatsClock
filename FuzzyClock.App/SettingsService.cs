@@ -85,6 +85,10 @@ public static class SettingsService
         string[] validStyles = { "Classic", "Split", "Literary", "Mono" };
         if (string.IsNullOrWhiteSpace(loaded.TextStyle) || !validStyles.Contains(loaded.TextStyle))
             loaded = loaded with { TextStyle = Defaults().TextStyle };
+        // DateFormat guard — only the four named formats are valid
+        string[] validDateFormats = { "Short", "Long", "Numeric", "ISO" };
+        if (string.IsNullOrWhiteSpace(loaded.DateFormat) || !validDateFormats.Contains(loaded.DateFormat))
+            loaded = loaded with { DateFormat = Defaults().DateFormat };
         // MonitorPositions null guard — null can occur if someone manually edits settings.json
         // and writes "MonitorPositions":null
         if (loaded.MonitorPositions == null)
@@ -114,6 +118,8 @@ public static class SettingsService
         AutoContrastEnabled = false,
         ProcessCountThresholdPercent = 5.0,
         TextStyle = "Classic",
+        ShowDate = true,
+        DateFormat = "Short",
         MonitorPositions = new Dictionary<string, MonitorPosition>(),
         LastActiveMonitor = ""
     };
