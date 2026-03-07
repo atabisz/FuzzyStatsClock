@@ -1,34 +1,30 @@
-# Technology Stack: v2.3 Ghost Mode
+# Technology Stack: v3.2 Settings Window, Themes, Alerts, Phrase Styles, Multilingual
 
-**Project:** FuzzyClock — hover-hide (Opacity=0 + click-through) and Ctrl+Alt interaction modifier
-**Researched:** 2026-03-02
-**Scope:** Additions only — existing validated stack is unchanged
+**Project:** FuzzyClock v3.2 — Settings window + 5 built-in themes + battery alert + phrase styles + multilingual
+**Researched:** 2026-03-08
+**Scope:** Additions only — existing validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, System.Diagnostics.PerformanceCounter 10.0.0) is unchanged
 **Confidence:** HIGH
 
 ---
 
-## What Changes vs v2.2
+## What Changes vs v3.1
 
-v2.2 stack (already validated, not re-researched):
-- .NET 10, C# 13, WPF (`net10.0-windows`)
-- `AllowsTransparency=True` / `WindowStyle=None` transparent frameless overlay
-- `WindowInteropHelper` for HWND access
-- `HwndSource.FromHwnd(hwnd)` + `HwndSource.AddHook` for Win32 message interception
-- `UseWindowsForms=true` (System.Drawing, NotifyIcon active since v2.0)
-- `Window.Opacity` property for whole-window opacity
-- WPF `MouseEnter` / `MouseLeave` events (used for hover-fast-refresh and backdrop)
-- `System.Text.Json` for settings persistence
+v3.1 validated stack (not re-researched):
+- .NET 10, C# 13, WPF (`net10.0-windows`), `UseWindowsForms=true`
+- `MainWindow.xaml.cs` (~1300 lines), `FuzzyClock.Core` (pure static), `SettingsService` atomic JSON I/O
+- `AppSettings` init-property record, `System.Text.Json` for settings
 - `System.Diagnostics.PerformanceCounter` NuGet 10.0.0
+- MSTest 4.0.1, `FuzzyClock.Core.Tests` + `FuzzyClock.App.Tests`, 122 tests
 
-v2.3 stack additions:
+v3.2 additions by feature:
 
-| Layer | What's Added | csproj Change |
-|-------|-------------|---------------|
-| Click-through toggle | `GetWindowLong` + `SetWindowLong` P/Invoke to read/write `WS_EX_TRANSPARENT` on `GWL_EXSTYLE` | None — `user32.dll` always available |
-| Style flush | `SetWindowPos` P/Invoke with `SWP_FRAMECHANGED` to commit extended style change | None — `user32.dll` |
-| Mouse-leave from transparent state | `TrackMouseEvent` P/Invoke + `WM_MOUSELEAVE` handler in `HwndSource` hook | None — `user32.dll` |
-| Modifier key check | `GetAsyncKeyState` P/Invoke, checked in `MouseEnter` handler | None — `user32.dll` |
-| AppSettings extension | One new `bool` init-property: `GhostModeEnabled` | None — same pattern |
+| Feature | Stack Change | NuGet Needed |
+|---------|-------------|--------------|
+| Settings window | New WPF `Window` + `TabControl` — pure WPF built-ins | None |
+| 5 named themes | New `ThemeDefinition` record + `AppSettings` theme name property | None |
+| Battery low alert | `SystemInformation.PowerStatus` already used; conditional color logic only | None |
+| Phrase styles | New enum + strategy dispatch in `PhraseEngine` or sibling classes | None |
+| Multilingual phrases | `.resx` files + `ResourceManager` in `FuzzyClock.Core` | None |
 
 **Zero new NuGet packages. Zero csproj changes.**
 
@@ -36,238 +32,306 @@ v2.3 stack additions:
 
 ## Recommended Stack Additions
 
-### Core Technologies
+### 1. Settings Window — WPF TabControl (Built-in)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `GetWindowLong` / `SetWindowLong` (user32.dll) | Win32 (all Windows versions) | Read and write the extended window style to toggle `WS_EX_TRANSPARENT` | The only way to add/remove `WS_EX_TRANSPARENT` on an existing HWND at runtime. WPF has no managed API for extended window styles. `SetWindowLong` with `GWL_EXSTYLE` is the canonical Win32 mechanism. Use `GetWindowLong` first to preserve existing style bits. |
-| `SetWindowPos` (user32.dll) | Win32 (all Windows versions) | Flush the extended style change to the window manager | Per Microsoft docs: "If you have changed certain window data using SetWindowLong, you must call SetWindowPos for the changes to take effect." Required flags: `SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED`. Without this call, `WS_EX_TRANSPARENT` may not apply reliably. |
-| `TrackMouseEvent` (user32.dll) + `WM_MOUSELEAVE` | Win32 (all Windows versions) | Receive notification when mouse leaves the widget's HWND rectangle, even while the window is transparent and click-through | When `WS_EX_TRANSPARENT` is active, the window does not receive mouse events, so WPF's `MouseLeave` will never fire. `TrackMouseEvent` registers a one-shot OS-level notification tied to the HWND, not the hit-test state. The OS posts `WM_MOUSELEAVE` when the cursor exits the window's rectangle regardless of hit-test eligibility. Received via existing `HwndSource.AddHook` — zero new infrastructure. |
-| `GetAsyncKeyState` (user32.dll) | Win32 (all Windows versions) | Check physical Ctrl+Alt key state in `MouseEnter` handler | WPF's `Keyboard.IsKeyDown` only reflects state when the WPF window has keyboard focus. The transparent overlay does not normally hold focus. `GetAsyncKeyState` checks physical key state independently of focus, returning a `SHORT` whose MSB indicates the key is currently down. |
+**What it is:** A standard WPF `Window` with a `TabControl` containing three `TabItem` children (Appearance / Stats / Behavior).
 
----
+**Why no packages are needed:** `TabControl` and `TabItem` are part of `PresentationFramework.dll`, which is already referenced via `<UseWPF>true</UseWPF>`. No third-party UI toolkit is needed for a simple settings dialog in an existing WPF app.
 
-## Win32 P/Invoke Declarations
-
-### 1. GetWindowLong — Read Current Extended Style
-
-**Purpose:** Read `GWL_EXSTYLE` before OR-ing in `WS_EX_TRANSPARENT`, preserving all existing style bits.
-
-**Source:** [Microsoft Docs — GetWindowLongPtrW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw) (HIGH confidence)
-
+**Window pattern:**
 ```csharp
-[DllImport("user32.dll", SetLastError = true)]
-private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-```
-
-**Note:** In C# P/Invoke, `GetWindowLong` (not `GetWindowLongPtr`) is the correct name. The CLR marshals it correctly for both 32-bit and 64-bit processes. `GWL_EXSTYLE = -20` (documented constant value).
-
----
-
-### 2. SetWindowLong — Toggle WS_EX_TRANSPARENT
-
-**Purpose:** Add `WS_EX_TRANSPARENT` to enter ghost mode; remove it to restore interactive mode.
-
-**Source:** [Microsoft Docs — SetWindowLongPtrW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongptrw) (HIGH confidence)
-
-```csharp
-[DllImport("user32.dll", SetLastError = true)]
-private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-```
-
-**Why `WS_EX_TRANSPARENT` and not just `Opacity=0`:** Setting `Window.Opacity=0` makes the window visually invisible but the HWND remains fully hit-testable. The OS still delivers `WM_NCHITTEST` to it and it intercepts clicks. `WS_EX_TRANSPARENT` instructs the OS to exclude this window from hit-testing entirely, passing mouse events to whatever is underneath. Both are required together: `Opacity=0` for visual invisibility, `WS_EX_TRANSPARENT` for input pass-through.
-
-**Sequence to enter ghost mode (in MouseEnter, when Ctrl+Alt not held):**
-```csharp
-// 1. Register leave notification BEFORE going transparent
-var tme = new TRACKMOUSEEVENT
+// SettingsWindow.xaml.cs
+public partial class SettingsWindow : Window
 {
-    cbSize    = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(),
-    dwFlags   = TME_LEAVE,
-    hwndTrack = _hwnd,
-    dwHoverTime = 0
-};
-TrackMouseEvent(ref tme);
-
-// 2. Set transparent + invisible
-int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
-SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-this.Opacity = 0.0;
-```
-
-**Sequence to restore (in WM_MOUSELEAVE handler):**
-```csharp
-this.Opacity = _savedUserOpacity;
-int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
-SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-```
-
----
-
-### 3. SetWindowPos — Flush Style Change
-
-**Purpose:** Commit the `GWL_EXSTYLE` change to the window manager. Required by Windows after any `SetWindowLong` call.
-
-**Source:** [Microsoft Docs — SetWindowPos, Remarks section](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos) (HIGH confidence — explicitly documented requirement)
-
-```csharp
-[DllImport("user32.dll", SetLastError = true)]
-private static extern bool SetWindowPos(
-    IntPtr hWnd,
-    IntPtr hWndInsertAfter,
-    int X, int Y, int cx, int cy,
-    uint uFlags);
-```
-
-**Call pattern (no geometry change, flush style only):**
-```csharp
-SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-```
-
-`SWP_FRAMECHANGED = 0x0020` triggers `WM_NCCALCSIZE` and flushes the cached window data. This is the exact combination documented in the SetWindowPos Remarks: "Use the following combination for uFlags: `SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED`."
-
----
-
-### 4. TrackMouseEvent — Subscribe to WM_MOUSELEAVE
-
-**Purpose:** Register a one-shot OS notification that fires `WM_MOUSELEAVE` when the mouse cursor exits the widget's HWND rectangle — even after `WS_EX_TRANSPARENT` has been set.
-
-**Source:** [Microsoft Docs — TrackMouseEvent](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent), [Microsoft Docs — WM_MOUSELEAVE](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mouseleave) (HIGH confidence)
-
-```csharp
-[DllImport("user32.dll")]
-private static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT lpEventTrack);
-
-[StructLayout(LayoutKind.Sequential)]
-private struct TRACKMOUSEEVENT
-{
-    public uint   cbSize;
-    public uint   dwFlags;
-    public IntPtr hwndTrack;
-    public uint   dwHoverTime;
-}
-```
-
-**Call pattern (register for TME_LEAVE, called in MouseEnter BEFORE setting WS_EX_TRANSPARENT):**
-```csharp
-var tme = new TRACKMOUSEEVENT
-{
-    cbSize      = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(),
-    dwFlags     = TME_LEAVE,
-    hwndTrack   = _hwnd,
-    dwHoverTime = 0
-};
-TrackMouseEvent(ref tme);
-```
-
-**Critical behavior:** `TrackMouseEvent` is one-shot. When `WM_MOUSELEAVE` fires, the OS cancels all tracking for that HWND. The next time the mouse enters, `MouseEnter` fires again (because `WS_EX_TRANSPARENT` was removed at that point), and `TrackMouseEvent` must be called again. This is a natural re-registration pattern that matches the existing `MouseEnter` handler.
-
-**Why not WH_MOUSE_LL (global low-level mouse hook):** A global hook runs on the UI thread for every mouse move system-wide, degrading responsiveness for all applications. It is flagged by security software and antivirus tools. It requires careful unhooking to avoid leaving a dangling hook that stalls system input processing. `TrackMouseEvent` is the Windows-correct mechanism for this exact use case, delivers the notification at zero polling cost, and requires no system-wide interception.
-
-**Why not polling GetCursorPos on DispatcherTimer:** Polling introduces up to one poll-interval of latency (the mouse is visually gone but the window hasn't restored yet), burns CPU for the entire lifetime of the app, and requires tracking the widget's bounding rectangle manually. `WM_MOUSELEAVE` is edge-triggered with system-level accuracy.
-
----
-
-### 5. WM_MOUSELEAVE — Message Constant for HwndSource Hook
-
-**Purpose:** The numeric constant for the Win32 message to handle inside the `HwndSourceHook` delegate.
-
-**Source:** [Microsoft Docs — WM_MOUSELEAVE](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mouseleave) (HIGH confidence)
-
-```csharp
-private const int WM_MOUSELEAVE = 0x02A3;
-```
-
-**Hook handler (added in ContentRendered via HwndSource.AddHook):**
-```csharp
-private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-{
-    if (msg == WM_MOUSELEAVE)
+    public SettingsWindow(AppSettings current)
     {
-        OnGhostMouseLeave();
-        handled = true;
+        InitializeComponent();
+        // populate controls from current settings
     }
-    return IntPtr.Zero;
+
+    public AppSettings? Result { get; private set; }   // null = cancelled
 }
 ```
 
-**Integration:** The project already obtains `HwndSource` via `HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)` for the v2.0 ColorDialog HWND adapter. Adding `hwndSource.AddHook(WndProc)` in `ContentRendered` is one line — zero new infrastructure.
-
----
-
-### 6. GetAsyncKeyState — Ctrl+Alt Modifier Detection
-
-**Purpose:** Test whether the user is holding Ctrl+Alt at the moment `MouseEnter` fires. If yes, suppress ghost mode and keep the widget visible and interactive.
-
-**Source:** [Microsoft Docs — GetAsyncKeyState](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate), [Microsoft Docs — Virtual-Key Codes](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes) (HIGH confidence)
-
+**Launch from tray (modeless, single-instance guard):**
 ```csharp
-[DllImport("user32.dll")]
-private static extern short GetAsyncKeyState(int vKey);
-```
+private SettingsWindow? _settingsWindow;
 
-**Virtual key constants:**
-```csharp
-private const int VK_CONTROL = 0x11;  // Ctrl key (either left or right)
-private const int VK_MENU    = 0x12;  // Alt key (either left or right)
-```
-
-**Usage:**
-```csharp
-private static bool IsCtrlAltHeld()
+private void OpenSettings()
 {
-    // The most significant bit of the return value is set when the key is down.
-    // A negative short value means the MSB is set.
-    return (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0
-        && (GetAsyncKeyState(VK_MENU)    & 0x8000) != 0;
+    if (_settingsWindow is not null) { _settingsWindow.Activate(); return; }
+    _settingsWindow = new SettingsWindow(_currentSettings);
+    _settingsWindow.Owner = this;                 // keeps it above MainWindow
+    _settingsWindow.Closed += (_, _) =>
+    {
+        if (_settingsWindow.Result is { } updated)
+            ApplyAndSaveSettings(updated);
+        _settingsWindow = null;
+    };
+    _settingsWindow.Show();                       // modeless — tray stays usable
 }
 ```
 
-**Why `GetAsyncKeyState` and not `Keyboard.IsKeyDown`:** WPF's `Keyboard.IsKeyDown` only reports state for the keyboard message queue of the current WPF application when it has keyboard focus. The transparent widget overlay does not normally hold keyboard focus — it is designed to be a passive overlay. `GetAsyncKeyState` queries the physical key state at the OS level, independent of focus, as documented: "Determines whether a key is up or down at the time the function is called."
+**Key XAML pattern:**
+```xml
+<TabControl>
+    <TabItem Header="Appearance">
+        <!-- FontSize slider, AccentColor pickers, Opacity slider, ClockStyle radio buttons -->
+    </TabItem>
+    <TabItem Header="Stats">
+        <!-- Per-row CheckBoxes: CPU/GPU/MEM/PAG/BATT/Uptime, interval selector -->
+    </TabItem>
+    <TabItem Header="Behavior">
+        <!-- Ghost mode, Auto-contrast, Auto-launch, Date display toggles -->
+    </TabItem>
+</TabControl>
+```
 
-**Why `VK_CONTROL` / `VK_MENU` (not left/right variants):** These generic codes match either the left or right key, so Ctrl+Alt works with either hand. `VK_LCONTROL (0xA2)` / `VK_LMENU (0xA4)` would be more specific but unnecessarily restrictive.
+**Why modeless (Show) not modal (ShowDialog):** The tray icon NotifyIcon context menu must remain functional while settings are open. `ShowDialog` blocks the calling thread's message pump in WPF, which would freeze the tray menu interaction.
 
-**AltGr note:** On European keyboards, AltGr sends `VK_LCONTROL` + `VK_RMENU` simultaneously. Because we use the generic `VK_CONTROL` + `VK_MENU`, AltGr will incorrectly trigger Ctrl+Alt mode on those keyboards. For a personal-use app on a US English layout, this is acceptable. If needed in future, use `VK_LCONTROL (0xA2)` + `VK_LMENU (0xA4)` to require strictly left-side keys.
+**Source:** https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-window-dialog-box (HIGH confidence — official, updated 2024-10-24)
 
 ---
 
-## WM_NCHITTEST Override — NOT Required
+### 2. Named Themes — AppSettings Extension + ThemeDefinition Record
 
-Handling `WM_NCHITTEST` to return `HTTRANSPARENT = -1` is an alternative click-through mechanism but has disadvantages for this use case:
+**What it is:** A named bundle of existing settings properties (accent color, opacity, font size, clock style, stats visibility).
 
-- It fires on every `WM_MOUSEMOVE` over the window, requiring a permanent `HwndSource` hook that routes every pointer event
-- The window still receives `WM_MOUSEMOVE` (it just declines hit-testing) — mouse events are not fully passed through at the OS level
-- `WS_EX_TRANSPARENT` is more complete: the OS excludes the window from hit-testing before `WM_NCHITTEST` is even generated
+**Why no packages are needed:** Themes are pure data — a `record` bundling existing property types. The theme name is persisted as a `string` in `AppSettings`. Theme data lives in a static lookup table in code (no resource files, no external config).
 
-Use `WS_EX_TRANSPARENT` via `SetWindowLong`. Do not implement `WM_NCHITTEST`.
+**Pattern:**
+```csharp
+// FuzzyClock.Core or FuzzyClock.App
+public record ThemeDefinition(
+    string  Name,
+    string  AccentColor,   // AARRGGBB hex, matches AppSettings.AccentColor format
+    double  Opacity,
+    int     FontSize,
+    string  TextStyle,     // "Classic"|"Split"|"Literary"|"Mono"
+    bool    StatsVisible
+);
+
+public static class BuiltInThemes
+{
+    public static readonly ThemeDefinition[] All =
+    [
+        new("Minimal",    "#FFFFFFFF", 0.75, 28, "Classic", false),
+        new("Dashboard",  "#FF40C4FF", 1.0,  28, "Classic", true),
+        new("Cinematic",  "#FFFFAB00", 0.85, 40, "Literary", false),
+        new("Terminal",   "#FF00E676", 0.9,  28, "Mono",    true),
+        new("Soft Night", "#FFCE93D8", 0.6,  32, "Classic", false),
+    ];
+}
+```
+
+**AppSettings addition:**
+```csharp
+public string ActiveThemeName { get; init; } = "";  // "" = no theme (custom)
+```
+
+**No serialization changes required** — `string` init-property follows the established pattern. Existing settings.json without this field deserializes to `""` (no active theme).
 
 ---
 
-## Mouse Enter/Leave Design: The Two-Phase Protocol
+### 3. Battery Low Alert — Conditional Color Logic
 
-### The Core Problem
+**What it is:** When `BatteryPercent < threshold` (e.g., 20%), the battery stat row accent color shifts to red.
 
-When the widget is in ghost mode (`WS_EX_TRANSPARENT` + `Opacity=0`), the HWND still exists but the OS skips it during hit-testing. No mouse messages reach it. WPF's `MouseLeave` will never fire. The widget would stay hidden forever unless another mechanism delivers the leave signal.
+**Why no packages are needed:** `SystemInformation.PowerStatus` is already used in `StatsService.cs` (v3.1). This is a conditional branch in the existing `ApplyDisplayColor` / stats rendering pipeline.
 
-### Solution: Register Before Going Transparent
+**Integration point:**
+```csharp
+// In the battery stat display logic (MainWindow.xaml.cs or StatsService)
+Color batteryColor = (batteryPct >= 0 && batteryPct < LowBatteryThresholdPercent)
+    ? Colors.OrangeRed     // alert color — not user accent
+    : _accentColor;        // normal accent
+```
 
-**Phase 1 — WPF MouseEnter (window is still hit-testable at this moment):**
-1. Check `IsCtrlAltHeld()`
-2. If Ctrl+Alt held: do nothing — window stays visible and interactive as before
-3. If not held: call `TrackMouseEvent(TME_LEAVE)` to register leave tracking, THEN set `WS_EX_TRANSPARENT` + `Opacity=0`
+**AppSettings addition:**
+```csharp
+public int BatteryLowAlertPercent { get; init; } = 20;  // 0 = disabled
+```
 
-**Phase 2 — Win32 WM_MOUSELEAVE arrives in HwndSource hook:**
-1. Remove `WS_EX_TRANSPARENT`
-2. Restore `Opacity = _savedUserOpacity`
+No new services, no new NuGet packages.
 
-**Why the ordering matters:** `TrackMouseEvent` is called while the window is still hit-testable and can receive messages. The OS records the HWND registration. When the window subsequently becomes transparent (and stops receiving normal mouse events), the OS still delivers `WM_MOUSELEAVE` when the cursor exits the window rectangle because the tracking is keyed to the HWND identity, not its hit-test state.
+---
 
-**Confidence for this ordering:** MEDIUM — the documented behavior of `TrackMouseEvent` states it "Posts messages when the mouse pointer leaves a window" and that tracking is tied to `hwndTrack`. The docs do not explicitly state delivery continues after `WS_EX_TRANSPARENT` is set. This specific sequence should be verified during phase execution. If it does not work, the fallback is a `DispatcherTimer` polling `GetCursorPos` against the widget's bounding rect (higher latency, more CPU, but reliable).
+### 4. Phrase Styles — Strategy Pattern in FuzzyClock.Core
+
+**What it is:** Three named personalities for the English phrase engine: Terse (shortest phrase), Poetic (lyrical), Rude (irreverent). The current engine produces "Classic" phrases.
+
+**Why no packages are needed:** This is a pure C# code addition in `FuzzyClock.Core`. Each style is a static bucket table (same data structure as `PhraseEngine.Buckets`). A `PhraseStyle` enum selects which table `GetPhrase` uses.
+
+**Pattern:**
+```csharp
+public enum PhraseStyle { Classic, Terse, Poetic, Rude }
+
+public static class PhraseEngine
+{
+    public static string GetPhrase(DateTime dt, PhraseStyle style = PhraseStyle.Classic)
+    {
+        var buckets = style switch
+        {
+            PhraseStyle.Terse  => TerseBuckets,
+            PhraseStyle.Poetic => PoeticBuckets,
+            PhraseStyle.Rude   => RudeBuckets,
+            _                  => ClassicBuckets,
+        };
+        // ... existing bucket-walk logic
+    }
+}
+```
+
+**AppSettings addition:**
+```csharp
+public string PhraseStyle { get; init; } = "Classic";  // "Classic"|"Terse"|"Poetic"|"Rude"
+```
+
+**Testability:** Each new bucket table gets its own `[DataRow]` tests in `FuzzyClock.Core.Tests` — same pattern as existing `PhraseEngineTests`.
+
+---
+
+### 5. Multilingual Phrases — .resx + ResourceManager in FuzzyClock.Core
+
+**What it is:** Locale-specific phrase output in French, Spanish, German, Japanese, driven by `CultureInfo.CurrentUICulture`.
+
+**Why .resx + ResourceManager (not IStringLocalizer):** `IStringLocalizer` requires `Microsoft.Extensions.Localization` + `Microsoft.Extensions.Hosting` and a DI container. This project has no DI container and is a single-process WPF app. `System.Resources.ResourceManager` is built into the BCL, zero-dependency, and is the correct tool for a class library that needs culture-aware string lookup without a host.
+
+**Why not WPF BAML/LocBaml:** LocBaml only works with WPF .NET Framework, not .NET 10. The phrase strings are business logic strings in `FuzzyClock.Core` (a plain `net10.0` class library with no WPF reference), not XAML UI strings. `.resx` + `ResourceManager` is the right scope.
+
+**File structure:**
+```
+FuzzyClock.Core/
+  Resources/
+    PhraseStrings.resx          ← English (neutral/fallback)
+    PhraseStrings.fr.resx       ← French
+    PhraseStrings.de.resx       ← German
+    PhraseStrings.es.resx       ← Spanish
+    PhraseStrings.ja.resx       ← Japanese
+```
+
+**Resource key convention:** One key per phrase bucket slot, e.g.:
+```
+oclock         → "{h} o'clock"      (fr: "{h} heure pile")
+just_after     → "just after {h}"   (fr: "juste après {h}")
+ten_past       → "ten past {h}"     ...
+```
+
+Hour words are also localized (French: "une", "deux", "trois"...).
+
+**ResourceManager usage in PhraseEngine:**
+```csharp
+private static readonly ResourceManager _rm =
+    new ResourceManager("FuzzyClock.Core.Resources.PhraseStrings",
+                        typeof(PhraseEngine).Assembly);
+
+private static string L(string key) =>
+    _rm.GetString(key, CultureInfo.CurrentUICulture) ?? key;
+```
+
+**Locale detection — CultureInfo.CurrentUICulture:**
+```csharp
+// Read the Windows display language (set in Settings > Language)
+var culture = CultureInfo.CurrentUICulture;
+// culture.TwoLetterISOLanguageName → "fr", "de", "es", "ja", "en", ...
+// ResourceManager falls back: fr-FR → fr → neutral (.resx) automatically
+```
+
+`CultureInfo.CurrentUICulture` is the correct property. `CurrentCulture` controls formatting; `CurrentUICulture` controls which resource file the ResourceManager loads. On Windows 11 (the only supported OS), `CurrentUICulture` reflects the Windows display language.
+
+**Satellite assembly build — csproj addition to FuzzyClock.Core.csproj:**
+```xml
+<PropertyGroup>
+    <NeutralLanguage>en</NeutralLanguage>
+</PropertyGroup>
+```
+
+This sets `[assembly: NeutralResourcesLanguage("en")]` which tells the runtime the fallback is English. Satellite assemblies (`fr/FuzzyClock.Core.resources.dll`, etc.) are built automatically by MSBuild when `.resx` files with locale suffixes exist — no manual steps.
+
+**Culture fallback chain (built-in, no code needed):**
+```
+fr-FR → fr → en (neutral / main assembly)
+de-AT → de → en
+ja-JP → ja → en
+unknown culture → en (always)
+```
+
+**Manual override in AppSettings (optional):**
+```csharp
+public string LanguageOverride { get; init; } = "";  // "" = follow Windows CultureInfo
+```
+
+If non-empty, `PhraseEngine` uses `CultureInfo.GetCultureInfo(LanguageOverride)` instead of `CurrentUICulture`. Allows users to force a language independent of Windows locale.
+
+**Source:** https://learn.microsoft.com/en-us/dotnet/core/extensions/localization (HIGH confidence, updated 2026-02-04); https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-globalization-cultureinfo (HIGH confidence, updated 2026-02-12)
+
+---
+
+## Core Technologies: No Changes
+
+| Technology | Version | Status |
+|------------|---------|--------|
+| .NET 10 WPF (`net10.0-windows`) | 10.0 | Unchanged |
+| `FuzzyClock.Core` (`net10.0`) | — | Gains `.resx` files |
+| `System.Text.Json` | inbox .NET 10 | Unchanged |
+| `System.Diagnostics.PerformanceCounter` | 10.0.0 | Unchanged |
+| MSTest | 4.0.1 | Unchanged |
+| `System.Resources.ResourceManager` | BCL inbox | New usage in Core |
+
+---
+
+## Supporting Libraries: No Changes
+
+All additions use BCL types already in `net10.0`:
+- `System.Resources.ResourceManager` — `.resx` resource lookup (BCL inbox, no NuGet)
+- `System.Globalization.CultureInfo` — locale detection (BCL inbox)
+- `System.Windows.Controls.TabControl` — settings window tabs (WPF built-in via `UseWPF=true`)
+
+---
+
+## Installation
+
+**No new package installs.** All required types are in:
+- `PresentationFramework.dll` (WPF built-in) — `TabControl`, `TabItem`, `Window`
+- BCL (`System.Resources`, `System.Globalization`) — `ResourceManager`, `CultureInfo`
+
+---
+
+## What NOT to Add
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `Microsoft.Extensions.Localization` NuGet | Requires DI host; over-engineered for a standalone WPF app with no service container | `System.Resources.ResourceManager` (BCL inbox) |
+| `Microsoft.Extensions.Hosting` NuGet | Brings in the entire generic host for a single-process overlay widget | None needed |
+| WPF LocBaml / BAML localization | LocBaml does not work with WPF .NET (only .NET Framework); requires complex toolchain | `.resx` + `ResourceManager` |
+| Third-party UI toolkit (MahApps.Metro, MaterialDesign, etc.) | Adds hundreds of KB, styles would conflict with the existing minimal custom UI | WPF built-in `TabControl` |
+| MVVM framework (CommunityToolkit.Mvvm, Prism) | No existing MVVM infrastructure; settings window is simple enough for code-behind | Direct code-behind in `SettingsWindow.xaml.cs` |
+| Separate settings JSON file per locale | Fragile; phrases are not user-configurable | `.resx` compiled into satellite assemblies |
+| `CultureInfo.CurrentCulture` for language detection | Controls number/date formatting, NOT UI language selection | `CultureInfo.CurrentUICulture` (resource lookup) |
+
+---
+
+## Alternatives Considered
+
+| Category | Recommended | Alternative | When Alternative Is Better |
+|----------|-------------|-------------|---------------------------|
+| Settings UI | WPF built-in `TabControl` | MahApps.Metro `MetroWindow` | If the project adopted a full design system; overkill for 3 tabs |
+| Localization | `.resx` + `ResourceManager` | `IStringLocalizer` + DI | Only when the app already uses `IHost` / generic host |
+| Theme storage | Static `ThemeDefinition[]` in code | JSON theme files | If users need to create custom themes — not in v3.2 scope |
+| Phrase styles | Static bucket tables per style | External JSON phrase files | If phrase content must be user-editable |
+| Settings window lifetime | Modeless (`Show`) | Modal (`ShowDialog`) | If the settings window must block all other interaction |
+
+---
+
+## csproj Change Summary
+
+**FuzzyClock.Core.csproj:** Add `<NeutralLanguage>en</NeutralLanguage>` to the existing `<PropertyGroup>`. This is the only csproj change across the entire milestone.
+
+**FuzzyClock.App.csproj:** No changes.
+
+**FuzzyClock.Core.Tests.csproj:** No changes (new phrase style tests follow existing `[DataRow]` pattern).
+
+**FuzzyClock.App.Tests.csproj:** No changes (settings window and theme tests follow existing patterns).
 
 ---
 
@@ -275,109 +339,14 @@ When the widget is in ghost mode (`WS_EX_TRANSPARENT` + `Opacity=0`), the HWND s
 
 | Location | Change |
 |----------|--------|
-| `MainWindow.xaml.cs` — P/Invoke region | Add 5 `[DllImport]` declarations + 1 struct + all constants |
-| `ContentRendered` | Obtain `_hwnd`; get `HwndSource`; call `AddHook(WndProc)` |
-| `Window_MouseEnter` | Check `IsCtrlAltHeld()`; if not held, call `TrackMouseEvent` then set ghost mode |
-| New `WndProc` method | Handle `WM_MOUSELEAVE` — restore opacity and clear `WS_EX_TRANSPARENT` |
-| `ApplySettings()` | Cache `settings.Opacity` into `_savedUserOpacity` before any runtime changes |
-| `AppSettings` record | Add `bool GhostModeEnabled { get; init; } = true;` |
-
-**Conflict with existing MouseEnter/MouseLeave handlers:** The existing `Window_MouseEnter` and `Window_MouseLeave` handlers manage hover-fast-refresh and the semi-transparent backdrop (`ContentBorder.Background`). Ghost mode logic must be integrated at the top of `Window_MouseEnter` — if ghost mode activates, clear the backdrop (set to transparent) before going invisible to avoid a residual dark rectangle flash.
-
-**No new files required.** All P/Invoke and logic additions fit in `MainWindow.xaml.cs`.
-
----
-
-## Complete P/Invoke Block (Ready to Copy)
-
-```csharp
-// --- Ghost Mode P/Invoke (v2.3) ---
-
-[DllImport("user32.dll", SetLastError = true)]
-private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-[DllImport("user32.dll", SetLastError = true)]
-private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
-[DllImport("user32.dll", SetLastError = true)]
-private static extern bool SetWindowPos(
-    IntPtr hWnd, IntPtr hWndInsertAfter,
-    int X, int Y, int cx, int cy, uint uFlags);
-
-[DllImport("user32.dll")]
-private static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT lpEventTrack);
-
-[DllImport("user32.dll")]
-private static extern short GetAsyncKeyState(int vKey);
-
-[StructLayout(LayoutKind.Sequential)]
-private struct TRACKMOUSEEVENT
-{
-    public uint   cbSize;
-    public uint   dwFlags;
-    public IntPtr hwndTrack;
-    public uint   dwHoverTime;
-}
-
-// GWL_EXSTYLE
-private const int  GWL_EXSTYLE        = -20;
-// WS_EX_TRANSPARENT: window excluded from hit-testing; clicks pass through
-private const int  WS_EX_TRANSPARENT  = 0x00000020;
-// SetWindowPos flags
-private const uint SWP_NOSIZE         = 0x0001;
-private const uint SWP_NOMOVE         = 0x0002;
-private const uint SWP_NOZORDER       = 0x0004;
-private const uint SWP_FRAMECHANGED   = 0x0020;  // flush SetWindowLong changes
-// TrackMouseEvent flag
-private const uint TME_LEAVE          = 0x00000002;
-// Win32 message value
-private const int  WM_MOUSELEAVE      = 0x02A3;
-// Virtual key codes
-private const int  VK_CONTROL         = 0x11;    // Ctrl (either side)
-private const int  VK_MENU            = 0x12;    // Alt (either side)
-```
-
----
-
-## AppSettings Extension
-
-```csharp
-// Add to AppSettings record — one new field:
-public bool GhostModeEnabled { get; init; } = true;
-```
-
-`bool` init-property follows the identical pattern as `CpuVisible`, `GpuVisible`, `UptimeVisible`. Default `true` means ghost mode is on by default for new installs. Existing settings.json without this field JSON-deserializes to the default (`true`) — forward-compatible with no migration needed.
-
----
-
-## What NOT to Add
-
-| Rejected Approach | Reason | Use Instead |
-|-------------------|--------|-------------|
-| `WH_MOUSE_LL` global mouse hook | System-wide performance cost; security tool flags; requires careful cleanup; over-engineered for a single-window leave event | `TrackMouseEvent` + `WM_MOUSELEAVE` |
-| `WM_NCHITTEST` returning `HTTRANSPARENT` | Less complete than `WS_EX_TRANSPARENT`; fires on every mouse move; still delivers `WM_MOUSEMOVE` | `SetWindowLong` + `WS_EX_TRANSPARENT` |
-| `DispatcherTimer` polling `GetCursorPos` | Latency up to poll interval; CPU waste when idle; manual bounding-rect math | `TrackMouseEvent` + `WM_MOUSELEAVE` |
-| `Keyboard.IsKeyDown` for Ctrl+Alt | Only works with keyboard focus; overlay never has focus | `GetAsyncKeyState` |
-| New NuGet packages | None needed; all APIs in `user32.dll` (always available) | Existing P/Invoke pattern |
-| New C# source files | All fits in existing P/Invoke region of `MainWindow.xaml.cs` | In-file addition |
-
----
-
-## csproj Change Summary
-
-**No changes required.** All Win32 APIs are in `user32.dll`, which is always available on Windows. The existing `[DllImport]` pattern (`Win32Window` HWND adapter, `WinForms` color dialog support) is already established in the codebase.
-
----
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Click-through mechanism | `WS_EX_TRANSPARENT` via `SetWindowLong` | `WM_NCHITTEST` → `HTTRANSPARENT` | `WS_EX_TRANSPARENT` is OS-level and more complete; `WM_NCHITTEST` fires per mouse move and still delivers `WM_MOUSEMOVE` |
-| Mouse-leave detection | `TrackMouseEvent` + `WM_MOUSELEAVE` | `WH_MOUSE_LL` global hook | System-wide overhead, security flags, unnecessary complexity |
-| Mouse-leave detection | `TrackMouseEvent` + `WM_MOUSELEAVE` | `DispatcherTimer` polling `GetCursorPos` | Latency, CPU waste, manual bounds math |
-| Modifier check | `GetAsyncKeyState` | `Keyboard.IsKeyDown` | Requires keyboard focus; overlay has none |
-| Modifier check | `GetAsyncKeyState` | `WH_KEYBOARD_LL` keyboard hook | Global system overhead; `GetAsyncKeyState` is sufficient for a point-in-time check at hover time |
+| `FuzzyClock.Core/PhraseEngine.cs` | Add `PhraseStyle` enum parameter; add Terse/Poetic/Rude bucket tables; add `ResourceManager` field for locale lookup |
+| `FuzzyClock.Core/Resources/` | New directory: `PhraseStrings.resx` + `PhraseStrings.{fr,de,es,ja}.resx` |
+| `FuzzyClock.Core.csproj` | Add `<NeutralLanguage>en</NeutralLanguage>` |
+| `FuzzyClock.App/AppSettings.cs` | Add: `ActiveThemeName`, `BatteryLowAlertPercent`, `PhraseStyle`, `LanguageOverride` init properties |
+| `FuzzyClock.App/MainWindow.xaml.cs` | Battery alert: conditional color in stats paint; theme apply: map `ThemeDefinition` to `ApplySettings`-like call |
+| `FuzzyClock.App/TrayMenuBuilder.cs` | Add "Settings..." menu item + phrase style submenu |
+| New: `FuzzyClock.App/SettingsWindow.xaml` + `.xaml.cs` | New WPF Window with TabControl — Appearance / Stats / Behavior tabs |
+| New: `FuzzyClock.App/ThemeDefinition.cs` + `BuiltInThemes.cs` | Static theme registry |
 
 ---
 
@@ -385,30 +354,25 @@ public bool GhostModeEnabled { get; init; } = true;
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| `WS_EX_TRANSPARENT` value and behavior | HIGH | Official Microsoft docs, value 0x00000020 confirmed |
-| `GWL_EXSTYLE = -20` | HIGH | Official Microsoft docs |
-| `SetWindowPos` `SWP_FRAMECHANGED` requirement | HIGH | Explicitly documented in SetWindowPos Remarks: "you must call SetWindowPos for the changes to take effect" |
-| `SWP_*` flag values | HIGH | Official Microsoft docs, values verified |
-| `TrackMouseEvent` / `TME_LEAVE` / `WM_MOUSELEAVE = 0x02A3` | HIGH | Official Microsoft docs |
-| `TrackMouseEvent` delivers `WM_MOUSELEAVE` post-transparency | MEDIUM | Documented as HWND-keyed notification; not explicitly stated to survive `WS_EX_TRANSPARENT` — verify in execution |
-| `GetAsyncKeyState` MSB semantics | HIGH | Official docs with C++ example showing `< 0` check |
-| `VK_CONTROL = 0x11`, `VK_MENU = 0x12` | HIGH | Official Virtual-Key Codes table |
-| `HwndSource.AddHook` integration | HIGH | Established in project; used for ColorDialog owner HWND since v2.0 |
+| WPF TabControl (no packages) | HIGH | Built into PresentationFramework; established WPF pattern |
+| ResourceManager + .resx for class library | HIGH | BCL standard; verified against official .NET docs |
+| CultureInfo.CurrentUICulture for locale detection | HIGH | Official docs confirm: CurrentUICulture drives resource loading, CurrentCulture drives formatting |
+| Satellite assembly auto-build with NeutralLanguage | HIGH | Official MSBuild behavior, documented; no manual steps |
+| Phrase style dispatch (enum + bucket switch) | HIGH | Straightforward extension of existing PhraseEngine pattern |
+| Battery alert (conditional color branch) | HIGH | StatsService already reads BatteryPercent; color override is 2-line conditional |
+| IStringLocalizer NOT needed | HIGH | IStringLocalizer requires DI host; ResourceManager is the correct non-hosted alternative per official docs |
 
 ---
 
 ## Sources
 
-- `WS_EX_TRANSPARENT`: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles — value 0x00000020; behavior: window excluded from hit-testing in multi-window z-order; updated 2025-07-14
-- `GetWindowLongPtr` / `GWL_EXSTYLE = -20`: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
-- `SetWindowLongPtr` / `GWL_EXSTYLE = -20`: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongptrw
-- `SetWindowPos` + `SWP_FRAMECHANGED` requirement: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos — Remarks: "use SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED"; updated 2025-07-01
-- `TrackMouseEvent` + `TME_LEAVE`: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent
-- `WM_MOUSELEAVE = 0x02A3`: https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mouseleave
-- `GetAsyncKeyState` MSB semantics + `VK_CONTROL`, `VK_MENU` usage example: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate — updated 2026-01-29
-- `VK_CONTROL = 0x11`, `VK_MENU = 0x12`: https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
-- `HwndSource.AddHook` delegate signature: https://learn.microsoft.com/en-us/dotnet/api/system.windows.interop.hwndsource.addhook?view=windowsdesktop-10.0 — updated 2026-02-11
+- WPF Window / ShowDialog vs Show: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-window-dialog-box (official, 2024-10-24)
+- .NET Localization + IStringLocalizer: https://learn.microsoft.com/en-us/dotnet/core/extensions/localization (official, updated 2026-02-04)
+- WPF Globalization + satellite assemblies: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-globalization-and-localization-overview (official; LocBaml .NET Framework only warning confirmed)
+- CultureInfo.CurrentUICulture vs CurrentCulture: https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-globalization-cultureinfo (official, updated 2026-02-12)
+- ResourceManager class: https://learn.microsoft.com/en-us/dotnet/api/system.resources.resourcemanager (BCL inbox, no NuGet)
+- TabControl: https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.tabcontrol (WPF built-in)
 
 ---
-*Stack research for: FuzzyClock v2.3 — Ghost Mode (hover-hide + Ctrl+Alt modifier)*
-*Researched: 2026-03-02*
+*Stack research for: FuzzyClock v3.2 — Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual*
+*Researched: 2026-03-08*

@@ -1,569 +1,470 @@
-# Architecture Patterns
+# Architecture Research
 
-**Domain:** WPF transparent overlay — hover-hide + click-through + Ctrl+Alt interaction (v2.3)
-**Researched:** 2026-03-02
-**Confidence:** HIGH
+**Domain:** WPF desktop widget — v3.2 feature integration
+**Researched:** 2026-03-08
+**Confidence:** HIGH (all claims derived from direct source reading of current codebase)
 
 ---
 
 ## System Overview
 
-v2.3 adds ghost mode (auto-hide on hover + click-through), Ctrl+Alt interaction modifier,
-and centered phrase text. No new files are required. Two files are modified:
-`MainWindow.xaml.cs` and `MainWindow.xaml`. `AppSettings.cs`, `SettingsService.cs`, and
-`StatsService.cs` are unchanged.
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         FuzzyClock.App (UI layer)                    │
+├──────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────────┐  ┌──────────────────┐  ┌────────────────┐  │
+│  │  MainWindow.xaml.cs  │  │  SettingsWindow  │  │ TrayMenuBuilder│  │
+│  │    (~1300 lines)     │  │  (v3.2 — new)    │  │ (WinForms tray)│  │
+│  └──────────┬───────────┘  └────────┬─────────┘  └───────┬────────┘  │
+│             │  ApplySettings()      │ SettingsChanged     │           │
+│             │  SaveSettings()       │ event               │ callbacks │
+│             └──────────────────────┴─────────────────────┘           │
+├──────────────────────────────────────────────────────────────────────┤
+│                       Service layer (FuzzyClock.App)                 │
+│  ┌──────────────┐ ┌──────────────┐ ┌────────────────┐ ┌───────────┐  │
+│  │ StatsService │ │MonitorService│ │ContrastRefresh │ │GhostMode  │  │
+│  │ (PDH, batt)  │ │(monitor keys)│ │Controller      │ │Controller │  │
+│  └──────────────┘ └──────────────┘ └────────────────┘ └───────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│                       FuzzyClock.Core (pure, no WPF)                 │
+│  ┌──────────────┐ ┌──────────────┐ ┌────────────────┐ ┌───────────┐  │
+│  │ PhraseEngine │ │DateFormatter │ │ ContrastService│ │DialGeo-   │  │
+│  │ (v3.2: locale│ │(static,pure) │ │(WCAG math)     │ │metry      │  │
+│  │  dispatch)   │ │              │ │                │ │           │  │
+│  └──────────────┘ └──────────────┘ └────────────────┘ └───────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│                        Persistence layer                             │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │  SettingsService  (Load / Save / Validate / Defaults)        │    │
+│  │  AppSettings record (flat init-property JSON record)         │    │
+│  └──────────────────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                            FuzzyClock.App (WPF)                               │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  App.xaml.cs           MainWindow.xaml.cs            SettingsService.cs       │
-│  (UNCHANGED)           (MODIFIED)                    (UNCHANGED)              │
-│                              │                                                │
-│                    ┌─────────┴──────────────┐                                 │
-│                    │                        │                                 │
-│             _phraseTimer             _statsTimer                              │
-│             (10s, existing)          (1s/3s/10s, existing)                   │
-│                    │                        │                                 │
-│             PhraseEngine               StatsService.cs                       │
-│             (UNCHANGED)                (UNCHANGED)                            │
-│                                                                               │
-│  ── NEW: WndProc Hook ─────────────────────────────────────────────────────  │
-│                                                                               │
-│  ContentRendered                                                               │
-│    HwndSource.FromHwnd(hwnd).AddHook(WndProcHook)  ←── NEW registration     │
-│                    │                                                          │
-│  WndProcHook(WM_NCHITTEST)                                                    │
-│    if _ghostMode → return HTTRANSPARENT  ←── NEW: passes mouse through       │
-│    else          → return IntPtr.Zero    (default WPF hit-test)               │
-│                                                                               │
-│  ── MODIFIED: Hover Handlers ─────────────────────────────────────────────  │
-│                                                                               │
-│  Window_MouseEnter                                                             │
-│    if NOT Ctrl+Alt: _ghostMode=true, Opacity=0, return  ← NEW ghost path    │
-│    if Ctrl+Alt:     existing backdrop + fast-refresh    ← UNCHANGED          │
-│                                                                               │
-│  Window_MouseLeave                                                             │
-│    if _ghostMode: restore Opacity, _ghostMode=false, return  ← NEW restore  │
-│    else:          existing backdrop clear + timer restore    ← UNCHANGED     │
-│                                                                               │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  MainWindow.xaml (MODIFIED: TextAlignment="Center" on PhraseText/ShadowText) │
-│                                                                               │
-│  Window                                                                        │
-│    Grid                                                                        │
-│      Border (ContentBorder — backdrop, existing)                               │
-│        Grid (inner, 2 rows, existing)                                          │
-│          Row 0: ShadowText [Center] + PhraseText [Center] / DialCanvas       │
-│          Row 1: StatsPanel (existing, unchanged)                               │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+### Component Responsibilities
+
+| Component | Responsibility | Notes |
+|-----------|----------------|-------|
+| `MainWindow` | All WPF UI state, timers, display update methods, color application | ~1300 lines; single-owner of all live state |
+| `AppSettings` | Flat init-property record; single source of persisted truth | Never positional; JSON forward-compat pattern |
+| `SettingsService` | Load/Save/Validate/Defaults; atomic JSON write via `.tmp` rename | Pure static; no WPF types |
+| `TrayMenuBuilder` | Builds WinForms `NotifyIcon` + `ContextMenuStrip`; syncs checkmarks on `Opening` | All callbacks must `Dispatcher.Invoke` before touching WPF |
+| `PhraseEngine` | Pure static phrase generation and structured decomposition | Currently English-only; v3.2 needs locale dispatch |
+| `ContrastRefreshController` | 500ms sampling timer; fires `ColorChanged`/`Cleared` events | Wired to `ApplyDisplayColor` / `ApplyTheme` in ContentRendered |
+| `SettingsWindow` | v3.2 new — WPF Window for settings UI | Must not own live state; reflects and propagates to MainWindow |
 
 ---
 
-## Existing Architecture — Baseline Facts from Source Inspection
+## Recommended Project Structure
 
-### Window properties (XAML, unchanged)
-- `AllowsTransparency="True"` — WPF sets WS_EX_LAYERED; composited window
-- `WindowStyle="None"` — no chrome
-- `Topmost="True"` — always on top
-- `Background="Transparent"`
-- `SizeToContent="WidthAndHeight"` — window resizes with content
-
-### Hit-test baseline (critical)
-The outer `<Grid Background="#01000000">` uses alpha=1 (not 0) deliberately. A fully
-transparent background has no hit-test surface; alpha=1 preserves mouse event delivery.
-In v2.3, this remains unchanged — the widget is always hit-testable by WPF. The ghost
-state is implemented by WM_NCHITTEST returning HTTRANSPARENT in the WndProc hook, which
-intercepts the decision at the Win32 level before WPF even processes the mouse event. The
-Grid background is not changed.
-
-### Existing WndProc usage
-`WindowInteropHelper(this).Handle` is used in `MenuThemeCustom_Click` to get the HWND for
-the `Win32Window : IWin32Window` adapter passed to `ColorDialog.ShowDialog()`. This is a
-one-time call at dialog open — there is no persistent `HwndSource.AddHook` in the
-codebase. v2.3 adds the first persistent WndProc hook.
-
-### Existing hover handlers (wired in ContentRendered, lines 107–108)
 ```
-Window_MouseEnter:
-  1. ContentBorder.Background = semi-transparent black (always)
-  2. if StatsPanel visible: stop timer, set 0.5s, restart, _isHoverFastRefresh = true
+FuzzyClock.App/
+├── MainWindow.xaml(.cs)         # unchanged owner of all timers and UI state
+├── SettingsWindow.xaml(.cs)     # NEW — second WPF Window; Owner=MainWindow
+├── AppSettings.cs               # add new fields: Theme, PhraseLocale, BatteryAlertPercent, etc.
+├── SettingsService.cs           # add Validate guards and Defaults for new fields
+├── TrayMenuBuilder.cs           # add "Open Settings..." menu item + OpenSettings callback
+├── StatsService.cs              # unchanged
+├── MonitorService.cs            # unchanged
+├── ContrastRefreshController.cs # unchanged
+├── GhostModeController.cs       # unchanged
 
-Window_MouseLeave:
-  1. ContentBorder.Background = Transparent (always)
-  2. if StatsPanel visible: stop timer, restore interval, restart, _isHoverFastRefresh = false
+FuzzyClock.Core/
+├── PhraseEngine.cs              # refactor: static dispatcher calling IPhraseProvider
+├── IPhraseProvider.cs           # NEW interface: GetPhrase + GetStructuredPhrase
+├── EnglishPhraseProvider.cs     # NEW: current bucket table moved here verbatim
+├── FrenchPhraseProvider.cs      # example of additional locale (add as needed)
+├── DateFormatter.cs             # unchanged
+├── ContrastService.cs           # unchanged
+├── DialGeometry.cs              # unchanged
+├── UptimeFormatter.cs           # unchanged
 ```
-Both handlers are on the WPF event layer. When a WndProc hook returns HTTRANSPARENT,
-Windows stops delivering positional mouse messages to the window. WPF's InputManager
-detects the window is no longer the hit-test target and fires `MouseLeave`. This makes
-`Window_MouseLeave` the reliable restore trigger after ghost mode activates.
+
+### Structure Rationale
+
+- **`SettingsWindow` in FuzzyClock.App:** WPF Window requires `net10.0-windows`; Core must stay WPF-free for test isolation.
+- **`IPhraseProvider` + `*PhraseProvider` in Core:** Keeps Core's public API stable (`PhraseEngine.GetPhrase` stays the entry point) while isolating each language as its own class. No runtime file I/O.
+- **`AppSettings.cs` additions:** The init-property record pattern (never positional, all fields optional for JSON compat) must be continued for each new setting.
 
 ---
 
-## Component Responsibilities
+## Architectural Patterns
 
-| Component | Status | Responsibility for v2.3 |
-|-----------|--------|-------------------------|
-| `MainWindow.xaml.cs` | Modified | Add `WndProcHook`; add `_ghostMode` field + constants; register hook in `ContentRendered`; revise `Window_MouseEnter`/`Window_MouseLeave` |
-| `MainWindow.xaml` | Modified | Add `TextAlignment="Center"` to `PhraseText` and `ShadowText` |
-| `AppSettings.cs` | Unchanged | Ghost mode is transient; no new persisted fields |
-| `SettingsService.cs` | Unchanged | |
-| `StatsService.cs` | Unchanged | |
-| `App.xaml.cs` | Unchanged | |
-| `FuzzyClock.Core` | Unchanged | |
+### Pattern 1: Settings Window as Owner-Child with Event Notification
 
----
+**What:** `SettingsWindow` is opened from a tray callback. `Owner = mainWindowInstance` is set before `Show()`. SettingsWindow does not own an `AppSettings` copy — it receives the current snapshot at open time and fires `event Action<AppSettings> SettingsChanged` when the user applies a change. MainWindow subscribes and calls `ApplySettings()` + `SaveSettings()`.
 
-## New vs Modified: Component Detail
+**When to use:** Any second WPF Window that needs to modify MainWindow-owned state.
 
-### New — WndProc Hook
+**Trade-offs:**
+- Owner relationship ensures SettingsWindow renders in front of the `Topmost=True` overlay on all Windows versions. Without Owner, the settings window can fall behind the always-on-top overlay.
+- Event-based notification keeps SettingsWindow ignorant of MainWindow internals. MainWindow remains the single authoritative owner of all live state.
+- SettingsWindow must NOT call `SettingsService.Save()` directly.
+- Use `Show()` not `ShowDialog()`. `ShowDialog()` runs a nested dispatcher loop and freezes all timers — the overlay phrase, stats, and auto-contrast would all stop updating while settings are open.
 
-**Purpose:** Intercept WM_NCHITTEST to return HTTRANSPARENT when in ghost mode, causing all
-mouse input to pass through the widget to windows beneath.
-
-**Why WM_NCHITTEST hook and not WS_EX_TRANSPARENT extended style:**
-Setting WS_EX_TRANSPARENT via `SetWindowLong` makes the window permanently click-through.
-WPF `MouseEnter`/`MouseLeave` would never fire — there would be no restore trigger.
-WM_NCHITTEST interception is conditional: the hook reads `_ghostMode` and returns
-HTTRANSPARENT only when active, leaving normal HTCLIENT delivery otherwise. This is the
-correct approach for a toggleable ghost state.
-
-**How WM_NCHITTEST HTTRANSPARENT works (Win32 official docs, 2025-07-14):**
-HTTRANSPARENT (-1) means "the cursor is in a window covered by another window in the same
-thread." Windows then sends the message to the window beneath in the Z-order, and mouse
-input is routed to that window instead. The WPF window receives no further mouse messages
-for the current position, causing WPF to fire `MouseLeave` for the overlay window.
-
-**HwndSource.AddHook (official .NET 10 docs, 2026-02-11):**
-`HwndSource.FromHwnd(hwnd).AddHook(delegate)` adds a delegate to the window procedure
-chain. Hooks are called in LIFO order; returning `handled = true` short-circuits further
-processing. The hook is registered via `AddHook` after window construction (in
-`ContentRendered`) — the same HWND acquisition path already in the codebase.
-
-**Important:** Official docs note hooks are held by weak reference. The `WndProcHook`
-method is an instance method on `MainWindow`, which lives for the process lifetime. No
-additional lifetime management is needed.
-
-**New fields:**
+**Example:**
 ```csharp
-private const int WM_NCHITTEST  = 0x0084;
-private const int HTTRANSPARENT = -1;
-private bool _ghostMode = false;
-```
-
-**New method:**
-```csharp
-private IntPtr WndProcHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam,
-                           ref bool handled)
+// In ContentRendered, inside TrayMenuCallbacks initialization:
+OpenSettings = () => Dispatcher.Invoke(() =>
 {
-    if (msg == WM_NCHITTEST && _ghostMode)
+    if (_settingsWindow == null || !_settingsWindow.IsVisible)
     {
-        handled = true;
-        return new IntPtr(HTTRANSPARENT);
+        _settingsWindow = new SettingsWindow(_settings);
+        _settingsWindow.Owner = this;
+        _settingsWindow.SettingsChanged += s =>
+        {
+            ApplySettings(s);
+            SaveSettings();
+        };
+        _settingsWindow.Show();
     }
-    return IntPtr.Zero;
+    else
+    {
+        _settingsWindow.Activate();
+    }
+}),
+```
+
+`_settingsWindow` must be a field on MainWindow, not a local variable. The null-or-not-visible guard prevents duplicate windows.
+
+### Pattern 2: IPhraseProvider Interface for Multi-Locale PhraseEngine
+
+**What:** Extract the English bucket table and `HourWords` array into `EnglishPhraseProvider : IPhraseProvider`. `PhraseEngine` becomes a static dispatcher with a module-level `_provider` field, a `SetLocale(string)` method, and unchanged `GetPhrase`/`GetStructuredPhrase` public methods. Call sites in MainWindow are unmodified.
+
+**When to use:** Adding multilingual phrase generation.
+
+**Trade-offs:**
+- `PhraseEngine` becomes stateful at module level (holds `_provider`). In unit tests, any test that calls `SetLocale` must restore the default locale afterward (or set locale explicitly before each assertion) to prevent cross-test pollution. This is the tradeoff for leaving call sites unchanged.
+- All 51+ existing `PhraseEngine` unit tests continue to pass without modification — the English provider produces identical output to the current static implementation.
+- Phrase template strings for non-English locales are embedded as `private static readonly` arrays in their provider class (compiled into the assembly). No runtime file I/O. No resource loading. Keeps Core pure and test-safe.
+
+**Example:**
+```csharp
+// FuzzyClock.Core/PhraseEngine.cs
+public static class PhraseEngine
+{
+    private static IPhraseProvider _provider = new EnglishPhraseProvider();
+
+    public static void SetLocale(string locale)
+        => _provider = locale switch
+        {
+            "fr" => new FrenchPhraseProvider(),
+            _    => new EnglishPhraseProvider()
+        };
+
+    public static string GetPhrase(DateTime dt)
+        => _provider.GetPhrase(dt);
+
+    public static (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt)
+        => _provider.GetStructuredPhrase(dt);
 }
 ```
 
-**Registration (in ContentRendered, after `InitTrayIcon()`):**
+### Pattern 3: Theme as Named Preset — No ThemeService Class
+
+**What:** A theme is a named color preset stored as a string in `AppSettings`. `ApplyTheme()` in MainWindow already applies `_accentColor` to all UI elements. Adding theme support means: (a) `SetTheme(string)` sets `_accentColor` from the preset palette, and (b) optionally sets a `ContentBorder` background tint. There is no need for a separate `ThemeService`.
+
+**When to use:** When theme scope is limited to color presets. A `ThemeService` would only be justified if themes involved fonts, layout variants, or animation — none of which are planned for v3.2.
+
+**Trade-offs:**
+- `ApplyTheme()` already covers all 20+ elements. Adding a background tint adds exactly one line: `ContentBorder.Background = new SolidColorBrush(themeBackground)`.
+- `ApplyDisplayColor()` (auto-contrast override path) must also respect the theme background tint — one additional line there too.
+- The `SettingsService.Validate()` guard for the `Theme` field follows the existing pattern: `string[] validThemes = { "Default", "Dark", ... }`.
+
+### Pattern 4: Battery Alert as Display-Side State Flag
+
+**What:** `AppSettings.BatteryAlertPercent` (int, default 20) and `AppSettings.BatteryAlertEnabled` (bool, default false). MainWindow adds `_batteryAlertActive` bool field. `UpdateStatsDisplay()` computes and sets this flag on every stats tick. `ApplyTheme()` and `ApplyDisplayColor()` check the flag and override the `BattBar`/`BattText` color if alert is active.
+
+**When to use:** For a visual alert that requires no new timer, service, or event system. The stats timer already calls `UpdateStatsDisplay()` on every tick.
+
+**Trade-offs:**
+- Alert color must be hardcoded (not subject to user theme) — a warning red visible regardless of accent. Suggested: `Color.FromRgb(0xFF, 0x44, 0x00)`.
+- `ApplyTheme()` and `ApplyDisplayColor()` both need an identical battery-section guard. These methods are already parallel (one covers accent path, one covers auto-contrast path) and both must be kept in sync when new battery logic is added.
+- `BatteryAlertEnabled = false` default means no alert on first launch or upgrade — users opt in.
+
+---
+
+## Data Flow
+
+### Settings Change Flow
+
+```
+User changes setting
+    |
+    +-- Via tray menu callback (WinForms thread)
+    |       Dispatcher.Invoke(...)
+    |
+    +-- Via SettingsWindow.SettingsChanged event (WPF thread, already correct)
+    |
+    v
+MainWindow.Set*() or MainWindow.ApplySettings(AppSettings s)
+    |
+    v
+Updates MainWindow private fields (_accentColor, _dialMode, _phraseLocale, etc.)
+    |
+    v
+Calls ApplyTheme() / PhraseEngine.SetLocale() / UpdateStatsDisplay() etc.
+    |
+    v
+SaveSettings()
+    --> builds new _settings record with { ... } expression
+    --> SettingsService.Save(_settings)
+    --> atomic JSON write to %LOCALAPPDATA%\FuzzyClock\settings.json
+```
+
+### Color Application Pipeline
+
+```
+_accentColor (field on MainWindow)
+    |
+    +-- ApplyTheme()
+    |   Applies accent brush to all 20+ UI elements.
+    |   Called when: accent color changes, auto-contrast clears (Cleared event),
+    |   SetTextStyle(), ContentRendered (after InitDialDecorations).
+    |   Battery section: checks _batteryAlertActive → alert color OR accent brush.
+    |
+    +-- ApplyDisplayColor(RgbColor)
+        Applies computed override color to same 20+ elements.
+        Called when: ContrastRefreshController.ColorChanged event fires (500ms tick).
+        Battery section: checks _batteryAlertActive → alert color OR override brush.
+```
+
+### Battery Alert State Flow
+
+```
+_statsTimer.Tick (1s/3s/10s)
+    |
+    v
+UpdateStatsDisplay()
+    --> _statsService.Refresh()
+    --> reads BatteryPercent, IsPluggedIn
+    --> computes: _batteryAlertActive =
+            _batteryAlertEnabled &&
+            _statsService.BatteryPercent >= 0f &&
+            _statsService.BatteryPercent < _batteryAlertPercent &&
+            !_statsService.IsPluggedIn
+    --> if _batteryAlertActive: applies alert brush to BattBar/BattText directly
+    --> else: applies accent brush to BattBar/BattText
+
+Next call to ApplyTheme() or ApplyDisplayColor():
+    --> battery section checks _batteryAlertActive flag
+    --> if true: skips writing accent/override color to BattBar/BattText
+    --> if false: writes accent/override color as normal
+```
+
+### Phrase Locale Flow
+
+```
+AppSettings.PhraseLocale = "fr"  (loaded from settings.json or set via SettingsWindow)
+    |
+    v
+ApplySettings(s) calls PhraseEngine.SetLocale(s.PhraseLocale)
+    |
+    v
+_timer.Tick (10s) --> UpdatePhraseIfChanged()
+    --> PhraseEngine.GetPhrase(DateTime.Now) --> FrenchPhraseProvider.GetPhrase()
+    --> PhraseText.Text = French phrase string
+```
+
+---
+
+## Integration Points: New vs Modified Components
+
+### (a) Settings Window
+
+**New components:**
+- `FuzzyClock.App/SettingsWindow.xaml` — standard WPF Window; NOT AllowsTransparency; NOT Topmost
+- `FuzzyClock.App/SettingsWindow.xaml.cs` — constructor accepts `AppSettings` snapshot; exposes `event Action<AppSettings> SettingsChanged`
+
+**Modified components:**
+- `MainWindow.xaml.cs`:
+  - Add `private SettingsWindow? _settingsWindow` field
+  - In ContentRendered, add `OpenSettings` to `TrayMenuCallbacks` struct
+  - Subscribe to `_settingsWindow.SettingsChanged` to call `ApplySettings()` + `SaveSettings()`
+- `TrayMenuBuilder.cs`:
+  - Add "Open Settings..." menu item (first item, before Ghost Mode separator)
+  - Add `required Action OpenSettings` to `TrayMenuCallbacks`
+- `TrayMenuCallbacks` record — add `required Action OpenSettings { get; init; }`
+
+**Owner relationship:** `_settingsWindow.Owner = this` must be set before `_settingsWindow.Show()`. This ensures the Settings Window renders in front of the `Topmost=True` overlay. Without Owner, the settings window disappears behind the overlay on Windows 10/11.
+
+### (b) PhraseEngine Multi-Locale Refactor
+
+**New components in FuzzyClock.Core:**
+- `IPhraseProvider.cs` — interface with `GetPhrase(DateTime)` and `GetStructuredPhrase(DateTime)` methods
+- `EnglishPhraseProvider.cs` — current static `Buckets` array, `HourWords` array, and both methods moved verbatim; implements `IPhraseProvider`
+- Additional locale classes as needed (e.g. `FrenchPhraseProvider.cs`)
+
+**Modified components:**
+- `FuzzyClock.Core/PhraseEngine.cs`:
+  - Becomes a static dispatcher
+  - Retains `GetPhrase(DateTime)` and `GetStructuredPhrase(DateTime)` as public static methods (call sites in MainWindow unchanged)
+  - Adds `public static void SetLocale(string locale)` static method
+  - Internal `_provider` field set to `new EnglishPhraseProvider()` by default
+- `FuzzyClock.App/MainWindow.xaml.cs`:
+  - Add `private string _phraseLocale = "en"` field
+  - `ApplySettings(AppSettings s)` calls `PhraseEngine.SetLocale(s.PhraseLocale)` and clears `PhraseText.Text` to force redraw on next tick
+  - `SaveSettings()` includes `PhraseLocale = _phraseLocale` in the settings record expression
+  - `ResetToDefaults()` resets `_phraseLocale = "en"` and calls `PhraseEngine.SetLocale("en")`
+- `FuzzyClock.App/AppSettings.cs` — add `public string PhraseLocale { get; init; } = "en"`
+- `FuzzyClock.App/SettingsService.cs` — add PhraseLocale to `Validate()` (allowed values list) and `Defaults()`
+
+**Test impact:** All existing PhraseEngine unit tests use `PhraseEngine.GetPhrase(DateTime)` with implicit default English provider. They remain valid and pass without modification. New locale tests require explicit `PhraseEngine.SetLocale("fr")` calls with teardown restoring `"en"`.
+
+### (c) Theme Logic
+
+**No new ThemeService class.** Theme is an accent color preset applied through the existing `ApplyTheme()` method.
+
+**Modified components:**
+- `FuzzyClock.App/AppSettings.cs` — add `public string Theme { get; init; } = "Default"`
+- `FuzzyClock.App/SettingsService.cs` — add Theme guard in `Validate()`, add to `Defaults()`
+- `FuzzyClock.App/MainWindow.xaml.cs`:
+  - Add `private string _theme = "Default"` field
+  - `ApplyTheme()` — after applying accent brush to all elements, check `_theme` field; apply the theme's background tint (if any) to `ContentBorder.Background`
+  - Add `private void SetTheme(string theme)` — sets `_theme`, derives `_accentColor` from the preset palette, calls `ApplyTheme()`, calls `SaveSettings()`
+  - `ResetToDefaults()` — resets `_theme = "Default"`, calls `SetTheme("Default")`
+  - `ApplySettings(AppSettings s)` — sets `_theme = s.Theme`
+- `TrayMenuBuilder.cs` — new "Theme" submenu in tray menu; new callback `SetTheme` in `TrayMenuCallbacks`
+- `TrayMenuCallbacks` record — add `required Action<string> SetTheme { get; init; }`
+
+**No changes to ContrastRefreshController or ContrastService.** Auto-contrast computes a display color from sampled background pixels, independent of theme.
+
+### (d) Battery Alert State Flow
+
+**No new service or class.** Alert state is a display flag on MainWindow.
+
+**Modified components:**
+- `FuzzyClock.App/AppSettings.cs`:
+  - Add `public int BatteryAlertPercent { get; init; } = 20`
+  - Add `public bool BatteryAlertEnabled { get; init; } = false`
+- `FuzzyClock.App/SettingsService.cs`:
+  - Add `BatteryAlertPercent` guard (clamp to 1–99 or discrete ladder) in `Validate()`
+  - Add both fields to `Defaults()`
+- `FuzzyClock.App/MainWindow.xaml.cs`:
+  - Add `private bool _batteryAlertActive = false` field
+  - Add `private bool _batteryAlertEnabled = false` field
+  - Add `private int _batteryAlertPercent = 20` field
+  - `UpdateStatsDisplay()` — after reading `BatteryPercent`, compute and set `_batteryAlertActive`; apply alert brush to `BattBar.Background` and `BattText.Foreground` when true
+  - `ApplyTheme()` — in the battery section (lines ~1097–1116 in current code), check `_batteryAlertActive`: if true, apply `Color.FromRgb(0xFF, 0x44, 0x00)` alert brush; if false, apply accent brush
+  - `ApplyDisplayColor(RgbColor)` — same check for `BattBar` and `BattText` elements (lines ~1148–1153 in current code)
+  - `ApplySettings(AppSettings s)` — sets `_batteryAlertEnabled = s.BatteryAlertEnabled`, `_batteryAlertPercent = s.BatteryAlertPercent`
+  - `SaveSettings()` — includes `BatteryAlertEnabled = _batteryAlertEnabled`, `BatteryAlertPercent = _batteryAlertPercent` in record expression
+  - `ResetToDefaults()` — resets `_batteryAlertEnabled = false`, `_batteryAlertPercent = 20`, `_batteryAlertActive = false`
+
+---
+
+## AppSettings Migration Strategy
+
+All new fields are added as `{ get; init; }` init-property declarations with explicit `= defaultValue`. This is the established forward/backward JSON compat pattern. Fields absent in an older `settings.json` deserialize to the C# type default (0/false/""), so:
+1. `SettingsService.Defaults()` must use explicit `= value` for all new fields.
+2. `SettingsService.Validate()` must guard each new field against invalid values.
+
+Fields to add for v3.2:
+
 ```csharp
-var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-System.Windows.Interop.HwndSource.FromHwnd(hwnd).AddHook(WndProcHook);
+// AppSettings.cs additions
+public string PhraseLocale         { get; init; } = "en";
+public string Theme                { get; init; } = "Default";
+public int    BatteryAlertPercent  { get; init; } = 20;
+public bool   BatteryAlertEnabled  { get; init; } = false;
 ```
 
----
-
-### Modified — Window_MouseEnter
-
-**Current:** Sets backdrop unconditionally; optionally accelerates stats timer.
-
-**New ghost path (no Ctrl+Alt held):**
-1. Check `Keyboard.Modifiers` — if Ctrl and Alt are not both held, enter ghost mode
-2. Set `_ghostMode = true`
-3. Set `this.Opacity = 0` (widget invisible; `_windowOpacity` is not touched)
-4. Return immediately — skip backdrop, skip stats timer acceleration
-
-After step 3, WM_NCHITTEST starts returning HTTRANSPARENT. WPF fires `MouseLeave` when
-the mouse moves (Windows stops delivering mouse-over messages to the HWND). The restore
-path in `Window_MouseLeave` handles re-activation.
-
-**Ctrl+Alt interactive path (Ctrl+Alt held):**
-Existing behavior, unchanged: backdrop shown, stats timer accelerated.
-
-**Why `Keyboard.Modifiers` and not a global keyboard hook:**
-`Keyboard.Modifiers` from `System.Windows.Input` reads synchronous WPF modifier state at
-the moment of the call. This project only needs modifier state when the mouse enters the
-window — not while the window has no focus. A `SetWindowsHookEx(WH_KEYBOARD_LL)` global
-hook requires a separate thread, an unmanaged callback pointer, and hook chain
-participation — disproportionate complexity for a one-line state read. `Keyboard.Modifiers`
-is the correct tool.
-
-```csharp
-private void Window_MouseEnter(object sender, MouseEventArgs e)
-{
-    bool ctrlAltHeld = (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt))
-                       == (ModifierKeys.Control | ModifierKeys.Alt);
-
-    if (!ctrlAltHeld)
-    {
-        _ghostMode = true;
-        this.Opacity = 0;
-        return;
-    }
-
-    // Ctrl+Alt held — interactive mode (existing behavior)
-    ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
-        System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
-
-    if (StatsPanel.Visibility != Visibility.Visible) return;
-    if (_statsTimer != null && _statsTimer.IsEnabled)
-    {
-        _statsTimer.Stop();
-        _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
-        _statsTimer.Start();
-    }
-    _isHoverFastRefresh = true;
-}
-```
+No migration code is needed (unlike the v2.6 `MonitorPositions` migration from flat `Left`/`Top`). All new fields are additive with safe defaults on absent keys.
 
 ---
 
-### Modified — Window_MouseLeave
+## Build Order Recommendation
 
-**Ghost restore path (_ghostMode is true):**
-1. Set `_ghostMode = false` — WM_NCHITTEST returns to normal HTCLIENT
-2. Restore `this.Opacity = _windowOpacity` — user's configured opacity
-3. Clear `ContentBorder.Background` to Transparent (defensive, in case of mid-session Ctrl+Alt transitions)
-4. Return — do not touch stats timer (`_isHoverFastRefresh` was never set in ghost path)
+Dependencies between v3.2 features determine the safe build order:
 
-**Ctrl+Alt interactive restore path:**
-Existing behavior, unchanged: clear backdrop, restore stats interval, clear `_isHoverFastRefresh`.
+| Phase | Feature | Dependencies | Rationale |
+|-------|---------|--------------|-----------|
+| 1 | `IPhraseProvider` + `EnglishPhraseProvider` extraction | None — pure Core refactor | Highest-risk change (touches Core with 51 unit tests); isolated early so failures are contained; no behavioral changes to MainWindow yet |
+| 2 | Settings Window infrastructure | None (uses existing `AppSettings`) | Establishes Owner/event pattern before features need it as a UI surface; can start as a minimal shell that just displays current settings |
+| 3 | Theme presets | Settings Window (UI surface for theme picker) | Extends `ApplyTheme()` — must be stable before battery alert adds another branch to the same method |
+| 4 | Battery alert | Theme done (`ApplyTheme()` stable); Settings Window available | Adds `_batteryAlertActive` guard to `ApplyTheme()` and `ApplyDisplayColor()` — do after theme to avoid concurrent edits to same methods |
+| 5 | Multilingual phrase support | Phase 1 (`IPhraseProvider` done); Phase 2 (Settings Window for locale picker) | Locale providers are additive; no existing code is broken until `SetLocale` is called |
 
-```csharp
-private void Window_MouseLeave(object sender, MouseEventArgs e)
-{
-    if (_ghostMode)
-    {
-        _ghostMode = false;
-        this.Opacity = _windowOpacity;
-        ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
-        return;
-    }
-
-    // Ctrl+Alt interactive path — existing behavior
-    ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
-
-    if (StatsPanel.Visibility != Visibility.Visible) return;
-    if (_statsTimer != null)
-    {
-        _statsTimer.Stop();
-        _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
-        _statsTimer.Start();
-    }
-    _isHoverFastRefresh = false;
-}
-```
-
-**Key invariant: `_windowOpacity` vs `this.Opacity`**
-`_windowOpacity` is the user's persisted opacity value, updated only by `SetOpacity()`.
-`this.Opacity` is the actual window alpha — equal to `_windowOpacity` during normal
-operation, temporarily 0 during ghost mode. `SaveSettings()` writes `_windowOpacity` —
-ghost state is never accidentally persisted.
+**Ordering rationale:**
+- The PhraseEngine refactor is the only change that touches Core and its test suite. Isolating it first means any test regression is immediately attributable.
+- Settings Window infrastructure before specific features means the UI surface is ready by the time theme and locale controls are implemented, avoiding a situation where settings live in the tray while partially moved.
+- Theme before battery alert because both modify `ApplyTheme()`. Sequential changes to the same method are cleaner than parallel.
+- Locale last because `FrenchPhraseProvider` (or other locales) are pure additions with no risk to existing behavior.
 
 ---
 
-### Modified — MainWindow.xaml (Centered Phrase Text)
+## Anti-Patterns
 
-Add `TextAlignment="Center"` to both `PhraseText` and `ShadowText`. Both TextBlocks must
-be changed together because `ShadowText` is the shadow layer rendered at (X=2, Y=2) offset
-behind `PhraseText`. Centering one without the other would misalign the shadow.
+### Anti-Pattern 1: SettingsWindow Owns Live State
 
-```xml
-<!-- Before -->
-<TextBlock x:Name="ShadowText" Text="" FontFamily="Segoe UI Light" FontSize="32"
-           Foreground="#BB000000" IsHitTestVisible="False">
-    <TextBlock.RenderTransform><TranslateTransform X="2" Y="2" /></TextBlock.RenderTransform>
-</TextBlock>
-<TextBlock x:Name="PhraseText" Text="" FontFamily="Segoe UI Light" FontSize="32"
-           Foreground="White" />
+**What people do:** Give `SettingsWindow` its own `AppSettings` copy, let it call `SettingsService.Save()` directly, have MainWindow poll settings on next tick.
 
-<!-- After -->
-<TextBlock x:Name="ShadowText" Text="" FontFamily="Segoe UI Light" FontSize="32"
-           Foreground="#BB000000" IsHitTestVisible="False" TextAlignment="Center">
-    <TextBlock.RenderTransform><TranslateTransform X="2" Y="2" /></TextBlock.RenderTransform>
-</TextBlock>
-<TextBlock x:Name="PhraseText" Text="" FontFamily="Segoe UI Light" FontSize="32"
-           Foreground="White" TextAlignment="Center" />
-```
+**Why it's wrong:** Creates dual source of truth. MainWindow's private fields (`_accentColor`, `_dialMode`, `_currentTextStyle`, etc.) would be out of sync with what SettingsWindow wrote to disk until the next restart. All 20+ UI elements would display the old values.
 
-**SizeToContent interaction:**
-`SizeToContent=WidthAndHeight` sets the window width to the measured content width.
-A `TextBlock` with `TextAlignment="Center"` centers text within its own layout width, but
-the `TextBlock`'s measured width is the text width itself (not a fixed container). Centering
-is only visible when the TextBlock has a wider container than the text — specifically, when
-`StatsPanel` (Width=180) is visible and forces the inner Grid wider than the phrase text.
-When stats are hidden, the window width equals the phrase text width, and centering has no
-visual effect. This is acceptable behavior — no additional layout changes are needed.
+**Do this instead:** SettingsWindow fires `SettingsChanged` with a new `AppSettings` snapshot. MainWindow calls `ApplySettings()` then `SaveSettings()` — identical path to tray callbacks.
 
-**No AppSettings field:**
-Centering is a permanent change to the default presentation, not a user toggle.
-`Reset to Defaults` in the tray menu (TRAY-03) resets to the centered layout by definition.
+### Anti-Pattern 2: ShowDialog() for SettingsWindow
 
----
+**What people do:** `settingsWindow.ShowDialog()` for a modal settings experience.
 
-## Integration Map
+**Why it's wrong:** `ShowDialog()` runs a nested WPF dispatcher loop on the UI thread. All `DispatcherTimer` ticks stop: phrase does not update, stats freeze, auto-contrast stops sampling. The overlay becomes a frozen screenshot while settings are open.
 
-| Component | File | Change Type | What |
-|-----------|------|-------------|------|
-| `WM_NCHITTEST` / `HTTRANSPARENT` constants | `MainWindow.xaml.cs` | NEW fields | `private const int WM_NCHITTEST = 0x0084; private const int HTTRANSPARENT = -1` |
-| `_ghostMode` | `MainWindow.xaml.cs` | NEW field | `private bool _ghostMode = false` |
-| `WndProcHook` method | `MainWindow.xaml.cs` | NEW method | WM_NCHITTEST → HTTRANSPARENT when `_ghostMode` |
-| HwndSource.AddHook registration | `MainWindow.xaml.cs` ContentRendered | MODIFIED (addition) | 2 lines appended after `InitTrayIcon()` call |
-| `Window_MouseEnter` | `MainWindow.xaml.cs` | MODIFIED | Prepend ghost path (Ctrl+Alt check → set `_ghostMode`, Opacity=0) before existing backdrop path |
-| `Window_MouseLeave` | `MainWindow.xaml.cs` | MODIFIED | Prepend ghost restore path (`_ghostMode` check → restore Opacity) before existing clear path |
-| `PhraseText` | `MainWindow.xaml` | MODIFIED | Add `TextAlignment="Center"` |
-| `ShadowText` | `MainWindow.xaml` | MODIFIED | Add `TextAlignment="Center"` |
-| `AppSettings.cs` | No change | NONE | Ghost mode is transient state only |
-| `SettingsService.cs` | No change | NONE | |
-| `StatsService.cs` | No change | NONE | |
+**Do this instead:** `Show()` (modeless). Guard with `if (_settingsWindow == null || !_settingsWindow.IsVisible)` to prevent duplicate windows.
 
-**Total scope:** ~25 new/changed lines of C#, 2 XAML attribute additions.
+### Anti-Pattern 3: ThemeService as a Separate Stateful Class
+
+**What people do:** Create a `ThemeService` with its own color dictionaries, inject it into MainWindow, have it fire events when theme changes.
+
+**Why it's wrong:** No DI container, no reactive binding framework. There would be two write paths to the same `TextBlock.Foreground` properties: `ApplyTheme()` and the new `ThemeService`. Race conditions and stale colors are inevitable.
+
+**Do this instead:** Extend `ApplyTheme()`. Add a `_theme` field to MainWindow alongside `_currentTextStyle`. A theme preset is just a named value for `_accentColor` plus an optional `ContentBorder` background tint.
+
+### Anti-Pattern 4: PhraseEngine Loads Phrase Tables from Files at Runtime
+
+**What people do:** Store locale phrase templates in embedded resources or JSON files. Load them in `PhraseEngine.SetLocale()` via `Assembly.GetManifestResourceStream()`.
+
+**Why it's wrong:** `FuzzyClock.Core` is a pure, no-I/O library. Test projects rely on this for deterministic, side-effect-free unit testing. Introducing resource loading adds a failure mode (missing resource, bad manifest path) that does not currently exist. It also forces tests to depend on build artifact layout.
+
+**Do this instead:** Embed phrase templates as `private static readonly` arrays inside the `*PhraseProvider` class. Compiled directly into the assembly — no runtime file I/O, no path resolution, no resource loading.
+
+### Anti-Pattern 5: Modifying BattBar/BattText Color Only in UpdateStatsDisplay
+
+**What people do:** Set the alert color for battery elements only in `UpdateStatsDisplay()`, and not add any guard in `ApplyTheme()` or `ApplyDisplayColor()`.
+
+**Why it's wrong:** `ApplyTheme()` is called when the user changes accent color or the auto-contrast contrast controller fires `Cleared`. Both of these happen independently of the stats timer. Without the `_batteryAlertActive` check in those methods, changing accent color while battery is in alert state would overwrite the alert color with the new accent color.
+
+**Do this instead:** Check `_batteryAlertActive` in both `ApplyTheme()` and `ApplyDisplayColor()` for the battery elements. `UpdateStatsDisplay()` sets the flag; color-application methods respect it.
 
 ---
 
-## Data Flow: Ghost Mode Lifecycle
+## Scaling Considerations
 
-```
-Mouse approaches widget from outside
-        |
-        v
-WM_NCHITTEST fires → _ghostMode false → returns IntPtr.Zero (default HTCLIENT path)
-WPF receives hit-test positive → prepares MouseEnter
-        |
-        v
-Window_MouseEnter fires
-        |
-   ┌────┴────────────────────────────────┐
-   │                                     │
-[Ctrl+Alt NOT held]              [Ctrl+Alt held]
-   │                                     │
-   v                                     v
-_ghostMode = true              ContentBorder.Background = semi-transparent
-this.Opacity = 0               _statsTimer accelerated (if stats visible)
-return                         _isHoverFastRefresh = true
-   │
-   v
-WM_NCHITTEST fires for subsequent mouse messages
-_ghostMode = true → handled = true, return HTTRANSPARENT
-Windows routes mouse to window beneath (desktop, other apps)
-WPF InputManager loses mouse-over element → MouseLeave fires
-   │
-   v
-Window_MouseLeave fires
-_ghostMode = true → enter restore path
-_ghostMode = false
-this.Opacity = _windowOpacity
-ContentBorder.Background = Transparent (defensive clear)
-return
-   │
-   v
-Widget visible again.
-WM_NCHITTEST → _ghostMode false → returns IntPtr.Zero → HTCLIENT
-Normal hover behavior resumes on next MouseEnter.
-```
+This is a single-user desktop widget. Scale means code maintainability, not user load.
 
----
-
-## Interaction with Existing Systems
-
-### Stats Timer and _isHoverFastRefresh
-Ghost path exits `Window_MouseEnter` early — stats timer is never touched, `_isHoverFastRefresh`
-is never set. Ghost restore path (`_ghostMode = true` branch in `Window_MouseLeave`) also
-returns early without touching timer or `_isHoverFastRefresh`. The stats timer continues at
-its configured interval uninterrupted during ghost mode. This is correct: the widget is
-invisible; accelerating stats sampling would be wasteful with no visible output.
-
-### Opacity: _windowOpacity vs this.Opacity
-`_windowOpacity` = user-set value, modified only by `SetOpacity()`. Written to settings.
-`this.Opacity` = actual window alpha. Ghost mode sets it to 0 and restores it to
-`_windowOpacity`. `SaveSettings()` always writes `_windowOpacity` (not `this.Opacity`
-directly) — ghost state cannot be accidentally persisted to settings.json.
-
-### Backdrop (ContentBorder.Background)
-Ghost mode does not set the backdrop. The backdrop is only applied in the Ctrl+Alt
-interactive path. The `Window_MouseLeave` ghost restore path unconditionally clears the
-backdrop as a defensive invariant to handle any edge case where the user held Ctrl+Alt for
-one hover cycle (backdrop was set) then released it before the next hover cycle (ghost path
-taken, backdrop still stale from previous session).
-
-### Drag (Grid_MouseLeftButtonDown)
-`DragMove()` is only reachable when the widget is NOT in ghost mode (ghost mode sets
-`this.Opacity = 0` and returns HTTRANSPARENT — left-click passes to the window beneath,
-never reaching `Grid_MouseLeftButtonDown`). The drag pause/resume of the stats timer is
-only active when the user dragged via Ctrl+Alt interaction, making the widget interactive.
-The two paths are exclusive; no interaction conflict exists.
-
-### Context Menu (right-click)
-Right-click only works when the widget is in interactive mode (Ctrl+Alt held at hover time,
-or not yet hovered). In ghost mode the right-click passes through to the window beneath.
-This is correct and desired: the user cannot access the context menu while the widget is
-invisible. To access the menu, the user holds Ctrl+Alt to enter interactive mode, then
-right-clicks.
-
-### PreviewMouseWheel (opacity scroll)
-In ghost mode, the widget is HTTRANSPARENT. Scroll events pass through to the window
-beneath. Opacity scroll is only available in interactive mode. Correct.
-
-### SetOpacity() called while in ghost mode
-If the user somehow adjusts opacity via context menu during an interactive (Ctrl+Alt) hover
-session, `SetOpacity()` updates both `_windowOpacity` and `this.Opacity`. When `MouseLeave`
-fires (not ghost path, since `_ghostMode` is false in Ctrl+Alt mode), the existing path
-restores correctly. No conflict.
-
-### ResetToDefaults() (tray menu)
-`ResetToDefaults()` calls `SetOpacity(1.0)` which sets `_windowOpacity = 1.0` and
-`this.Opacity = 1.0`. If the widget happens to be in ghost mode when Reset is triggered
-(theoretically impossible: tray icon is a WinForms NotifyIcon click, the widget is
-HTTRANSPARENT so the user cannot click the tray icon with the mouse over the widget — but
-defensively), the `_ghostMode = true` flag would still be set and the WndProc hook would
-continue returning HTTRANSPARENT until `MouseLeave` fires. This is an acceptable edge case
-that resolves itself on next mouse movement.
-
----
-
-## Build Order (Suggested Phase Sequence)
-
-**Phase A — Centered phrase text (XAML only)**
-- Add `TextAlignment="Center"` to `PhraseText` and `ShadowText` in `MainWindow.xaml`
-- Verify: phrase text is centered when StatsPanel is visible; no centering effect when
-  stats hidden (expected, by design); shadow alignment unchanged
-- Rationale: isolated XAML change with zero behavioral risk; validates SizeToContent
-  interaction before adding ghost complexity
-
-**Phase B — Ghost mode core (WndProc + hover handler revision)**
-- Add `_ghostMode` field and `WM_NCHITTEST`/`HTTRANSPARENT` constants
-- Add `WndProcHook` method
-- Register hook in `ContentRendered` (after `InitTrayIcon()`)
-- Revise `Window_MouseEnter`: add ghost path (no Ctrl+Alt check yet — always ghost)
-- Revise `Window_MouseLeave`: add ghost restore path
-- Verify: hovering makes widget invisible and click-through; moving mouse away restores
-  widget at correct opacity; stats timer unaffected; drag inaccessible in ghost state
-- Rationale: core mechanism verified in isolation before adding Ctrl+Alt branch
-
-**Phase C — Ctrl+Alt interaction modifier**
-- Add `Keyboard.Modifiers` check to `Window_MouseEnter`
-- Wrap existing backdrop/fast-refresh path in `ctrlAltHeld` branch
-- Verify: hovering without Ctrl+Alt → ghost; hovering with Ctrl+Alt → interactive with
-  backdrop and fast-refresh; releasing Ctrl+Alt and hovering again → ghost
-
-**Phases B and C can be merged** into a single implementation step. The total change is
-~25 lines in two methods. The split is useful only if incremental human verification is
-required between the two behaviors. Given the existing milestone's yolo config and the low
-line count, merging into one phase is viable.
-
----
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Using WS_EX_TRANSPARENT Extended Style for Click-Through
-
-**What:** Set `WS_EX_TRANSPARENT` via `SetWindowLong(hwnd, GWL_EXSTYLE, ...)` to make the
-window permanently click-through.
-
-**Why bad:** WS_EX_TRANSPARENT means the window never receives hit-test input. WPF
-`MouseEnter` never fires. `MouseLeave` never fires. There is no restore trigger — the
-widget is permanently click-through once the style is set. The feature requires conditional
-click-through that can be toggled off when the mouse moves away.
-
-**Instead:** Use the WM_NCHITTEST WndProc hook with `_ghostMode` guard. This is conditional
-and reversible within the same message loop tick.
-
-### Anti-Pattern 2: Using Visibility.Collapsed for Ghost Hide
-
-**What:** Set `PhraseText.Visibility = Collapsed` (or the entire window `Visibility =
-Hidden`) to hide the widget in ghost mode.
-
-**Why bad:** `Visibility.Collapsed` removes the element from layout. `SizeToContent=
-WidthAndHeight` would resize the window to 0, destroying the widget's position. When the
-widget restores, the position would need to be re-applied (and `ActualWidth`/`ActualHeight`
-are 0 when Collapsed, making clamp calculations unsafe). `Window.Visibility = Hidden`
-hides the window but removes it from the compositor — it would not receive further
-mouse messages to trigger `MouseLeave`.
-
-**Instead:** `this.Opacity = 0` preserves the window geometry, position, and HWND.
-The window is invisible (alpha 0 compositing) but maintains its layout and position.
-WM_NCHITTEST (not Visibility) controls click-through.
-
-### Anti-Pattern 3: Global Keyboard Hook for Ctrl+Alt Detection
-
-**What:** Install `SetWindowsHookEx(WH_KEYBOARD_LL)` to track Ctrl+Alt keydown/up globally
-and maintain a `_ctrlAltHeld` bool that `Window_MouseEnter` reads.
-
-**Why bad:** Global keyboard hooks require unmanaged function pointers, a message pump on
-a separate thread, and participation in the OS hook chain. Any exception in the callback
-crashes the process silently. The hook must be uninstalled on application exit (cleanup
-path). This is substantial complexity for a feature that needs modifier state only at one
-specific moment (mouse entering the window).
-
-**Instead:** `Keyboard.Modifiers` reads the current WPF modifier state synchronously and
-accurately at the moment `Window_MouseEnter` fires. Zero additional infrastructure.
-
-### Anti-Pattern 4: Touching _windowOpacity in Ghost Mode
-
-**What:** Set `_windowOpacity = 0` in the ghost path alongside `this.Opacity = 0`.
-
-**Why bad:** `_windowOpacity` is the source of truth for the user's configured opacity. It
-is read by `SaveSettings()` and by the opacity preset checkmark sync in `ContextMenu_Opened`.
-Setting it to 0 would either persist the ghost state to settings.json (making the widget
-invisible on next launch) or corrupt the opacity preset checkmarks.
-
-**Instead:** Only modify `this.Opacity`. The restore path reads `_windowOpacity` to
-recover the correct value. The two variables serve distinct purposes and must not be
-conflated.
-
-### Anti-Pattern 5: Registering the WndProc Hook Before ContentRendered
-
-**What:** Register `HwndSource.AddHook` in the `MainWindow()` constructor or in
-`ApplySettings()`.
-
-**Why bad:** `HwndSource.FromHwnd(hwnd)` requires a valid HWND. The HWND is not allocated
-until the window is shown. `WindowInteropHelper(this).Handle` returns `IntPtr.Zero` before
-`Show()` is called. Calling `FromHwnd(IntPtr.Zero)` returns null; `.AddHook` would throw
-a `NullReferenceException`.
-
-**Instead:** Register in `ContentRendered`, which fires after the first layout pass
-following `Show()`. The existing HWND acquisition pattern (`Win32Window` for ColorDialog)
-also happens at runtime (after `Show()`), not at construction time. This constraint is
-consistent with all other post-show initialization in `ContentRendered`.
-
----
-
-## Scalability / Long-Term Considerations
-
-This is a single-window personal desktop widget. Ghost mode has no scalability surface —
-it is a single bool field and a 5-line WndProc hook. The only runtime cost is one
-`WM_NCHITTEST` message intercept per mouse-move event while the mouse is over the window,
-which is a near-zero cost per message on the UI thread.
+| Concern | Current state | Threshold | What to do |
+|---------|--------------|-----------|------------|
+| MainWindow line count | ~1300 lines | ~1800 lines | Extract display helpers to partial class or dedicated DisplayCoordinator |
+| AppSettings field count | 20 fields | 35+ fields | Consider grouping into nested records — but that is a breaking JSON change requiring migration code |
+| Tray menu item count | ~30 items | ~50 items | Settings Window takes over most settings; tray reduces to: Open Settings / Ghost Mode / Auto-Launch / Reset / Quit |
 
 ---
 
 ## Sources
 
-| Claim | Source | Confidence |
-|-------|--------|------------|
-| WM_NCHITTEST HTTRANSPARENT (-1) routes mouse input to window beneath | https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-nchittest (2025-07-14) | HIGH |
-| WS_EX_TRANSPARENT makes window permanently not receive mouse input | https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles (2025-07-14) | HIGH |
-| WS_EX_LAYERED is already set by WPF AllowsTransparency=True | Standard WPF documentation; confirmed by existing codebase XAML | HIGH |
-| HwndSource.AddHook adds a delegate to the WndProc chain; hooks held by weak reference | https://learn.microsoft.com/en-us/dotnet/api/system.windows.interop.hwndsource (2026-02-11) | HIGH |
-| HwndSource.FromHwnd(hwnd) retrieves the HwndSource for the window | https://learn.microsoft.com/en-us/dotnet/api/system.windows.interop.hwndsource (2026-02-11) | HIGH |
-| WndProc hook must be registered after window HWND is valid (post-Show) | Existing codebase pattern: Win32Window HWND adapter used at runtime in MenuThemeCustom_Click | HIGH |
-| Keyboard.Modifiers reads current WPF modifier state synchronously | Standard WPF API; System.Windows.Input namespace | HIGH |
-| WPF fires MouseLeave when WM_NCHITTEST returns HTTRANSPARENT (window stops receiving mouse-over messages) | Established WPF overlay pattern; deducible from WPF InputManager architecture | MEDIUM |
-| Opacity=0 preserves window geometry and layout vs Visibility.Collapsed which destroys it | Existing codebase KEY DECISIONS: SizeToContent=WidthAndHeight resizes on Visibility change; ActualHeight=0 when Collapsed | HIGH |
-| Pre-Show safety invariant: ContentRendered is the correct registration point for HwndSource.AddHook | Existing codebase ContentRendered pattern for all post-show initialization | HIGH |
+All findings derived directly from source code and project documentation, no external verification required.
+
+| Source | What was examined |
+|--------|------------------|
+| `FuzzyClock.App/MainWindow.xaml.cs` | Full file (~1224 lines): all fields, ApplySettings, SaveSettings, ApplyTheme, ApplyDisplayColor, UpdateStatsDisplay, TrayMenuCallbacks wiring, ContentRendered |
+| `FuzzyClock.App/AppSettings.cs` | All 20 init-property fields and their defaults |
+| `FuzzyClock.App/SettingsService.cs` | Load/Validate/Save/Defaults; all existing guards |
+| `FuzzyClock.App/TrayMenuBuilder.cs` | TrayMenuState, TrayMenuCallbacks, TrayMenuBuilder class |
+| `FuzzyClock.App/ContrastRefreshController.cs` | ColorChanged/Cleared event contract; Initialize() signature |
+| `FuzzyClock.Core/PhraseEngine.cs` | Full file: static class, Buckets, HourWords, GetPhrase, GetStructuredPhrase |
+| `FuzzyClock.Core/ContrastService.cs` | RgbColor struct, ContrastState enum; module boundary |
+| `.planning/PROJECT.md` | Architecture decisions, v2.3 ghost mode patterns |
+| `.planning/MILESTONES.md` | v2.3–v3.1 implementation notes |
 
 ---
-
-*Architecture research for: FuzzyClock v2.3 — ghost mode (hover-hide + click-through + Ctrl+Alt)*
-*Researched: 2026-03-02*
+*Architecture research for: FuzzyClock v3.2 — Settings Window, themes, battery alert, phrase styles, multilingual*
+*Researched: 2026-03-08*

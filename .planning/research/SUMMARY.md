@@ -1,161 +1,173 @@
 # Project Research Summary
 
-**Project:** FuzzyClock v2.3 — Ghost Mode
-**Domain:** WPF transparent frameless overlay — hover-hide + click-through + Ctrl+Alt interaction modifier
-**Researched:** 2026-03-02
+**Project:** FuzzyClock v3.2 — Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual
+**Domain:** WPF desktop overlay widget — feature expansion on mature codebase
+**Researched:** 2026-03-08
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v2.3 adds "ghost mode" to FuzzyClock: when the mouse enters the widget, it becomes invisible and click-through, yielding the screen area entirely to whatever is beneath. Holding Ctrl+Alt while hovering suppresses ghost mode and keeps the widget interactive for drag, right-click, and opacity scroll. A third change — centering the phrase text — is a trivial XAML attribute addition with no behavioral complexity. The research consensus is clear: this is a small, focused milestone touching only two files (`MainWindow.xaml.cs` and `MainWindow.xaml`) and adding approximately 25 lines of code with no new NuGet packages or csproj changes.
+FuzzyClock v3.2 is a feature expansion on a mature, tested WPF overlay widget (.NET 10, 122 tests, ~1300-line MainWindow). The milestone adds five distinct capabilities: a tabbed settings window to replace the unwieldy 40-item tray menu, five named visual themes, a battery low alert, English phrase style personalities (Terse/Poetic/Rude), and native phrase sets for French, Spanish, German, and Japanese. All additions use only built-in BCL and WPF types — zero new NuGet packages are required. The single csproj change is adding `<NeutralLanguage>en</NeutralLanguage>` to `FuzzyClock.Core.csproj` to enable satellite assembly generation for localization.
 
-The correct click-through mechanism is `WS_EX_TRANSPARENT` via `SetWindowLong`/`GetWindowLong` (user32.dll P/Invoke), combined with setting `Window.Opacity = 0`. These two operations must always be applied and removed together — Opacity=0 alone is insufficient because the HWND remains fully hit-testable; and the alternative WM_NCHITTEST HTTRANSPARENT hook approach fails to pass input to cross-thread windows (desktop, Explorer) so is not viable. PITFALLS.md Pitfall 2 is the authoritative ruling on this: use `WS_EX_TRANSPARENT`, not WM_NCHITTEST.
+The recommended approach is to build features in strict dependency order: PhraseEngine refactor first (highest-risk Core change, isolated early), then Settings Window infrastructure, then Themes (extends `ApplyTheme()` which must be stable), then Battery Alert (also modifies `ApplyTheme()`), then Multilingual phrases (pure additive once provider interface exists). Every feature routes settings changes through the existing `MainWindow.Set*()`/`ApplySettings()` pattern — the Settings Window must never write to `AppSettings` or `SettingsService` directly, and must use `Show()` (modeless) not `ShowDialog()`.
 
-The primary technical risk is state management around the hover event pipeline. Applying `WS_EX_TRANSPARENT` in `Window_MouseEnter` stops all Win32 mouse message delivery immediately, which means `Window_MouseLeave` never fires after ghost activation. All hover state cleanup (backdrop, stats timer interval, `_isHoverFastRefresh`) must be performed synthetically before WS_EX_TRANSPARENT is applied. Ctrl+Alt detection must use `GetAsyncKeyState` (not `Keyboard.IsKeyDown`) because the overlay never holds keyboard focus. One MEDIUM-confidence gap exists: whether `TrackMouseEvent` delivers WM_MOUSELEAVE after `WS_EX_TRANSPARENT` is set is not explicitly documented — a DispatcherTimer polling fallback is the documented safe alternative and must be verified during Phase 26 execution.
+The dominant risks are cross-cutting: (1) the battery alert color must be guarded in both `ApplyTheme()` and `ApplyDisplayColor()` or auto-contrast will override it every 500ms; (2) every new `AppSettings` field requires a three-part atomic update (field declaration + `Defaults()` entry + `Validate()` guard + `SaveSettings() with {}` expression) or settings silently revert on every drag; (3) the multilingual `GetStructuredPhrase()` must stay consistent with `GetPhrase()` per style and language, and all four non-English languages need exhaustive 1440-minute test coverage before being considered done.
 
 ## Key Findings
 
 ### Recommended Stack
 
-v2.3 requires zero new NuGet packages and zero csproj changes. All additions are Win32 P/Invoke declarations against `user32.dll`, which is always available on Windows. The `HwndSource.AddHook` infrastructure is already established in the project from the v2.0 ColorDialog HWND adapter. One new `AppSettings` init-property (`GhostModeEnabled`, defaulting to `false`) may be added if a context menu toggle is shipped; the base spec does not require it.
+The existing stack handles all v3.2 requirements without additions. WPF's built-in `TabControl`/`TabItem` (already available via `UseWPF=true`) is the correct choice for the settings window — no third-party UI toolkit. For localization, `System.Resources.ResourceManager` (BCL inbox) with `.resx` files per locale is the right tool for a no-DI WPF app; `IStringLocalizer` requires `Microsoft.Extensions.Hosting` which this project deliberately avoids. Phrase style personalities are implemented as parallel static bucket arrays in `FuzzyClock.Core` — no runtime file I/O, no resource loading.
 
 **Core technologies:**
-- `WS_EX_TRANSPARENT` + `WS_EX_LAYERED` (user32.dll `SetWindowLong`/`GetWindowLong`): click-through toggle — only mechanism that works cross-thread for desktop overlays; must OR the flag in, never replace the full extended style value
-- `SetWindowPos` with `SWP_FRAMECHANGED` (user32.dll): flushes the extended style change to the window manager — explicitly required by Microsoft docs after any `SetWindowLong` call
-- `GetAsyncKeyState` (user32.dll): physical Ctrl+Alt key state independent of window focus — `Keyboard.IsKeyDown` cannot be used because the overlay never has keyboard focus
-- `TrackMouseEvent` + `WM_MOUSELEAVE = 0x02A3` (user32.dll): one-shot OS notification when mouse leaves HWND rectangle — registered before going click-through; MEDIUM confidence on delivery post-transparency; DispatcherTimer polling is documented fallback
-- `HwndSource.AddHook` (System.Windows.Interop): WndProc hook registration — already used in project; must register in `ContentRendered`, never in constructor
+- `.NET 10 WPF` (`net10.0-windows`): unchanged; `TabControl` is built in via `UseWPF=true`
+- `System.Resources.ResourceManager` (BCL inbox): `.resx` locale lookup for multilingual phrases — no NuGet needed
+- `CultureInfo.CurrentUICulture` (BCL inbox): Windows display language detection — NOT `CurrentCulture` (that controls formatting, not UI language)
+- `MSTest 4.0.1`: existing test framework; new tests follow established `[DataRow]` patterns unchanged
+- One csproj change only: `<NeutralLanguage>en</NeutralLanguage>` in `FuzzyClock.Core.csproj`
 
 ### Expected Features
 
-**Must have (table stakes for v2.3):**
-- GHOST-01: Widget auto-hides (Opacity=0 + WS_EX_TRANSPARENT) on MouseEnter with no modifier — the entire value proposition of the milestone
-- GHOST-02: Ctrl+Alt modifier suppresses ghost activation, keeping the widget interactive for drag/right-click/scroll
-- CENTER-01: Phrase text uses `TextAlignment="Center"` in XAML — trivial, no interaction complexity
+**Must have (table stakes):**
+- Settings window (3 tabs: Appearance / Stats / Behavior) — tray menu has 40+ items; discoverability is broken for existing users
+- Battery low alert (red row when `<20%` and unplugged) — universal OS pattern; every battery indicator does this
+- Named themes (5 presets) — every mature desktop customization tool offers named presets; one-click look change
 
-**Should have (differentiators, deferred from v2.3 base):**
-- Ghost mode toggle in right-click context menu with `GhostModeEnabled` persisted to settings.json
-- Configurable hide delay (200–500ms DispatcherTimer) to prevent accidental hide on mouse pass-through
+**Should have (differentiators):**
+- Phrase style personalities (Terse / Poetic / Rude) — unique differentiator; no other fuzzy clock offers vocabulary personalities
+- French, Spanish, German phrase sets — native cultural phrasing, not word-for-word translation; German "halb" convention is distinctively charming
+- Japanese phrase set — distinctly different structure (Arabic numerals + 時); medium complexity
 
-**Defer to v2.4+:**
-- Fade animation (gradual opacity transition) — creates intermediate states requiring complex management; instant Opacity=0 is cleaner
-- Proximity-based hide (before contact) — requires continuous background mouse tracking at all times
-- Configurable modifier keys — requires a settings UI that does not exist
-- Full permanent click-through with no modifier — kills DragMove, right-click, and scroll wheel; explicitly rejected
+**Defer (v3.x+):**
+- Live theme preview in settings window — two-window coupling complexity; apply on OK is acceptable
+- Theme editor / custom named themes — requires separate storage and rename UI; scope bloat
+- Additional languages (Italian, Portuguese, Dutch) — validate demand first
+- Per-locale date format defaults — too many combinations to spec now
 
 ### Architecture Approach
 
-The implementation is contained entirely within `MainWindow.xaml.cs` (modified) and `MainWindow.xaml` (modified). No new files are needed. The ghost state lifecycle is: `Window_MouseEnter` fires → check `IsCtrlAltHeld()` via `GetAsyncKeyState` → if not held, run synthetic hover-state cleanup (backdrop clear, timer restore), then set `Opacity=0` and apply `WS_EX_TRANSPARENT` → widget is invisible and click-through → mouse physically leaves the widget area → OS delivers WM_MOUSELEAVE (via TrackMouseEvent registration) or restore-poll timer detects cursor out of bounds → remove `WS_EX_TRANSPARENT`, restore `Opacity = _windowOpacity`.
+The architecture follows the established single-owner pattern: `MainWindow` is the authoritative owner of all live state; all settings changes route through it. The Settings Window is a modeless owner-child WPF Window that fires `event Action<AppSettings> SettingsChanged` — MainWindow subscribes and calls `ApplySettings()` + `SaveSettings()`. The PhraseEngine gains an `IPhraseProvider` interface with `EnglishPhraseProvider` as the default; `PhraseEngine.SetLocale(string)` swaps providers at runtime. No ThemeService class is needed — themes are applied via a new `ApplyNamedTheme()` batch method on MainWindow that mutates all private fields then calls `ApplyTheme()` + `UpdateLayout()` + `SaveSettings()` exactly once.
 
-**Note on ARCHITECTURE.md divergence:** ARCHITECTURE.md proposes using WM_NCHITTEST HTTRANSPARENT (not WS_EX_TRANSPARENT) and assumes WPF `MouseLeave` fires as the restore trigger after HTTRANSPARENT return. PITFALLS.md Pitfall 2 explicitly rejects this: WM_NCHITTEST HTTRANSPARENT only routes input to same-thread windows; the desktop and other apps are on different threads and never receive the click. The phase must follow STACK.md + FEATURES.md + PITFALLS.md and use `WS_EX_TRANSPARENT`.
-
-**Major components (all in MainWindow.xaml.cs):**
-1. P/Invoke declarations region — 5 `DllImport` statements, 1 struct (`TRACKMOUSEEVENT`), ~12 constants
-2. `_ghostMode` bool field — tracks current ghost state; never modify `_windowOpacity` alongside it
-3. Hook or restore mechanism — WndProcHook for WM_MOUSELEAVE (preferred) or `_ghostRestoreTimer` DispatcherTimer (fallback); registered in `ContentRendered`
-4. `Window_MouseEnter` (modified) — prepend `IsCtrlAltHeld()` check; ghost path exits early after cleanup + Opacity=0 + WS_EX_TRANSPARENT
-5. `Window_MouseLeave` (modified) — prepend `_ghostMode` check; ghost restore path: clear flag, remove WS_EX_TRANSPARENT, restore `_windowOpacity`
-6. `MainWindow.xaml` — add `TextAlignment="Center"` to both `PhraseText` and `ShadowText` TextBlocks
+**Major components:**
+1. `SettingsWindow` (new in App) — modeless WPF Window; `Owner=MainWindow`; exposes `SettingsChanged` event; never calls `SettingsService.Save()` directly
+2. `IPhraseProvider` + `*PhraseProvider` classes (new in Core) — per-language bucket tables as static readonly arrays; no runtime I/O; `PhraseEngine` becomes a static dispatcher
+3. `ThemeDefinition` / `BuiltInThemes` (new in App) — static registry of 5 preset bundles applied via batch `ApplyNamedTheme()`
+4. `AppSettings` extensions — four new init-property fields: `PhraseLocale`, `Theme`, `BatteryAlertPercent`, `BatteryAlertEnabled`
+5. `MainWindow` modifications — `_batteryAlertActive` flag; battery row guard in both `ApplyTheme()` and `ApplyDisplayColor()`; `_settingsWindow` field with null/not-visible single-instance guard
 
 ### Critical Pitfalls
 
-1. **WS_EX_TRANSPARENT requires OR, not replace** — always `GetWindowLong` first, then OR in `WS_EX_TRANSPARENT`. Replacing removes `WS_EX_LAYERED` (breaks transparency, widget gets solid background) and `WS_EX_TOOLWINDOW` (widget reappears in Alt+Tab).
+1. **Settings Window writes AppSettings directly** — widget live state and JSON diverge permanently. Route ALL changes through `MainWindow.Set*()` callbacks (extend `TrayMenuCallbacks` pattern). Architectural constraint, not optional.
 
-2. **WM_NCHITTEST HTTRANSPARENT fails for desktop click-through** — returning HTTRANSPARENT from WndProc only routes input to same-thread windows. Desktop and other applications are on different threads. Only `WS_EX_TRANSPARENT` achieves true desktop pass-through.
+2. **Battery alert overridden by auto-contrast** — `ApplyDisplayColor()` fires every 500ms and resets battery row to black/white, erasing the red alert. Guard the battery row in BOTH `ApplyTheme()` and `ApplyDisplayColor()` with `_batteryAlertActive` bool. Must be done at implementation time, not as a followup.
 
-3. **Window_MouseLeave does not fire when WS_EX_TRANSPARENT is applied mid-hover** — Win32 stops delivering all mouse messages (including WM_MOUSELEAVE) immediately when `WS_EX_TRANSPARENT` is set. Hover state cleanup (backdrop, stats timer interval, `_isHoverFastRefresh = false`) must be performed synthetically before applying the style — every time, no exceptions.
+3. **New AppSettings fields missing from SaveSettings() or Validate()** — setting silently reverts to default on every drag (which calls `SaveSettings()`). Three-part atomic commit: field in record + `Defaults()` entry + `Validate()` guard + row in `SaveSettings() with {}`. Verified by round-trip test for each field.
 
-4. **`Keyboard.IsKeyDown` is unreliable for unfocused overlays** — WPF keyboard state requires keyboard focus, which the transparent overlay never has. Use `GetAsyncKeyState(VK_CONTROL)` and `GetAsyncKeyState(VK_MENU)` via P/Invoke. MSB of the return value indicates the key is physically down.
+4. **Missing multilingual bucket coverage** — any minute not covered by a bucket causes `InvalidOperationException` at runtime within minutes of switching language. Every language needs all 12 buckets exhaustively covered and a 1440-minute completeness test.
 
-5. **Never modify `_windowOpacity` in ghost mode** — `this.Opacity` is set to 0 during ghost; `_windowOpacity` is the user's configured value written by `SaveSettings()`. Conflating them persists ghost state to settings.json or corrupts opacity preset checkmarks on the context menu.
+5. **GetStructuredPhrase() inconsistency after PhraseEngine refactor** — split layout shows Classic qualifier text while phrase text shows Terse/Poetic/Rude form. `GetPhrase()` and `GetStructuredPhrase()` must accept identical parameters and produce consistent output; update both atomically per style.
 
 ## Implications for Roadmap
 
-Based on combined research, 3 phases are recommended. The ordering is: isolated XAML change first (zero risk), then ghost core mechanism, then modifier key integration layered on top.
+Based on the combined research, the recommended build order is strictly determined by code dependencies. All four research files independently converge on the same sequencing.
 
-### Phase 25: Centered Phrase Text
+### Phase 1: PhraseEngine Provider Refactor
 
-**Rationale:** Fully isolated XAML change with zero behavioral risk. Validates the SizeToContent interaction before any ghost complexity is introduced.
-**Delivers:** `TextAlignment="Center"` on both `PhraseText` and `ShadowText` TextBlocks; centering is visible when StatsPanel is wider than phrase text.
-**Addresses:** CENTER-01
-**Avoids:** Pitfall 16 — centering requires a fixed-width container to have visual effect; verify both shadow and phrase blocks are updated together; verify centering works when StatsPanel is visible and has no apparent effect when stats panel is hidden (by design).
-**Research flag:** Skip — well-understood XAML property; SizeToContent interaction is fully documented in ARCHITECTURE.md.
+**Rationale:** The highest-risk change in the milestone. Touches `FuzzyClock.Core` with 51 existing unit tests. Isolating it first means any test regression is immediately attributable; no behavioral changes to MainWindow yet. All subsequent phrase features (styles + multilingual) depend on `IPhraseProvider` existing.
+**Delivers:** `IPhraseProvider` interface; `EnglishPhraseProvider` with existing Classic bucket table moved verbatim; `PhraseEngine` becomes static dispatcher with `SetLocale()`; all 122 existing tests pass unchanged.
+**Addresses:** Infrastructure for phrase style and multilingual features
+**Avoids:** Pitfall 13 (GetStructuredPhrase inconsistency — interface contract established before styles are added); Pitfall 14 (test coverage gaps — baseline verified before new code paths added)
 
-### Phase 26: Ghost Mode Core (Click-Through)
+### Phase 2: Settings Window Infrastructure
 
-**Rationale:** Core click-through mechanism must be proven in isolation before the Ctrl+Alt modifier branch is added. This phase validates that Opacity=0 + WS_EX_TRANSPARENT makes the widget fully invisible and click-through, and that the restore path brings the widget back correctly with all hover state clean.
-**Delivers:** Always-on ghost mode: MouseEnter triggers Opacity=0 + WS_EX_TRANSPARENT; widget restores on mouse exit via WM_MOUSELEAVE (TrackMouseEvent) or DispatcherTimer fallback.
-**Uses:** `GetWindowLong`, `SetWindowLong`, `SetWindowPos` (SWP_FRAMECHANGED), `TrackMouseEvent` + WM_MOUSELEAVE 0x02A3, HwndSource.AddHook in ContentRendered.
-**Implements:** P/Invoke declarations block, `_ghostMode` field, hook/restore mechanism, modified MouseEnter (always-ghost path), modified MouseLeave (ghost restore path with synthetic cleanup).
-**Avoids:** Pitfall 1 (OR not replace), Pitfall 2 (WS_EX_TRANSPARENT not HTTRANSPARENT), Pitfall 3/7 (synthetic MouseLeave cleanup before applying WS_EX_TRANSPARENT), Pitfall 8 (Grid `#01000000` background never modified), Pitfall 13 (correct HWND via `WindowInteropHelper(this).Handle`), Pitfall 14 (UI thread — use DispatcherTimer not Task.Delay), Pitfall 15 (Opacity=0 alone insufficient).
-**Research flag:** MEDIUM confidence on TrackMouseEvent delivery post-WS_EX_TRANSPARENT. Attempt TrackMouseEvent first; if WM_MOUSELEAVE does not arrive in testing, switch to a 50–100ms DispatcherTimer polling `Mouse.GetPosition(this)` against `ActualWidth`/`ActualHeight` bounds. Both approaches are fully specified in STACK.md.
+**Rationale:** Establishes the Owner/event/callback pattern before any feature needs it as a UI surface. Starting as a minimal shell (3 tabs, populated from AppSettings snapshot, fires SettingsChanged) proves the architecture before building controls. Must be non-modal (`Show()` not `ShowDialog()`).
+**Delivers:** `SettingsWindow.xaml/.cs`; "Open Settings..." tray item; `_settingsWindow` field on MainWindow with single-instance guard; `Owner = this` before `Show()`; `SettingsChanged` event wired to `ApplySettings()` + `SaveSettings()`.
+**Addresses:** Settings window (table-stakes feature; tray menu discoverability)
+**Avoids:** Pitfall 1 (direct AppSettings writes), Pitfall 2 (stale state on open — populate from live state on every open), Pitfall 3 (Z-order — Owner set before Show), Pitfall 10 (tray/settings divergence — document populate-on-open strategy)
 
-### Phase 27: Ctrl+Alt Interaction Modifier
+### Phase 3: Named Themes
 
-**Rationale:** Built on verified ghost core. The modifier check is a single `if` statement prepended to `Window_MouseEnter`; if modifier is held, the existing backdrop + fast-refresh path runs unchanged.
-**Delivers:** Holding Ctrl+Alt on MouseEnter suppresses ghost activation; all existing hover interactions (drag, right-click, scroll) remain accessible. Next hover without modifier triggers ghost normally.
-**Uses:** `GetAsyncKeyState` with `VK_CONTROL` (0x11) + `VK_MENU` (0x12) — no new P/Invoke beyond Phase 26.
-**Avoids:** Pitfall 5 (Keyboard.IsKeyDown unreliable — use GetAsyncKeyState), Pitfall 6 (AltGr on European keyboards — documented acceptable limitation for US-English app; use `VK_LMENU` if deployment scope widens), Pitfall 4 (MouseEnter re-fires on WS_EX_TRANSPARENT removal — state machine handles re-entry correctly by design).
-**Research flag:** Skip — `GetAsyncKeyState` pattern is HIGH confidence official docs with verified constant values.
+**Rationale:** Extends `ApplyTheme()` — must be stable before battery alert adds another branch to the same method. Settings Window is the UI surface for the theme picker. The batch-apply pattern (`ApplyNamedTheme()`) must be established here before battery alert is added to the same methods.
+**Delivers:** `ThemeDefinition` record; `BuiltInThemes` static registry (5 presets: Night Owl, Desert, Tundra, Hacker, Pastel); `ApplyNamedTheme()` batch method on MainWindow; Theme section in Appearance tab; `AppSettings.Theme` field with `Validate()` guard and round-trip test.
+**Addresses:** Named themes (table-stakes feature)
+**Avoids:** Pitfall 5 (partial element coverage — run amber/ice-blue visual test after every UI addition); Pitfall 6 (non-atomic theme apply — batch method required from the start, not sequential Set* calls)
+
+### Phase 4: Battery Low Alert
+
+**Rationale:** Modifies the same `ApplyTheme()` and `ApplyDisplayColor()` methods as the theme phase. Sequential changes to these methods are cleaner than parallel. Battery alert logic is simple but must interact correctly with auto-contrast from day one.
+**Delivers:** `_batteryAlertActive` bool; `BatteryAlertEnabled`/`BatteryAlertPercent` AppSettings fields; red override (`#FFFF4444`) in `UpdateStatsDisplay()`, `ApplyTheme()`, `ApplyDisplayColor()`; battery alert section in Stats tab; round-trip tests for both new fields.
+**Addresses:** Battery low alert (table-stakes feature)
+**Avoids:** Pitfall 11 (auto-contrast conflict — `_batteryAlertActive` guard added at implementation time in both color methods); Pitfall 4 (missing Validate guard); Pitfall 12 (missing SaveSettings field)
+
+### Phase 5: English Phrase Style Personalities
+
+**Rationale:** English-only, depends only on Phase 1 (IPhraseProvider). Does not modify `ApplyTheme()` or UI layout — low interference with surrounding work. Lower risk than multilingual; validates the IPhraseProvider signature before non-English providers add grammatical complexity.
+**Delivers:** `PhraseStyle` enum (Classic/Terse/Poetic/Rude); three new bucket tables in `EnglishPhraseProvider`; `GetPhrase(dt, style)` and `GetStructuredPhrase(dt, style)` consistent overloads; Phrase Style selector in Behavior tab (disabled for non-English); `AppSettings.PhraseStyle` field; per-style bucket tests + consistency invariant test.
+**Addresses:** Phrase style personalities (signature differentiator)
+**Avoids:** Pitfall 13 (both methods updated atomically); Pitfall 14 (each style gets its own test class with per-bucket DataRow coverage)
+
+### Phase 6: Multilingual Phrases (fr / es / de / ja)
+
+**Rationale:** Purely additive to the IPhraseProvider interface from Phase 1. No existing code paths are affected until `SetLocale()` is called. Each language provider is a self-contained class. German token inversion ("halb {h1}" = :30) and Japanese GetStructuredPhrase fallback are pre-resolved by research.
+**Delivers:** `FrenchPhraseProvider`, `SpanishPhraseProvider`, `GermanPhraseProvider`, `JapanesePhraseProvider`; `CultureInfo.CurrentUICulture`-based auto-detection; `AppSettings.PhraseLocale` field; Phrase Language ComboBox in Behavior tab; exhaustive 1440-minute tests per language; `<NeutralLanguage>en</NeutralLanguage>` csproj addition.
+**Addresses:** Multilingual phrase sets (differentiator)
+**Avoids:** Pitfall 7 (must use `CurrentUICulture`, not `CurrentCulture`); Pitfall 8 (all 12 buckets covered, exhaustive test required per language); Pitfall 9 (Japanese GetStructuredPhrase returns `("", fullPhrase)` for all non-English; split layout documented as English-Classic only)
 
 ### Phase Ordering Rationale
 
-- Phase 25 first because it is a zero-risk isolated XAML change that can ship independently and does not interact with ghost mode logic at all.
-- Phase 26 before Phase 27 because click-through verification must precede modifier logic — you cannot test "Ctrl+Alt suppresses ghost" until ghost itself works reliably.
-- Phase 27 strictly additive to Phase 26 — one `if` statement at the top of `Window_MouseEnter`.
-- In yolo mode, Phases 26 and 27 can be merged into one implementation pass given the small total line count (~20 lines C#). The split is for incremental human verification.
+- **Phase 1 first** — only change to `FuzzyClock.Core` and its 51-test suite. Regression isolation is the priority; if anything breaks here it is immediately visible with no MainWindow noise.
+- **Phase 2 before Phases 3–6** — Settings Window is the UI surface for all subsequent features. Building infrastructure before features avoids rebuilding controls later.
+- **Phase 3 before Phase 4** — both modify `ApplyTheme()` and `ApplyDisplayColor()`; sequential edits to these methods are cleaner than parallel; `ApplyNamedTheme()` established in Phase 3 must not be broken by Phase 4.
+- **Phase 5 before Phase 6** — phrase styles are lower risk (English-only, well-understood pattern) and validate the IPhraseProvider signature before non-English providers introduce grammatical complexity.
+- **Phase 6 last** — purely additive, highest content volume (4 languages × 12 buckets each), and no other features depend on it.
 
 ### Research Flags
 
-Phases needing deeper attention during execution:
-- **Phase 26 (Ghost Core):** TrackMouseEvent restore path has MEDIUM confidence — delivery after WS_EX_TRANSPARENT is applied is not explicitly documented. The executing agent must verify in code and fall back to DispatcherTimer polling if WM_MOUSELEAVE does not fire.
-- **Phase 26 (Ghost Core):** ARCHITECTURE.md and PITFALLS.md diverge on click-through mechanism. Phase execution must use `WS_EX_TRANSPARENT` (STACK.md + FEATURES.md + PITFALLS.md consensus), not WM_NCHITTEST (ARCHITECTURE.md).
+Phases with well-documented patterns (standard — skip `/gsd:research-phase`):
+- **Phase 1** — IPhraseProvider pattern is standard C# strategy; existing code structure fully understood from source inspection
+- **Phase 2** — WPF Window Owner/event pattern is official-docs-documented; TrayMenuCallbacks is the existing model
+- **Phase 3** — theme-as-named-preset is well-understood; no external dependencies; all setter paths already exist
+- **Phase 4** — battery alert is a conditional color branch; StatsService already reads the data; guard pattern is directly specified
 
-Phases with standard patterns (skip research-phase):
-- **Phase 25 (XAML centering):** Trivial XAML attribute addition; no research needed.
-- **Phase 27 (Ctrl+Alt):** GetAsyncKeyState pattern is HIGH confidence; no research needed.
+Phases that may benefit from targeted attention during planning:
+- **Phase 5** — Terse/Poetic/Rude phrase content is fully specified in FEATURES.md; no research needed for architecture; bucket table content should be reviewed for consistency before committing
+- **Phase 6** — German "halb {h1}" token inversion (halb drei = 2:30, uses next-hour token) is a known gotcha fully documented in FEATURES.md; Japanese GetStructuredPhrase decision is pre-made (full-phrase fallback); a native-speaker review of Japanese phrase naturalness is recommended before the phase is marked done
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All P/Invoke APIs sourced from official Microsoft docs; constant values verified; zero new dependencies |
-| Features | HIGH | MVP scope is tightly defined by spec and codebase inspection; feature boundaries are unambiguous |
-| Architecture | MEDIUM | ARCHITECTURE.md uses WM_NCHITTEST which PITFALLS.md definitively rejects; overall structure (Opacity=0 + style toggle + handler revision) is correct but restore mechanism requires verification |
-| Pitfalls | HIGH | 16 pitfalls, all grounded in direct source code reading or official Win32/WPF docs; critical mitigations are concrete and actionable |
+| Stack | HIGH | Zero new packages; all additions use built-in WPF and BCL types; confirmed against official .NET 10 docs |
+| Features | HIGH | English phrase content (all styles + fr/es/de) is HIGH; Japanese phrasing naturalness is MEDIUM (see Gaps) |
+| Architecture | HIGH | Derived from direct source reading of current codebase; all patterns already validated in prior milestones |
+| Pitfalls | HIGH | All 14 pitfalls grounded in direct code inspection and documented prior regressions (e.g., ApplyTheme/ApplyDisplayColor parity already burned in v2.7) |
 
-**Overall confidence:** HIGH — the implementation is small and well-bounded. The MEDIUM architecture area has a clear resolution (use WS_EX_TRANSPARENT, not WM_NCHITTEST) and a documented fallback for the one MEDIUM-confidence API behavior (TrackMouseEvent restore).
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **TrackMouseEvent restore path (MEDIUM confidence):** Whether `TrackMouseEvent` delivers WM_MOUSELEAVE after `WS_EX_TRANSPARENT` is applied is not explicitly documented by Microsoft. Phase 26 must verify this experimentally. If WM_MOUSELEAVE does not arrive, the fallback is a 50–100ms `DispatcherTimer` (`_ghostRestoreTimer`) polling `Mouse.GetPosition(this)` against `ActualWidth`/`ActualHeight` bounds — fully specified in FEATURES.md with state machine detail.
+- **Japanese phrase naturalness (MEDIUM confidence):** The Japanese bucket templates use standard casual written Japanese with Arabic numerals + 時. Technically correct and conservative, but naturalness of specific phrasings has not been reviewed by a native speaker. Recommend a native-speaker review of the 12 bucket phrases before Phase 6 is marked done. The architecture decision (full-phrase fallback for GetStructuredPhrase for all non-English) is not in question.
 
-- **ARCHITECTURE.md divergence on click-through mechanism:** ARCHITECTURE.md describes WM_NCHITTEST HTTRANSPARENT as the click-through approach. This is rejected by PITFALLS.md Pitfall 2 (same-thread constraint). Phase execution must use `WS_EX_TRANSPARENT` per the STACK.md, FEATURES.md, and PITFALLS.md consensus. The ARCHITECTURE.md description of `Window_MouseLeave` as the restore trigger is only valid under the WM_NCHITTEST model and should not be relied upon.
+- **Battery alert threshold configurability:** ARCHITECTURE.md specifies `BatteryAlertPercent` as a user-configurable AppSettings field (default 20). FEATURES.md specifies 20% as always-on with no user toggle needed. Resolve in Phase 4 planning: the simpler approach (hardcoded 20%, no toggle, always enabled when battery row is visible) is defensible for v3.2. Adding a configurable threshold adds Settings Window controls that may not be worth the scope.
 
-- **AltGr keyboard behavior:** Using `VK_MENU` (any Alt) will trigger ghost suppression when AltGr is pressed on European keyboards during AltGr-character input in any application. This is documented and acceptable for a personal US-English deployment. If deployment target changes to include European keyboard layouts, switch to `VK_LMENU` (0xA4, left Alt only) to exclude AltGr.
+- **Settings Window tray/window sync strategy:** Three defensible approaches exist for handling state divergence when the user changes settings via tray while the settings window is open: (a) live sync via MainWindow notification, (b) auto-close settings on any tray change, (c) populate-on-open only with documented "values at time of open" behavior. The research recommends (c) as the simplest approach for v3.2. The Phase 2 plan should explicitly commit to one strategy to avoid mid-implementation debates.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `MainWindow.xaml.cs` — existing Window_MouseEnter, Window_MouseLeave, SetOpacity, ContentBorder, HwndSource patterns (codebase, inspected 2026-03-02)
-- `MainWindow.xaml` — AllowsTransparency, Background="#01000000" hit-test trick, SizeToContent (codebase, inspected 2026-03-02)
-- `PROJECT.md` — Key Decisions table including PreviewMouseWheel, hidden owner window, WinForms interop (codebase, inspected 2026-03-02)
-- Microsoft Win32 — Window Features / Layered Windows: WS_EX_TRANSPARENT behavior with WS_EX_LAYERED (learn.microsoft.com/en-us/windows/win32/winmsg/window-features, updated 2026-02-21)
-- Microsoft Win32 — Extended Window Styles: WS_EX_TRANSPARENT = 0x00000020 (learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles, updated 2025-07-14)
-- Microsoft Win32 — SetWindowPos Remarks: SWP_FRAMECHANGED requirement after SetWindowLong (learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)
-- Microsoft Win32 — GetWindowLongPtr / SetWindowLongPtr / GWL_EXSTYLE = -20 (learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw)
-- Microsoft Win32 — GetAsyncKeyState: physical key state, focus-independent; VK_CONTROL=0x11, VK_MENU=0x12 (learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getasynckeystate, updated 2026-01-29)
-- Microsoft Win32 — WM_NCHITTEST: HTTRANSPARENT same-thread constraint (learn.microsoft.com/en-us/windows/win32/inputdev/wm-nchittest, updated 2025-07-14)
-- Microsoft Win32 — TrackMouseEvent + TME_LEAVE; WM_MOUSELEAVE = 0x02A3 (learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent)
-- Microsoft Win32 — Virtual-Key Codes: VK_LCONTROL=0xA2, VK_LMENU=0xA4, VK_RMENU=0xA5 (learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes)
-- Microsoft .NET 10 — HwndSource.AddHook (learn.microsoft.com/en-us/dotnet/api/system.windows.interop.hwndsource, updated 2026-02-11)
-- Microsoft .NET 10 — Keyboard.Modifiers / ModifierKeys enum (learn.microsoft.com/en-us/dotnet/api/system.windows.input.keyboard.modifiers?view=windowsdesktop-10.0)
+- `FuzzyClock.App/MainWindow.xaml.cs` — direct source inspection; all fields, ApplyTheme, ApplyDisplayColor, UpdateStatsDisplay, SaveSettings, TrayMenuCallbacks wiring, ContentRendered
+- `FuzzyClock.App/AppSettings.cs`, `SettingsService.cs`, `TrayMenuBuilder.cs` — direct source inspection
+- `FuzzyClock.Core/PhraseEngine.cs` — direct source inspection; Buckets, HourWords, GetPhrase, GetStructuredPhrase
+- `PhraseEngineTests.cs`, `AppSettingsTests.cs`, `SettingsServiceTests.cs` — direct source inspection
+- `.planning/PROJECT.md` — architecture decisions log
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-window-dialog-box — WPF Window Show vs ShowDialog (official, 2024-10-24)
+- https://learn.microsoft.com/en-us/dotnet/core/extensions/localization — .NET localization, ResourceManager vs IStringLocalizer (official, updated 2026-02-04)
+- https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-globalization-cultureinfo — CurrentUICulture vs CurrentCulture (official, updated 2026-02-12)
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-globalization-and-localization-overview — LocBaml .NET Framework only warning confirmed (official)
 
 ### Secondary (MEDIUM confidence)
-- TrackMouseEvent delivery after WS_EX_TRANSPARENT applied — HWND-keyed per docs but cross-transparency delivery not explicitly stated; verify during Phase 26 execution
-- WPF MouseLeave fires after HTTRANSPARENT return (ARCHITECTURE.md) — deducible from WPF InputManager architecture; rejected for production use by Pitfall 2 cross-thread analysis
-- AltGr = VK_LCONTROL + VK_RMENU synthesized by Windows OS input stack — established Windows behavior across all versions; consistent with GetAsyncKeyState documentation
+- Japanese temporal phrase naturalness — standard casual written Japanese; Arabic numeral + 時 approach is widely understood; naturalness of specific phrasings not independently verified by native speaker
 
 ---
-*Research completed: 2026-03-02*
+*Research completed: 2026-03-08*
 *Ready for roadmap: yes*
