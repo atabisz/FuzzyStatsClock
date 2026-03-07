@@ -56,7 +56,7 @@ dotnet build FuzzyClock.slnx -c Release
 dotnet test FuzzyClock.slnx
 ```
 
-88 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, settings validation and migration, and app integration tests.
+114 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), settings validation and migration, and app integration tests.
 
 ## Usage
 
@@ -72,7 +72,9 @@ Right-click the system tray icon to access all settings:
 | **Dial Mode** | Toggle between phrase clock and analog dial display |
 | **Font Size** | Small (16pt) / Medium (24pt) / Large (32pt) — phrase mode only |
 | **Dial Face** | Toggle hour ticks, minute marks, hour numbers — dial mode only |
-| **Stats** | Show/hide the stats panel; toggle individual rows (CPU/GPU/MEM/PAG/Uptime); set update interval |
+| **Show Date** | Show or hide the date line below the clock phrase or dial; persisted |
+| **Date Format** | Short (Mon 3/7) / Long (Monday, March 7, 2026) / Numeric (3/7/2026) / ISO (2026-03-07) |
+| **Stats** | Show/hide the stats panel; toggle individual rows (CPU/GPU/MEM/PAG/BATT/Uptime); set update interval |
 | **Theme** | Pick a color preset (White / Amber / Ice Blue / Green / Hello Kitty Pink) or open the custom color picker |
 | **Opacity** | Set window opacity (25% / 50% / 75% / 100%) |
 | **Reset to Defaults** | Restore factory settings |
@@ -102,7 +104,7 @@ Toggle items available at the top of the tray menu:
 
 ```
 FuzzyClock.slnx
-├── FuzzyClock.Core/          # Pure logic (PhraseEngine, DialGeometry, UptimeFormatter, ContrastService)
+├── FuzzyClock.Core/          # Pure logic (PhraseEngine, DialGeometry, UptimeFormatter, DateFormatter, ContrastService)
 ├── FuzzyClock.Core.Tests/    # MSTest unit tests for Core logic
 ├── FuzzyClock.App/           # WPF overlay window
 │   ├── MainWindow.xaml(.cs)  # Main UI and event handlers
