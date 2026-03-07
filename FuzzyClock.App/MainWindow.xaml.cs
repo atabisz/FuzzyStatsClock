@@ -290,7 +290,7 @@ public partial class MainWindow : Window
         _showDate   = s.ShowDate;
         _dateFormat = s.DateFormat;
         DateText.Visibility = s.ShowDate ? Visibility.Visible : Visibility.Collapsed;
-        DateText.Text = FormatDate(s.DateFormat);
+        DateText.Text = DateFormatter.Format(s.DateFormat, DateTime.Now);
         _currentDateText = DateText.Text;
 
         // Apply text style directly (NOT via SetTextStyle — that calls UpdateLayout()+SaveSettings() unsafe before Show())
@@ -469,18 +469,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string FormatDate(string format) => format switch
-    {
-        "Long"    => DateTime.Now.ToString("dddd, MMMM d"),
-        "Numeric" => DateTime.Now.ToString("M/d/yyyy"),
-        "ISO"     => DateTime.Now.ToString("yyyy-MM-dd"),
-        _         => DateTime.Now.ToString("ddd, MMM d"),   // "Short" and any unknown -> Short
-    };
-
     private void UpdateDateDisplay()
     {
         if (DateText.Visibility != Visibility.Visible) return;
-        var text = FormatDate(_dateFormat);
+        var text = DateFormatter.Format(_dateFormat, DateTime.Now);
         if (text == _currentDateText) return;  // no change (same day)
         DateText.Text = text;
         _currentDateText = text;
