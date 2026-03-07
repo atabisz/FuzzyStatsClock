@@ -155,7 +155,7 @@ Plans:
 | 35. Process Count Threshold | v2.9 | 1/1 | Complete | 2026-03-05 |
 | 36. Date Display Under Clock | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 37. Battery Stat Row | v3.1 | 2/2 | Complete | 2026-03-07 |
-| 38. Tests + Code Cleanup | v3.1 | 0/2 | Not started | - |
+| 38. Tests + Code Cleanup | 1/2 | In Progress|  | - |
 | 39. Docs Pass | v3.1 | 0/? | Not started | - |
 
 ---

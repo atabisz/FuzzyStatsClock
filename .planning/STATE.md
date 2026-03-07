@@ -3,11 +3,26 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Quality + Battery
 status: in_progress
+last_updated: "2026-03-07T07:15:10.981Z"
+last_activity: 2026-03-07 — 37-02 battery stat row UI wired end-to-end (BattRow XAML, tray toggle, settings persistence)
+progress:
+  total_phases: 3
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 3
+  percent: 86
+---
+
+---
+gsd_state_version: 1.0
+milestone: v3.1
+milestone_name: Quality + Battery
+status: in_progress
 stopped_at: Completed 37-02-PLAN.md
 last_updated: "2026-03-07"
 last_activity: 2026-03-07 — 37-02 battery stat row UI wired end-to-end
 progress:
-  total_phases: 3
+  [█████████░] 86%
   completed_phases: 1
   total_plans: 6
   completed_plans: 2
@@ -44,6 +59,7 @@ Recent decisions affecting current work:
 - v2.5: SettingsService.Validate() extracted for pure-static testability; pure Clamp() overload avoids SystemParameters in tests
 - [Phase 37-battery-stat-row]: Battery data via SystemInformation.PowerStatus — synchronous, no PerformanceCounter overhead, fully-qualified WinForms names in StatsService
 - [Phase 37-battery-stat-row]: Battery row UI wired using PAG pattern; tasks 1+2 committed atomically because TrayMenuCallbacks required property creates compile dependency
+- [Phase 38-tests-and-code-cleanup]: 38-02: Absent-field tests use minimal JSON string to isolate ShowDate/DateFormat init defaults independently
 
 ### Pending Todos
 

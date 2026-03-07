@@ -17,7 +17,7 @@
 ### Tests
 
 - [ ] **UTEST-03**: DateFormatter logic extracted from MainWindow into FuzzyClock.Core as a pure static class with unit tests covering all 4 format options
-- [ ] **STEST-08**: AppSettings JSON round-trip includes DateVisible and DateFormat fields (no silent defaults on upgrade)
+- [x] **STEST-08**: AppSettings JSON round-trip includes DateVisible and DateFormat fields (no silent defaults on upgrade)
 
 ### Docs
 
@@ -58,7 +58,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BATT-04 | Phase 37 | Complete |
 | BATT-05 | Phase 37 | Complete |
 | UTEST-03 | Phase 38 | Pending |
-| STEST-08 | Phase 38 | Pending |
+| STEST-08 | Phase 38 | Complete |
 | CLEAN-01 | Phase 38 | Pending |
 | DOCS-03 | Phase 39 | Pending |
 
