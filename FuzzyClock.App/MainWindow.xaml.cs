@@ -21,8 +21,8 @@ public partial class MainWindow : Window
     // Bounded by trim logic in UpdateUptimeDisplay(). Max 900 entries at 1s interval (~3.5KB).
     private Dictionary<int, TimeSpan> _prevProcTimes = new();
     private DateTime _prevProcSample = DateTime.MinValue;
-    // StatsPanel.Width(180) - label column(35) - text column(36) = 109
-    private const double StatsBarTrackWidth = 109.0;
+    // StatsPanel.Width(184) - label column(35) - text column(36) = 113
+    private const double StatsBarTrackWidth = 113.0;
     private int _currentFontSize = 32;
     private string _currentMonitorKey = "";      // monitor key for the screen currently hosting the window
     private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
@@ -532,7 +532,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            string pluggedPrefix = _statsService.IsPluggedIn ? "⚡ " : "";
+            string pluggedPrefix = _statsService.IsPluggedIn ? "⚡" : "";
             BattText.Text = $"{pluggedPrefix}{_statsService.BatteryPercent:F0}%";
             BattBar.Width = StatsBarTrackWidth * (_statsService.BatteryPercent / 100.0);
         }

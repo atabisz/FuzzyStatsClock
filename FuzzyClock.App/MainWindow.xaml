@@ -123,7 +123,7 @@
                  Phase 9 toggles Visibility and starts/stops _statsTimer. -->
             <StackPanel x:Name="StatsPanel"
                         Grid.Row="2"
-                        Width="180"
+                        Width="184"
                         Margin="0,4,0,0"
                         Visibility="Collapsed">
 
@@ -230,7 +230,7 @@
                     </Border>
                     <TextBlock Grid.Column="2" x:Name="BattText"
                                Text="0%" Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
-                               TextAlignment="Right" VerticalAlignment="Center" />
+                               HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
 
             <!-- Uptime row — child of StatsPanel so it hides with stats.
