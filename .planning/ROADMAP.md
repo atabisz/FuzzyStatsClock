@@ -96,13 +96,13 @@
 | 33. Auto-Contrast | v2.7 | 3/3 | Complete | 2026-03-03 |
 | 34. Uptime Process Count + README | v2.8 | 2/2 | Complete | 2026-03-04 |
 | 35. Process Count Threshold | v2.9 | 1/1 | Complete | 2026-03-05 |
-| 36. Add a date display under the clock | 1/2 | In Progress|  | — |
+| 36. Add a date display under the clock | 2/2 | Complete   | 2026-03-07 | — |
 
 ### Phase 36: Add a date display under the clock
 
 **Goal:** Date line visible below the time phrase/dial, in a muted accent color, with four format options (Short/Long/Numeric/ISO) and a show/hide toggle — all configurable from the tray menu and persisted to settings.
 **Depends on:** Phase 35
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 36-01-PLAN.md — AppSettings + XAML DateText element + display logic (FormatDate, UpdateDateDisplay, ApplyTheme, ApplyDisplayColor, SaveSettings, ResetToDefaults)

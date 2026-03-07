@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 36-01-PLAN.md — DateText display logic and AppSettings persistence
-last_updated: "2026-03-07T03:21:33.553Z"
+stopped_at: Completed 36-02-PLAN.md — tray menu Show Date + Date Format submenu wired
+last_updated: "2026-03-07T03:25:34.639Z"
 last_activity: 2026-03-05 — Phase 35 Plan 01 executed; configurable process threshold shipped
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 67
 ---
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 35 | 1 | 5 min | 5 min |
 | Phase 36-add-a-date-display-under-the-clock P01 | 4 | 2 tasks | 5 files |
+| Phase 36-add-a-date-display-under-the-clock P02 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,7 @@ Progress: [██████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table. v2.9 milestone complete — see PROJECT.md for decisions log.
 - [Phase 36-add-a-date-display-under-the-clock]: DateText foreground uses 55% alpha (0x8C) of accent color — same dimming as QualifierText for visual subordination
 - [Phase 36-add-a-date-display-under-the-clock]: DropShadowEffect (BlurRadius=4, Direction=315, ShadowDepth=1, Opacity=0.6) applied identically to PhraseText, EmphasisText, DateText per locked CONTEXT.md decision
+- [Phase 36-add-a-date-display-under-the-clock]: SetDateFormat clears _currentDateText to force UpdateDateDisplay redraw on format switch within same day
 
 ### Roadmap Evolution
 
@@ -90,6 +92,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T03:21:33.548Z
-Stopped at: Completed 36-01-PLAN.md — DateText display logic and AppSettings persistence
+Last session: 2026-03-07T03:25:34.635Z
+Stopped at: Completed 36-02-PLAN.md — tray menu Show Date + Date Format submenu wired
 Resume file: None
