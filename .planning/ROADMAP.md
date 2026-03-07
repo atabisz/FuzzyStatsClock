@@ -162,12 +162,12 @@ Plans:
 
 ### Phase 40: README accuracy fixes — correct Short/Long format examples and update test count to 122
 
-**Goal:** [To be planned]
+**Goal:** README.md examples for Short and Long date formats match what DateFormatter.Format() actually produces; test count reflects the current 122-test suite.
 **Depends on:** Phase 39
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 40 to break down)
+- [ ] 40-01-PLAN.md — Fix Short/Long format examples and update test count to 122
 
 ---
-*Last updated: 2026-03-07 — phase 39 plan created*
+*Last updated: 2026-03-08 — phase 40 plan created*
