@@ -7,7 +7,13 @@ A minimal WPF desktop widget that displays the current time as a fuzzy English p
 - **Phrase mode** — time expressed as natural English, updating on 5-minute boundaries
 - **Dial mode** — hour and minute hands on a transparent background (no face, no numbers); optional hour ticks, minute marks, and hour labels
 - **Stats panel** — live CPU / GPU / MEM / PAG usage as horizontal bars below the phrase or dial; per-row visibility toggles; 1s / 3s / 10s update interval
+- **Battery row** — shows battery charge percentage and `⚡` when AC-connected (e.g. `⚡ 87%`); displays `N/A` on desktops or VMs with no battery; toggleable per-row like other stat rows
 - **Uptime row** — system uptime (`up 5h 3m`), rolling 1m/5m/15m CPU load averages, and active process count (`142p`) in a single compact line
+- **Date display** — shows the current date below the clock phrase or dial in a muted accent color; toggleable via tray (Show Date); four format options selectable from the tray Date Format submenu:
+  - Short: `Mon 3/7`
+  - Long: `Monday, March 7, 2026`
+  - Numeric: `3/7/2026`
+  - ISO: `2026-03-07`
 - **Ghost mode** — hovering the mouse over the widget automatically hides it (fully transparent and click-through) so it never blocks the desktop; moving the mouse away restores it; toggleable via tray
 - **Auto-contrast** — samples the screen color under the widget every 500ms and automatically switches text to black or white (WCAG-based) when the accent color loses contrast against the background; toggleable via tray
 - **Accent colors** — choose from five presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color; applies to all text, hands, bars, and decorations
