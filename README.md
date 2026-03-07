@@ -10,8 +10,8 @@ A minimal WPF desktop widget that displays the current time as a fuzzy English p
 - **Battery row** — shows battery charge percentage and `⚡` when AC-connected (e.g. `⚡ 87%`); displays `N/A` on desktops or VMs with no battery; toggleable per-row like other stat rows
 - **Uptime row** — system uptime (`up 5h 3m`), rolling 1m/5m/15m CPU load averages, and active process count (`142p`) in a single compact line
 - **Date display** — shows the current date below the clock phrase or dial in a muted accent color; toggleable via tray (Show Date); four format options selectable from the tray Date Format submenu:
-  - Short: `Mon 3/7`
-  - Long: `Monday, March 7, 2026`
+  - Short: `Sat, Mar 7`
+  - Long: `Saturday, March 7`
   - Numeric: `3/7/2026`
   - ISO: `2026-03-07`
 - **Ghost mode** — hovering the mouse over the widget automatically hides it (fully transparent and click-through) so it never blocks the desktop; moving the mouse away restores it; toggleable via tray
@@ -56,7 +56,7 @@ dotnet build FuzzyClock.slnx -c Release
 dotnet test FuzzyClock.slnx
 ```
 
-114 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), settings validation and migration, and app integration tests.
+122 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), settings validation and migration, and app integration tests.
 
 ## Usage
 
@@ -73,7 +73,7 @@ Right-click the system tray icon to access all settings:
 | **Font Size** | Small (16pt) / Medium (24pt) / Large (32pt) — phrase mode only |
 | **Dial Face** | Toggle hour ticks, minute marks, hour numbers — dial mode only |
 | **Show Date** | Show or hide the date line below the clock phrase or dial; persisted |
-| **Date Format** | Short (Mon 3/7) / Long (Monday, March 7, 2026) / Numeric (3/7/2026) / ISO (2026-03-07) |
+| **Date Format** | Short (Sat, Mar 7) / Long (Saturday, March 7) / Numeric (3/7/2026) / ISO (2026-03-07) |
 | **Stats** | Show/hide the stats panel; toggle individual rows (CPU/GPU/MEM/PAG/BATT/Uptime); set update interval |
 | **Theme** | Pick a color preset (White / Amber / Ice Blue / Green / Hello Kitty Pink) or open the custom color picker |
 | **Opacity** | Set window opacity (25% / 50% / 75% / 100%) |
