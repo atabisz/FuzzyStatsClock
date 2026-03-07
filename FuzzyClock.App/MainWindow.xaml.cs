@@ -299,6 +299,7 @@ public partial class MainWindow : Window
         PhraseText.FontFamily    = styleFamily;
         QualifierText.FontFamily = styleFamily;
         EmphasisText.FontFamily  = styleFamily;
+        DateText.FontFamily      = styleFamily;
         QualifierText.FontSize   = (int)(s.FontSize * 0.65);
         EmphasisText.FontSize    = (int)(s.FontSize * 1.40);
 
@@ -943,6 +944,7 @@ public partial class MainWindow : Window
         PhraseText.FontFamily    = family;
         QualifierText.FontFamily = family;
         EmphasisText.FontFamily  = family;
+        DateText.FontFamily      = family;
 
         // Apply current font sizes to split TextBlocks
         QualifierText.FontSize = (int)(_currentFontSize * 0.65);

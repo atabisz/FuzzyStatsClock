@@ -98,7 +98,8 @@
             </Border>
 
             <!-- Row 1: date display — shown below phrase/dial, above stats panel.
-                 Visibility toggled from tray "Show Date". FontSize 22 is 69% of default 32pt phrase.
+                 Visibility toggled from tray "Show Date". FontSize 26 is slightly smaller than 32pt phrase.
+                 FontFamily is overridden in code-behind to match the active text style (Mono/Literary/Classic).
                  Foreground is set to dimmed accent color in code-behind (ApplyTheme/ApplyDisplayColor).
                  DropShadowEffect matches PhraseText/EmphasisText (locked decision: same shadow treatment). -->
             <TextBlock x:Name="DateText"
@@ -106,7 +107,7 @@
                        Margin="0,2,0,0"
                        Visibility="Visible"
                        FontFamily="Segoe UI Light"
-                       FontSize="22"
+                       FontSize="26"
                        Foreground="White"
                        HorizontalAlignment="Center"
                        TextAlignment="Center">
