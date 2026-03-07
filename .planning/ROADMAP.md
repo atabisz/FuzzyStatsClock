@@ -121,7 +121,10 @@ Plans:
   2. Unit tests cover all 4 date formats (Short, Long, Numeric, ISO) with at least one test case each; all tests pass
   3. AppSettings JSON round-trip test verifies DateVisible and DateFormat fields survive serialize → deserialize without silent defaults
   4. Pure logic extracted from MainWindow.xaml.cs is covered by tests; MainWindow LOC is meaningfully reduced
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 38-01-PLAN.md — TDD: DateFormatter extraction into FuzzyClock.Core with full format coverage
+- [ ] 38-02-PLAN.md — AppSettings round-trip tests for ShowDate and DateFormat fields
 
 ### Phase 39: Docs Pass
 **Goal**: README accurately describes the v3.0 date display feature and the new battery row so any user can discover and use both features
@@ -151,9 +154,9 @@ Plans:
 | 34. Uptime Process Count + README | v2.8 | 2/2 | Complete | 2026-03-04 |
 | 35. Process Count Threshold | v2.9 | 1/1 | Complete | 2026-03-05 |
 | 36. Date Display Under Clock | v3.0 | 2/2 | Complete | 2026-03-07 |
-| 37. Battery Stat Row | 2/2 | Complete    | 2026-03-07 | - |
-| 38. Tests + Code Cleanup | v3.1 | 0/? | Not started | - |
+| 37. Battery Stat Row | v3.1 | 2/2 | Complete | 2026-03-07 |
+| 38. Tests + Code Cleanup | v3.1 | 0/2 | Not started | - |
 | 39. Docs Pass | v3.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-07 — phase 37 plans created*
+*Last updated: 2026-03-07 — phase 38 plans created*
