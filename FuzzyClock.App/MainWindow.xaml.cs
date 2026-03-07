@@ -170,6 +170,8 @@ public partial class MainWindow : Window
                 ToggleShowMinuteDots  = () => Dispatcher.Invoke(() => SetShowMinuteDots(!_showMinuteDots)),
                 ToggleShowHourNumbers = () => Dispatcher.Invoke(() => SetShowHourNumbers(!_showHourNumbers)),
                 SetTextStyle          = style => Dispatcher.Invoke(() => SetTextStyle(style)),
+                ToggleDateVisible     = () => Dispatcher.Invoke(() => SetDateVisible(DateText.Visibility != Visibility.Visible)),
+                SetDateFormat         = fmt => Dispatcher.Invoke(() => SetDateFormat(fmt)),
                 SetAccentColor        = c  => Dispatcher.Invoke(() => SetAccentColor(c)),
                 OpenCustomColorDialog = () => Dispatcher.Invoke(OpenCustomColorDialog),
                 SetOpacity            = o  => Dispatcher.Invoke(() => SetOpacity(o)),
@@ -476,6 +478,21 @@ public partial class MainWindow : Window
         if (text == _currentDateText) return;  // no change (same day)
         DateText.Text = text;
         _currentDateText = text;
+    }
+
+    private void SetDateVisible(bool visible)
+    {
+        _showDate = visible;
+        DateText.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        SaveSettings();
+    }
+
+    private void SetDateFormat(string format)
+    {
+        _dateFormat = format;
+        _currentDateText = "";   // force redraw even if date string unchanged (same day, format switch)
+        UpdateDateDisplay();
+        SaveSettings();
     }
 
     private void UpdateStatsDisplay()
