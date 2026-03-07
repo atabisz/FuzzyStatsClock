@@ -532,8 +532,8 @@ public partial class MainWindow : Window
         }
         else
         {
-            string pluggedSuffix = _statsService.IsPluggedIn ? " ⚡" : "";
-            BattText.Text = $"{_statsService.BatteryPercent:F0}%{pluggedSuffix}";
+            string pluggedPrefix = _statsService.IsPluggedIn ? "⚡ " : "";
+            BattText.Text = $"{pluggedPrefix}{_statsService.BatteryPercent:F0}%";
             BattBar.Width = StatsBarTrackWidth * (_statsService.BatteryPercent / 100.0);
         }
     }
