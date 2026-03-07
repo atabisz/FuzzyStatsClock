@@ -1,5 +1,21 @@
 ---
 gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: completed
+stopped_at: Completed 36-01-PLAN.md — DateText display logic and AppSettings persistence
+last_updated: "2026-03-07T03:21:33.553Z"
+last_activity: 2026-03-05 — Phase 35 Plan 01 executed; configurable process threshold shipped
+progress:
+  total_phases: 1
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 67
+---
+
+---
+gsd_state_version: 1.0
 milestone: v2.9
 milestone_name: Process Threshold
 status: complete
@@ -7,7 +23,7 @@ stopped_at: Completed 35-01-PLAN.md — Phase 35 execution done
 last_updated: "2026-03-05"
 last_activity: 2026-03-05 - Completed quick task 1: fix SetProcessThreshold immediate display refresh + stale comment
 progress:
-  total_phases: 1
+  [███████░░░] 67%
   completed_phases: 1
   total_plans: 1
   completed_plans: 1
@@ -44,12 +60,15 @@ Progress: [██████████] 100%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 35 | 1 | 5 min | 5 min |
+| Phase 36-add-a-date-display-under-the-clock P01 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. v2.9 milestone complete — see PROJECT.md for decisions log.
+- [Phase 36-add-a-date-display-under-the-clock]: DateText foreground uses 55% alpha (0x8C) of accent color — same dimming as QualifierText for visual subordination
+- [Phase 36-add-a-date-display-under-the-clock]: DropShadowEffect (BlurRadius=4, Direction=315, ShadowDepth=1, Opacity=0.6) applied identically to PhraseText, EmphasisText, DateText per locked CONTEXT.md decision
 
 ### Roadmap Evolution
 
@@ -71,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Completed 35-01-PLAN.md — Phase 35 Process Count Threshold complete
+Last session: 2026-03-07T03:21:33.548Z
+Stopped at: Completed 36-01-PLAN.md — DateText display logic and AppSettings persistence
 Resume file: None
