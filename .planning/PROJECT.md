@@ -22,6 +22,16 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 122 MSTest tests (97 Core + 25 App) passing. CI gate enforced. ~3,200 LOC C# / XAML.
 
+## Current Milestone: v3.2 Expanded Experience
+
+**Goal:** Add a settings window, built-in themes, battery low alert, and multiple phrase styles including multilingual support.
+
+**Target features:**
+- Settings window (tabbed: Appearance / Stats / Behavior); tray retains quick toggles
+- 5 named built-in themes bundling color + opacity + font size + clock style + stats visibility
+- Battery low alert: battery row accent shifts to red when charge <20% and unplugged
+- 4 phrase personalities: Terse, Poetic, Rude (English), plus locale-based display in French/Spanish/German/Japanese
+
 - Battery row: `SystemInformation.PowerStatus` (WinForms, synchronous); `BatteryPercent` (-1f sentinel for no-battery → "N/A"); `IsPluggedIn` bool; `⚡ {pct}%` prefix format; `BatteryVisible` AppSettings (default true)
 - Date display: `DateFormatter.Format(string, DateTime)` in FuzzyClock.Core (pure static); 4 format strings (Short=`ddd, MMM d`, Long=`dddd, MMMM d`, Numeric=`M/d/yyyy`, ISO=`yyyy-MM-dd`); `DateText` element in muted accent (55% alpha / 0x8C); `AppSettings.ShowDate` + `AppSettings.DateFormat`; `SetDateFormat()` clears `_currentDateText` to force redraw on same-day format switch
 - Auto-contrast: `ContrastSamplerService` (BitBlt screen capture); `ContrastService` (WCAG 2.1 luminance, hysteresis 4.5/5.5, HSL accent adjust ±5 steps up to ±40, black/white fallback); 500ms `DispatcherTimer`; pauses on ghost mode/opacity=0/drag; tray toggle; `AppSettings.AutoContrastEnabled` (default false)
@@ -189,9 +199,38 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ DOCS-03: README documents v3.0 date display (Show Date toggle, 4 formats with corrected examples) and battery row (charge %, AC indicator, N/A on desktops) — v3.1
 - ✓ CLEAN-01: DateFormatter extracted to FuzzyClock.Core; FormatDate private method deleted from MainWindow; both call sites delegate to DateFormatter.Format — v3.1
 
-### Active
+### Active (v3.2)
 
-(No active requirements — v3.1 shipped)
+#### Settings UI
+- [ ] **SETT-01**: User can open a Settings window from the system tray icon
+- [ ] **SETT-02**: Settings window has three tabs — Appearance, Stats, Behavior
+- [ ] **SETT-03**: Appearance tab exposes accent color, opacity, font size, clock style, phrase style, and theme selector
+- [ ] **SETT-04**: Stats tab exposes per-row visibility toggles, update interval, process count threshold, and date format
+- [ ] **SETT-05**: Behavior tab exposes ghost mode, auto-contrast, auto-launch, and battery alert threshold
+- [ ] **SETT-06**: All settings changes apply immediately to the live widget
+- [ ] **SETT-07**: Tray menu retains quick toggles (Ghost Mode, Stats, Auto-Contrast, Auto-Launch) alongside the new Open Settings item
+
+#### Themes
+- [ ] **THM-01**: Settings window Appearance tab offers 5 named built-in themes
+- [ ] **THM-02**: Applying a theme sets accent color, opacity, font size, clock style, and stats panel visibility atomically
+- [ ] **THM-03**: Active theme persists to settings.json and restores on launch
+
+#### Phrase Styles
+- [ ] **STYLE-01**: User can select Terse style (compact forms: "half three", "quarter past", "noon") via Settings window
+- [ ] **STYLE-02**: User can select Poetic style (evocative: "the small hours", "the day grows long") via Settings window
+- [ ] **STYLE-03**: User can select Rude style (blunt: "nearly four, move it", "just gone midnight, go to bed") via Settings window
+- [ ] **STYLE-04**: Selected phrase style persists and restores on launch
+
+#### Multilingual
+- [ ] **LANG-01**: Widget detects Windows UI culture and displays phrases in the matching language when supported
+- [ ] **LANG-02**: Supported languages: English (fallback), French, Spanish, German, Japanese
+- [ ] **LANG-03**: Each supported language provides phrase sets for all 5-minute time buckets (all hours, noon, midnight)
+- [ ] **LANG-04**: Unsupported locales display phrases in English
+
+#### Battery Alert
+- [ ] **ALERT-01**: When battery is below threshold (default 20%) and not plugged in, battery row accent color shifts to red
+- [ ] **ALERT-02**: Battery row returns to normal accent color when battery rises above threshold or is plugged in
+- [ ] **ALERT-03**: Battery alert threshold is configurable in the Settings window Behavior tab (10% / 15% / 20%)
 
 ### Deferred (v2+)
 
@@ -199,7 +238,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ### Out of Scope
 
-- System tray icon full settings UI — shipped minimal tray (Reset + Quit); full settings UI remains out of scope
+- User-created/saved themes — only built-in named presets; custom theme authoring is out of scope
 - 24-hour format — natural English implies 12-hour
 - Click-through / no interaction — incompatible with drag (kills DragMove() event delivery)
 - Arbitrary font size input — 3-step ladder is sufficient
@@ -217,7 +256,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 ## Constraints
 
 - **Tech stack**: C# / WPF — Windows only
-- **Simplicity**: Single window, no settings screens, no installer complexity
+- **Simplicity**: Minimal footprint — settings window is non-modal and lightweight; no installer complexity
 
 ## Key Decisions
 
