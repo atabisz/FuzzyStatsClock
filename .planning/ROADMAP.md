@@ -107,7 +107,10 @@
   3. User can toggle battery row visibility via the tray Stats submenu; checkmark reflects actual state each time the menu opens
   4. Hiding all five stat rows (CPU/GPU/MEM/PAG/BATT) auto-collapses the stats panel
   5. Battery row visibility persists to settings.json and restores on launch; default is enabled
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 37-01-PLAN.md — AppSettings + StatsService battery data layer
+- [ ] 37-02-PLAN.md — XAML + MainWindow + TrayMenuBuilder end-to-end wiring
 
 ### Phase 38: Tests + Code Cleanup
 **Goal**: DateFormatter logic is testable in isolation with full coverage of all 4 formats, AppSettings round-trip tests cover the v3.0 date fields, and MainWindow.xaml.cs has meaningfully less pure logic inline
@@ -148,9 +151,9 @@
 | 34. Uptime Process Count + README | v2.8 | 2/2 | Complete | 2026-03-04 |
 | 35. Process Count Threshold | v2.9 | 1/1 | Complete | 2026-03-05 |
 | 36. Date Display Under Clock | v3.0 | 2/2 | Complete | 2026-03-07 |
-| 37. Battery Stat Row | v3.1 | 0/? | Not started | - |
+| 37. Battery Stat Row | v3.1 | 0/2 | Not started | - |
 | 38. Tests + Code Cleanup | v3.1 | 0/? | Not started | - |
 | 39. Docs Pass | v3.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-07 — v3.1 roadmap created (phases 37–39)*
+*Last updated: 2026-03-07 — phase 37 plans created*
