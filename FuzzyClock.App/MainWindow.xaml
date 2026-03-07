@@ -211,6 +211,28 @@
                                TextAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
 
+
+                <!-- BATT row -->
+                <Grid x:Name="BattRow" Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="35" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" x:Name="BattLabel" Text="BATT"
+                               Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               VerticalAlignment="Center" />
+                    <Border Grid.Column="1" x:Name="BattBarTrack"
+                            Background="#40FFFFFF" CornerRadius="2" Height="8" VerticalAlignment="Center">
+                        <Border x:Name="BattBar"
+                                HorizontalAlignment="Left" Background="White"
+                                CornerRadius="2" Height="8" Width="0" />
+                    </Border>
+                    <TextBlock Grid.Column="2" x:Name="BattText"
+                               Text="0%" Foreground="White" FontFamily="Segoe UI Light" FontSize="12"
+                               TextAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+
             <!-- Uptime row — child of StatsPanel so it hides with stats.
                  UptimeText.Visibility controls the sub-toggle (same pattern as CpuRow/GpuRow/etc.). -->
             <TextBlock x:Name="UptimeText"

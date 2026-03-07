@@ -15,6 +15,7 @@ internal sealed record TrayMenuState
     public bool   GpuVisible          { get; init; }
     public bool   MemVisible          { get; init; }
     public bool   PagVisible          { get; init; }
+    public bool   BatteryVisible      { get; init; }
     public bool   UptimeVisible       { get; init; }
     public int    StatsIntervalSeconds { get; init; }
     public double ProcessCountThreshold { get; init; }
@@ -44,6 +45,7 @@ internal sealed class TrayMenuCallbacks
     public required Action         ToggleGpuVisible     { get; init; }
     public required Action         ToggleMemVisible     { get; init; }
     public required Action         TogglePagVisible     { get; init; }
+    public required Action         ToggleBattVisible    { get; init; }
     public required Action         ToggleUptimeVisible  { get; init; }
     public required Action<int>    SetStatsInterval     { get; init; }
     public required Action<double> SetProcessThreshold  { get; init; }
@@ -83,6 +85,7 @@ internal sealed class TrayMenuBuilder
     private System.Windows.Forms.ToolStripMenuItem  _gpuVisible      = null!;
     private System.Windows.Forms.ToolStripMenuItem  _memVisible      = null!;
     private System.Windows.Forms.ToolStripMenuItem  _pagVisible      = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _battVisible     = null!;
     private System.Windows.Forms.ToolStripMenuItem  _uptimeVisible   = null!;
     private System.Windows.Forms.ToolStripMenuItem  _interval1       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _interval3       = null!;
@@ -226,6 +229,8 @@ internal sealed class TrayMenuBuilder
         _gpuVisible.Click    += (_, _) => _cb.ToggleGpuVisible();
         _memVisible.Click    += (_, _) => _cb.ToggleMemVisible();
         _pagVisible.Click    += (_, _) => _cb.TogglePagVisible();
+        _battVisible = new System.Windows.Forms.ToolStripMenuItem("Show BATT");
+        _battVisible.Click += (_, _) => _cb.ToggleBattVisible();
         _uptimeVisible.Click += (_, _) => _cb.ToggleUptimeVisible();
         _interval1.Click  += (_, _) => _cb.SetStatsInterval(1);
         _interval3.Click  += (_, _) => _cb.SetStatsInterval(3);
@@ -243,7 +248,7 @@ internal sealed class TrayMenuBuilder
         var statsItem = new System.Windows.Forms.ToolStripMenuItem("Stats", null,
             _showStats,
             new System.Windows.Forms.ToolStripSeparator(),
-            _cpuVisible, _gpuVisible, _memVisible, _pagVisible, _uptimeVisible,
+            _cpuVisible, _gpuVisible, _memVisible, _pagVisible, _battVisible, _uptimeVisible,
             intervalItem,
             threshItem);
         menu.Items.Add(statsItem);
@@ -379,6 +384,7 @@ internal sealed class TrayMenuBuilder
         _gpuVisible.Checked    = s.GpuVisible;
         _memVisible.Checked    = s.MemVisible;
         _pagVisible.Checked    = s.PagVisible;
+        _battVisible.Checked   = s.BatteryVisible;
         _uptimeVisible.Checked = s.UptimeVisible;
         _interval1.Checked  = (s.StatsIntervalSeconds == 1);
         _interval3.Checked  = (s.StatsIntervalSeconds == 3);

@@ -162,6 +162,7 @@ public partial class MainWindow : Window
                 ToggleGpuVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(GpuRow, GpuRow.Visibility != Visibility.Visible)),
                 ToggleMemVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible)),
                 TogglePagVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible)),
+                ToggleBattVisible     = () => Dispatcher.Invoke(() => SetStatRowVisible(BattRow, BattRow.Visibility != Visibility.Visible)),
                 ToggleUptimeVisible   = () => Dispatcher.Invoke(() => SetUptimeRowVisible(UptimeText.Visibility != Visibility.Visible)),
                 SetStatsInterval      = s  => Dispatcher.Invoke(() => SetStatsInterval(s)),
                 SetProcessThreshold   = t  => Dispatcher.Invoke(() => SetProcessThreshold(t)),
@@ -229,6 +230,7 @@ public partial class MainWindow : Window
         GpuRow.Visibility = s.GpuVisible ? Visibility.Visible : Visibility.Collapsed;
         MemRow.Visibility = s.MemVisible ? Visibility.Visible : Visibility.Collapsed;
         PagRow.Visibility = s.PagVisible ? Visibility.Visible : Visibility.Collapsed;
+        BattRow.Visibility = s.BatteryVisible ? Visibility.Visible : Visibility.Collapsed;
         // Direct assignment (NOT via SetUptimeRowVisible — unsafe before Show(), same invariant as other rows).
         // UptimeText is inside StatsPanel; StatsPanel.Collapsed hides it automatically.
         UptimeText.Visibility = s.UptimeVisible ? Visibility.Visible : Visibility.Collapsed;
@@ -325,6 +327,7 @@ public partial class MainWindow : Window
         GpuVisible           = GpuRow.Visibility     == Visibility.Visible,
         MemVisible           = MemRow.Visibility     == Visibility.Visible,
         PagVisible           = PagRow.Visibility     == Visibility.Visible,
+        BatteryVisible       = BattRow.Visibility    == Visibility.Visible,
         UptimeVisible        = UptimeText.Visibility == Visibility.Visible,
         StatsIntervalSeconds = _statsIntervalSeconds,
         ProcessCountThreshold = _processCountThreshold,
@@ -364,6 +367,7 @@ public partial class MainWindow : Window
             GpuVisible           = (GpuRow.Visibility    == Visibility.Visible),
             MemVisible           = (MemRow.Visibility    == Visibility.Visible),
             PagVisible           = (PagRow.Visibility    == Visibility.Visible),
+            BatteryVisible       = (BattRow.Visibility   == Visibility.Visible),
             UptimeVisible        = (UptimeText.Visibility == Visibility.Visible),
             DialMode             = _dialMode,
             ShowHourTicks        = _showHourTicks,
@@ -527,6 +531,18 @@ public partial class MainWindow : Window
         {
             PagText.Text = $"{_statsService.PagPercent:F0}%";
             PagBar.Width = StatsBarTrackWidth * (_statsService.PagPercent / 100.0);
+        }
+
+        if (_statsService.BatteryPercent < 0f)
+        {
+            BattText.Text = "N/A";
+            BattBar.Width = 0;
+        }
+        else
+        {
+            string pluggedSuffix = _statsService.IsPluggedIn ? " ⚡" : "";
+            BattText.Text = $"{_statsService.BatteryPercent:F0}%{pluggedSuffix}";
+            BattBar.Width = StatsBarTrackWidth * (_statsService.BatteryPercent / 100.0);
         }
     }
 
@@ -742,13 +758,14 @@ public partial class MainWindow : Window
     {
         row.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
 
-        // Auto-collapse: if all FOUR rows are now hidden and the stats panel is still visible,
+        // Auto-collapse: if all FIVE rows are now hidden and the stats panel is still visible,
         // collapse the entire panel. One-way trigger — re-showing a row does NOT auto-show the panel.
         if (!visible
             && CpuRow.Visibility == Visibility.Collapsed
             && GpuRow.Visibility == Visibility.Collapsed
             && MemRow.Visibility == Visibility.Collapsed
             && PagRow.Visibility == Visibility.Collapsed
+            && BattRow.Visibility == Visibility.Collapsed
             && StatsPanel.Visibility == Visibility.Visible)
         {
             SetStatsVisible(false);
@@ -1090,18 +1107,21 @@ public partial class MainWindow : Window
         GpuBar.Background = brush;
         MemBar.Background = brush;
         PagBar.Background = brush;
+        BattBar.Background = brush;
 
-        // Stats row labels (CPU/GPU/MEM/PAG — named so auto-contrast can update them)
+        // Stats row labels (CPU/GPU/MEM/PAG/BATT — named so auto-contrast can update them)
         CpuLabel.Foreground = brush;
         GpuLabel.Foreground = brush;
         MemLabel.Foreground = brush;
         PagLabel.Foreground = brush;
+        BattLabel.Foreground = brush;
 
         // Stats percentage text (accent color)
         CpuText.Foreground = brush;
         GpuText.Foreground = brush;
         MemText.Foreground = brush;
         PagText.Foreground = brush;
+        BattText.Foreground = brush;
 
         // Uptime row text (accent color)
         UptimeText.Foreground = brush;
@@ -1111,7 +1131,7 @@ public partial class MainWindow : Window
             System.Windows.Media.Color.FromArgb(0x8C, _accentColor.R, _accentColor.G, _accentColor.B));
         DateText.Foreground = dateBrush;
 
-        // Deliberately excluded: CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack,
+        // Deliberately excluded: CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack/BattBarTrack,
         // ContentBorder.Background
     }
 
@@ -1134,11 +1154,11 @@ public partial class MainWindow : Window
         foreach (var el in _minuteDotElements)  el.Fill       = brush;
         foreach (var el in _hourNumberElements) el.Foreground = brush;
         CpuBar.Background  = brush; GpuBar.Background  = brush;
-        MemBar.Background  = brush; PagBar.Background  = brush;
+        MemBar.Background  = brush; PagBar.Background  = brush; BattBar.Background  = brush;
         CpuLabel.Foreground = brush; GpuLabel.Foreground = brush;
-        MemLabel.Foreground = brush; PagLabel.Foreground = brush;
+        MemLabel.Foreground = brush; PagLabel.Foreground = brush; BattLabel.Foreground = brush;
         CpuText.Foreground = brush; GpuText.Foreground = brush;
-        MemText.Foreground = brush; PagText.Foreground = brush;
+        MemText.Foreground = brush; PagText.Foreground = brush; BattText.Foreground = brush;
         UptimeText.Foreground = brush;
 
         // Date text (dimmed display override — 55% alpha)
