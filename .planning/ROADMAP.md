@@ -24,6 +24,7 @@
 - **v2.9 Process Threshold** (2026-03-05) — Configurable process count threshold (2%/5%/10% CPU) selectable from tray Stats submenu; persisted; immediate display refresh. 1 phase, 1 plan. → [Archive](milestones/v2.9-ROADMAP.md)
 - **v3.0 Date Display** (2026-03-07) — Date line below clock/dial, muted accent color, 4 format options, show/hide tray toggle, persisted. 1 phase, 2 plans. → [Archive](milestones/v3.0-ROADMAP.md)
 - **v3.1 Quality + Battery** (2026-03-08) — Battery stat row, DateFormatter extraction with tests, AppSettings round-trip coverage, README accuracy pass. 4 phases, 6 plans. → [Archive](milestones/v3.1-ROADMAP.md)
+- **v3.2 Expanded Experience** (in progress) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 6 phases, 41–46.
 
 ## Phases
 
@@ -98,6 +99,88 @@
 
 </details>
 
+### v3.2 Expanded Experience (In Progress)
+
+**Milestone Goal:** Replace the unwieldy tray menu with a proper Settings window; add five named visual themes; introduce English phrase style personalities (Terse/Poetic/Rude); add native phrase sets for French, Spanish, German, Japanese, and Polish; and alert the user when battery is low with a red stat row.
+
+- [ ] **Phase 41: PhraseEngine Provider Refactor** - Extract IPhraseProvider interface + EnglishPhraseProvider; PhraseEngine becomes static dispatcher; all 122 tests still pass
+- [ ] **Phase 42: Settings Window Infrastructure** - SettingsWindow (3 tabs), "Open Settings..." tray item, modeless Owner=MainWindow, SettingsChanged event wired to ApplySettings+SaveSettings
+- [ ] **Phase 43: Named Themes** - ThemeDefinition record, BuiltInThemes registry (5 presets), ApplyNamedTheme() batch method, AppSettings.Theme persisted
+- [ ] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab
+- [ ] **Phase 45: English Phrase Style Personalities** - PhraseStyle enum (Classic/Terse/Poetic/Rude); bucket tables in EnglishPhraseProvider; AppSettings.PhraseStyle; Settings window wiring; per-style tests
+- [ ] **Phase 46: Multilingual Phrases** - Fr/Es/De/Ja/Pl providers; CultureInfo.CurrentUICulture detection; AppSettings.PhraseLocale; Settings window language selector; 1440-minute tests per language
+
+## Phase Details
+
+### Phase 41: PhraseEngine Provider Refactor
+**Goal**: Users continue seeing accurate time phrases while the Core is restructured to support multiple phrase styles and languages
+**Depends on**: Nothing (first phase of milestone; builds on stable v3.1)
+**Requirements**: (infrastructure — no user-visible requirements; unblocks STYLE-01–04 and LANG-01–04)
+**Success Criteria** (what must be TRUE):
+  1. All 122 existing tests pass without modification after the refactor
+  2. `PhraseEngine.GetPhrase()` and `GetStructuredPhrase()` produce identical output to pre-refactor for English Classic style
+  3. `IPhraseProvider` interface exists in FuzzyClock.Core and `EnglishPhraseProvider` implements it
+  4. `PhraseEngine.SetLocale()` accepts a locale string and can swap providers at runtime
+**Plans**: TBD
+
+### Phase 42: Settings Window Infrastructure
+**Goal**: Users can open a dedicated Settings window from the system tray and change all widget settings without hunting through a 40-item tray menu
+**Depends on**: Phase 41
+**Requirements**: SETT-01, SETT-02, SETT-03, SETT-04, SETT-05, SETT-06, SETT-07
+**Success Criteria** (what must be TRUE):
+  1. Clicking "Open Settings..." in the tray menu opens a modeless window with three tabs: Appearance, Stats, and Behavior
+  2. Changing any control in the Settings window immediately updates the live widget (no Apply button required)
+  3. The Settings window stays open and usable while the widget is visible; the widget remains interactive
+  4. Tray menu retains Ghost Mode, Stats, Auto-Contrast, and Auto-Launch quick toggles alongside the new "Open Settings..." item
+  5. Opening Settings a second time while it is already open brings the existing window to front rather than opening a duplicate
+**Plans**: TBD
+
+### Phase 43: Named Themes
+**Goal**: Users can apply a named visual theme that sets accent color, opacity, font size, clock style, and stats visibility in one click
+**Depends on**: Phase 42
+**Requirements**: THM-01, THM-02, THM-03
+**Success Criteria** (what must be TRUE):
+  1. The Appearance tab in the Settings window offers 5 named built-in themes selectable by the user
+  2. Selecting a theme atomically updates accent color, opacity, font size, clock style, and stats panel visibility on the live widget
+  3. The active theme name is saved to settings.json and the same theme is restored when the app restarts
+  4. All 122 existing tests still pass after theme infrastructure is added
+**Plans**: TBD
+
+### Phase 44: Battery Low Alert
+**Goal**: Users are visually warned when the battery drops below the configured threshold while unplugged, without needing to check the battery icon
+**Depends on**: Phase 43
+**Requirements**: ALERT-01, ALERT-02, ALERT-03
+**Success Criteria** (what must be TRUE):
+  1. When battery is below the alert threshold and not plugged in, the battery stat row text and bar shift to red (`#FFFF4444`)
+  2. When the battery rises above the threshold or is plugged in, the battery row returns to the normal accent color
+  3. The alert threshold is selectable (10% / 15% / 20%) in the Settings window Behavior tab, defaulting to 20%
+  4. The red alert color is not overridden by auto-contrast sampling (both `ApplyTheme()` and `ApplyDisplayColor()` respect the `_batteryAlertActive` flag)
+**Plans**: TBD
+
+### Phase 45: English Phrase Style Personalities
+**Goal**: Users who want more personality from the widget can switch the English phrase vocabulary to Terse, Poetic, or Rude styles
+**Depends on**: Phase 41
+**Requirements**: STYLE-01, STYLE-02, STYLE-03, STYLE-04
+**Success Criteria** (what must be TRUE):
+  1. The Appearance tab in the Settings window offers a Phrase Style selector (Classic / Terse / Poetic / Rude)
+  2. Switching to Terse style immediately shows compact phrases such as "half three" or "quarter past" on the live widget
+  3. Switching to Poetic style immediately shows evocative phrases such as "the small hours" or "the day grows long" on the live widget
+  4. Switching to Rude style immediately shows blunt phrases such as "nearly four, move it" on the live widget
+  5. The selected phrase style persists to settings.json and is restored on next launch
+**Plans**: TBD
+
+### Phase 46: Multilingual Phrases
+**Goal**: Users whose Windows UI language is French, Spanish, German, Japanese, or Polish see time phrases in their native language automatically
+**Depends on**: Phase 41, Phase 45
+**Requirements**: LANG-01, LANG-02, LANG-03, LANG-04
+**Success Criteria** (what must be TRUE):
+  1. Widget auto-detects `CultureInfo.CurrentUICulture` on launch and displays phrases in the matching language when supported (fr/es/de/ja/pl)
+  2. Each supported language covers all 5-minute time buckets (verified by passing a 1440-minute exhaustive test per language)
+  3. A user with an unsupported locale (e.g., Italian) sees English phrases rather than an error
+  4. Language is selectable manually via a Phrase Language control in the Settings window Behavior tab, overriding auto-detection
+  5. The selected language persists to settings.json and is restored on next launch
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -120,6 +203,12 @@
 | 38. Tests + Code Cleanup | v3.1 | 2/2 | Complete | 2026-03-07 |
 | 39. Docs Pass | v3.1 | 1/1 | Complete | 2026-03-07 |
 | 40. README Accuracy Fixes | v3.1 | 1/1 | Complete | 2026-03-08 |
+| 41. PhraseEngine Provider Refactor | v3.2 | 0/TBD | Not started | - |
+| 42. Settings Window Infrastructure | v3.2 | 0/TBD | Not started | - |
+| 43. Named Themes | v3.2 | 0/TBD | Not started | - |
+| 44. Battery Low Alert | v3.2 | 0/TBD | Not started | - |
+| 45. English Phrase Style Personalities | v3.2 | 0/TBD | Not started | - |
+| 46. Multilingual Phrases | v3.2 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-08 — v3.1 milestone complete and archived*
+*Last updated: 2026-03-08 — v3.2 roadmap created*
