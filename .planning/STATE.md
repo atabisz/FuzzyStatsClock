@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Quality + Battery
-status: complete
-stopped_at: Completed 40-01-PLAN.md
+status: archived
+stopped_at: v3.1 archived — 2026-03-08
 last_updated: "2026-03-08"
-last_activity: 2026-03-08 — 40-01 README accuracy fixes: Short/Long format examples corrected, test count updated to 122
+last_activity: 2026-03-08 — v3.1 milestone archived; PROJECT.md evolved; git tag v3.1 created
 progress:
   total_phases: 4
   completed_phases: 4
@@ -18,17 +18,16 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-07 after v3.1 roadmap created)
+See: .planning/PROJECT.md (updated 2026-03-08 after v3.1 milestone)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 40 complete — all v3.1 audit tech debt cleared; ready for /gsd:complete-milestone
+**Current focus:** v3.1 milestone complete and archived — planning next milestone
 
 ## Current Position
 
-Phase: 40 of 40 (README Accuracy Fixes)
-Plan: 01 complete — Phase 40 complete, all phases done
+Milestone: v3.1 — ARCHIVED 2026-03-08
 Status: Complete
-Last activity: 2026-03-08 — 40-01 README accuracy fixes: Short/Long format examples corrected, test count updated to 122
+Last activity: 2026-03-08 — v3.1 archived; git tag v3.1 created; ready for /gsd:new-milestone
 
 Progress: [██████████] 100%
 

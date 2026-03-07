@@ -269,3 +269,19 @@
 
 ---
 
+
+## v3.1 Quality + Battery (Shipped: 2026-03-08)
+
+**Phases completed:** 4 phases (37–40), 6 plans
+**Test suite:** 122 tests (97 Core + 25 App), 0 failures
+**Files changed:** 33 files changed, +2663 lines
+
+**Key accomplishments:**
+- Battery stat row added below PAG: `SystemInformation.PowerStatus` data source; `⚡ {pct}%` when AC-connected; `N/A` sentinel on desktops/VMs; tray Stats toggle; persisted default-enabled
+- `DateFormatter` extracted from MainWindow into FuzzyClock.Core as a pure static class; `Format(string, DateTime)` with injected date for test determinism; 6 unit tests covering all 4 formats
+- AppSettings JSON round-trip tests added for `ShowDate` and `DateFormat` fields with 2 absent-field isolation tests (STEST-08)
+- README accuracy pass: Short/Long date format examples corrected to match actual `ddd, MMM d` / `dddd, MMMM d` output; test count updated from 114 to 122; AC indicator order corrected
+- Battery AC indicator order fixed: code changed to produce `⚡ 87%` (prefix) matching user intent and README
+
+---
+

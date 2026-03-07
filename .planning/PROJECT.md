@@ -2,23 +2,15 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, and paging file usage as horizontal bars with percentage text, with a user-selectable update rate (1s/3s/10s). Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides all settings toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, and Quit. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides all settings toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, and Quit. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v3.1 Quality + Battery
-
-**Goal:** Quality pass (tests, docs, code cleanup) and battery stat row
-
-**Target features:**
-- Battery % stat row (new) — enabled by default, toggleable, N/A on desktops
-- Tests for v3.0 date display (DateFormatter extraction + AppSettings round-trip)
-- README accuracy pass for v3.0 features
-- MainWindow.xaml.cs cleanup — extract pure logic into FuzzyClock.Core, improve testability
-
 ## Current State
+
+**v3.1 shipped: 2026-03-08** — Battery stat row (charge %, AC indicator, N/A on desktops), DateFormatter extracted to FuzzyClock.Core with 6 unit tests, AppSettings round-trip tests for date fields, README accuracy pass for v3.0+v3.1 features
 
 **v3.0 shipped: 2026-03-07** — Date display under clock (Show Date toggle, 4 format options, persisted)
 
@@ -28,10 +20,12 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 **v2.7 shipped: 2026-03-03** — Auto-contrast, auto-launch, per-monitor position memory
 
-88 MSTest tests (74 Core + 14 App) passing. CI gate enforced. ~3,055 LOC C# / XAML.
+122 MSTest tests (97 Core + 25 App) passing. CI gate enforced. ~3,200 LOC C# / XAML.
 
+- Battery row: `SystemInformation.PowerStatus` (WinForms, synchronous); `BatteryPercent` (-1f sentinel for no-battery → "N/A"); `IsPluggedIn` bool; `⚡ {pct}%` prefix format; `BatteryVisible` AppSettings (default true)
+- Date display: `DateFormatter.Format(string, DateTime)` in FuzzyClock.Core (pure static); 4 format strings (Short=`ddd, MMM d`, Long=`dddd, MMMM d`, Numeric=`M/d/yyyy`, ISO=`yyyy-MM-dd`); `DateText` element in muted accent (55% alpha / 0x8C); `AppSettings.ShowDate` + `AppSettings.DateFormat`; `SetDateFormat()` clears `_currentDateText` to force redraw on same-day format switch
 - Auto-contrast: `ContrastSamplerService` (BitBlt screen capture); `ContrastService` (WCAG 2.1 luminance, hysteresis 4.5/5.5, HSL accent adjust ±5 steps up to ±40, black/white fallback); 500ms `DispatcherTimer`; pauses on ghost mode/opacity=0/drag; tray toggle; `AppSettings.AutoContrastEnabled` (default false)
-- Stats label TextBlocks (CPU/GPU/MEM/PAG) named (`CpuLabel/GpuLabel/MemLabel/PagLabel`) and covered by both `ApplyDisplayColor` (auto-contrast path) and `ApplyTheme` (accent restore)
+- Stats label TextBlocks (CPU/GPU/MEM/PAG/BATT) named and covered by both `ApplyDisplayColor` (auto-contrast path) and `ApplyTheme` (accent restore)
 - Auto-launch: `AutoLaunchService` writes/removes `HKCU\...\Run` entry; tray toggle updates checkmark; registry synced on startup via `AppSettings.AutoLaunchEnabled` (default false)
 - Per-monitor: `MonitorService` (QueryDisplayConfig P/Invoke) returns friendly names; `Dictionary<string, MonitorPosition>` in AppSettings + `LastActiveMonitor` sentinel; drag-end upsert with source-clear on cross-monitor drag; startup restores last-active monitor or centers on primary
 - Ghost mode: `Opacity=0` + `WS_EX_TRANSPARENT` on `MouseEnter` (no modifier); `DispatcherTimer` 75ms `GetCursorPos+GetWindowRect` restore; synthetic hover-state cleanup before going transparent
@@ -40,10 +34,10 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - Uptime row: `up Xd Xh Xm   0.52  0.47  0.43`; rolling CPU 1m/5m/15m via `Queue<float>`; interval-aware window sizing; cold-start guard
 - Accent color: 5 presets + custom color picker; applied to 17+ elements; persisted as hex string
 - Window opacity: right-click submenu (25/50/75/100%) + scroll wheel; persisted
-- Stats panel: CPU / GPU / MEM / PAG horizontal bars + %; per-row visibility toggles; persisted
+- Stats panel: CPU / GPU / MEM / PAG / BATT horizontal bars + %; per-row visibility toggles; persisted
 - Dial mode: minimal analog dial with optional decorations; persisted
 - Settings: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- Main files: MainWindow.xaml.cs ~1300, MonitorService.cs 268, ContrastSamplerService.cs ~80, ContrastService.cs ~197, SettingsService.cs ~120
+- Main files: MainWindow.xaml.cs ~1300, MonitorService.cs 268, ContrastSamplerService.cs ~80, ContrastService.cs ~197, SettingsService.cs ~120, DateFormatter.cs ~25
 
 ## Requirements
 
@@ -178,19 +172,26 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ THRESH-01: User can set the active process count threshold (2% / 5% / 10% CPU) via tray Stats submenu; current selection shown as checkmark; default 5% — v2.9
 - ✓ THRESH-02: Threshold persists to settings.json and restores on launch; UpdateUptimeDisplay() uses the persisted value — v2.9
 
+### Validated (v3.0)
+
+- ✓ DATE-01: Date line below clock phrase or dial in muted accent color (55% alpha); toggleable via Show Date tray toggle; persisted — v3.0
+- ✓ DATE-02: Four date format options (Short/Long/Numeric/ISO) selectable via Date Format tray submenu; persisted — v3.0
+
+### Validated (v3.1)
+
+- ✓ BATT-01: Stats panel shows battery charge % as a horizontal bar + percentage text below PAG row — v3.1
+- ✓ BATT-02: Battery row shows "N/A" (no exception) when no battery is present (e.g. desktop) — v3.1
+- ✓ BATT-03: User can toggle battery row visibility via tray Stats submenu; checkmark reflects state — v3.1
+- ✓ BATT-04: Hiding all five stat rows (CPU/GPU/MEM/PAG/BATT) auto-collapses the stats panel — v3.1
+- ✓ BATT-05: Battery row visibility persists to settings.json and restores on launch; default true — v3.1
+- ✓ UTEST-03: DateFormatter logic extracted from MainWindow into FuzzyClock.Core as a pure static class with 6 unit tests covering all 4 formats — v3.1
+- ✓ STEST-08: AppSettings JSON round-trip includes DateVisible and DateFormat fields; absent-field tests verify init defaults — v3.1
+- ✓ DOCS-03: README documents v3.0 date display (Show Date toggle, 4 formats with corrected examples) and battery row (charge %, AC indicator, N/A on desktops) — v3.1
+- ✓ CLEAN-01: DateFormatter extracted to FuzzyClock.Core; FormatDate private method deleted from MainWindow; both call sites delegate to DateFormatter.Format — v3.1
+
 ### Active
 
-<!-- Current scope for v3.1 Quality + Battery. Building toward these. -->
-
-- [ ] BATT-01: Stats panel shows battery charge % as a horizontal bar + percentage text below PAG row
-- [ ] BATT-02: Battery row shows "N/A" (no exception) when no battery is present (e.g. desktop)
-- [ ] BATT-03: User can toggle battery row visibility via tray Stats submenu; checkmark reflects state
-- [ ] BATT-04: Hiding all five stat rows auto-collapses the stats panel
-- [ ] BATT-05: Battery row visibility persists to settings.json and restores on launch; default true
-- [ ] UTEST-03: DateFormatter logic extracted from MainWindow into FuzzyClock.Core with unit tests
-- [ ] STEST-08: AppSettings round-trip includes DateVisible and DateFormat fields
-- [ ] DOCS-03: README updated to reflect v3.0 date display feature and battery row
-- [ ] CLEAN-01: Pure logic extracted from MainWindow.xaml.cs into FuzzyClock.Core; MainWindow LOC reduced
+(No active requirements — v3.1 shipped)
 
 ### Deferred (v2+)
 
@@ -326,6 +327,12 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | Three fixed threshold values (2/5/10%) with Validate() guard | Free-entry spinner adds text-input complexity with little benefit; ladder values cover meaningful range; Validate() guards against invalid persisted values (resets to 5.0) | ✓ Validated — ladder sufficient for use case; guard protects against manually edited settings.json |
 | Exact double comparison for threshold checkmark sync | Same pattern as opacity preset sync; threshold values are always set from the fixed ladder (never from arithmetic), so exact comparison is reliable | ✓ Validated — SyncCheckmarks correctly checks exactly one item across all threshold transitions |
 | SetProcessThreshold() calls UpdateStatsDisplay() for immediate refresh | Without the call, visual count lags by up to one timer interval after selection — discovered during audit; mirrors SetStatsInterval() timer-restart pattern | ✓ Validated — {N}p count updates immediately on threshold change; no perceptible lag |
+| DateText foreground uses 55% alpha (0x8C) of accent color | Date is secondary to the time phrase; muted accent creates visual hierarchy without introducing a new color | ✓ Validated — date visible but clearly subordinate; accent color change reflects immediately |
+| SetDateFormat() clears _currentDateText to force redraw on same-day format switch | Without clear, switching formats within the same day shows stale text because UpdateDateDisplay() only writes when text changes | ✓ Validated — format switch causes immediate redraw regardless of same-day state |
+| Battery data via SystemInformation.PowerStatus (WinForms, synchronous) | No PerformanceCounter overhead or multi-counter setup; synchronous call returns accurate data on first call — no priming needed | ✓ Validated — battery % and IsPluggedIn reliable on laptops; -1f sentinel returned on desktops/VMs as expected |
+| DateFormatter.Format(string, DateTime) accepts explicit DateTime parameter | Injecting DateTime makes tests deterministic; production callers pass DateTime.Now; no test-time sensitivity | ✓ Validated — 6 unit tests with fixed date (2026-03-07) all pass deterministically |
+| Battery AC indicator as prefix (⚡ 87%) not suffix | User intention stated explicitly; prefix more natural for reading ("plugged in at 87%") | ✓ Validated — display format ⚡ 87% confirmed in code |
+| Absent-field tests use minimal JSON string for ShowDate/DateFormat | Isolates init default behavior for each field independently; full round-trip test covers the happy path separately | ✓ Validated — 2 absent-field tests + 1 round-trip test provide full coverage of STEST-08 |
 
 ---
-*Last updated: 2026-03-07 after v3.1 milestone started*
+*Last updated: 2026-03-08 after v3.1 milestone*
