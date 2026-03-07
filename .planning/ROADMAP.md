@@ -134,7 +134,9 @@ Plans:
   1. README describes the Show Date toggle and all 4 date format options with an example of what each looks like
   2. README describes the battery row, including the "N/A" behavior on desktops
   3. README tray menu table or description reflects the new date and battery tray items
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 39-01-PLAN.md — Update README with date display and battery row
 
 ## Progress
 
@@ -155,8 +157,8 @@ Plans:
 | 35. Process Count Threshold | v2.9 | 1/1 | Complete | 2026-03-05 |
 | 36. Date Display Under Clock | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 37. Battery Stat Row | v3.1 | 2/2 | Complete | 2026-03-07 |
-| 38. Tests + Code Cleanup | 2/2 | Complete    | 2026-03-07 | - |
-| 39. Docs Pass | v3.1 | 0/? | Not started | - |
+| 38. Tests + Code Cleanup | v3.1 | 2/2 | Complete | 2026-03-07 |
+| 39. Docs Pass | v3.1 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-03-07 — phase 38 plans created*
+*Last updated: 2026-03-07 — phase 39 plan created*
