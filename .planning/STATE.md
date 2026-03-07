@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Quality + Battery
-status: ready_to_plan
-stopped_at: Roadmap created — ready to plan Phase 37
+status: in_progress
+stopped_at: Completed 37-01-PLAN.md
 last_updated: "2026-03-07"
-last_activity: 2026-03-07 — v3.1 roadmap created (phases 37–39)
+last_activity: 2026-03-07 — 37-01 battery data layer complete
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 80
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-07 after v3.1 roadmap created)
 ## Current Position
 
 Phase: 37 of 39 (Battery Stat Row)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-07 — v3.1 roadmap created (phases 37–39)
+Plan: 01 complete, Plan 02 next
+Status: In Progress
+Last activity: 2026-03-07 — 37-01 battery data layer complete (BatteryPercent, IsPluggedIn, BatteryVisible)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████░░] 80%
 
 ## Accumulated Context
 
@@ -42,6 +42,7 @@ Recent decisions affecting current work:
 - v3.0 (Phase 36): DateText foreground uses 55% alpha (0x8C) of accent color; SetDateFormat clears _currentDateText to force redraw on format switch within same day
 - v2.9: Three fixed threshold values (2/5/10%) with Validate() guard; SetProcessThreshold() calls UpdateStatsDisplay() for immediate refresh
 - v2.5: SettingsService.Validate() extracted for pure-static testability; pure Clamp() overload avoids SystemParameters in tests
+- [Phase 37-battery-stat-row]: Battery data via SystemInformation.PowerStatus — synchronous, no PerformanceCounter overhead, fully-qualified WinForms names in StatsService
 
 ### Pending Todos
 

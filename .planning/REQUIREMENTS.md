@@ -9,10 +9,10 @@
 ### Battery
 
 - [ ] **BATT-01**: Stats panel shows battery charge % as a horizontal bar + percentage text below PAG row
-- [ ] **BATT-02**: Battery row shows "N/A" (no exception) when no battery is present (desktop/VM)
+- [x] **BATT-02**: Battery row shows "N/A" (no exception) when no battery is present (desktop/VM)
 - [ ] **BATT-03**: User can toggle battery row visibility via tray Stats submenu; checkmark reflects current state
 - [ ] **BATT-04**: Hiding all five stat rows (CPU/GPU/MEM/PAG/BATT) auto-collapses the stats panel
-- [ ] **BATT-05**: Battery row visibility persists to settings.json and restores on launch; default enabled
+- [x] **BATT-05**: Battery row visibility persists to settings.json and restores on launch; default enabled
 
 ### Tests
 
@@ -53,10 +53,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BATT-01 | Phase 37 | Pending |
-| BATT-02 | Phase 37 | Pending |
+| BATT-02 | Phase 37 | Complete |
 | BATT-03 | Phase 37 | Pending |
 | BATT-04 | Phase 37 | Pending |
-| BATT-05 | Phase 37 | Pending |
+| BATT-05 | Phase 37 | Complete |
 | UTEST-03 | Phase 38 | Pending |
 | STEST-08 | Phase 38 | Pending |
 | CLEAN-01 | Phase 38 | Pending |
