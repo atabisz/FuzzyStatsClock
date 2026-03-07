@@ -158,7 +158,8 @@ Plans:
 | 36. Date Display Under Clock | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 37. Battery Stat Row | v3.1 | 2/2 | Complete | 2026-03-07 |
 | 38. Tests + Code Cleanup | v3.1 | 2/2 | Complete | 2026-03-07 |
-| 39. Docs Pass | 1/1 | Complete    | 2026-03-07 | - |
+| 39. Docs Pass | v3.1 | 1/1 | Complete | 2026-03-07 |
+| 40. README Accuracy Fixes | v3.1 | 1/1 | Complete | 2026-03-08 |
 
 ### Phase 40: README accuracy fixes — correct Short/Long format examples and update test count to 122
 
@@ -167,7 +168,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 40-01-PLAN.md — Fix Short/Long format examples and update test count to 122
+- [x] 40-01-PLAN.md — Fix Short/Long format examples and update test count to 122
 
 ---
-*Last updated: 2026-03-08 — phase 40 plan created*
+*Last updated: 2026-03-08 — phase 40 complete; all v3.1 audit tech debt cleared*

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Quality + Battery
 status: complete
-stopped_at: Completed 39-01-PLAN.md
-last_updated: "2026-03-07"
-last_activity: 2026-03-07 — 39-01 README updated with date display, battery row, test count 114, DateFormatter in project structure
+stopped_at: Completed 40-01-PLAN.md
+last_updated: "2026-03-08"
+last_activity: 2026-03-08 — 40-01 README accuracy fixes: Short/Long format examples corrected, test count updated to 122
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 7
+  completed_plans: 7
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07 after v3.1 roadmap created)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 39 complete — v3.1 milestone ready for audit and tagging
+**Current focus:** Phase 40 complete — all v3.1 audit tech debt cleared; ready for /gsd:complete-milestone
 
 ## Current Position
 
-Phase: 39 of 39 (Docs Pass)
-Plan: 01 complete — Phase 39 complete, all phases done
+Phase: 40 of 40 (README Accuracy Fixes)
+Plan: 01 complete — Phase 40 complete, all phases done
 Status: Complete
-Last activity: 2026-03-07 — 39-01 README updated with date display, battery row, test count 114, DateFormatter in project structure
+Last activity: 2026-03-08 — 40-01 README accuracy fixes: Short/Long format examples corrected, test count updated to 122
 
 Progress: [██████████] 100%
 
