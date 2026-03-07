@@ -19,7 +19,9 @@ public sealed class StatsService : IDisposable
     public float CpuPercent { get; private set; }
     public float GpuPercent { get; private set; } = -1f;  // -1f = unavailable sentinel (display "N/A")
     public float MemPercent { get; private set; }
-    public float PagPercent { get; private set; } = -1f;  // -1f = unavailable sentinel (display "N/A")
+    public float PagPercent     { get; private set; } = -1f;  // -1f = unavailable sentinel (display "N/A")
+    public float BatteryPercent { get; private set; } = -1f;  // -1f = no battery sentinel (display "N/A")
+    public bool  IsPluggedIn    { get; private set; }
     public bool IsReady => _initialized;
     // volatile bool: safe to read from Dispatcher thread — always sees latest committed value.
     // Environment.TickCount64 on .NET 10/Windows includes suspend/hibernate time.
@@ -65,6 +67,23 @@ public sealed class StatsService : IDisposable
         }
 
         GpuPercent = _gpuAvailable ? 0f : -1f;
+
+        // Battery: synchronous read — no async counter priming needed.
+        // BatteryLifePercent > 1.0f (0xFF / 255) indicates no battery present.
+        var ps = System.Windows.Forms.SystemInformation.PowerStatus;
+        if ((ps.BatteryChargeStatus & System.Windows.Forms.BatteryChargeStatus.NoSystemBattery)
+                == System.Windows.Forms.BatteryChargeStatus.NoSystemBattery
+            || ps.BatteryLifePercent > 1.0f)
+        {
+            BatteryPercent = -1f;   // no battery — sentinel for "N/A"
+            IsPluggedIn    = false;
+        }
+        else
+        {
+            BatteryPercent = ps.BatteryLifePercent * 100f;
+            IsPluggedIn    = ps.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
+        }
+
         _initialized = true;  // MUST be last — guards all Refresh() reads
     }
 
@@ -86,6 +105,21 @@ public sealed class StatsService : IDisposable
                 _pagAvailable = false;
                 PagPercent = -1f;
             }
+        }
+
+        // Battery: polled on same stats timer — no dedicated timer.
+        var battPs = System.Windows.Forms.SystemInformation.PowerStatus;
+        if ((battPs.BatteryChargeStatus & System.Windows.Forms.BatteryChargeStatus.NoSystemBattery)
+                == System.Windows.Forms.BatteryChargeStatus.NoSystemBattery
+            || battPs.BatteryLifePercent > 1.0f)
+        {
+            BatteryPercent = -1f;
+            IsPluggedIn    = false;
+        }
+        else
+        {
+            BatteryPercent = battPs.BatteryLifePercent * 100f;
+            IsPluggedIn    = battPs.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
         }
 
         if (!_gpuAvailable) return;
