@@ -16,7 +16,7 @@
 
 ### Tests
 
-- [ ] **UTEST-03**: DateFormatter logic extracted from MainWindow into FuzzyClock.Core as a pure static class with unit tests covering all 4 format options
+- [x] **UTEST-03**: DateFormatter logic extracted from MainWindow into FuzzyClock.Core as a pure static class with unit tests covering all 4 format options
 - [x] **STEST-08**: AppSettings JSON round-trip includes DateVisible and DateFormat fields (no silent defaults on upgrade)
 
 ### Docs
@@ -25,7 +25,7 @@
 
 ### Cleanup
 
-- [ ] **CLEAN-01**: Pure logic extracted from MainWindow.xaml.cs into FuzzyClock.Core; MainWindow LOC meaningfully reduced; all extracted code covered by tests
+- [x] **CLEAN-01**: Pure logic extracted from MainWindow.xaml.cs into FuzzyClock.Core; MainWindow LOC meaningfully reduced; all extracted code covered by tests
 
 ## Future Requirements
 
@@ -57,9 +57,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BATT-03 | Phase 37 | Complete |
 | BATT-04 | Phase 37 | Complete |
 | BATT-05 | Phase 37 | Complete |
-| UTEST-03 | Phase 38 | Pending |
+| UTEST-03 | Phase 38 | Complete |
 | STEST-08 | Phase 38 | Complete |
-| CLEAN-01 | Phase 38 | Pending |
+| CLEAN-01 | Phase 38 | Complete |
 | DOCS-03 | Phase 39 | Pending |
 
 **Coverage:**
