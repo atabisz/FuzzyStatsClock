@@ -30,7 +30,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - Settings window (tabbed: Appearance / Stats / Behavior); tray retains quick toggles
 - 5 named built-in themes bundling color + opacity + font size + clock style + stats visibility
 - Battery low alert: battery row accent shifts to red when charge <20% and unplugged
-- 4 phrase personalities: Terse, Poetic, Rude (English), plus locale-based display in French/Spanish/German/Japanese
+- 4 phrase personalities: Terse, Poetic, Rude (English), plus locale-based display in French/Spanish/German/Japanese/Polish
 
 - Battery row: `SystemInformation.PowerStatus` (WinForms, synchronous); `BatteryPercent` (-1f sentinel for no-battery → "N/A"); `IsPluggedIn` bool; `⚡ {pct}%` prefix format; `BatteryVisible` AppSettings (default true)
 - Date display: `DateFormatter.Format(string, DateTime)` in FuzzyClock.Core (pure static); 4 format strings (Short=`ddd, MMM d`, Long=`dddd, MMMM d`, Numeric=`M/d/yyyy`, ISO=`yyyy-MM-dd`); `DateText` element in muted accent (55% alpha / 0x8C); `AppSettings.ShowDate` + `AppSettings.DateFormat`; `SetDateFormat()` clears `_currentDateText` to force redraw on same-day format switch
@@ -223,7 +223,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 #### Multilingual
 - [ ] **LANG-01**: Widget detects Windows UI culture and displays phrases in the matching language when supported
-- [ ] **LANG-02**: Supported languages: English (fallback), French, Spanish, German, Japanese
+- [ ] **LANG-02**: Supported languages: English (fallback), French, Spanish, German, Japanese, Polish
 - [ ] **LANG-03**: Each supported language provides phrase sets for all 5-minute time buckets (all hours, noon, midnight)
 - [ ] **LANG-04**: Unsupported locales display phrases in English
 
