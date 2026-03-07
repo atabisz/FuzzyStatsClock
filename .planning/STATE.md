@@ -57,6 +57,10 @@ None.
 
 None.
 
+### Roadmap Evolution
+
+- Phase 40 added: README accuracy fixes — correct Short/Long format examples and update test count to 122
+
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |

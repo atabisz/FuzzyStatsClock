@@ -160,5 +160,14 @@ Plans:
 | 38. Tests + Code Cleanup | v3.1 | 2/2 | Complete | 2026-03-07 |
 | 39. Docs Pass | 1/1 | Complete    | 2026-03-07 | - |
 
+### Phase 40: README accuracy fixes — correct Short/Long format examples and update test count to 122
+
+**Goal:** [To be planned]
+**Depends on:** Phase 39
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 40 to break down)
+
 ---
 *Last updated: 2026-03-07 — phase 39 plan created*
