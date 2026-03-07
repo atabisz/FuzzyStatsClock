@@ -55,13 +55,15 @@ internal sealed class TrayMenuCallbacks
     public required Action         OpenCustomColorDialog { get; init; }
     public required Action<double> SetOpacity           { get; init; }
     public required Action<string> SetTextStyle         { get; init; }
+    public required Action         ToggleDateVisible    { get; init; }
+    public required Action<string> SetDateFormat        { get; init; }
     public required Action         ResetToDefaults      { get; init; }
     public required Action         Quit                 { get; init; }
 }
 
 /// <summary>
 /// Builds the system tray NotifyIcon and ContextMenuStrip.
-/// Owns all 38 ToolStripMenuItem references; syncs their checkmarks via SyncCheckmarks on Opening.
+/// Owns all 43 ToolStripMenuItem references; syncs their checkmarks via SyncCheckmarks on Opening.
 /// </summary>
 internal sealed class TrayMenuBuilder
 {
@@ -102,6 +104,11 @@ internal sealed class TrayMenuBuilder
     private System.Windows.Forms.ToolStripMenuItem  _styleSplit      = null!;
     private System.Windows.Forms.ToolStripMenuItem  _styleLiterary   = null!;
     private System.Windows.Forms.ToolStripMenuItem  _styleMono = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _showDateItem      = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _dateFormatShort   = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _dateFormatLong    = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _dateFormatNumeric = null!;
+    private System.Windows.Forms.ToolStripMenuItem  _dateFormatIso     = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity25       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity50       = null!;
     private System.Windows.Forms.ToolStripMenuItem  _opacity75       = null!;
@@ -167,6 +174,26 @@ internal sealed class TrayMenuBuilder
             { Checked = initialState.AutoContrastEnabled };
         _autoContrastItem.Click += (_, _) => _cb.ToggleAutoContrast();
         menu.Items.Add(_autoContrastItem);
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        // Show Date toggle
+        _showDateItem = new System.Windows.Forms.ToolStripMenuItem("Show Date")
+            { Checked = initialState.ShowDate };
+        _showDateItem.Click += (_, _) => _cb.ToggleDateVisible();
+        menu.Items.Add(_showDateItem);
+
+        // Date Format submenu (mutually exclusive checkmarks)
+        _dateFormatShort   = new System.Windows.Forms.ToolStripMenuItem("Short (Fri, Mar 6)");
+        _dateFormatLong    = new System.Windows.Forms.ToolStripMenuItem("Long (Friday, March 6)");
+        _dateFormatNumeric = new System.Windows.Forms.ToolStripMenuItem("Numeric (3/6/2026)");
+        _dateFormatIso     = new System.Windows.Forms.ToolStripMenuItem("ISO (2026-03-06)");
+        _dateFormatShort.Click   += (_, _) => _cb.SetDateFormat("Short");
+        _dateFormatLong.Click    += (_, _) => _cb.SetDateFormat("Long");
+        _dateFormatNumeric.Click += (_, _) => _cb.SetDateFormat("Numeric");
+        _dateFormatIso.Click     += (_, _) => _cb.SetDateFormat("ISO");
+        var dateFormatItem = new System.Windows.Forms.ToolStripMenuItem("Date Format", null,
+            _dateFormatShort, _dateFormatLong, _dateFormatNumeric, _dateFormatIso);
+        menu.Items.Add(dateFormatItem);
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
         // Font Size submenu
@@ -337,6 +364,11 @@ internal sealed class TrayMenuBuilder
         _ghostModeItem.Checked    = s.GhostModeEnabled;
         _autoLaunchItem.Checked   = s.AutoLaunchEnabled;
         _autoContrastItem.Checked = s.AutoContrastEnabled;
+        _showDateItem.Checked      = s.ShowDate;
+        _dateFormatShort.Checked   = (s.DateFormat == "Short");
+        _dateFormatLong.Checked    = (s.DateFormat == "Long");
+        _dateFormatNumeric.Checked = (s.DateFormat == "Numeric");
+        _dateFormatIso.Checked     = (s.DateFormat == "ISO");
 
         _fontSmall.Checked  = (s.FontSize == 16);
         _fontMedium.Checked = (s.FontSize == 24);
