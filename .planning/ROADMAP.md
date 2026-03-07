@@ -22,6 +22,7 @@
 - **v2.7 Auto-Contrast** (2026-03-03) — WCAG screen-color sampling under widget footprint; text switches to black/white when contrast insufficient; restores accent when contrast is sufficient. 1 phase, 3 plans. → [Archive](milestones/v2.7-ROADMAP.md)
 - **v2.8 Uptime and Docs** (2026-03-04) — Active process count (`{N}p`) on uptime line; README accuracy pass. 1 phase, 2 plans. → [Archive](milestones/v2.8-ROADMAP.md)
 - **v2.9 Process Threshold** (2026-03-05) — Configurable process count threshold (2%/5%/10% CPU) selectable from tray Stats submenu; persisted; immediate display refresh. 1 phase, 1 plan. → [Archive](milestones/v2.9-ROADMAP.md)
+- **v3.0 Date Display** (2026-03-07) — Date line below clock/dial, muted accent color, 4 format options, show/hide tray toggle, persisted. 1 phase, 2 plans. → [Archive](milestones/v3.0-ROADMAP.md)
 
 ## Phases
 
@@ -79,6 +80,56 @@
 
 </details>
 
+<details>
+<summary>✅ v3.0 Date Display (Phase 36) — SHIPPED 2026-03-07</summary>
+
+- [x] **Phase 36: Date Display Under Clock** — DateText element below phrase/dial in muted accent color (55% alpha); 4 format options (Short/Long/Numeric/ISO); Show Date tray toggle + Date Format submenu; persisted to settings.json; ResetToDefaults restores defaults (completed 2026-03-07)
+
+</details>
+
+### v3.1 Quality + Battery (In Progress)
+
+**Milestone Goal:** Add battery stat row and quality pass (DateFormatter extraction with tests, AppSettings round-trip coverage, README update, MainWindow cleanup)
+
+- [ ] **Phase 37: Battery Stat Row** — Battery charge % stat row below PAG; horizontal bar + percentage text; "N/A" on desktops/VMs; tray Stats toggle; all-five-rows auto-collapse; persisted with default enabled
+- [ ] **Phase 38: Tests + Code Cleanup** — DateFormatter extracted from MainWindow into FuzzyClock.Core with unit tests (all 4 formats); AppSettings round-trip test for DateVisible/DateFormat; pure logic extracted from MainWindow.xaml.cs reducing LOC
+- [ ] **Phase 39: Docs Pass** — README updated to describe v3.0 date display and battery row
+
+## Phase Details
+
+### Phase 37: Battery Stat Row
+**Goal**: Users can see live battery charge in the stats panel with the same visibility and persistence behavior as all other stat rows
+**Depends on**: Phase 36
+**Requirements**: BATT-01, BATT-02, BATT-03, BATT-04, BATT-05
+**Success Criteria** (what must be TRUE):
+  1. Battery row appears below PAG row showing a horizontal bar and percentage text that reflects the current charge level
+  2. On a desktop or VM with no battery, the row shows "N/A" and no exception is thrown
+  3. User can toggle battery row visibility via the tray Stats submenu; checkmark reflects actual state each time the menu opens
+  4. Hiding all five stat rows (CPU/GPU/MEM/PAG/BATT) auto-collapses the stats panel
+  5. Battery row visibility persists to settings.json and restores on launch; default is enabled
+**Plans**: TBD
+
+### Phase 38: Tests + Code Cleanup
+**Goal**: DateFormatter logic is testable in isolation with full coverage of all 4 formats, AppSettings round-trip tests cover the v3.0 date fields, and MainWindow.xaml.cs has meaningfully less pure logic inline
+**Depends on**: Phase 37
+**Requirements**: UTEST-03, STEST-08, CLEAN-01
+**Success Criteria** (what must be TRUE):
+  1. `DateFormatter` class exists in FuzzyClock.Core with a pure static method; MainWindow delegates to it with no behavior change
+  2. Unit tests cover all 4 date formats (Short, Long, Numeric, ISO) with at least one test case each; all tests pass
+  3. AppSettings JSON round-trip test verifies DateVisible and DateFormat fields survive serialize → deserialize without silent defaults
+  4. Pure logic extracted from MainWindow.xaml.cs is covered by tests; MainWindow LOC is meaningfully reduced
+**Plans**: TBD
+
+### Phase 39: Docs Pass
+**Goal**: README accurately describes the v3.0 date display feature and the new battery row so any user can discover and use both features
+**Depends on**: Phase 38
+**Requirements**: DOCS-03
+**Success Criteria** (what must be TRUE):
+  1. README describes the Show Date toggle and all 4 date format options with an example of what each looks like
+  2. README describes the battery row, including the "N/A" behavior on desktops
+  3. README tray menu table or description reflects the new date and battery tray items
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -96,17 +147,10 @@
 | 33. Auto-Contrast | v2.7 | 3/3 | Complete | 2026-03-03 |
 | 34. Uptime Process Count + README | v2.8 | 2/2 | Complete | 2026-03-04 |
 | 35. Process Count Threshold | v2.9 | 1/1 | Complete | 2026-03-05 |
-| 36. Add a date display under the clock | 2/2 | Complete   | 2026-03-07 | — |
-
-### Phase 36: Add a date display under the clock
-
-**Goal:** Date line visible below the time phrase/dial, in a muted accent color, with four format options (Short/Long/Numeric/ISO) and a show/hide toggle — all configurable from the tray menu and persisted to settings.
-**Depends on:** Phase 35
-**Plans:** 2/2 plans complete
-
-Plans:
-- [ ] 36-01-PLAN.md — AppSettings + XAML DateText element + display logic (FormatDate, UpdateDateDisplay, ApplyTheme, ApplyDisplayColor, SaveSettings, ResetToDefaults)
-- [ ] 36-02-PLAN.md — Tray menu integration (Show Date toggle + Date Format submenu with Short/Long/Numeric/ISO)
+| 36. Date Display Under Clock | v3.0 | 2/2 | Complete | 2026-03-07 |
+| 37. Battery Stat Row | v3.1 | 0/? | Not started | - |
+| 38. Tests + Code Cleanup | v3.1 | 0/? | Not started | - |
+| 39. Docs Pass | v3.1 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-06 — Phase 36 planned*
+*Last updated: 2026-03-07 — v3.1 roadmap created (phases 37–39)*

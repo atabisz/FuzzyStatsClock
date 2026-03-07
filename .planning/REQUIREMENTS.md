@@ -52,21 +52,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BATT-01 | — | Pending |
-| BATT-02 | — | Pending |
-| BATT-03 | — | Pending |
-| BATT-04 | — | Pending |
-| BATT-05 | — | Pending |
-| UTEST-03 | — | Pending |
-| STEST-08 | — | Pending |
-| DOCS-03 | — | Pending |
-| CLEAN-01 | — | Pending |
+| BATT-01 | Phase 37 | Pending |
+| BATT-02 | Phase 37 | Pending |
+| BATT-03 | Phase 37 | Pending |
+| BATT-04 | Phase 37 | Pending |
+| BATT-05 | Phase 37 | Pending |
+| UTEST-03 | Phase 38 | Pending |
+| STEST-08 | Phase 38 | Pending |
+| CLEAN-01 | Phase 38 | Pending |
+| DOCS-03 | Phase 39 | Pending |
 
 **Coverage:**
 - v3.1 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9 ⚠️
+- Mapped to phases: 9
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-07*
-*Last updated: 2026-03-07 after initial definition*
+*Last updated: 2026-03-07 — traceability filled in after roadmap creation*
