@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Quality + Battery
-status: in_progress
-stopped_at: Completed 38-01-PLAN.md
+status: complete
+stopped_at: Completed 39-01-PLAN.md
 last_updated: "2026-03-07"
-last_activity: 2026-03-07 — 38-01 DateFormatter extracted into FuzzyClock.Core with 6 unit tests
+last_activity: 2026-03-07 — 39-01 README updated with date display, battery row, test count 114, DateFormatter in project structure
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 4
-  percent: 86
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07 after v3.1 roadmap created)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 38 — Tests and Code Cleanup (in progress), Phase 39 next
+**Current focus:** Phase 39 complete — v3.1 milestone ready for audit and tagging
 
 ## Current Position
 
-Phase: 38 of 39 (Tests and Code Cleanup)
-Plan: 01 complete — Phase 38 in progress (38-02 already committed prior)
-Status: In Progress
-Last activity: 2026-03-07 — 38-01 DateFormatter extracted into FuzzyClock.Core with 6 unit tests; MainWindow.FormatDate removed
+Phase: 39 of 39 (Docs Pass)
+Plan: 01 complete — Phase 39 complete, all phases done
+Status: Complete
+Last activity: 2026-03-07 — 39-01 README updated with date display, battery row, test count 114, DateFormatter in project structure
 
-Progress: [█████████░] 86%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -47,6 +47,7 @@ Recent decisions affecting current work:
 - [Phase 38-tests-and-code-cleanup]: 38-02: Absent-field tests use minimal JSON string to isolate ShowDate/DateFormat init defaults independently
 - [Phase 38-tests-and-code-cleanup]: DateFormatter.Format(string, DateTime) accepts explicit DateTime parameter so tests can inject fixed date without time-sensitivity
 - [Phase 38-tests-and-code-cleanup]: FormatDate private method deleted entirely from MainWindow; both call sites delegate directly to DateFormatter.Format
+- [Phase 39-docs-pass]: Battery row documented as its own bullet for N/A-on-desktop discoverability
 
 ### Pending Todos
 

@@ -21,7 +21,7 @@
 
 ### Docs
 
-- [ ] **DOCS-03**: README updated to reflect v3.0 date display (Show Date toggle, 4 formats, example output) and battery row
+- [x] **DOCS-03**: README updated to reflect v3.0 date display (Show Date toggle, 4 formats, example output) and battery row
 
 ### Cleanup
 
@@ -60,7 +60,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UTEST-03 | Phase 38 | Complete |
 | STEST-08 | Phase 38 | Complete |
 | CLEAN-01 | Phase 38 | Complete |
-| DOCS-03 | Phase 39 | Pending |
+| DOCS-03 | Phase 39 | Complete |
 
 **Coverage:**
 - v3.1 requirements: 9 total

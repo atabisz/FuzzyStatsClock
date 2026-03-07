@@ -93,7 +93,7 @@
 
 - [x] **Phase 37: Battery Stat Row** — Battery charge % stat row below PAG; horizontal bar + percentage text; "N/A" on desktops/VMs; tray Stats toggle; all-five-rows auto-collapse; persisted with default enabled (completed 2026-03-07)
 - [x] **Phase 38: Tests + Code Cleanup** — DateFormatter extracted from MainWindow into FuzzyClock.Core with unit tests (all 4 formats); AppSettings round-trip test for DateVisible/DateFormat; pure logic extracted from MainWindow.xaml.cs reducing LOC (completed 2026-03-07)
-- [ ] **Phase 39: Docs Pass** — README updated to describe v3.0 date display and battery row
+- [x] **Phase 39: Docs Pass** — README updated to describe v3.0 date display and battery row (completed 2026-03-07)
 
 ## Phase Details
 
@@ -158,7 +158,7 @@ Plans:
 | 36. Date Display Under Clock | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 37. Battery Stat Row | v3.1 | 2/2 | Complete | 2026-03-07 |
 | 38. Tests + Code Cleanup | v3.1 | 2/2 | Complete | 2026-03-07 |
-| 39. Docs Pass | v3.1 | 0/1 | Not started | - |
+| 39. Docs Pass | 1/1 | Complete   | 2026-03-07 | - |
 
 ---
 *Last updated: 2026-03-07 — phase 39 plan created*
