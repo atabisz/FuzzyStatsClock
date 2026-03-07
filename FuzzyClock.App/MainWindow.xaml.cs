@@ -201,6 +201,7 @@ public partial class MainWindow : Window
     {
         _currentFontSize = s.FontSize;
         PhraseText.FontSize = s.FontSize;
+        DateText.FontSize   = (int)(s.FontSize * 0.80);
 
         _settings = s;  // cache for SaveSettings use
 
@@ -800,6 +801,7 @@ public partial class MainWindow : Window
         PhraseText.FontSize = size;
         QualifierText.FontSize = (int)(size * 0.65);
         EmphasisText.FontSize  = (int)(size * 1.40);
+        DateText.FontSize      = (int)(size * 0.80);
         // Re-clamp: font size change resizes window (SizeToContent=WidthAndHeight).
         // Must call UpdateLayout() before Clamp() — ActualWidth/ActualHeight are stale until layout runs.
         UpdateLayout();

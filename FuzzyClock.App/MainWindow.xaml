@@ -98,7 +98,7 @@
             </Border>
 
             <!-- Row 1: date display — shown below phrase/dial, above stats panel.
-                 Visibility toggled from tray "Show Date". FontSize 26 is slightly smaller than 32pt phrase.
+                 Visibility toggled from tray "Show Date". FontSize is 80% of phrase size, set in code-behind.
                  FontFamily is overridden in code-behind to match the active text style (Mono/Literary/Classic).
                  Foreground is set to dimmed accent color in code-behind (ApplyTheme/ApplyDisplayColor).
                  DropShadowEffect matches PhraseText/EmphasisText (locked decision: same shadow treatment). -->
