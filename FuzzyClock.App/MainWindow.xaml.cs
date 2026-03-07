@@ -29,6 +29,9 @@ public partial class MainWindow : Window
     private bool _hasUserPosition = false;
     private bool _dialMode;
     private string _currentTextStyle = "Classic";
+    private bool   _showDate        = true;
+    private string _dateFormat      = "Short";
+    private string _currentDateText = "";   // tracks last-rendered date for midnight detection
     private bool _showHourTicks   = false;
     private bool _showMinuteDots  = false;
     private bool _showHourNumbers = false;
@@ -90,6 +93,7 @@ public partial class MainWindow : Window
             {
                 UpdatePhraseIfChanged();
                 if (_dialMode) UpdateDialDisplay();
+                UpdateDateDisplay();
             };
             _timer.Start();
 
@@ -117,7 +121,8 @@ public partial class MainWindow : Window
 
             if (_dialMode) UpdateDialDisplay();
             InitDialDecorations();
-            ApplyTheme();            // NEW: must come AFTER InitDialDecorations() — decoration lists are empty before this point
+            ApplyTheme();            // must come AFTER InitDialDecorations() — decoration lists are empty before this point
+            UpdateDateDisplay();     // set initial date text (timer hasn't fired yet)
 
             // Contrast refresh controller (500ms sampling timer)
             _contrast.ColorChanged += ApplyDisplayColor;
@@ -276,6 +281,13 @@ public partial class MainWindow : Window
         }
         // Do NOT call ApplyTheme() here — _hourTickElements etc. are empty until ContentRendered
 
+        // Apply date display directly (safe before Show — no timer yet)
+        _showDate   = s.ShowDate;
+        _dateFormat = s.DateFormat;
+        DateText.Visibility = s.ShowDate ? Visibility.Visible : Visibility.Collapsed;
+        DateText.Text = FormatDate(s.DateFormat);
+        _currentDateText = DateText.Text;
+
         // Apply text style directly (NOT via SetTextStyle — that calls UpdateLayout()+SaveSettings() unsafe before Show())
         _currentTextStyle = s.TextStyle;
         bool isSerifStyle = s.TextStyle == "Literary";
@@ -319,6 +331,8 @@ public partial class MainWindow : Window
         WindowOpacity        = _windowOpacity,
         AccentColor          = _accentColor,
         TextStyle            = _currentTextStyle,
+        ShowDate             = _showDate,
+        DateFormat           = _dateFormat,
     };
 
     /// <summary>
@@ -358,6 +372,8 @@ public partial class MainWindow : Window
             AutoContrastEnabled  = _contrast.IsEnabled,
             ProcessCountThresholdPercent = _processCountThreshold,
             TextStyle            = _currentTextStyle,
+            ShowDate             = _showDate,
+            DateFormat           = _dateFormat,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -443,6 +459,23 @@ public partial class MainWindow : Window
             Left = clamped.Left;
             Top  = clamped.Top;
         }
+    }
+
+    private static string FormatDate(string format) => format switch
+    {
+        "Long"    => DateTime.Now.ToString("dddd, MMMM d"),
+        "Numeric" => DateTime.Now.ToString("M/d/yyyy"),
+        "ISO"     => DateTime.Now.ToString("yyyy-MM-dd"),
+        _         => DateTime.Now.ToString("ddd, MMM d"),   // "Short" and any unknown -> Short
+    };
+
+    private void UpdateDateDisplay()
+    {
+        if (DateText.Visibility != Visibility.Visible) return;
+        var text = FormatDate(_dateFormat);
+        if (text == _currentDateText) return;  // no change (same day)
+        DateText.Text = text;
+        _currentDateText = text;
     }
 
     private void UpdateStatsDisplay()
@@ -812,6 +845,12 @@ public partial class MainWindow : Window
         // Reset text style to Classic
         SetTextStyle("Classic");
 
+        // Reset date display: show in Short format
+        _showDate   = true;
+        _dateFormat = "Short";
+        DateText.Visibility = Visibility.Visible;
+        UpdateDateDisplay();
+
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
         SaveSettings();
@@ -1046,6 +1085,11 @@ public partial class MainWindow : Window
         // Uptime row text (accent color)
         UptimeText.Foreground = brush;
 
+        // Date text (dimmed accent — 55% alpha, same treatment as QualifierText)
+        var dateBrush = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromArgb(0x8C, _accentColor.R, _accentColor.G, _accentColor.B));
+        DateText.Foreground = dateBrush;
+
         // Deliberately excluded: CpuBarTrack/GpuBarTrack/MemBarTrack/PagBarTrack,
         // ContentBorder.Background
     }
@@ -1075,6 +1119,10 @@ public partial class MainWindow : Window
         CpuText.Foreground = brush; GpuText.Foreground = brush;
         MemText.Foreground = brush; PagText.Foreground = brush;
         UptimeText.Foreground = brush;
+
+        // Date text (dimmed display override — 55% alpha)
+        var dateDisplayColor = System.Windows.Media.Color.FromArgb(0x8C, rgb.R, rgb.G, rgb.B);
+        DateText.Foreground = new System.Windows.Media.SolidColorBrush(dateDisplayColor);
     }
 
     private void SetAccentColor(System.Windows.Media.Color color)

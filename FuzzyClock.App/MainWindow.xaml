@@ -21,9 +21,10 @@
     <Grid Background="#01000000"
           MouseLeftButtonDown="Grid_MouseLeftButtonDown">
 
-        <!-- Two-row inner Grid: Row 0 = phrase display, Row 1 = stats panel (uptime row is inside stats panel) -->
+        <!-- Three-row inner Grid: Row 0 = phrase display, Row 1 = date text, Row 2 = stats panel -->
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -43,7 +44,11 @@
                                FontSize="32"
                                Foreground="White"
                                HorizontalAlignment="Stretch"
-                               TextAlignment="Center" />
+                               TextAlignment="Center">
+                        <TextBlock.Effect>
+                            <DropShadowEffect BlurRadius="4" Direction="315" ShadowDepth="1" Opacity="0.6" Color="Black" />
+                        </TextBlock.Effect>
+                    </TextBlock>
 
                     <!-- Split layout container — visible in Split/Expressive text styles.
                          QualifierText: small faded qualifier (e.g. "just after").
@@ -66,7 +71,11 @@
                                    FontSize="44"
                                    Foreground="White"
                                    HorizontalAlignment="Center"
-                                   TextAlignment="Center" />
+                                   TextAlignment="Center">
+                            <TextBlock.Effect>
+                                <DropShadowEffect BlurRadius="4" Direction="315" ShadowDepth="1" Opacity="0.6" Color="Black" />
+                            </TextBlock.Effect>
+                        </TextBlock>
                     </StackPanel>
 
                     <!-- DialCanvas: 80x80 analog clock hands — toggled visible in dial mode.
@@ -88,13 +97,31 @@
                 </Grid>
             </Border>
 
-            <!-- Row 1: stats panel — default Collapsed.
+            <!-- Row 1: date display — shown below phrase/dial, above stats panel.
+                 Visibility toggled from tray "Show Date". FontSize 22 is 69% of default 32pt phrase.
+                 Foreground is set to dimmed accent color in code-behind (ApplyTheme/ApplyDisplayColor).
+                 DropShadowEffect matches PhraseText/EmphasisText (locked decision: same shadow treatment). -->
+            <TextBlock x:Name="DateText"
+                       Grid.Row="1"
+                       Margin="0,2,0,0"
+                       Visibility="Visible"
+                       FontFamily="Segoe UI Light"
+                       FontSize="22"
+                       Foreground="White"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center">
+                <TextBlock.Effect>
+                    <DropShadowEffect BlurRadius="4" Direction="315" ShadowDepth="1" Opacity="0.6" Color="Black" />
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- Row 2: stats panel — default Collapsed.
                  Width="180" prevents window-width jitter from SizeToContent=WidthAndHeight
                  when percentage text length changes (e.g. "9%" vs "100%").
                  Visibility=Collapsed (not Hidden) removes all layout space including margin.
                  Phase 9 toggles Visibility and starts/stops _statsTimer. -->
             <StackPanel x:Name="StatsPanel"
-                        Grid.Row="1"
+                        Grid.Row="2"
                         Width="180"
                         Margin="0,4,0,0"
                         Visibility="Collapsed">

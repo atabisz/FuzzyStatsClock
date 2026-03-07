@@ -24,7 +24,9 @@ internal sealed record TrayMenuState
     public bool   ShowHourNumbers     { get; init; }
     public double WindowOpacity       { get; init; }
     public System.Windows.Media.Color AccentColor { get; init; }
-    public string TextStyle { get; init; } = "Classic";
+    public string TextStyle  { get; init; } = "Classic";
+    public bool   ShowDate   { get; init; }
+    public string DateFormat { get; init; } = "Short";
 }
 
 /// <summary>
