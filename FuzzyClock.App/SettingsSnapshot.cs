@@ -26,4 +26,5 @@ internal sealed record SettingsSnapshot
     public bool    GhostModeEnabled                      { get; init; }
     public bool    AutoContrastEnabled                   { get; init; }
     public bool    AutoLaunchEnabled                     { get; init; }
+    public string? ActiveTheme                           { get; init; } = null;
 }
