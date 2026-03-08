@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: in_progress
-stopped_at: Completed 42-03-PLAN.md
-last_updated: "2026-03-08T20:21:40.628Z"
+stopped_at: Completed 42-04-PLAN.md
+last_updated: "2026-03-08T20:39:46.559Z"
 last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 6
+  completed_plans: 6
 ---
 
 ---
@@ -75,6 +75,7 @@ Recent decisions affecting v3.2:
 - [Phase 42-03]: _settingsWindow nulled in Closed handler; each re-open constructs fresh from current snapshot
 - [Phase 42-03]: OpenSettings() is MainWindow-private; tray callback wraps in Dispatcher.Invoke
 - [Phase 42-03]: About item retained in tray menu (between Reset to Defaults and Quit)
+- [Phase 42-settings-window-infrastructure]: SETT-05 scope clarified in REQUIREMENTS.md: Behavior tab covers ghost mode, auto-contrast, auto-launch only; battery alert threshold is ALERT-03 (Phase 44)
 
 ### Pending Todos
 
@@ -86,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T20:21:40.624Z
-Stopped at: Completed 42-03-PLAN.md
+Last session: 2026-03-08T20:39:46.554Z
+Stopped at: Completed 42-04-PLAN.md
 Resume file: None
