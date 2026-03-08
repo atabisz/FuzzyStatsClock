@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private GhostModeController _ghostMode = null!;
     private ContrastRefreshController _contrast = new();
     private SettingsWindow? _settingsWindow;
+    private string? _currentTheme = null;  // null = no named theme active
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
@@ -295,6 +296,20 @@ public partial class MainWindow : Window
             SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
         }
         // If s.DialMode is true: both PhraseText and SplitPhrasePanel are already Collapsed by the DialMode block above
+
+        // Startup theme restore: set fields only — NEVER call ApplyTheme() here.
+        // _hourTickElements etc. are empty until ContentRendered; ApplyTheme() would be a no-op or throw.
+        // ContentRendered calls ApplyTheme() after InitDialDecorations().
+        if (s.Theme is not null && BuiltInThemes.TryGet(s.Theme) is { } savedTheme)
+        {
+            _currentTheme    = s.Theme;
+            _accentColor     = savedTheme.AccentColor;
+            _windowOpacity   = savedTheme.Opacity;
+            _currentFontSize = savedTheme.FontSize;
+            _dialMode        = savedTheme.DialMode;
+            // StatsVisible already applied earlier from s.StatsVisible
+            // (the theme's StatsVisible was persisted to s.StatsVisible at save time)
+        }
     }
 
     private SettingsSnapshot GetCurrentSettingsSnapshot() => new SettingsSnapshot
@@ -318,6 +333,7 @@ public partial class MainWindow : Window
         GhostModeEnabled       = _ghostMode.IsEnabled,
         AutoContrastEnabled    = _contrast.IsEnabled,
         AutoLaunchEnabled      = _autoLaunchEnabled,
+        ActiveTheme            = _currentTheme,
     };
 
     private void OpenSettings()
@@ -331,12 +347,12 @@ public partial class MainWindow : Window
         }
         _settingsWindow = new SettingsWindow(GetCurrentSettingsSnapshot());
         _settingsWindow.Owner = this;
-        _settingsWindow.AccentColorChanged    += c => SetAccentColor(c);
-        _settingsWindow.OpacityChanged        += o => SetOpacity(o);
-        _settingsWindow.FontSizeChanged       += sz => ApplyFontSize(sz);
-        _settingsWindow.DialModeChanged       += d => SetDialMode(d);
+        _settingsWindow.AccentColorChanged    += c => { ClearActiveTheme(); SetAccentColor(c); };
+        _settingsWindow.OpacityChanged        += o => { ClearActiveTheme(); SetOpacity(o); };
+        _settingsWindow.FontSizeChanged       += sz => { ClearActiveTheme(); ApplyFontSize(sz); SaveSettings(); };
+        _settingsWindow.DialModeChanged       += d => { ClearActiveTheme(); SetDialMode(d); };
         _settingsWindow.PhraseStyleChanged    += ps => { _currentPhraseStyle = ps; SaveSettings(); };
-        _settingsWindow.StatsVisibleChanged   += v => SetStatsVisible(v);
+        _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
         _settingsWindow.CpuVisibleChanged     += v => SetStatRowVisible(CpuRow, v);
         _settingsWindow.GpuVisibleChanged     += v => SetStatRowVisible(GpuRow, v);
         _settingsWindow.MemVisibleChanged     += v => SetStatRowVisible(MemRow, v);
@@ -355,6 +371,11 @@ public partial class MainWindow : Window
             string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
             if (v) AutoLaunchService.Enable(exePath); else AutoLaunchService.Disable();
             SaveSettings();
+        };
+        _settingsWindow.ThemeSelected += name =>
+        {
+            if (BuiltInThemes.TryGet(name) is { } theme)
+                ApplyNamedTheme(theme);
         };
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
@@ -409,6 +430,7 @@ public partial class MainWindow : Window
             PhraseStyle          = _currentPhraseStyle,
             ShowDate             = _showDate,
             DateFormat           = _dateFormat,
+            Theme                = _currentTheme,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -907,9 +929,41 @@ public partial class MainWindow : Window
         DateText.Visibility = Visibility.Visible;
         UpdateDateDisplay();
 
+        // Reset named theme: clear active theme so no card is highlighted after reset
+        _currentTheme = null;
+        _settingsWindow?.ClearActiveThemeCard();
+
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
         SaveSettings();
+    }
+
+    private void ApplyNamedTheme(ThemeDefinition theme)
+    {
+        // Set _currentTheme BEFORE calling individual setters,
+        // so each intermediate SaveSettings() call persists the correct theme name.
+        _currentTheme = theme.Name;
+
+        // Apply all theme properties using existing setters.
+        // SetAccentColor, SetOpacity, SetDialMode call SaveSettings() internally.
+        // ApplyFontSize and SetStatsVisible do NOT — the final SaveSettings() below covers them.
+        SetAccentColor(theme.AccentColor);
+        SetOpacity(theme.Opacity);
+        ApplyFontSize(theme.FontSize);
+        SetDialMode(theme.DialMode);
+        SetStatsVisible(theme.StatsVisible);
+
+        // Final save to persist Theme field and any unsaved property changes.
+        SaveSettings();
+    }
+
+    private void ClearActiveTheme()
+    {
+        _currentTheme = null;
+        // Use null-conditional — window may be closed when a covered property changes
+        // (e.g., opacity scroll wheel while Settings window is not open).
+        _settingsWindow?.ClearActiveThemeCard();
+        // SaveSettings() will be called by the individual setter that triggered this — no call here.
     }
 
 
