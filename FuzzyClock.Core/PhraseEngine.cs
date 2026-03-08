@@ -2,101 +2,32 @@ namespace FuzzyClock.Core;
 
 public static class PhraseEngine
 {
-    private static readonly string[] HourWords =
-        ["", "one", "two", "three", "four", "five", "six",
-             "seven", "eight", "nine", "ten", "eleven", "twelve"];
-
-    // Bucket table: each entry is (upperBound inclusive, template).
-    // Walk in order; return the first match where minute <= upperBound.
-    // {h}  = current hour in 12-hour format (1–12)
-    // {h1} = next hour in 12-hour format (1–12, wraps after 12)
-    private static readonly (int UpperBound, string Template)[] Buckets =
-    [
-        ( 2, "{h} o'clock"),
-        ( 7, "just after {h}"),
-        (12, "ten past {h}"),
-        (17, "a quarter past {h}"),
-        (22, "just after quarter past {h}"),
-        (27, "almost half past {h}"),
-        (32, "half past {h}"),
-        (37, "just past half past {h}"),
-        (42, "almost a quarter before {h1}"),
-        (47, "a quarter before {h1}"),
-        (52, "nearly {h1}"),
-        (59, "almost {h1}"),
-    ];
-
-    public static string GetPhrase(DateTime dt)
+    // _providers must be declared BEFORE _activeProvider to avoid static initializer ordering issues.
+    private static readonly Dictionary<string, IPhraseProvider> _providers = new()
     {
-        // Special cases: check exact total minutes from midnight
-        int totalMinutes = dt.Hour * 60 + dt.Minute;
-        if (totalMinutes == 720) return "noon";      // 12:00:00
-        if (totalMinutes == 0)   return "midnight";  // 00:00:00
+        ["en-classic"] = new EnglishPhraseProvider()
+    };
 
-        int minute = dt.Minute;
+    private static IPhraseProvider _activeProvider = _providers["en-classic"];
 
-        // 12-hour clock: 0 and 12 both become 12; 13-23 become 1-11
-        int hour12     = dt.Hour % 12;
-        if (hour12 == 0) hour12 = 12;
-
-        // Next hour wraps: 12 -> 1, others just +1
-        int nextHour12 = (hour12 % 12) + 1;
-
-        foreach (var (upperBound, template) in Buckets)
-        {
-            if (minute <= upperBound)
-            {
-                return template
-                    .Replace("{h}",  HourWords[hour12])
-                    .Replace("{h1}", HourWords[nextHour12]);
-            }
-        }
-
-        // Should never reach here given the :55 bucket covers minutes 0-59
-        throw new InvalidOperationException($"No bucket matched minute={minute}");
-    }
+    public static string CurrentLocale { get; private set; } = "en-classic";
 
     /// <summary>
-    /// Decomposes the fuzzy time phrase into a qualifier (context) and emphasis (the key word).
-    /// Used by split-layout text styles to apply typographic hierarchy.
-    /// Rules:
-    /// - noon/midnight: qualifier="", emphasis=full word
-    /// - "{h} o'clock": qualifier="", emphasis=full phrase ("three o'clock")
-    /// - All other templates: qualifier=text before hour token (trimmed), emphasis=resolved hour word
+    /// Swaps the active provider. Returns true if locale is known and provider was swapped;
+    /// false if locale is unknown (active provider and CurrentLocale are unchanged).
     /// </summary>
-    public static (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt)
+    public static bool SetLocale(string locale)
     {
-        int totalMinutes = dt.Hour * 60 + dt.Minute;
-        if (totalMinutes == 720) return ("", "noon");
-        if (totalMinutes == 0)   return ("", "midnight");
-
-        int minute = dt.Minute;
-        int hour12     = dt.Hour % 12;
-        if (hour12 == 0) hour12 = 12;
-        int nextHour12 = (hour12 % 12) + 1;
-
-        foreach (var (upperBound, template) in Buckets)
-        {
-            if (minute <= upperBound)
-            {
-                if (template == "{h} o'clock")
-                    return ("", template.Replace("{h}", HourWords[hour12]));
-
-                if (template.EndsWith("{h}"))
-                {
-                    string qualifier = template[..^"{h}".Length].TrimEnd();
-                    return (qualifier, HourWords[hour12]);
-                }
-                if (template.EndsWith("{h1}"))
-                {
-                    string qualifier = template[..^"{h1}".Length].TrimEnd();
-                    return (qualifier, HourWords[nextHour12]);
-                }
-
-                return ("", template.Replace("{h}", HourWords[hour12]).Replace("{h1}", HourWords[nextHour12]));
-            }
-        }
-
-        throw new InvalidOperationException($"No bucket matched minute={minute}");
+        if (!_providers.TryGetValue(locale, out var provider))
+            return false;
+        _activeProvider = provider;
+        CurrentLocale = locale;
+        return true;
     }
+
+    public static string GetPhrase(DateTime dt) =>
+        _activeProvider.GetPhrase(dt);
+
+    public static (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt) =>
+        _activeProvider.GetStructuredPhrase(dt);
 }
