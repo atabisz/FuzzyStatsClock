@@ -113,51 +113,82 @@ public sealed partial class SettingsWindow : Window
         ChkGhostMode.IsChecked    = s.GhostModeEnabled;
         ChkAutoContrast.IsChecked = s.AutoContrastEnabled;
         ChkAutoLaunch.IsChecked   = s.AutoLaunchEnabled;
+
+        // Accent swatch selection ring
+        var ac = s.AccentColor;
+        Border? ring =
+            ac == Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF) ? RingWhite  :
+            ac == Color.FromArgb(0xFF, 0xFF, 0xC0, 0x00) ? RingAmber  :
+            ac == Color.FromArgb(0xFF, 0x87, 0xCE, 0xEB) ? RingIce    :
+            ac == Color.FromArgb(0xFF, 0x00, 0xC0, 0x00) ? RingGreen  :
+            ac == Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4) ? RingPink   : null;
+        SetActiveSwatch(ring);
     }
 
     // ── Toggle button state helpers ───────────────────────────────────────
     private void SetFontSizeButtonStates(int size)
     {
-        BtnFontS.FontWeight  = size == 16 ? FontWeights.Bold : FontWeights.Normal;
-        BtnFontM.FontWeight  = size == 24 ? FontWeights.Bold : FontWeights.Normal;
-        BtnFontL.FontWeight  = size == 32 ? FontWeights.Bold : FontWeights.Normal;
-        BtnFontXL.FontWeight = size == 40 ? FontWeights.Bold : FontWeights.Normal;
+        BtnFontS.Tag  = size == 16 ? "selected" : null;
+        BtnFontM.Tag  = size == 24 ? "selected" : null;
+        BtnFontL.Tag  = size == 32 ? "selected" : null;
+        BtnFontXL.Tag = size == 40 ? "selected" : null;
     }
 
     private void SetClockStyleButtonStates(bool dialMode)
     {
-        BtnPhrase.FontWeight = !dialMode ? FontWeights.Bold : FontWeights.Normal;
-        BtnDial.FontWeight   =  dialMode ? FontWeights.Bold : FontWeights.Normal;
+        BtnPhrase.Tag = !dialMode ? "selected" : null;
+        BtnDial.Tag   =  dialMode ? "selected" : null;
+    }
+
+    private void SetActiveSwatch(Border? activeRing)
+    {
+        var rings = new[] { RingWhite, RingAmber, RingIce, RingGreen, RingPink };
+        var blue  = new SolidColorBrush(Color.FromRgb(0x00, 0x78, 0xD4));
+        foreach (var r in rings)
+        {
+            r.BorderThickness = new Thickness(0);
+            r.BorderBrush     = null;
+        }
+        if (activeRing is not null)
+        {
+            activeRing.BorderThickness = new Thickness(2);
+            activeRing.BorderBrush     = blue;
+        }
     }
 
     // ── Accent color swatches ─────────────────────────────────────────────
     private void SwatchWhite_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (_suppressEvents) return;
+        SetActiveSwatch(RingWhite);
         AccentColorChanged?.Invoke(((SolidColorBrush)SwatchWhite.Background).Color);
     }
 
     private void SwatchAmber_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (_suppressEvents) return;
+        SetActiveSwatch(RingAmber);
         AccentColorChanged?.Invoke(((SolidColorBrush)SwatchAmber.Background).Color);
     }
 
     private void SwatchIce_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (_suppressEvents) return;
+        SetActiveSwatch(RingIce);
         AccentColorChanged?.Invoke(((SolidColorBrush)SwatchIce.Background).Color);
     }
 
     private void SwatchGreen_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (_suppressEvents) return;
+        SetActiveSwatch(RingGreen);
         AccentColorChanged?.Invoke(((SolidColorBrush)SwatchGreen.Background).Color);
     }
 
     private void SwatchPink_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (_suppressEvents) return;
+        SetActiveSwatch(RingPink);
         AccentColorChanged?.Invoke(((SolidColorBrush)SwatchPink.Background).Color);
     }
 
@@ -175,6 +206,7 @@ public sealed partial class SettingsWindow : Window
         if (dlg.ShowDialog(new Win32Window(hwnd)) == System.Windows.Forms.DialogResult.OK)
         {
             var c = dlg.Color;
+            SetActiveSwatch(null);   // custom colour — clear any preset ring
             AccentColorChanged?.Invoke(Color.FromArgb(c.A, c.R, c.G, c.B));
         }
     }
