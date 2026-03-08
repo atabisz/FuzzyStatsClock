@@ -53,62 +53,159 @@
         <TabItem Header="Appearance">
             <StackPanel Margin="12">
 
-                <!-- Accent Color -->
-                <TextBlock Text="Accent Color" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                    <Border x:Name="SwatchWhite"  Width="24" Height="24" Background="#FFFFFFFF" Cursor="Hand" Margin="0,0,4,0"
-                            MouseLeftButtonDown="SwatchWhite_MouseLeftButtonDown">
-                        <Border.BorderBrush><SolidColorBrush Color="#FFAAAAAA"/></Border.BorderBrush>
-                        <Border.BorderThickness>1</Border.BorderThickness>
+                <!-- Accent Color header + swatch row (no grid — horizontal layout) -->
+                <TextBlock Text="Accent Color" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal">
+                    <!-- Each swatch: outer ring Border (named RingX) wrapping the colored swatch Border -->
+                    <Border x:Name="RingWhite" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,0">
+                        <Border x:Name="SwatchWhite" Width="28" Height="28" Background="#FFFFFFFF"
+                                CornerRadius="4" Cursor="Hand"
+                                BorderBrush="#FFAAAAAA" BorderThickness="1"
+                                MouseLeftButtonDown="SwatchWhite_MouseLeftButtonDown">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
                     </Border>
-                    <Border x:Name="SwatchAmber"  Width="24" Height="24" Background="#FFFFC000" Cursor="Hand" Margin="0,0,4,0"
-                            MouseLeftButtonDown="SwatchAmber_MouseLeftButtonDown"/>
-                    <Border x:Name="SwatchIce"    Width="24" Height="24" Background="#FF87CEEB" Cursor="Hand" Margin="0,0,4,0"
-                            MouseLeftButtonDown="SwatchIce_MouseLeftButtonDown"/>
-                    <Border x:Name="SwatchGreen"  Width="24" Height="24" Background="#FF00C000" Cursor="Hand" Margin="0,0,4,0"
-                            MouseLeftButtonDown="SwatchGreen_MouseLeftButtonDown"/>
-                    <Border x:Name="SwatchPink"   Width="24" Height="24" Background="#FFFF69B4" Cursor="Hand" Margin="0,0,8,0"
-                            MouseLeftButtonDown="SwatchPink_MouseLeftButtonDown"/>
-                    <Button x:Name="BtnCustomColor" Content="Custom..." Padding="8,2"
-                            Click="BtnCustomColor_Click"/>
+                    <Border x:Name="RingAmber" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,0">
+                        <Border x:Name="SwatchAmber" Width="28" Height="28" Background="#FFFFC000"
+                                CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="SwatchAmber_MouseLeftButtonDown">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </Border>
+                    <Border x:Name="RingIce" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,0">
+                        <Border x:Name="SwatchIce" Width="28" Height="28" Background="#FF87CEEB"
+                                CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="SwatchIce_MouseLeftButtonDown">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </Border>
+                    <Border x:Name="RingGreen" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,0">
+                        <Border x:Name="SwatchGreen" Width="28" Height="28" Background="#FF00C000"
+                                CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="SwatchGreen_MouseLeftButtonDown">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </Border>
+                    <Border x:Name="RingPink" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,8,0">
+                        <Border x:Name="SwatchPink" Width="28" Height="28" Background="#FFFF69B4"
+                                CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="SwatchPink_MouseLeftButtonDown">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </Border>
+                    <Button x:Name="BtnCustomColor" Content="Custom..." Padding="8,4"
+                            VerticalAlignment="Center" Click="BtnCustomColor_Click"/>
                 </StackPanel>
 
-                <!-- Opacity -->
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <Label Content="Opacity:" VerticalAlignment="Center" Padding="0,0,6,0"/>
-                    <Slider x:Name="OpacitySlider"
-                            Minimum="0.20" Maximum="1.00"
-                            SmallChange="0.01" LargeChange="0.05"
-                            TickFrequency="0.05" IsSnapToTickEnabled="False"
-                            Width="180" VerticalAlignment="Center"
-                            ValueChanged="OpacitySlider_ValueChanged"/>
-                    <TextBlock x:Name="OpacityLabel" Width="40" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                </StackPanel>
+                <!-- Two-column Grid for the remaining rows -->
+                <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                <!-- Font Size -->
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <Label Content="Font Size:" VerticalAlignment="Center" Padding="0,0,6,0"/>
-                    <Button x:Name="BtnFontS"  Content="S"  Width="36" Margin="2,0" Click="BtnFontS_Click"/>
-                    <Button x:Name="BtnFontM"  Content="M"  Width="36" Margin="2,0" Click="BtnFontM_Click"/>
-                    <Button x:Name="BtnFontL"  Content="L"  Width="36" Margin="2,0" Click="BtnFontL_Click"/>
-                    <Button x:Name="BtnFontXL" Content="XL" Width="36" Margin="2,0" Click="BtnFontXL_Click"/>
-                </StackPanel>
+                    <!-- Opacity -->
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                               Text="Opacity" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                        <Slider x:Name="OpacitySlider"
+                                Minimum="0.20" Maximum="1.00"
+                                SmallChange="0.01" LargeChange="0.05"
+                                TickFrequency="0.05" IsSnapToTickEnabled="False"
+                                Width="160" VerticalAlignment="Center"
+                                ValueChanged="OpacitySlider_ValueChanged"/>
+                        <TextBlock x:Name="OpacityLabel" Width="36"
+                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    </StackPanel>
 
-                <!-- Clock Style -->
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <Label Content="Clock Style:" VerticalAlignment="Center" Padding="0,0,6,0"/>
-                    <Button x:Name="BtnPhrase" Content="Phrase" Width="60" Margin="2,0" Click="BtnPhrase_Click"/>
-                    <Button x:Name="BtnDial"   Content="Dial"   Width="60" Margin="2,0" Click="BtnDial_Click"/>
-                </StackPanel>
+                    <!-- Font Size -->
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                               Text="Font Size" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"/>
+                    <Border Grid.Row="1" Grid.Column="1"
+                            Background="#FFE8E8E8" CornerRadius="4" Padding="2"
+                            HorizontalAlignment="Left" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="BtnFontS"  Content="S"  Style="{StaticResource SegmentButtonStyle}" Click="BtnFontS_Click"/>
+                            <Button x:Name="BtnFontM"  Content="M"  Style="{StaticResource SegmentButtonStyle}" Click="BtnFontM_Click"/>
+                            <Button x:Name="BtnFontL"  Content="L"  Style="{StaticResource SegmentButtonStyle}" Click="BtnFontL_Click"/>
+                            <Button x:Name="BtnFontXL" Content="XL" Style="{StaticResource SegmentButtonStyle}" Click="BtnFontXL_Click"/>
+                        </StackPanel>
+                    </Border>
 
-                <!-- Phrase Style -->
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <Label Content="Phrase Style:" VerticalAlignment="Center" Padding="0,0,6,0"/>
-                    <ComboBox x:Name="CmbPhraseStyle" Width="120" VerticalAlignment="Center"
+                    <!-- Clock Style -->
+                    <TextBlock Grid.Row="2" Grid.Column="0"
+                               Text="Clock Style" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"/>
+                    <Border Grid.Row="2" Grid.Column="1"
+                            Background="#FFE8E8E8" CornerRadius="4" Padding="2"
+                            HorizontalAlignment="Left" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="BtnPhrase" Content="Phrase" Style="{StaticResource SegmentButtonStyle}" Click="BtnPhrase_Click"/>
+                            <Button x:Name="BtnDial"   Content="Dial"   Style="{StaticResource SegmentButtonStyle}" Click="BtnDial_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Phrase Style -->
+                    <TextBlock Grid.Row="3" Grid.Column="0"
+                               Text="Phrase Style" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"/>
+                    <ComboBox x:Name="CmbPhraseStyle"
+                              Grid.Row="3" Grid.Column="1"
+                              Width="120" HorizontalAlignment="Left"
+                              Margin="0,8,0,0" VerticalAlignment="Center"
                               SelectionChanged="CmbPhraseStyle_SelectionChanged">
                         <ComboBoxItem Content="Classic"/>
                     </ComboBox>
-                </StackPanel>
+
+                </Grid>
 
             </StackPanel>
         </TabItem>
