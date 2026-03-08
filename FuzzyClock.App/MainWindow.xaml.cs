@@ -375,7 +375,10 @@ public partial class MainWindow : Window
         _settingsWindow.ThemeSelected += name =>
         {
             if (BuiltInThemes.TryGet(name) is { } theme)
+            {
                 ApplyNamedTheme(theme);
+                _settingsWindow?.RefreshControls(GetCurrentSettingsSnapshot());
+            }
         };
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();

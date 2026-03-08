@@ -192,6 +192,14 @@ public sealed partial class SettingsWindow : Window
     /// <summary>Removes the active ring from all theme cards. Called by MainWindow when user deviates from a named theme.</summary>
     public void ClearActiveThemeCard() => SetActiveThemeCard(null, default);
 
+    /// <summary>Re-populates all controls from a fresh snapshot. Called by MainWindow after applying a named theme.</summary>
+    internal void RefreshControls(SettingsSnapshot snapshot)
+    {
+        _suppressEvents = true;
+        PopulateControls(snapshot);
+        _suppressEvents = false;
+    }
+
     // ── Theme card click handlers ─────────────────────────────────────────
     private void ThemeMidnight_Click(object sender, MouseButtonEventArgs e)
     {
