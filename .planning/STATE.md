@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: ready_to_plan
-stopped_at: Completed 41-02-PLAN.md
-last_updated: "2026-03-08T00:55:34.825Z"
+stopped_at: Completed 42-01-PLAN.md
+last_updated: "2026-03-08T19:56:48.764Z"
 last_activity: 2026-03-08 — v3.2 roadmap created; v3.1 milestone complete and archived
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 5
+  completed_plans: 3
   percent: 67
 ---
 
@@ -64,6 +64,8 @@ Recent decisions affecting v3.2:
 - [Phase 41]: IPhraseProvider holds only provider concerns; SetLocale/CurrentLocale stay on PhraseEngine as coordinator
 - [Phase 41]: EnglishPhraseProvider is public (not internal) to allow direct construction in future isolation tests
 - [Phase 41]: [TestCleanup] required for static class tests: PhraseEngine state persists across test methods; cleanup resets locale to en-classic
+- [Phase 42-settings-window-infrastructure]: PhraseStyle and TextStyle kept separate: PhraseStyle governs vocabulary (Classic/Terse/Poetic/Rude); TextStyle governs layout (Classic/Split/Literary/Mono)
+- [Phase 42-settings-window-infrastructure]: SettingsSnapshot: immutable record passed to SettingsWindow constructor; changes flow out via events, nothing flows back in (populate-on-open strategy)
 
 ### Pending Todos
 
@@ -75,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T00:55:34.821Z
-Stopped at: Completed 41-02-PLAN.md
+Last session: 2026-03-08T19:56:43.355Z
+Stopped at: Completed 42-01-PLAN.md
 Resume file: None
