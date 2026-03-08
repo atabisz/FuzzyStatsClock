@@ -28,7 +28,8 @@ public partial class MainWindow : Window
     private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
     private bool _hasUserPosition = false;
     private bool _dialMode;
-    private string _currentTextStyle = "Classic";
+    private string _currentTextStyle  = "Classic";
+    private string _currentPhraseStyle = "Classic";
     private bool   _showDate        = true;
     private string _dateFormat      = "Short";
     private string _currentDateText = "";   // tracks last-rendered date for midnight detection
@@ -43,6 +44,7 @@ public partial class MainWindow : Window
     private bool _isDragging = false;   // true between DragMove() start and end — freezes display color
     private GhostModeController _ghostMode = null!;
     private ContrastRefreshController _contrast = new();
+    private SettingsWindow? _settingsWindow;
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
@@ -294,7 +296,8 @@ public partial class MainWindow : Window
         _currentDateText = DateText.Text;
 
         // Apply text style directly (NOT via SetTextStyle — that calls UpdateLayout()+SaveSettings() unsafe before Show())
-        _currentTextStyle = s.TextStyle;
+        _currentTextStyle  = s.TextStyle;
+        _currentPhraseStyle = s.PhraseStyle;
         bool isSerifStyle = s.TextStyle == "Literary";
         bool isMonoStyle  = s.TextStyle == "Mono";
         string styleFontName = isSerifStyle ? "Palatino Linotype" : isMonoStyle ? "Consolas" : "Segoe UI Light";
@@ -314,6 +317,69 @@ public partial class MainWindow : Window
             SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
         }
         // If s.DialMode is true: both PhraseText and SplitPhrasePanel are already Collapsed by the DialMode block above
+    }
+
+    private SettingsSnapshot GetCurrentSettingsSnapshot() => new SettingsSnapshot
+    {
+        AccentColor            = _accentColor,
+        Opacity                = _windowOpacity,
+        FontSize               = _currentFontSize,
+        DialMode               = _dialMode,
+        PhraseStyle            = _currentPhraseStyle,
+        StatsVisible           = StatsPanel.Visibility == Visibility.Visible,
+        CpuVisible             = CpuRow.Visibility     == Visibility.Visible,
+        GpuVisible             = GpuRow.Visibility     == Visibility.Visible,
+        MemVisible             = MemRow.Visibility     == Visibility.Visible,
+        PagVisible             = PagRow.Visibility     == Visibility.Visible,
+        BatteryVisible         = BattRow.Visibility    == Visibility.Visible,
+        UptimeVisible          = UptimeText.Visibility == Visibility.Visible,
+        StatsIntervalSeconds   = _statsIntervalSeconds,
+        ProcessCountThreshold  = _processCountThreshold,
+        ShowDate               = _showDate,
+        DateFormat             = _dateFormat,
+        GhostModeEnabled       = _ghostMode.IsEnabled,
+        AutoContrastEnabled    = _contrast.IsEnabled,
+        AutoLaunchEnabled      = _autoLaunchEnabled,
+    };
+
+    private void OpenSettings()
+    {
+        // Must be called on the WPF Dispatcher thread.
+        // Tray callback wraps this in Dispatcher.Invoke before calling.
+        if (_settingsWindow is { IsVisible: true })
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+        _settingsWindow = new SettingsWindow(GetCurrentSettingsSnapshot());
+        _settingsWindow.Owner = this;
+        _settingsWindow.AccentColorChanged    += c => SetAccentColor(c);
+        _settingsWindow.OpacityChanged        += o => SetOpacity(o);
+        _settingsWindow.FontSizeChanged       += sz => ApplyFontSize(sz);
+        _settingsWindow.DialModeChanged       += d => SetDialMode(d);
+        _settingsWindow.PhraseStyleChanged    += ps => { _currentPhraseStyle = ps; SaveSettings(); };
+        _settingsWindow.StatsVisibleChanged   += v => SetStatsVisible(v);
+        _settingsWindow.CpuVisibleChanged     += v => SetStatRowVisible(CpuRow, v);
+        _settingsWindow.GpuVisibleChanged     += v => SetStatRowVisible(GpuRow, v);
+        _settingsWindow.MemVisibleChanged     += v => SetStatRowVisible(MemRow, v);
+        _settingsWindow.PagVisibleChanged     += v => SetStatRowVisible(PagRow, v);
+        _settingsWindow.BatteryVisibleChanged += v => SetStatRowVisible(BattRow, v);
+        _settingsWindow.UptimeVisibleChanged  += v => SetUptimeRowVisible(v);
+        _settingsWindow.StatsIntervalChanged  += s => SetStatsInterval(s);
+        _settingsWindow.ProcessThresholdChanged += t => SetProcessThreshold(t);
+        _settingsWindow.ShowDateChanged       += v => SetDateVisible(v);
+        _settingsWindow.DateFormatChanged     += fmt => SetDateFormat(fmt);
+        _settingsWindow.GhostModeChanged      += v => { _ghostMode.IsEnabled = v; SaveSettings(); };
+        _settingsWindow.AutoContrastChanged   += v => { _contrast.SetEnabled(v); SaveSettings(); };
+        _settingsWindow.AutoLaunchChanged     += v =>
+        {
+            _autoLaunchEnabled = v;
+            string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
+            if (v) AutoLaunchService.Enable(exePath); else AutoLaunchService.Disable();
+            SaveSettings();
+        };
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
     }
 
     private TrayMenuState GetCurrentTrayState() => new TrayMenuState
@@ -380,6 +446,7 @@ public partial class MainWindow : Window
             AutoContrastEnabled  = _contrast.IsEnabled,
             ProcessCountThresholdPercent = _processCountThreshold,
             TextStyle            = _currentTextStyle,
+            PhraseStyle          = _currentPhraseStyle,
             ShowDate             = _showDate,
             DateFormat           = _dateFormat,
             MonitorPositions     = positions,
