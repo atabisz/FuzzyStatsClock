@@ -43,6 +43,7 @@ public sealed partial class SettingsWindow : Window
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
     {
+        _suppressEvents = true;
         InitializeComponent();
 
         // Restore within-session position
