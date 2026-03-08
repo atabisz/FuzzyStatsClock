@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: ready_to_plan
+stopped_at: Completed 41-01-PLAN.md
+last_updated: "2026-03-08T00:53:05.118Z"
+last_activity: 2026-03-08 — v3.2 roadmap created; v3.1 milestone complete and archived
+progress:
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 67
+---
+
+---
+gsd_state_version: 1.0
+milestone: v3.2
+milestone_name: Expanded Experience
+status: ready_to_plan
 stopped_at: roadmap_created
 last_updated: "2026-03-08"
 last_activity: 2026-03-08 — v3.2 roadmap created; Phase 41 ready to plan
 progress:
-  total_phases: 6
+  [███████░░░] 67%
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -45,6 +61,8 @@ Recent decisions affecting v3.2:
 - Phrase styles: English-only for v3.2; Phrase Style selector disabled in Settings window when non-English language is active
 - Multilingual: `CultureInfo.CurrentUICulture` (not `CurrentCulture`); Japanese `GetStructuredPhrase` returns `("", fullPhrase)` fallback for all non-English
 - Phase 41 first: highest-risk Core change (51 phrase tests); regression isolation before any MainWindow work
+- [Phase 41]: IPhraseProvider holds only provider concerns; SetLocale/CurrentLocale stay on PhraseEngine as coordinator
+- [Phase 41]: EnglishPhraseProvider is public (not internal) to allow direct construction in future isolation tests
 
 ### Pending Todos
 
@@ -56,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08
-Stopped at: Roadmap created for v3.2; ready to plan Phase 41
+Last session: 2026-03-08T00:53:05.114Z
+Stopped at: Completed 41-01-PLAN.md
 Resume file: None
