@@ -145,41 +145,19 @@ public partial class MainWindow : Window
             // Tray icon
             _trayMenu = new TrayMenuBuilder(new TrayMenuCallbacks
             {
-                ToggleGhostMode       = () => Dispatcher.Invoke(() => { _ghostMode.IsEnabled = !_ghostMode.IsEnabled; SaveSettings(); }),
-                ToggleAutoLaunch      = () => Dispatcher.Invoke(() =>
+                ToggleGhostMode    = () => Dispatcher.Invoke(() => { _ghostMode.IsEnabled = !_ghostMode.IsEnabled; SaveSettings(); }),
+                ToggleStatsVisible = () => Dispatcher.Invoke(() => SetStatsVisible(StatsPanel.Visibility != Visibility.Visible)),
+                ToggleAutoContrast = () => Dispatcher.Invoke(() => { _contrast.SetEnabled(!_contrast.IsEnabled); SaveSettings(); }),
+                ToggleAutoLaunch   = () => Dispatcher.Invoke(() =>
                 {
                     _autoLaunchEnabled = !_autoLaunchEnabled;
                     string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
                     if (_autoLaunchEnabled) AutoLaunchService.Enable(exePath); else AutoLaunchService.Disable();
                     SaveSettings();
                 }),
-                ToggleAutoContrast    = () => Dispatcher.Invoke(() =>
-                {
-                    _contrast.SetEnabled(!_contrast.IsEnabled);
-                    SaveSettings();
-                }),
-                ApplyFontSize         = size => Dispatcher.Invoke(() => ApplyFontSize(size)),
-                ToggleStatsVisible    = () => Dispatcher.Invoke(() => SetStatsVisible(StatsPanel.Visibility != Visibility.Visible)),
-                ToggleCpuVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(CpuRow, CpuRow.Visibility != Visibility.Visible)),
-                ToggleGpuVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(GpuRow, GpuRow.Visibility != Visibility.Visible)),
-                ToggleMemVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(MemRow, MemRow.Visibility != Visibility.Visible)),
-                TogglePagVisible      = () => Dispatcher.Invoke(() => SetStatRowVisible(PagRow, PagRow.Visibility != Visibility.Visible)),
-                ToggleBattVisible     = () => Dispatcher.Invoke(() => SetStatRowVisible(BattRow, BattRow.Visibility != Visibility.Visible)),
-                ToggleUptimeVisible   = () => Dispatcher.Invoke(() => SetUptimeRowVisible(UptimeText.Visibility != Visibility.Visible)),
-                SetStatsInterval      = s  => Dispatcher.Invoke(() => SetStatsInterval(s)),
-                SetProcessThreshold   = t  => Dispatcher.Invoke(() => SetProcessThreshold(t)),
-                ToggleDialMode        = () => Dispatcher.Invoke(() => SetDialMode(!_dialMode)),
-                ToggleShowHourTicks   = () => Dispatcher.Invoke(() => SetShowHourTicks(!_showHourTicks)),
-                ToggleShowMinuteDots  = () => Dispatcher.Invoke(() => SetShowMinuteDots(!_showMinuteDots)),
-                ToggleShowHourNumbers = () => Dispatcher.Invoke(() => SetShowHourNumbers(!_showHourNumbers)),
-                SetTextStyle          = style => Dispatcher.Invoke(() => SetTextStyle(style)),
-                ToggleDateVisible     = () => Dispatcher.Invoke(() => SetDateVisible(DateText.Visibility != Visibility.Visible)),
-                SetDateFormat         = fmt => Dispatcher.Invoke(() => SetDateFormat(fmt)),
-                SetAccentColor        = c  => Dispatcher.Invoke(() => SetAccentColor(c)),
-                OpenCustomColorDialog = () => Dispatcher.Invoke(OpenCustomColorDialog),
-                SetOpacity            = o  => Dispatcher.Invoke(() => SetOpacity(o)),
-                ResetToDefaults       = () => Dispatcher.Invoke(ResetToDefaults),
-                Quit                  = () => Dispatcher.Invoke(() => Application.Current.Shutdown()),
+                OpenSettings    = () => Dispatcher.Invoke(OpenSettings),
+                ResetToDefaults = () => Dispatcher.Invoke(ResetToDefaults),
+                Quit            = () => Dispatcher.Invoke(() => Application.Current.Shutdown()),
             });
             _trayIcon = _trayMenu.Build(GetCurrentTrayState(), GetCurrentTrayState);
 
@@ -384,28 +362,10 @@ public partial class MainWindow : Window
 
     private TrayMenuState GetCurrentTrayState() => new TrayMenuState
     {
-        GhostModeEnabled     = _ghostMode.IsEnabled,
-        AutoLaunchEnabled    = _autoLaunchEnabled,
-        AutoContrastEnabled  = _contrast.IsEnabled,
-        FontSize             = _currentFontSize,
-        StatsVisible         = StatsPanel.Visibility == Visibility.Visible,
-        CpuVisible           = CpuRow.Visibility     == Visibility.Visible,
-        GpuVisible           = GpuRow.Visibility     == Visibility.Visible,
-        MemVisible           = MemRow.Visibility     == Visibility.Visible,
-        PagVisible           = PagRow.Visibility     == Visibility.Visible,
-        BatteryVisible       = BattRow.Visibility    == Visibility.Visible,
-        UptimeVisible        = UptimeText.Visibility == Visibility.Visible,
-        StatsIntervalSeconds = _statsIntervalSeconds,
-        ProcessCountThreshold = _processCountThreshold,
-        DialMode             = _dialMode,
-        ShowHourTicks        = _showHourTicks,
-        ShowMinuteDots       = _showMinuteDots,
-        ShowHourNumbers      = _showHourNumbers,
-        WindowOpacity        = _windowOpacity,
-        AccentColor          = _accentColor,
-        TextStyle            = _currentTextStyle,
-        ShowDate             = _showDate,
-        DateFormat           = _dateFormat,
+        GhostModeEnabled    = _ghostMode.IsEnabled,
+        StatsVisible        = StatsPanel.Visibility == Visibility.Visible,
+        AutoContrastEnabled = _contrast.IsEnabled,
+        AutoLaunchEnabled   = _autoLaunchEnabled,
     };
 
     /// <summary>
@@ -970,9 +930,6 @@ public partial class MainWindow : Window
             PhraseText.Visibility       = isSplit ? Visibility.Collapsed : Visibility.Visible;
             SplitPhrasePanel.Visibility = isSplit ? Visibility.Visible   : Visibility.Collapsed;
         }
-
-        // DIAL-09: hide/show Dial Face submenu; MENU-01: hide Font Size submenu in dial mode
-        _trayMenu.UpdateDialModeVisibility(dialMode);
 
         if (dialMode) UpdateDialDisplay();
 
