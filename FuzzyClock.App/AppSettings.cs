@@ -35,5 +35,6 @@ public record AppSettings
     public string PhraseStyle { get; init; } = "Classic";  // "Classic" is the only option in v3.2; Phase 45 adds Terse/Poetic/Rude
     public bool   ShowDate    { get; init; } = true;
     public string DateFormat  { get; init; } = "Short";   // "Short"|"Long"|"Numeric"|"ISO"
+    public string? Theme      { get; init; } = null;       // null = no named theme active; "Midnight"|"Neon"|"Ghost"|"Warm"|"Terminal"
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"
