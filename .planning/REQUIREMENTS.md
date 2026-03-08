@@ -8,10 +8,10 @@
 ### Settings UI
 
 - [ ] **SETT-01**: User can open a Settings window via "Open Settings..." item in the system tray menu
-- [ ] **SETT-02**: Settings window has three tabs — Appearance, Stats, and Behavior
+- [x] **SETT-02**: Settings window has three tabs — Appearance, Stats, and Behavior
 - [x] **SETT-03**: Appearance tab exposes accent color, opacity, font size, clock style, phrase style, and theme selector controls
-- [ ] **SETT-04**: Stats tab exposes per-row visibility toggles, update interval, process count threshold, and date format controls
-- [ ] **SETT-05**: Behavior tab exposes ghost mode, auto-contrast, auto-launch, and battery alert threshold controls
+- [x] **SETT-04**: Stats tab exposes per-row visibility toggles, update interval, process count threshold, and date format controls
+- [x] **SETT-05**: Behavior tab exposes ghost mode, auto-contrast, auto-launch, and battery alert threshold controls
 - [x] **SETT-06**: All settings changes apply immediately to the live widget (modeless; no Apply button needed)
 - [ ] **SETT-07**: Tray menu retains existing quick toggles (Ghost Mode, Stats, Auto-Contrast, Auto-Launch) alongside "Open Settings..."
 
@@ -63,10 +63,10 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SETT-01 | Phase 42 | Pending |
-| SETT-02 | Phase 42 | Pending |
+| SETT-02 | Phase 42 | Complete |
 | SETT-03 | Phase 42 | Complete |
-| SETT-04 | Phase 42 | Pending |
-| SETT-05 | Phase 42 | Pending |
+| SETT-04 | Phase 42 | Complete |
+| SETT-05 | Phase 42 | Complete |
 | SETT-06 | Phase 42 | Complete |
 | SETT-07 | Phase 42 | Pending |
 | THM-01 | Phase 43 | Pending |

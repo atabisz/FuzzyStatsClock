@@ -211,7 +211,7 @@ Plans:
 | 39. Docs Pass | v3.1 | 1/1 | Complete | 2026-03-07 |
 | 40. README Accuracy Fixes | v3.1 | 1/1 | Complete | 2026-03-08 |
 | 41. PhraseEngine Provider Refactor | 2/2 | Complete    | 2026-03-08 | - |
-| 42. Settings Window Infrastructure | 1/3 | In Progress|  | - |
+| 42. Settings Window Infrastructure | 2/3 | In Progress|  | - |
 | 43. Named Themes | v3.2 | 0/TBD | Not started | - |
 | 44. Battery Low Alert | v3.2 | 0/TBD | Not started | - |
 | 45. English Phrase Style Personalities | v3.2 | 0/TBD | Not started | - |
