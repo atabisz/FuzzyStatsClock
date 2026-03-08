@@ -121,7 +121,10 @@
   2. `PhraseEngine.GetPhrase()` and `GetStructuredPhrase()` produce identical output to pre-refactor for English Classic style
   3. `IPhraseProvider` interface exists in FuzzyClock.Core and `EnglishPhraseProvider` implements it
   4. `PhraseEngine.SetLocale()` accepts a locale string and can swap providers at runtime
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 41-01-PLAN.md — IPhraseProvider interface + EnglishPhraseProvider extraction + PhraseEngine static facade
+- [ ] 41-02-PLAN.md — PhraseEngine coordinator TDD (SetLocale/CurrentLocale contract tests)
 
 ### Phase 42: Settings Window Infrastructure
 **Goal**: Users can open a dedicated Settings window from the system tray and change all widget settings without hunting through a 40-item tray menu
@@ -203,7 +206,7 @@
 | 38. Tests + Code Cleanup | v3.1 | 2/2 | Complete | 2026-03-07 |
 | 39. Docs Pass | v3.1 | 1/1 | Complete | 2026-03-07 |
 | 40. README Accuracy Fixes | v3.1 | 1/1 | Complete | 2026-03-08 |
-| 41. PhraseEngine Provider Refactor | v3.2 | 0/TBD | Not started | - |
+| 41. PhraseEngine Provider Refactor | v3.2 | 0/2 | Not started | - |
 | 42. Settings Window Infrastructure | v3.2 | 0/TBD | Not started | - |
 | 43. Named Themes | v3.2 | 0/TBD | Not started | - |
 | 44. Battery Low Alert | v3.2 | 0/TBD | Not started | - |
@@ -211,4 +214,4 @@
 | 46. Multilingual Phrases | v3.2 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-08 — v3.2 roadmap created*
+*Last updated: 2026-03-08 — Phase 41 planned (2 plans)*
