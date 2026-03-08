@@ -2,32 +2,31 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
-status: ready_to_plan
-stopped_at: Completed 42-02-PLAN.md
-last_updated: "2026-03-08T20:01:15.149Z"
-last_activity: 2026-03-08 — v3.2 roadmap created; v3.1 milestone complete and archived
+status: in_progress
+stopped_at: Completed 42-03-PLAN.md
+last_updated: "2026-03-08T20:21:40.628Z"
+last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
 ---
 
 ---
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
-status: ready_to_plan
-stopped_at: roadmap_created
-last_updated: "2026-03-08"
-last_activity: 2026-03-08 — v3.2 roadmap created; Phase 41 ready to plan
+status: in_progress
+stopped_at: Completed 42-03-PLAN.md
+last_updated: "2026-03-09T00:00:00Z"
+last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window wired end-to-end, tray pruned
 progress:
-  [███████░░░] 67%
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 6
+  completed_phases: 1
+  total_plans: 15
+  completed_plans: 7
+  percent: 47
 ---
 
 # Project State
@@ -37,16 +36,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 41 — PhraseEngine Provider Refactor
+**Current focus:** Phase 42 — Settings Window Infrastructure
 
 ## Current Position
 
-Phase: 41 of 46 (PhraseEngine Provider Refactor)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-08 — v3.2 roadmap created; v3.1 milestone complete and archived
+Phase: 42 of 46 (Settings Window Infrastructure)
+Plan: 3 of 3 complete in current phase
+Status: Phase 42 complete — ready for Phase 43
+Last activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 
-Progress: [░░░░░░░░░░] 0% (v3.2: 0/6 phases complete)
+Progress: [████░░░░░░] 47% (v3.2: 1/6 phases complete, Phase 42 in progress)
 
 ## Accumulated Context
 
@@ -72,6 +71,10 @@ Recent decisions affecting v3.2:
 - [Phase 42-settings-window-infrastructure]: Color alias pattern required when UseWindowsForms=true: use 'using Color = System.Windows.Media.Color' to resolve System.Drawing.Color ambiguity
 - [Phase 42]: SettingsWindow must be public (not internal) — XAML codegen generates public partial class; constructor is internal to avoid CS0051 with internal SettingsSnapshot
 - [Phase 42]: Color using-alias required in SettingsWindow.xaml.cs: UseWindowsForms=true imports System.Drawing which also defines Color (CS0104 ambiguity)
+- [Phase 42-03]: TrayMenuBuilder shrunk from ~43 items to 8+About; all deep submenus removed in favour of SettingsWindow
+- [Phase 42-03]: _settingsWindow nulled in Closed handler; each re-open constructs fresh from current snapshot
+- [Phase 42-03]: OpenSettings() is MainWindow-private; tray callback wraps in Dispatcher.Invoke
+- [Phase 42-03]: About item retained in tray menu (between Reset to Defaults and Quit)
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T20:01:15.145Z
-Stopped at: Completed 42-02-PLAN.md
+Last session: 2026-03-08T20:21:40.624Z
+Stopped at: Completed 42-03-PLAN.md
 Resume file: None

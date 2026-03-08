@@ -104,7 +104,7 @@
 **Milestone Goal:** Replace the unwieldy tray menu with a proper Settings window; add five named visual themes; introduce English phrase style personalities (Terse/Poetic/Rude); add native phrase sets for French, Spanish, German, Japanese, and Polish; and alert the user when battery is low with a red stat row.
 
 - [x] **Phase 41: PhraseEngine Provider Refactor** - Extract IPhraseProvider interface + EnglishPhraseProvider; PhraseEngine becomes static dispatcher; all 122 tests still pass (completed 2026-03-08)
-- [ ] **Phase 42: Settings Window Infrastructure** - SettingsWindow (3 tabs), "Open Settings..." tray item, modeless Owner=MainWindow, SettingsChanged event wired to ApplySettings+SaveSettings
+- [x] **Phase 42: Settings Window Infrastructure** - SettingsWindow (3 tabs), "Open Settings..." tray item, modeless Owner=MainWindow, SettingsChanged event wired to ApplySettings+SaveSettings (completed 2026-03-08)
 - [ ] **Phase 43: Named Themes** - ThemeDefinition record, BuiltInThemes registry (5 presets), ApplyNamedTheme() batch method, AppSettings.Theme persisted
 - [ ] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab
 - [ ] **Phase 45: English Phrase Style Personalities** - PhraseStyle enum (Classic/Terse/Poetic/Rude); bucket tables in EnglishPhraseProvider; AppSettings.PhraseStyle; Settings window wiring; per-style tests
@@ -211,7 +211,7 @@ Plans:
 | 39. Docs Pass | v3.1 | 1/1 | Complete | 2026-03-07 |
 | 40. README Accuracy Fixes | v3.1 | 1/1 | Complete | 2026-03-08 |
 | 41. PhraseEngine Provider Refactor | 2/2 | Complete    | 2026-03-08 | - |
-| 42. Settings Window Infrastructure | 2/3 | In Progress|  | - |
+| 42. Settings Window Infrastructure | 3/3 | Complete   | 2026-03-08 | - |
 | 43. Named Themes | v3.2 | 0/TBD | Not started | - |
 | 44. Battery Low Alert | v3.2 | 0/TBD | Not started | - |
 | 45. English Phrase Style Personalities | v3.2 | 0/TBD | Not started | - |
