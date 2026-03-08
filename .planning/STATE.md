@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: ready_to_plan
-stopped_at: Completed 41-01-PLAN.md
-last_updated: "2026-03-08T00:53:05.118Z"
+stopped_at: Completed 41-02-PLAN.md
+last_updated: "2026-03-08T00:55:34.825Z"
 last_activity: 2026-03-08 — v3.2 roadmap created; v3.1 milestone complete and archived
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 67
 ---
 
@@ -63,6 +63,7 @@ Recent decisions affecting v3.2:
 - Phase 41 first: highest-risk Core change (51 phrase tests); regression isolation before any MainWindow work
 - [Phase 41]: IPhraseProvider holds only provider concerns; SetLocale/CurrentLocale stay on PhraseEngine as coordinator
 - [Phase 41]: EnglishPhraseProvider is public (not internal) to allow direct construction in future isolation tests
+- [Phase 41]: [TestCleanup] required for static class tests: PhraseEngine state persists across test methods; cleanup resets locale to en-classic
 
 ### Pending Todos
 
@@ -74,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T00:53:05.114Z
-Stopped at: Completed 41-01-PLAN.md
+Last session: 2026-03-08T00:55:34.821Z
+Stopped at: Completed 41-02-PLAN.md
 Resume file: None
