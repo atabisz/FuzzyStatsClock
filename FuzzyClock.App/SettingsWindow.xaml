@@ -214,60 +214,95 @@
         <TabItem Header="Stats">
             <StackPanel Margin="12">
 
-                <CheckBox x:Name="ChkStatsVisible" Content="Show Stats Panel" Margin="0,0,0,6"
+                <CheckBox x:Name="ChkStatsVisible" Content="Show Stats Panel"
+                          Margin="0,0,0,10"
                           Checked="ChkStatsVisible_Changed" Unchecked="ChkStatsVisible_Changed"/>
 
-                <TextBlock Text="Visible Rows" FontWeight="SemiBold" Margin="0,4,0,4"/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                    <CheckBox x:Name="ChkCpuVisible"  Content="CPU"     Margin="0,0,12,0"
-                              Checked="ChkCpuVisible_Changed"  Unchecked="ChkCpuVisible_Changed"/>
-                    <CheckBox x:Name="ChkGpuVisible"  Content="GPU"     Margin="0,0,12,0"
-                              Checked="ChkGpuVisible_Changed"  Unchecked="ChkGpuVisible_Changed"/>
-                    <CheckBox x:Name="ChkMemVisible"  Content="Memory"  Margin="0,0,12,0"
-                              Checked="ChkMemVisible_Changed"  Unchecked="ChkMemVisible_Changed"/>
-                    <CheckBox x:Name="ChkPagVisible"  Content="Paging"  Margin="0,0,12,0"
-                              Checked="ChkPagVisible_Changed"  Unchecked="ChkPagVisible_Changed"/>
-                    <CheckBox x:Name="ChkBattVisible" Content="Battery" Margin="0,0,12,0"
-                              Checked="ChkBattVisible_Changed" Unchecked="ChkBattVisible_Changed"/>
-                    <CheckBox x:Name="ChkUptimeVisible" Content="Uptime"
-                              Checked="ChkUptimeVisible_Changed" Unchecked="ChkUptimeVisible_Changed"/>
-                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                <!-- Update Interval -->
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <Label Content="Update Interval:" VerticalAlignment="Center" Padding="0,0,6,0"/>
-                    <ComboBox x:Name="CmbStatsInterval" Width="110" VerticalAlignment="Center"
+                    <!-- Visible Rows (WrapPanel — 2 rows of 3) -->
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                               Text="Rows" VerticalAlignment="Top"
+                               HorizontalAlignment="Right" Margin="0,3,10,0"/>
+                    <WrapPanel Grid.Row="0" Grid.Column="1" Width="270">
+                        <CheckBox x:Name="ChkCpuVisible"    Content="CPU"     Width="86" Margin="0,0,0,5"
+                                  Checked="ChkCpuVisible_Changed"    Unchecked="ChkCpuVisible_Changed"/>
+                        <CheckBox x:Name="ChkGpuVisible"    Content="GPU"     Width="86" Margin="0,0,0,5"
+                                  Checked="ChkGpuVisible_Changed"    Unchecked="ChkGpuVisible_Changed"/>
+                        <CheckBox x:Name="ChkMemVisible"    Content="Memory"  Width="86" Margin="0,0,0,5"
+                                  Checked="ChkMemVisible_Changed"    Unchecked="ChkMemVisible_Changed"/>
+                        <CheckBox x:Name="ChkPagVisible"    Content="Paging"  Width="86"
+                                  Checked="ChkPagVisible_Changed"    Unchecked="ChkPagVisible_Changed"/>
+                        <CheckBox x:Name="ChkBattVisible"   Content="Battery" Width="86"
+                                  Checked="ChkBattVisible_Changed"   Unchecked="ChkBattVisible_Changed"/>
+                        <CheckBox x:Name="ChkUptimeVisible" Content="Uptime"  Width="86"
+                                  Checked="ChkUptimeVisible_Changed" Unchecked="ChkUptimeVisible_Changed"/>
+                    </WrapPanel>
+
+                    <!-- Update Interval -->
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                               Text="Interval" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,12,10,0"/>
+                    <ComboBox x:Name="CmbStatsInterval"
+                              Grid.Row="1" Grid.Column="1"
+                              Width="110" HorizontalAlignment="Left"
+                              Margin="0,12,0,0" VerticalAlignment="Center"
                               SelectionChanged="CmbStatsInterval_SelectionChanged">
                         <ComboBoxItem Content="1 second"/>
                         <ComboBoxItem Content="3 seconds"/>
                         <ComboBoxItem Content="10 seconds"/>
                     </ComboBox>
-                </StackPanel>
 
-                <!-- Process Threshold -->
-                <TextBlock Text="Process Threshold" FontWeight="SemiBold" Margin="0,8,0,4"/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                    <RadioButton x:Name="RbThresh2"  Content="2%"  GroupName="ProcessThresh" Margin="0,0,12,0"
-                                 Checked="RbThresh2_Checked"/>
-                    <RadioButton x:Name="RbThresh5"  Content="5%"  GroupName="ProcessThresh" Margin="0,0,12,0"
-                                 Checked="RbThresh5_Checked"/>
-                    <RadioButton x:Name="RbThresh10" Content="10%" GroupName="ProcessThresh"
-                                 Checked="RbThresh10_Checked"/>
-                </StackPanel>
+                    <!-- Process Threshold -->
+                    <TextBlock Grid.Row="2" Grid.Column="0"
+                               Text="Threshold" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,12,10,0"/>
+                    <StackPanel Grid.Row="2" Grid.Column="1"
+                                Orientation="Horizontal" Margin="0,12,0,0">
+                        <RadioButton x:Name="RbThresh2"  Content="2%"  GroupName="ProcessThresh"
+                                     Margin="0,0,14,0" Checked="RbThresh2_Checked"/>
+                        <RadioButton x:Name="RbThresh5"  Content="5%"  GroupName="ProcessThresh"
+                                     Margin="0,0,14,0" Checked="RbThresh5_Checked"/>
+                        <RadioButton x:Name="RbThresh10" Content="10%" GroupName="ProcessThresh"
+                                     Checked="RbThresh10_Checked"/>
+                    </StackPanel>
 
-                <!-- Date -->
-                <CheckBox x:Name="ChkShowDate" Content="Show Date" Margin="0,6,0,0"
-                          Checked="ChkShowDate_Changed" Unchecked="ChkShowDate_Changed"/>
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                    <Label Content="Date Format:" VerticalAlignment="Center" Padding="0,0,6,0"/>
-                    <ComboBox x:Name="CmbDateFormat" Width="100" VerticalAlignment="Center"
+                    <!-- Show Date -->
+                    <TextBlock Grid.Row="3" Grid.Column="0"
+                               Text="Date" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,12,10,0"/>
+                    <CheckBox x:Name="ChkShowDate"
+                              Grid.Row="3" Grid.Column="1"
+                              Content="Show Date" Margin="0,12,0,0" VerticalAlignment="Center"
+                              Checked="ChkShowDate_Changed" Unchecked="ChkShowDate_Changed"/>
+
+                    <!-- Date Format -->
+                    <TextBlock Grid.Row="4" Grid.Column="0"
+                               Text="Date Format" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"/>
+                    <ComboBox x:Name="CmbDateFormat"
+                              Grid.Row="4" Grid.Column="1"
+                              Width="100" HorizontalAlignment="Left"
+                              Margin="0,8,0,0" VerticalAlignment="Center"
                               SelectionChanged="CmbDateFormat_SelectionChanged">
                         <ComboBoxItem Content="Short"/>
                         <ComboBoxItem Content="Long"/>
                         <ComboBoxItem Content="Numeric"/>
                         <ComboBoxItem Content="ISO"/>
                     </ComboBox>
-                </StackPanel>
+
+                </Grid>
 
             </StackPanel>
         </TabItem>
@@ -276,12 +311,17 @@
         <TabItem Header="Behavior">
             <StackPanel Margin="12">
 
-                <CheckBox x:Name="ChkGhostMode"    Content="Ghost Mode (auto-hide on hover)"    Margin="0,0,0,6"
-                          Checked="ChkGhostMode_Changed"    Unchecked="ChkGhostMode_Changed"/>
-                <CheckBox x:Name="ChkAutoContrast" Content="Auto-Contrast (WCAG sampling)"      Margin="0,0,0,6"
+                <CheckBox x:Name="ChkGhostMode"
+                          Content="Ghost Mode — auto-hide widget on hover"
+                          Margin="0,0,0,10"
+                          Checked="ChkGhostMode_Changed" Unchecked="ChkGhostMode_Changed"/>
+                <CheckBox x:Name="ChkAutoContrast"
+                          Content="Auto-Contrast — WCAG luminance sampling"
+                          Margin="0,0,0,10"
                           Checked="ChkAutoContrast_Changed" Unchecked="ChkAutoContrast_Changed"/>
-                <CheckBox x:Name="ChkAutoLaunch"   Content="Auto-Launch at Login"               Margin="0,0,0,6"
-                          Checked="ChkAutoLaunch_Changed"   Unchecked="ChkAutoLaunch_Changed"/>
+                <CheckBox x:Name="ChkAutoLaunch"
+                          Content="Auto-Launch at Login"
+                          Checked="ChkAutoLaunch_Changed" Unchecked="ChkAutoLaunch_Changed"/>
 
             </StackPanel>
         </TabItem>
