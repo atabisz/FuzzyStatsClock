@@ -151,7 +151,11 @@ Plans:
   2. Selecting a theme atomically updates accent color, opacity, font size, clock style, and stats panel visibility on the live widget
   3. The active theme name is saved to settings.json and the same theme is restored when the app restarts
   4. All 122 existing tests still pass after theme infrastructure is added
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 43-01-PLAN.md — ThemeDefinition record + BuiltInThemes registry + AppSettings.Theme field
+- [ ] 43-02-PLAN.md — SettingsWindow theme card row UI + ThemeSelected event + SetActiveThemeCard helper
+- [ ] 43-03-PLAN.md — MainWindow ApplyNamedTheme wiring + SettingsSnapshot.ActiveTheme + startup restore
 
 ### Phase 44: Battery Low Alert
 **Goal**: Users are visually warned when the battery drops below the configured threshold while unplugged, without needing to check the battery icon
@@ -210,12 +214,12 @@ Plans:
 | 38. Tests + Code Cleanup | v3.1 | 2/2 | Complete | 2026-03-07 |
 | 39. Docs Pass | v3.1 | 1/1 | Complete | 2026-03-07 |
 | 40. README Accuracy Fixes | v3.1 | 1/1 | Complete | 2026-03-08 |
-| 41. PhraseEngine Provider Refactor | 2/2 | Complete    | 2026-03-08 | - |
-| 42. Settings Window Infrastructure | 4/4 | Complete    | 2026-03-08 | - |
-| 43. Named Themes | v3.2 | 0/TBD | Not started | - |
+| 41. PhraseEngine Provider Refactor | v3.2 | 2/2 | Complete | 2026-03-08 |
+| 42. Settings Window Infrastructure | v3.2 | 3/3 | Complete | 2026-03-08 |
+| 43. Named Themes | v3.2 | 0/3 | Not started | - |
 | 44. Battery Low Alert | v3.2 | 0/TBD | Not started | - |
 | 45. English Phrase Style Personalities | v3.2 | 0/TBD | Not started | - |
 | 46. Multilingual Phrases | v3.2 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-08 — Phase 41 planned (2 plans)*
+*Last updated: 2026-03-09 — Phase 43 planned (3 plans)*
