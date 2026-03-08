@@ -166,7 +166,10 @@ Plans:
   2. When the battery rises above the threshold or is plugged in, the battery row returns to the normal accent color
   3. The alert threshold is selectable (10% / 15% / 20%) in the Settings window Behavior tab, defaulting to 20%
   4. The red alert color is not overridden by auto-contrast sampling (both `ApplyTheme()` and `ApplyDisplayColor()` respect the `_batteryAlertActive` flag)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 44-01-PLAN.md — Settings data model + SettingsWindow Battery Alert section
+- [ ] 44-02-PLAN.md — MainWindow alert logic + field wiring
 
 ### Phase 45: English Phrase Style Personalities
 **Goal**: Users who want more personality from the widget can switch the English phrase vocabulary to Terse, Poetic, or Rude styles
@@ -217,9 +220,9 @@ Plans:
 | 41. PhraseEngine Provider Refactor | v3.2 | 2/2 | Complete | 2026-03-08 |
 | 42. Settings Window Infrastructure | v3.2 | 3/3 | Complete | 2026-03-08 |
 | 43. Named Themes | 3/3 | Complete    | 2026-03-08 | - |
-| 44. Battery Low Alert | v3.2 | 0/TBD | Not started | - |
+| 44. Battery Low Alert | v3.2 | 0/2 | In progress | - |
 | 45. English Phrase Style Personalities | v3.2 | 0/TBD | Not started | - |
 | 46. Multilingual Phrases | v3.2 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-09 — Phase 43 planned (3 plans)*
+*Last updated: 2026-03-09 — Phase 44 planned (2 plans)*
