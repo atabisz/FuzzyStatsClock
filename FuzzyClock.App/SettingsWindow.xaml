@@ -1,0 +1,154 @@
+<Window x:Class="FuzzyClock.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FuzzyClock Settings"
+        Width="480" Height="440"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen">
+
+    <TabControl Margin="8">
+
+        <!-- ===== APPEARANCE TAB ===== -->
+        <TabItem Header="Appearance">
+            <StackPanel Margin="12">
+
+                <!-- Accent Color -->
+                <TextBlock Text="Accent Color" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Border x:Name="SwatchWhite"  Width="24" Height="24" Background="#FFFFFFFF" Cursor="Hand" Margin="0,0,4,0"
+                            MouseLeftButtonDown="SwatchWhite_MouseLeftButtonDown">
+                        <Border.BorderBrush><SolidColorBrush Color="#FFAAAAAA"/></Border.BorderBrush>
+                        <Border.BorderThickness>1</Border.BorderThickness>
+                    </Border>
+                    <Border x:Name="SwatchAmber"  Width="24" Height="24" Background="#FFFFC000" Cursor="Hand" Margin="0,0,4,0"
+                            MouseLeftButtonDown="SwatchAmber_MouseLeftButtonDown"/>
+                    <Border x:Name="SwatchIce"    Width="24" Height="24" Background="#FF87CEEB" Cursor="Hand" Margin="0,0,4,0"
+                            MouseLeftButtonDown="SwatchIce_MouseLeftButtonDown"/>
+                    <Border x:Name="SwatchGreen"  Width="24" Height="24" Background="#FF00C000" Cursor="Hand" Margin="0,0,4,0"
+                            MouseLeftButtonDown="SwatchGreen_MouseLeftButtonDown"/>
+                    <Border x:Name="SwatchPink"   Width="24" Height="24" Background="#FFFF69B4" Cursor="Hand" Margin="0,0,8,0"
+                            MouseLeftButtonDown="SwatchPink_MouseLeftButtonDown"/>
+                    <Button x:Name="BtnCustomColor" Content="Custom..." Padding="8,2"
+                            Click="BtnCustomColor_Click"/>
+                </StackPanel>
+
+                <!-- Opacity -->
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Label Content="Opacity:" VerticalAlignment="Center" Padding="0,0,6,0"/>
+                    <Slider x:Name="OpacitySlider"
+                            Minimum="0.20" Maximum="1.00"
+                            SmallChange="0.01" LargeChange="0.05"
+                            TickFrequency="0.05" IsSnapToTickEnabled="False"
+                            Width="180" VerticalAlignment="Center"
+                            ValueChanged="OpacitySlider_ValueChanged"/>
+                    <TextBlock x:Name="OpacityLabel" Width="40" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </StackPanel>
+
+                <!-- Font Size -->
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Label Content="Font Size:" VerticalAlignment="Center" Padding="0,0,6,0"/>
+                    <Button x:Name="BtnFontS"  Content="S"  Width="36" Margin="2,0" Click="BtnFontS_Click"/>
+                    <Button x:Name="BtnFontM"  Content="M"  Width="36" Margin="2,0" Click="BtnFontM_Click"/>
+                    <Button x:Name="BtnFontL"  Content="L"  Width="36" Margin="2,0" Click="BtnFontL_Click"/>
+                    <Button x:Name="BtnFontXL" Content="XL" Width="36" Margin="2,0" Click="BtnFontXL_Click"/>
+                </StackPanel>
+
+                <!-- Clock Style -->
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Label Content="Clock Style:" VerticalAlignment="Center" Padding="0,0,6,0"/>
+                    <Button x:Name="BtnPhrase" Content="Phrase" Width="60" Margin="2,0" Click="BtnPhrase_Click"/>
+                    <Button x:Name="BtnDial"   Content="Dial"   Width="60" Margin="2,0" Click="BtnDial_Click"/>
+                </StackPanel>
+
+                <!-- Phrase Style -->
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Label Content="Phrase Style:" VerticalAlignment="Center" Padding="0,0,6,0"/>
+                    <ComboBox x:Name="CmbPhraseStyle" Width="120" VerticalAlignment="Center"
+                              SelectionChanged="CmbPhraseStyle_SelectionChanged">
+                        <ComboBoxItem Content="Classic"/>
+                    </ComboBox>
+                </StackPanel>
+
+            </StackPanel>
+        </TabItem>
+
+        <!-- ===== STATS TAB ===== -->
+        <TabItem Header="Stats">
+            <StackPanel Margin="12">
+
+                <CheckBox x:Name="ChkStatsVisible" Content="Show Stats Panel" Margin="0,0,0,6"
+                          Checked="ChkStatsVisible_Changed" Unchecked="ChkStatsVisible_Changed"/>
+
+                <TextBlock Text="Visible Rows" FontWeight="SemiBold" Margin="0,4,0,4"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                    <CheckBox x:Name="ChkCpuVisible"  Content="CPU"     Margin="0,0,12,0"
+                              Checked="ChkCpuVisible_Changed"  Unchecked="ChkCpuVisible_Changed"/>
+                    <CheckBox x:Name="ChkGpuVisible"  Content="GPU"     Margin="0,0,12,0"
+                              Checked="ChkGpuVisible_Changed"  Unchecked="ChkGpuVisible_Changed"/>
+                    <CheckBox x:Name="ChkMemVisible"  Content="Memory"  Margin="0,0,12,0"
+                              Checked="ChkMemVisible_Changed"  Unchecked="ChkMemVisible_Changed"/>
+                    <CheckBox x:Name="ChkPagVisible"  Content="Paging"  Margin="0,0,12,0"
+                              Checked="ChkPagVisible_Changed"  Unchecked="ChkPagVisible_Changed"/>
+                    <CheckBox x:Name="ChkBattVisible" Content="Battery" Margin="0,0,12,0"
+                              Checked="ChkBattVisible_Changed" Unchecked="ChkBattVisible_Changed"/>
+                    <CheckBox x:Name="ChkUptimeVisible" Content="Uptime"
+                              Checked="ChkUptimeVisible_Changed" Unchecked="ChkUptimeVisible_Changed"/>
+                </StackPanel>
+
+                <!-- Update Interval -->
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Label Content="Update Interval:" VerticalAlignment="Center" Padding="0,0,6,0"/>
+                    <ComboBox x:Name="CmbStatsInterval" Width="110" VerticalAlignment="Center"
+                              SelectionChanged="CmbStatsInterval_SelectionChanged">
+                        <ComboBoxItem Content="1 second"/>
+                        <ComboBoxItem Content="3 seconds"/>
+                        <ComboBoxItem Content="10 seconds"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Process Threshold -->
+                <TextBlock Text="Process Threshold" FontWeight="SemiBold" Margin="0,8,0,4"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                    <RadioButton x:Name="RbThresh2"  Content="2%"  GroupName="ProcessThresh" Margin="0,0,12,0"
+                                 Checked="RbThresh2_Checked"/>
+                    <RadioButton x:Name="RbThresh5"  Content="5%"  GroupName="ProcessThresh" Margin="0,0,12,0"
+                                 Checked="RbThresh5_Checked"/>
+                    <RadioButton x:Name="RbThresh10" Content="10%" GroupName="ProcessThresh"
+                                 Checked="RbThresh10_Checked"/>
+                </StackPanel>
+
+                <!-- Date -->
+                <CheckBox x:Name="ChkShowDate" Content="Show Date" Margin="0,6,0,0"
+                          Checked="ChkShowDate_Changed" Unchecked="ChkShowDate_Changed"/>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Label Content="Date Format:" VerticalAlignment="Center" Padding="0,0,6,0"/>
+                    <ComboBox x:Name="CmbDateFormat" Width="100" VerticalAlignment="Center"
+                              SelectionChanged="CmbDateFormat_SelectionChanged">
+                        <ComboBoxItem Content="Short"/>
+                        <ComboBoxItem Content="Long"/>
+                        <ComboBoxItem Content="Numeric"/>
+                        <ComboBoxItem Content="ISO"/>
+                    </ComboBox>
+                </StackPanel>
+
+            </StackPanel>
+        </TabItem>
+
+        <!-- ===== BEHAVIOR TAB ===== -->
+        <TabItem Header="Behavior">
+            <StackPanel Margin="12">
+
+                <CheckBox x:Name="ChkGhostMode"    Content="Ghost Mode (auto-hide on hover)"    Margin="0,0,0,6"
+                          Checked="ChkGhostMode_Changed"    Unchecked="ChkGhostMode_Changed"/>
+                <CheckBox x:Name="ChkAutoContrast" Content="Auto-Contrast (WCAG sampling)"      Margin="0,0,0,6"
+                          Checked="ChkAutoContrast_Changed" Unchecked="ChkAutoContrast_Changed"/>
+                <CheckBox x:Name="ChkAutoLaunch"   Content="Auto-Launch at Login"               Margin="0,0,0,6"
+                          Checked="ChkAutoLaunch_Changed"   Unchecked="ChkAutoLaunch_Changed"/>
+
+            </StackPanel>
+        </TabItem>
+
+    </TabControl>
+
+</Window>
