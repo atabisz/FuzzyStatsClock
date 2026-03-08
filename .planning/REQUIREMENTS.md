@@ -11,7 +11,7 @@
 - [x] **SETT-02**: Settings window has three tabs — Appearance, Stats, and Behavior
 - [x] **SETT-03**: Appearance tab exposes accent color, opacity, font size, clock style, phrase style, and theme selector controls
 - [x] **SETT-04**: Stats tab exposes per-row visibility toggles, update interval, process count threshold, and date format controls
-- [x] **SETT-05**: Behavior tab exposes ghost mode, auto-contrast, auto-launch, and battery alert threshold controls
+- [x] **SETT-05**: Behavior tab exposes ghost mode, auto-contrast, and auto-launch controls (battery alert threshold is ALERT-03, delivered in Phase 44)
 - [x] **SETT-06**: All settings changes apply immediately to the live widget (modeless; no Apply button needed)
 - [x] **SETT-07**: Tray menu retains existing quick toggles (Ghost Mode, Stats, Auto-Contrast, Auto-Launch) alongside "Open Settings..."
 
