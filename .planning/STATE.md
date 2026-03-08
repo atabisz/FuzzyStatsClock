@@ -4,7 +4,7 @@ milestone: v3.2
 milestone_name: Expanded Experience
 status: ready_to_plan
 stopped_at: Completed 42-01-PLAN.md
-last_updated: "2026-03-08T19:56:48.764Z"
+last_updated: "2026-03-08T19:57:06.333Z"
 last_activity: 2026-03-08 — v3.2 roadmap created; v3.1 milestone complete and archived
 progress:
   total_phases: 6
@@ -66,6 +66,8 @@ Recent decisions affecting v3.2:
 - [Phase 41]: [TestCleanup] required for static class tests: PhraseEngine state persists across test methods; cleanup resets locale to en-classic
 - [Phase 42-settings-window-infrastructure]: PhraseStyle and TextStyle kept separate: PhraseStyle governs vocabulary (Classic/Terse/Poetic/Rude); TextStyle governs layout (Classic/Split/Literary/Mono)
 - [Phase 42-settings-window-infrastructure]: SettingsSnapshot: immutable record passed to SettingsWindow constructor; changes flow out via events, nothing flows back in (populate-on-open strategy)
+- [Phase 42]: PhraseStyle and TextStyle are separate dimensions: TextStyle governs text layout (Classic/Split/Literary/Mono); PhraseStyle governs phrase vocabulary (Classic/Terse/Poetic/Rude in Phase 45)
+- [Phase 42]: SettingsSnapshot is an immutable populate-on-open constructor-arg record; changes flow OUT via events, never back IN
 
 ### Pending Todos
 
@@ -77,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T19:56:43.355Z
+Last session: 2026-03-08T19:57:06.328Z
 Stopped at: Completed 42-01-PLAN.md
 Resume file: None
