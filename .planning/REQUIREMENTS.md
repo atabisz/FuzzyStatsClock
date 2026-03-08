@@ -17,9 +17,9 @@
 
 ### Themes
 
-- [ ] **THM-01**: Settings window Appearance tab offers 5 named built-in themes selectable by the user
-- [ ] **THM-02**: Applying a theme atomically sets accent color, opacity, font size, clock style, and stats panel visibility
-- [ ] **THM-03**: Active theme name persists to settings.json and restores on launch
+- [x] **THM-01**: Settings window Appearance tab offers 5 named built-in themes selectable by the user
+- [x] **THM-02**: Applying a theme atomically sets accent color, opacity, font size, clock style, and stats panel visibility
+- [x] **THM-03**: Active theme name persists to settings.json and restores on launch
 
 ### Phrase Styles
 
@@ -69,9 +69,9 @@
 | SETT-05 | Phase 42 | Complete |
 | SETT-06 | Phase 42 | Complete |
 | SETT-07 | Phase 42 | Complete |
-| THM-01 | Phase 43 | Pending |
-| THM-02 | Phase 43 | Pending |
-| THM-03 | Phase 43 | Pending |
+| THM-01 | Phase 43 | Complete |
+| THM-02 | Phase 43 | Complete |
+| THM-03 | Phase 43 | Complete |
 | STYLE-01 | Phase 45 | Pending |
 | STYLE-02 | Phase 45 | Pending |
 | STYLE-03 | Phase 45 | Pending |

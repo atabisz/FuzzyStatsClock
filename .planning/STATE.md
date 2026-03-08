@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: in_progress
-stopped_at: Completed 42-04-PLAN.md
-last_updated: "2026-03-08T20:39:46.559Z"
+stopped_at: Completed 43-01-PLAN.md
+last_updated: "2026-03-08T23:01:42.735Z"
 last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 7
 ---
 
 ---
@@ -76,6 +76,8 @@ Recent decisions affecting v3.2:
 - [Phase 42-03]: OpenSettings() is MainWindow-private; tray callback wraps in Dispatcher.Invoke
 - [Phase 42-03]: About item retained in tray menu (between Reset to Defaults and Quit)
 - [Phase 42-settings-window-infrastructure]: SETT-05 scope clarified in REQUIREMENTS.md: Behavior tab covers ghost mode, auto-contrast, auto-launch only; battery alert threshold is ALERT-03 (Phase 44)
+- [Phase 43-named-themes]: ThemeDefinition.StatsVisible applies to panel-level toggle only, not per-row visibility — preserves user customization
+- [Phase 43-named-themes]: Color using-alias required in ThemeDefinition.cs: using Color = System.Windows.Media.Color resolves UseWindowsForms=true ambiguity
 
 ### Pending Todos
 
@@ -87,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T20:39:46.554Z
-Stopped at: Completed 42-04-PLAN.md
+Last session: 2026-03-08T23:01:42.727Z
+Stopped at: Completed 43-01-PLAN.md
 Resume file: None
