@@ -1073,6 +1073,7 @@ public partial class MainWindow : Window
         double step = Math.Sign(e.Delta) * 0.10;
         _windowOpacity = Math.Clamp(_windowOpacity + step, 0.10, 1.0);
         this.Opacity = _windowOpacity;
+        ClearActiveTheme();
         SaveSettings();
         e.Handled = true;  // prevent scroll leaking to desktop or windows below overlay
     }
