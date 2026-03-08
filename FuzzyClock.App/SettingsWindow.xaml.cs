@@ -39,6 +39,7 @@ public sealed partial class SettingsWindow : Window
     public event Action<bool>?   GhostModeChanged;
     public event Action<bool>?   AutoContrastChanged;
     public event Action<bool>?   AutoLaunchChanged;
+    public event Action<string>? ThemeSelected;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -123,6 +124,22 @@ public sealed partial class SettingsWindow : Window
             ac == Color.FromArgb(0xFF, 0x00, 0xC0, 0x00) ? RingGreen  :
             ac == Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4) ? RingPink   : null;
         SetActiveSwatch(ring);
+
+        // Restore active theme card ring (null = no theme active → no ring shown)
+        if (s.ActiveTheme is not null)
+        {
+            Border? themeRing = s.ActiveTheme switch
+            {
+                "Midnight" => RingThemeMidnight,
+                "Neon"     => RingThemeNeon,
+                "Ghost"    => RingThemeGhost,
+                "Warm"     => RingThemeWarm,
+                "Terminal" => RingThemeTerminal,
+                _          => null,
+            };
+            Color accent = BuiltInThemes.TryGet(s.ActiveTheme)?.AccentColor ?? default;
+            SetActiveThemeCard(themeRing, accent);
+        }
     }
 
     // ── Toggle button state helpers ───────────────────────────────────────
@@ -154,6 +171,66 @@ public sealed partial class SettingsWindow : Window
             activeRing.BorderThickness = new Thickness(2);
             activeRing.BorderBrush     = blue;
         }
+    }
+
+    private void SetActiveThemeCard(Border? activeRing, Color ringColor)
+    {
+        var rings = new[] { RingThemeMidnight, RingThemeNeon, RingThemeGhost,
+                            RingThemeWarm, RingThemeTerminal };
+        foreach (var r in rings)
+        {
+            r.BorderThickness = new Thickness(0);
+            r.BorderBrush     = null;
+        }
+        if (activeRing is not null)
+        {
+            activeRing.BorderThickness = new Thickness(2);
+            activeRing.BorderBrush     = new SolidColorBrush(ringColor);
+        }
+    }
+
+    /// <summary>Removes the active ring from all theme cards. Called by MainWindow when user deviates from a named theme.</summary>
+    public void ClearActiveThemeCard() => SetActiveThemeCard(null, default);
+
+    // ── Theme card click handlers ─────────────────────────────────────────
+    private void ThemeMidnight_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetActiveThemeCard(RingThemeMidnight,
+            Color.FromArgb(0xFF, 0x6A, 0x7F, 0xDB));
+        ThemeSelected?.Invoke("Midnight");
+    }
+
+    private void ThemeNeon_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetActiveThemeCard(RingThemeNeon,
+            Color.FromArgb(0xFF, 0x00, 0xF5, 0xD4));
+        ThemeSelected?.Invoke("Neon");
+    }
+
+    private void ThemeGhost_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetActiveThemeCard(RingThemeGhost,
+            Color.FromArgb(0xFF, 0xC0, 0xC8, 0xD8));
+        ThemeSelected?.Invoke("Ghost");
+    }
+
+    private void ThemeWarm_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetActiveThemeCard(RingThemeWarm,
+            Color.FromArgb(0xFF, 0xF4, 0xA2, 0x61));
+        ThemeSelected?.Invoke("Warm");
+    }
+
+    private void ThemeTerminal_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetActiveThemeCard(RingThemeTerminal,
+            Color.FromArgb(0xFF, 0x39, 0xFF, 0x14));
+        ThemeSelected?.Invoke("Terminal");
     }
 
     // ── Accent color swatches ─────────────────────────────────────────────

@@ -53,6 +53,107 @@
         <TabItem Header="Appearance">
             <StackPanel Margin="12">
 
+                <!-- Named Themes — personality presets; placed above accent color -->
+                <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+
+                    <Border x:Name="RingThemeMidnight" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
+                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="ThemeMidnight_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Ellipse Width="20" Height="20" Fill="#FF6A7FDB" Margin="0,0,0,4"/>
+                                <TextBlock Text="Midnight" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    <Border x:Name="RingThemeNeon" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
+                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="ThemeNeon_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Ellipse Width="20" Height="20" Fill="#FF00F5D4" Margin="0,0,0,4"/>
+                                <TextBlock Text="Neon" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    <Border x:Name="RingThemeGhost" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
+                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="ThemeGhost_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Ellipse Width="20" Height="20" Fill="#FFC0C8D8" Margin="0,0,0,4"/>
+                                <TextBlock Text="Ghost" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    <Border x:Name="RingThemeWarm" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
+                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="ThemeWarm_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Ellipse Width="20" Height="20" Fill="#FFF4A261" Margin="0,0,0,4"/>
+                                <TextBlock Text="Warm" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    <Border x:Name="RingThemeTerminal" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,0,0">
+                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                                MouseLeftButtonDown="ThemeTerminal_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Ellipse Width="20" Height="20" Fill="#FF39FF14" Margin="0,0,0,4"/>
+                                <TextBlock Text="Terminal" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                </StackPanel>
+
                 <!-- Accent Color header + swatch row (no grid — horizontal layout) -->
                 <TextBlock Text="Accent Color" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <StackPanel Orientation="Horizontal">
