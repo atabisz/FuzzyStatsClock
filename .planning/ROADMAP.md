@@ -136,7 +136,11 @@ Plans:
   3. The Settings window stays open and usable while the widget is visible; the widget remains interactive
   4. Tray menu retains Ghost Mode, Stats, Auto-Contrast, and Auto-Launch quick toggles alongside the new "Open Settings..." item
   5. Opening Settings a second time while it is already open brings the existing window to front rather than opening a duplicate
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 42-01-PLAN.md — AppSettings.PhraseStyle + SettingsSnapshot contracts
+- [ ] 42-02-PLAN.md — SettingsWindow XAML + code-behind (3 tabs, all controls, live-apply events)
+- [ ] 42-03-PLAN.md — MainWindow OpenSettings wiring + TrayMenuBuilder prune
 
 ### Phase 43: Named Themes
 **Goal**: Users can apply a named visual theme that sets accent color, opacity, font size, clock style, and stats visibility in one click
