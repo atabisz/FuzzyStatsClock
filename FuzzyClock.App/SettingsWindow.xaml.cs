@@ -40,6 +40,7 @@ public sealed partial class SettingsWindow : Window
     public event Action<bool>?   AutoContrastChanged;
     public event Action<bool>?   AutoLaunchChanged;
     public event Action<string>? ThemeSelected;
+    public event Action<int>?    BatteryAlertThresholdChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -114,6 +115,11 @@ public sealed partial class SettingsWindow : Window
         ChkGhostMode.IsChecked    = s.GhostModeEnabled;
         ChkAutoContrast.IsChecked = s.AutoContrastEnabled;
         ChkAutoLaunch.IsChecked   = s.AutoLaunchEnabled;
+
+        // Battery alert threshold radio buttons
+        RbAlert10.IsChecked = s.BatteryAlertThreshold == 10;
+        RbAlert15.IsChecked = s.BatteryAlertThreshold == 15;
+        RbAlert20.IsChecked = s.BatteryAlertThreshold == 20;
 
         // Accent swatch selection ring
         var ac = s.AccentColor;
@@ -426,6 +432,25 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         ProcessThresholdChanged?.Invoke(10.0);
+    }
+
+    // ── Battery alert threshold radio buttons ──────────────────────────────
+    private void RbAlert10_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        BatteryAlertThresholdChanged?.Invoke(10);
+    }
+
+    private void RbAlert15_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        BatteryAlertThresholdChanged?.Invoke(15);
+    }
+
+    private void RbAlert20_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        BatteryAlertThresholdChanged?.Invoke(20);
     }
 
     // ── Date checkboxes / combo ───────────────────────────────────────────
