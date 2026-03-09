@@ -181,7 +181,10 @@ Plans:
   3. Switching to Poetic style immediately shows evocative phrases such as "the small hours" or "the day grows long" on the live widget
   4. Switching to Rude style immediately shows blunt phrases such as "nearly four, move it" on the live widget
   5. The selected phrase style persists to settings.json and is restored on next launch
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 45-01-PLAN.md — TDD: TersePhraseProvider + PoeticPhraseProvider + RudePhraseProvider + PhraseEngine registration
+- [ ] 45-02-PLAN.md — SettingsWindow ComboBox items + PopulateControls fix + MainWindow SetPhraseStyle wiring
 
 ### Phase 46: Multilingual Phrases
 **Goal**: Users whose Windows UI language is French, Spanish, German, Japanese, or Polish see time phrases in their native language automatically
@@ -221,8 +224,8 @@ Plans:
 | 42. Settings Window Infrastructure | v3.2 | 3/3 | Complete | 2026-03-08 |
 | 43. Named Themes | 3/3 | Complete    | 2026-03-08 | - |
 | 44. Battery Low Alert | 2/2 | Complete    | 2026-03-09 | - |
-| 45. English Phrase Style Personalities | v3.2 | 0/TBD | Not started | - |
+| 45. English Phrase Style Personalities | v3.2 | 0/2 | Planned | - |
 | 46. Multilingual Phrases | v3.2 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-09 — Phase 44 planned (2 plans)*
+*Last updated: 2026-03-09 — Phase 45 planned (2 plans)*
