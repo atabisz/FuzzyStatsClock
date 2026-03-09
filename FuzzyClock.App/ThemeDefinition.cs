@@ -43,7 +43,7 @@ internal static class BuiltInThemes
                 Name         = "Ghost",
                 AccentColor  = Color.FromArgb(0xFF, 0xC0, 0xC8, 0xD8),
                 Opacity      = 0.35,
-                FontSize     = 28,
+                FontSize     = 24,
                 DialMode     = false,
                 StatsVisible = false,
             },

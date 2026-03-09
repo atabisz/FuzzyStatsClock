@@ -57,7 +57,6 @@ public sealed partial class SettingsWindow : Window
             Top  = _savedTop;
         }
 
-        _suppressEvents = true;
         PopulateControls(snapshot);
         _suppressEvents = false;
 
