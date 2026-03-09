@@ -108,7 +108,7 @@
 - [x] **Phase 43: Named Themes** - ThemeDefinition record, BuiltInThemes registry (5 presets), ApplyNamedTheme() batch method, AppSettings.Theme persisted (completed 2026-03-08)
 - [x] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab (completed 2026-03-09)
 - [x] **Phase 45: English Phrase Style Personalities** - PhraseStyle enum (Classic/Terse/Poetic/Rude); bucket tables in EnglishPhraseProvider; AppSettings.PhraseStyle; Settings window wiring; per-style tests (completed 2026-03-09)
-- [ ] **Phase 46: Multilingual Phrases** - Fr/Es/De/Ja/Pl providers; CultureInfo.CurrentUICulture detection; AppSettings.PhraseLocale; Settings window language selector; 1440-minute tests per language
+- [ ] **Phase 46: Multilingual Phrases** - Fr/Es/De/Ja/Pl providers; CultureInfo.CurrentUICulture detection; AppSettings.PhraseLocale; Settings window language selector; exhaustive per-language tests
 
 ## Phase Details
 
@@ -196,7 +196,10 @@ Plans:
   3. A user with an unsupported locale (e.g., Italian) sees English phrases rather than an error
   4. Language is selectable manually via a Phrase Language control in the Settings window Behavior tab, overriding auto-detection
   5. The selected language persists to settings.json and is restored on next launch
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 46-01-PLAN.md — TDD: Fr/Es/De/Ja/Pl providers + PhraseEngine registry (5 new entries) + contract tests
+- [ ] 46-02-PLAN.md — AppSettings.PhraseLocale + SettingsWindow Language selector + MainWindow culture detection
 
 ## Progress
 
@@ -225,7 +228,7 @@ Plans:
 | 43. Named Themes | 3/3 | Complete    | 2026-03-08 | - |
 | 44. Battery Low Alert | 2/2 | Complete    | 2026-03-09 | - |
 | 45. English Phrase Style Personalities | 2/2 | Complete    | 2026-03-09 | - |
-| 46. Multilingual Phrases | v3.2 | 0/TBD | Not started | - |
+| 46. Multilingual Phrases | v3.2 | 0/2 | Not started | - |
 
 ---
-*Last updated: 2026-03-09 — Phase 45 planned (2 plans)*
+*Last updated: 2026-03-09 — Phase 46 planned (2 plans)*
