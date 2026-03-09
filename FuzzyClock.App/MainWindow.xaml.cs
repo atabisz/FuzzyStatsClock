@@ -280,6 +280,13 @@ public partial class MainWindow : Window
         // Apply text style directly (NOT via SetTextStyle — that calls UpdateLayout()+SaveSettings() unsafe before Show())
         _currentTextStyle  = s.TextStyle;
         _currentPhraseStyle = s.PhraseStyle;
+        PhraseEngine.SetLocale(_currentPhraseStyle.ToLowerInvariant() switch
+        {
+            "terse"  => "en-terse",
+            "poetic" => "en-poetic",
+            "rude"   => "en-rude",
+            _        => "en-classic",
+        });
         bool isSerifStyle = s.TextStyle == "Literary";
         bool isMonoStyle  = s.TextStyle == "Mono";
         string styleFontName = isSerifStyle ? "Palatino Linotype" : isMonoStyle ? "Consolas" : "Segoe UI Light";
@@ -355,7 +362,7 @@ public partial class MainWindow : Window
         _settingsWindow.OpacityChanged        += o => { ClearActiveTheme(); SetOpacity(o); };
         _settingsWindow.FontSizeChanged       += sz => { ClearActiveTheme(); ApplyFontSize(sz); SaveSettings(); };
         _settingsWindow.DialModeChanged       += d => { ClearActiveTheme(); SetDialMode(d); };
-        _settingsWindow.PhraseStyleChanged    += ps => { _currentPhraseStyle = ps; SaveSettings(); };
+        _settingsWindow.PhraseStyleChanged    += ps => SetPhraseStyle(ps);
         _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
         _settingsWindow.CpuVisibleChanged     += v => SetStatRowVisible(CpuRow, v);
         _settingsWindow.GpuVisibleChanged     += v => SetStatRowVisible(GpuRow, v);
@@ -1070,6 +1077,23 @@ public partial class MainWindow : Window
     {
         _windowOpacity = opacity;
         this.Opacity   = opacity;
+        SaveSettings();
+    }
+
+    // TODO Phase 46: disable CmbPhraseStyle when non-English locale is active
+    private void SetPhraseStyle(string style)
+    {
+        _currentPhraseStyle = style;
+        string localeKey = style.ToLowerInvariant() switch
+        {
+            "terse"  => "en-terse",
+            "poetic" => "en-poetic",
+            "rude"   => "en-rude",
+            _        => "en-classic",
+        };
+        PhraseEngine.SetLocale(localeKey);
+        PhraseText.Text = "";          // invalidate UpdatePhraseIfChanged guard cache
+        UpdatePhraseIfChanged();
         SaveSettings();
     }
 
