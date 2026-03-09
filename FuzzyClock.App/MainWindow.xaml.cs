@@ -31,7 +31,8 @@ public partial class MainWindow : Window
     private bool _hasUserPosition = false;
     private bool _dialMode;
     private string _currentTextStyle  = "Classic";
-    private string _currentPhraseStyle = "Classic";
+    private string _currentPhraseStyle  = "Classic";
+    private string _currentPhraseLocale = "auto";  // "auto" or explicit "en"/"fr"/"es"/"de"/"ja"/"pl"
     private bool   _showDate        = true;
     private string _dateFormat      = "Short";
     private string _currentDateText = "";   // tracks last-rendered date for midnight detection
@@ -278,15 +279,45 @@ public partial class MainWindow : Window
         _currentDateText = DateText.Text;
 
         // Apply text style directly (NOT via SetTextStyle — that calls UpdateLayout()+SaveSettings() unsafe before Show())
-        _currentTextStyle  = s.TextStyle;
-        _currentPhraseStyle = s.PhraseStyle;
-        PhraseEngine.SetLocale(_currentPhraseStyle.ToLowerInvariant() switch
+        _currentTextStyle   = s.TextStyle;
+        _currentPhraseStyle  = s.PhraseStyle;
+        _currentPhraseLocale = s.PhraseLocale;
+
+        // LANG-01: detect Windows UI language; explicit manual override takes precedence over auto-detect
+        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        string effectiveLocale;
+        if (_currentPhraseLocale is "fr" or "es" or "de" or "ja" or "pl")
         {
-            "terse"  => "en-terse",
-            "poetic" => "en-poetic",
-            "rude"   => "en-rude",
-            _        => "en-classic",
-        });
+            // User has explicitly chosen a non-English language
+            effectiveLocale = _currentPhraseLocale;
+        }
+        else if (_currentPhraseLocale == "en")
+        {
+            // User has explicitly chosen English — respect PhraseStyle
+            effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
+            {
+                "terse"  => "en-terse",
+                "poetic" => "en-poetic",
+                "rude"   => "en-rude",
+                _        => "en-classic",
+            };
+        }
+        else
+        {
+            // "auto" — detect from Windows UI culture
+            if (uiLang is "fr" or "es" or "de" or "ja" or "pl")
+                effectiveLocale = uiLang;
+            else
+                effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
+                {
+                    "terse"  => "en-terse",
+                    "poetic" => "en-poetic",
+                    "rude"   => "en-rude",
+                    _        => "en-classic",
+                };
+        }
+        PhraseEngine.SetLocale(effectiveLocale);
+        // LANG-04: if SetLocale returned false (unsupported), en-classic remains active (default)
         bool isSerifStyle = s.TextStyle == "Literary";
         bool isMonoStyle  = s.TextStyle == "Mono";
         string styleFontName = isSerifStyle ? "Palatino Linotype" : isMonoStyle ? "Consolas" : "Segoe UI Light";
@@ -329,6 +360,7 @@ public partial class MainWindow : Window
         FontSize               = _currentFontSize,
         DialMode               = _dialMode,
         PhraseStyle            = _currentPhraseStyle,
+        PhraseLocale           = _currentPhraseLocale,
         StatsVisible           = StatsPanel.Visibility == Visibility.Visible,
         CpuVisible             = CpuRow.Visibility     == Visibility.Visible,
         GpuVisible             = GpuRow.Visibility     == Visibility.Visible,
@@ -363,6 +395,7 @@ public partial class MainWindow : Window
         _settingsWindow.FontSizeChanged       += sz => { ClearActiveTheme(); ApplyFontSize(sz); SaveSettings(); };
         _settingsWindow.DialModeChanged       += d => { ClearActiveTheme(); SetDialMode(d); };
         _settingsWindow.PhraseStyleChanged    += ps => SetPhraseStyle(ps);
+        _settingsWindow.LanguageChanged       += locale => SetLanguage(locale);
         _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
         _settingsWindow.CpuVisibleChanged     += v => SetStatRowVisible(CpuRow, v);
         _settingsWindow.GpuVisibleChanged     += v => SetStatRowVisible(GpuRow, v);
@@ -444,6 +477,7 @@ public partial class MainWindow : Window
             BatteryAlertThresholdPercent = _batteryAlertThreshold,
             TextStyle            = _currentTextStyle,
             PhraseStyle          = _currentPhraseStyle,
+            PhraseLocale         = _currentPhraseLocale,
             ShowDate             = _showDate,
             DateFormat           = _dateFormat,
             Theme                = _currentTheme,
@@ -1080,9 +1114,12 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
-    // TODO Phase 46: disable CmbPhraseStyle when non-English locale is active
     private void SetPhraseStyle(string style)
     {
+        // LANG-01 guard: do not override a non-English locale with an English phrase style
+        if (!PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal))
+            return;
+
         _currentPhraseStyle = style;
         string localeKey = style.ToLowerInvariant() switch
         {
@@ -1093,6 +1130,39 @@ public partial class MainWindow : Window
         };
         PhraseEngine.SetLocale(localeKey);
         PhraseText.Text = "";          // invalidate UpdatePhraseIfChanged guard cache
+        UpdatePhraseIfChanged();
+        SaveSettings();
+    }
+
+    private void SetLanguage(string locale)
+    {
+        _currentPhraseLocale = locale;
+
+        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        string effectiveLocale;
+        if (locale is "fr" or "es" or "de" or "ja" or "pl")
+            effectiveLocale = locale;
+        else if (locale == "en")
+            effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
+            {
+                "terse"  => "en-terse",
+                "poetic" => "en-poetic",
+                "rude"   => "en-rude",
+                _        => "en-classic",
+            };
+        else  // "auto"
+            effectiveLocale = (uiLang is "fr" or "es" or "de" or "ja" or "pl")
+                ? uiLang
+                : _currentPhraseStyle.ToLowerInvariant() switch
+                  {
+                      "terse"  => "en-terse",
+                      "poetic" => "en-poetic",
+                      "rude"   => "en-rude",
+                      _        => "en-classic",
+                  };
+
+        PhraseEngine.SetLocale(effectiveLocale);
+        PhraseText.Text = "";
         UpdatePhraseIfChanged();
         SaveSettings();
     }
