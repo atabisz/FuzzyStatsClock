@@ -109,6 +109,7 @@
 - [x] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab (completed 2026-03-09)
 - [x] **Phase 45: English Phrase Style Personalities** - PhraseStyle enum (Classic/Terse/Poetic/Rude); bucket tables in EnglishPhraseProvider; AppSettings.PhraseStyle; Settings window wiring; per-style tests (completed 2026-03-09)
 - [x] **Phase 46: Multilingual Phrases** - Fr/Es/De/Ja/Pl providers; CultureInfo.CurrentUICulture detection; AppSettings.PhraseLocale; Settings window language selector; exhaustive per-language tests (completed 2026-03-09)
+- [ ] **Phase 47: Tech Debt Cleanup** - Ghost theme FontSize 28→24 (Settings button alignment); remove stale AppSettings.cs comment (Phase 45 shipped); remove redundant `_suppressEvents = true` in SettingsWindow constructor
 
 ## Phase Details
 
@@ -201,6 +202,18 @@ Plans:
 - [ ] 46-01-PLAN.md — TDD: Fr/Es/De/Ja/Pl providers + PhraseEngine registry (5 new entries) + contract tests
 - [ ] 46-02-PLAN.md — AppSettings.PhraseLocale + SettingsWindow Language selector + MainWindow culture detection
 
+### Phase 47: Tech Debt Cleanup
+**Goal**: Close three non-blocking tech debt items surfaced by the v3.2 milestone audit
+**Depends on**: Phase 46 (all v3.2 phases complete)
+**Requirements**: (no new requirements — fixes cosmetic/structural issues only)
+**Gap Closure:** Closes tech debt from v3.2 audit
+**Success Criteria** (what must be TRUE):
+  1. Ghost theme `FontSize` is 24; Settings Appearance tab shows the 24pt button selected when Ghost theme is active
+  2. Stale comment at `AppSettings.cs:35` referencing Phase 45 as future work is removed
+  3. Redundant second `_suppressEvents = true` assignment removed from `SettingsWindow` constructor
+  4. All 224 existing tests still pass
+**Plans**: 1 plan
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -229,6 +242,7 @@ Plans:
 | 44. Battery Low Alert | 2/2 | Complete    | 2026-03-09 | - |
 | 45. English Phrase Style Personalities | 2/2 | Complete    | 2026-03-09 | - |
 | 46. Multilingual Phrases | 2/2 | Complete    | 2026-03-09 | - |
+| 47. Tech Debt Cleanup | v3.2 | 0/1 | Pending | — |
 
 ---
-*Last updated: 2026-03-09 — Phase 46 planned (2 plans)*
+*Last updated: 2026-03-09 — Phase 47 added (tech debt cleanup)*
