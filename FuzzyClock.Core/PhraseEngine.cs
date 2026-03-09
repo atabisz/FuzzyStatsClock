@@ -9,6 +9,11 @@ public static class PhraseEngine
         ["en-terse"]   = new TersePhraseProvider(),
         ["en-poetic"]  = new PoeticPhraseProvider(),
         ["en-rude"]    = new RudePhraseProvider(),
+        ["fr"]         = new FrenchPhraseProvider(),
+        ["es"]         = new SpanishPhraseProvider(),
+        ["de"]         = new GermanPhraseProvider(),
+        ["ja"]         = new JapanesePhraseProvider(),
+        ["pl"]         = new PolishPhraseProvider(),
     };
 
     private static IPhraseProvider _activeProvider = _providers["en-classic"];

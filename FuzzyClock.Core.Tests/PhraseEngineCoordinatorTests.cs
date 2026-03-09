@@ -10,6 +10,7 @@ namespace FuzzyClock.Core.Tests;
 /// [TestCleanup] method reset the locale to "en-classic" to prevent state leaks between tests.
 /// </summary>
 [TestClass]
+[DoNotParallelize]
 public class PhraseEngineCoordinatorTests
 {
     [TestCleanup]
