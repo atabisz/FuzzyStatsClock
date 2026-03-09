@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: in_progress
-stopped_at: Completed 43-03-PLAN.md
-last_updated: "2026-03-08T23:11:55.740Z"
+stopped_at: Completed 44-01-PLAN.md
+last_updated: "2026-03-09T01:51:23.057Z"
 last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 11
+  completed_plans: 10
 ---
 
 ---
@@ -81,6 +81,7 @@ Recent decisions affecting v3.2:
 - [Phase 43-named-themes]: SetActiveThemeCard uses theme's own accent color as ring highlight; ClearActiveThemeCard is public for MainWindow to call on deviation
 - [Phase 43-named-themes]: ApplyNamedTheme sets _currentTheme before calling individual setters so intermediate SaveSettings() calls persist the correct theme name
 - [Phase 43-named-themes]: ApplySettings() theme restore is field-only; ContentRendered ApplyTheme() handles visual update after decoration lists are populated
+- [Phase 44-battery-low-alert]: BatteryAlertThresholdPercent is int (not double) — matches discrete 10/15/20 ladder, avoids floating-point equality issues
 
 ### Pending Todos
 
@@ -92,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T23:11:55.736Z
-Stopped at: Completed 43-03-PLAN.md
+Last session: 2026-03-09T01:51:23.052Z
+Stopped at: Completed 44-01-PLAN.md
 Resume file: None

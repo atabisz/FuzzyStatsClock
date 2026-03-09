@@ -39,7 +39,7 @@
 
 - [ ] **ALERT-01**: When battery is below the alert threshold and not plugged in, the battery stat row accent color shifts to red
 - [ ] **ALERT-02**: Battery row returns to normal accent color when battery rises above threshold or is plugged in
-- [ ] **ALERT-03**: Battery alert threshold is configurable in Settings window Behavior tab (10% / 15% / 20%; default 20%)
+- [x] **ALERT-03**: Battery alert threshold is configurable in Settings window Behavior tab (10% / 15% / 20%; default 20%)
 
 ## Future Requirements (v3.x+)
 
@@ -82,7 +82,7 @@
 | LANG-04 | Phase 46 | Pending |
 | ALERT-01 | Phase 44 | Pending |
 | ALERT-02 | Phase 44 | Pending |
-| ALERT-03 | Phase 44 | Pending |
+| ALERT-03 | Phase 44 | Complete |
 
 **Coverage:**
 - v3.2 requirements: 22 total

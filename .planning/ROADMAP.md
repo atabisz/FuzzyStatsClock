@@ -220,7 +220,7 @@ Plans:
 | 41. PhraseEngine Provider Refactor | v3.2 | 2/2 | Complete | 2026-03-08 |
 | 42. Settings Window Infrastructure | v3.2 | 3/3 | Complete | 2026-03-08 |
 | 43. Named Themes | 3/3 | Complete    | 2026-03-08 | - |
-| 44. Battery Low Alert | v3.2 | 0/2 | In progress | - |
+| 44. Battery Low Alert | 1/2 | In Progress|  | - |
 | 45. English Phrase Style Personalities | v3.2 | 0/TBD | Not started | - |
 | 46. Multilingual Phrases | v3.2 | 0/TBD | Not started | - |
 
