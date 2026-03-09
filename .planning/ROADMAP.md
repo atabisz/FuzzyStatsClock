@@ -213,6 +213,8 @@ Plans:
   3. Redundant second `_suppressEvents = true` assignment removed from `SettingsWindow` constructor
   4. All 224 existing tests still pass
 **Plans**: 1 plan
+Plans:
+- [ ] 47-01-PLAN.md — Three surgical code edits (Ghost FontSize, stale comment, redundant _suppressEvents) + test gate
 
 ## Progress
 
