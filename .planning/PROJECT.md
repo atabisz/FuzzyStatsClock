@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides all settings toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, and Quit. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. Five built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
 
 ## Core Value
 
@@ -10,44 +10,16 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v3.1 shipped: 2026-03-08** — Battery stat row (charge %, AC indicator, N/A on desktops), DateFormatter extracted to FuzzyClock.Core with 6 unit tests, AppSettings round-trip tests for date fields, README accuracy pass for v3.0+v3.1 features
+**v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
+
+**v3.1 shipped: 2026-03-08** — Battery stat row, DateFormatter extraction + tests, AppSettings round-trip tests, README accuracy pass
 
 **v3.0 shipped: 2026-03-07** — Date display under clock (Show Date toggle, 4 format options, persisted)
 
-**v2.9 shipped: 2026-03-05** — Configurable process count threshold (2%/5%/10% tray submenu)
+**v2.9 shipped: 2026-03-05** — Configurable process count threshold (2%/5%/10%)
 
-**v2.8 shipped: 2026-03-04** — Active process count on uptime line + README accuracy pass
+224 MSTest tests (199 Core + 25 App) passing. CI gate enforced. ~1,450 LOC C# / XAML.
 
-**v2.7 shipped: 2026-03-03** — Auto-contrast, auto-launch, per-monitor position memory
-
-122 MSTest tests (97 Core + 25 App) passing. CI gate enforced. ~3,200 LOC C# / XAML.
-
-## Current Milestone: v3.2 Expanded Experience
-
-**Goal:** Add a settings window, built-in themes, battery low alert, and multiple phrase styles including multilingual support.
-
-**Target features:**
-- Settings window (tabbed: Appearance / Stats / Behavior); tray retains quick toggles
-- 5 named built-in themes bundling color + opacity + font size + clock style + stats visibility
-- Battery low alert: battery row accent shifts to red when charge <20% and unplugged
-- 4 phrase personalities: Terse, Poetic, Rude (English), plus locale-based display in French/Spanish/German/Japanese/Polish
-
-- Battery row: `SystemInformation.PowerStatus` (WinForms, synchronous); `BatteryPercent` (-1f sentinel for no-battery → "N/A"); `IsPluggedIn` bool; `⚡ {pct}%` prefix format; `BatteryVisible` AppSettings (default true)
-- Date display: `DateFormatter.Format(string, DateTime)` in FuzzyClock.Core (pure static); 4 format strings (Short=`ddd, MMM d`, Long=`dddd, MMMM d`, Numeric=`M/d/yyyy`, ISO=`yyyy-MM-dd`); `DateText` element in muted accent (55% alpha / 0x8C); `AppSettings.ShowDate` + `AppSettings.DateFormat`; `SetDateFormat()` clears `_currentDateText` to force redraw on same-day format switch
-- Auto-contrast: `ContrastSamplerService` (BitBlt screen capture); `ContrastService` (WCAG 2.1 luminance, hysteresis 4.5/5.5, HSL accent adjust ±5 steps up to ±40, black/white fallback); 500ms `DispatcherTimer`; pauses on ghost mode/opacity=0/drag; tray toggle; `AppSettings.AutoContrastEnabled` (default false)
-- Stats label TextBlocks (CPU/GPU/MEM/PAG/BATT) named and covered by both `ApplyDisplayColor` (auto-contrast path) and `ApplyTheme` (accent restore)
-- Auto-launch: `AutoLaunchService` writes/removes `HKCU\...\Run` entry; tray toggle updates checkmark; registry synced on startup via `AppSettings.AutoLaunchEnabled` (default false)
-- Per-monitor: `MonitorService` (QueryDisplayConfig P/Invoke) returns friendly names; `Dictionary<string, MonitorPosition>` in AppSettings + `LastActiveMonitor` sentinel; drag-end upsert with source-clear on cross-monitor drag; startup restores last-active monitor or centers on primary
-- Ghost mode: `Opacity=0` + `WS_EX_TRANSPARENT` on `MouseEnter` (no modifier); `DispatcherTimer` 75ms `GetCursorPos+GetWindowRect` restore; synthetic hover-state cleanup before going transparent
-- Ctrl+Alt modifier: `GetAsyncKeyState(VK_LCONTROL/VK_LMENU) & 0x8000`; suppresses ghost, fires normal hover path; `VK_LMENU` avoids AltGr false-positives
-- System tray icon: 16×16 analog clock face; tray context menu: Auto-Launch ✓, Ghost Mode ✓, Auto-Contrast ✓, Reset to Defaults, Quit
-- Uptime row: `up Xd Xh Xm   0.52  0.47  0.43`; rolling CPU 1m/5m/15m via `Queue<float>`; interval-aware window sizing; cold-start guard
-- Accent color: 5 presets + custom color picker; applied to 17+ elements; persisted as hex string
-- Window opacity: right-click submenu (25/50/75/100%) + scroll wheel; persisted
-- Stats panel: CPU / GPU / MEM / PAG / BATT horizontal bars + %; per-row visibility toggles; persisted
-- Dial mode: minimal analog dial with optional decorations; persisted
-- Settings: `%LOCALAPPDATA%\FuzzyClock\settings.json` (atomic write, exception-safe load)
-- Main files: MainWindow.xaml.cs ~1300, MonitorService.cs 268, ContrastSamplerService.cs ~80, ContrastService.cs ~197, SettingsService.cs ~120, DateFormatter.cs ~25
 
 ## Requirements
 
@@ -199,38 +171,29 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ DOCS-03: README documents v3.0 date display (Show Date toggle, 4 formats with corrected examples) and battery row (charge %, AC indicator, N/A on desktops) — v3.1
 - ✓ CLEAN-01: DateFormatter extracted to FuzzyClock.Core; FormatDate private method deleted from MainWindow; both call sites delegate to DateFormatter.Format — v3.1
 
-### Active (v3.2)
+### Validated (v3.2)
 
-#### Settings UI
-- [ ] **SETT-01**: User can open a Settings window from the system tray icon
-- [ ] **SETT-02**: Settings window has three tabs — Appearance, Stats, Behavior
-- [ ] **SETT-03**: Appearance tab exposes accent color, opacity, font size, clock style, phrase style, and theme selector
-- [ ] **SETT-04**: Stats tab exposes per-row visibility toggles, update interval, process count threshold, and date format
-- [ ] **SETT-05**: Behavior tab exposes ghost mode, auto-contrast, auto-launch, and battery alert threshold
-- [ ] **SETT-06**: All settings changes apply immediately to the live widget
-- [ ] **SETT-07**: Tray menu retains quick toggles (Ghost Mode, Stats, Auto-Contrast, Auto-Launch) alongside the new Open Settings item
-
-#### Themes
-- [ ] **THM-01**: Settings window Appearance tab offers 5 named built-in themes
-- [ ] **THM-02**: Applying a theme sets accent color, opacity, font size, clock style, and stats panel visibility atomically
-- [ ] **THM-03**: Active theme persists to settings.json and restores on launch
-
-#### Phrase Styles
-- [ ] **STYLE-01**: User can select Terse style (compact forms: "half three", "quarter past", "noon") via Settings window
-- [ ] **STYLE-02**: User can select Poetic style (evocative: "the small hours", "the day grows long") via Settings window
-- [ ] **STYLE-03**: User can select Rude style (blunt: "nearly four, move it", "just gone midnight, go to bed") via Settings window
-- [ ] **STYLE-04**: Selected phrase style persists and restores on launch
-
-#### Multilingual
-- [ ] **LANG-01**: Widget detects Windows UI culture and displays phrases in the matching language when supported
-- [ ] **LANG-02**: Supported languages: English (fallback), French, Spanish, German, Japanese, Polish
-- [ ] **LANG-03**: Each supported language provides phrase sets for all 5-minute time buckets (all hours, noon, midnight)
-- [ ] **LANG-04**: Unsupported locales display phrases in English
-
-#### Battery Alert
-- [ ] **ALERT-01**: When battery is below threshold (default 20%) and not plugged in, battery row accent color shifts to red
-- [ ] **ALERT-02**: Battery row returns to normal accent color when battery rises above threshold or is plugged in
-- [ ] **ALERT-03**: Battery alert threshold is configurable in the Settings window Behavior tab (10% / 15% / 20%)
+- ✓ SETT-01: User can open a Settings window via "Open Settings..." in the system tray menu — v3.2
+- ✓ SETT-02: Settings window has three tabs — Appearance, Stats, and Behavior — v3.2
+- ✓ SETT-03: Appearance tab exposes accent color, opacity, font size, clock style, phrase style, and theme selector — v3.2
+- ✓ SETT-04: Stats tab exposes per-row visibility toggles, update interval, process count threshold, and date format — v3.2
+- ✓ SETT-05: Behavior tab exposes ghost mode, auto-contrast, auto-launch, and battery alert threshold — v3.2
+- ✓ SETT-06: All settings changes apply immediately to the live widget (modeless; no Apply button) — v3.2
+- ✓ SETT-07: Tray menu retains quick toggles (Ghost Mode, Stats, Auto-Contrast, Auto-Launch) alongside "Open Settings..." — v3.2
+- ✓ THM-01: Settings window Appearance tab offers 5 named built-in themes — v3.2
+- ✓ THM-02: Applying a theme atomically sets accent color, opacity, font size, clock style, and stats panel visibility — v3.2
+- ✓ THM-03: Active theme name persists to settings.json and restores on launch — v3.2
+- ✓ STYLE-01: User can select Terse style ("half three", "quarter past") in Settings window — v3.2
+- ✓ STYLE-02: User can select Poetic style ("the small hours", "the day grows long") in Settings window — v3.2
+- ✓ STYLE-03: User can select Rude style ("nearly four, move it") in Settings window — v3.2
+- ✓ STYLE-04: Selected phrase style persists to settings.json and restores on launch — v3.2
+- ✓ LANG-01: Widget auto-detects `CultureInfo.CurrentUICulture` and displays phrases in matching language — v3.2
+- ✓ LANG-02: Supported languages: English (default fallback), French, Spanish, German, Japanese, Polish — v3.2
+- ✓ LANG-03: Each supported language covers all 5-minute time buckets (verified by exhaustive tests) — v3.2
+- ✓ LANG-04: Unsupported locales display phrases in English — v3.2
+- ✓ ALERT-01: Battery row accent shifts to red when battery below threshold and not plugged in — v3.2
+- ✓ ALERT-02: Battery row returns to normal accent color when battery rises above threshold or is plugged in — v3.2
+- ✓ ALERT-03: Battery alert threshold configurable in Settings Behavior tab (10% / 15% / 20%, default 20%) — v3.2
 
 ### Deferred (v2+)
 
@@ -372,6 +335,13 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | DateFormatter.Format(string, DateTime) accepts explicit DateTime parameter | Injecting DateTime makes tests deterministic; production callers pass DateTime.Now; no test-time sensitivity | ✓ Validated — 6 unit tests with fixed date (2026-03-07) all pass deterministically |
 | Battery AC indicator as prefix (⚡ 87%) not suffix | User intention stated explicitly; prefix more natural for reading ("plugged in at 87%") | ✓ Validated — display format ⚡ 87% confirmed in code |
 | Absent-field tests use minimal JSON string for ShowDate/DateFormat | Isolates init default behavior for each field independently; full round-trip test covers the happy path separately | ✓ Validated — 2 absent-field tests + 1 round-trip test provide full coverage of STEST-08 |
+| IPhraseProvider interface + provider registry | PhraseEngine becomes a static facade routing through locale-keyed providers; new styles/languages are isolated add-ons with no MainWindow changes | ✓ Validated — 9 providers registered; MainWindow untouched by phrase style/language changes |
+| SettingsWindow: modeless Show() + SettingsChanged event | User can interact with both widget and settings simultaneously; MainWindow remains the source of truth for all settings state | ✓ Validated — modeless window, live-apply, singleton guard prevents duplicate windows |
+| SettingsSnapshot: immutable populate-on-open record | Values shown at open time; changes flow out via events, never back in; avoids two-way sync complexity | ✓ Validated — no stale state in settings window; populate-on-open is simpler than live sync |
+| Phrase style selector disabled for non-English locales | Terse/Poetic/Rude are English-only for v3.2; disabling prevents confusing English style changes while non-English provider is active | ✓ Validated — CmbPhraseStyle.IsEnabled=false when non-en locale active |
+| SetPhraseStyle guard: early return if CurrentLocale !starts-with "en-" | Prevents English style from overriding active non-English locale when style setting is restored at startup | ✓ Validated — locale restoration order in ApplySettings preserves correct provider |
+| Ghost theme FontSize=24 (not 28) | 24pt is the closest button in Settings Appearance tab; 28pt has no corresponding button, leaving ghost theme with no highlighted selection | ✓ Validated — 24pt button correctly highlighted after Phase 47 fix |
+| [DoNotParallelize] on PhraseEngineCoordinatorTests | PhraseEngine static state is shared across tests; parallel execution causes locale contamination between test methods | ✓ Validated — test isolation restored; all 224 tests pass |
 
 ---
-*Last updated: 2026-03-08 after v3.1 milestone*
+*Last updated: 2026-03-09 after v3.2 milestone*

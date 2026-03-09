@@ -285,3 +285,19 @@
 
 ---
 
+
+## v3.2 Expanded Experience (Shipped: 2026-03-09)
+
+**Phases completed:** 7 phases (41–47), 16 plans
+
+**Key accomplishments:**
+- PhraseEngine refactored to `IPhraseProvider` static facade with locale-keyed provider registry — unblocks phrase styles and multilingual without touching MainWindow
+- 3-tab modeless Settings window (Appearance / Stats / Behavior) replaces 40-item tray menu; live-apply with no Apply button; tray pruned to 8 items
+- 5 built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically; persisted
+- Battery low alert — battery row turns red when unplugged below configurable threshold (10% / 15% / 20%, default 20%)
+- English phrase personalities: Terse ("half three"), Poetic ("the small hours"), Rude ("nearly four, move it") — each with TDD provider and Settings wiring
+- Multilingual phrases: French, Spanish, German, Japanese, Polish auto-detected from `CultureInfo.CurrentUICulture`; English fallback for unsupported locales; 102 new provider tests
+- 224 MSTest tests total (199 Core + 25 App), 0 failures
+
+---
+
