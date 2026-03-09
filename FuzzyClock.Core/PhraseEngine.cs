@@ -5,7 +5,10 @@ public static class PhraseEngine
     // _providers must be declared BEFORE _activeProvider to avoid static initializer ordering issues.
     private static readonly Dictionary<string, IPhraseProvider> _providers = new()
     {
-        ["en-classic"] = new EnglishPhraseProvider()
+        ["en-classic"] = new EnglishPhraseProvider(),
+        ["en-terse"]   = new TersePhraseProvider(),
+        ["en-poetic"]  = new PoeticPhraseProvider(),
+        ["en-rude"]    = new RudePhraseProvider(),
     };
 
     private static IPhraseProvider _activeProvider = _providers["en-classic"];
