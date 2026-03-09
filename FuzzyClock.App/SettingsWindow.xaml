@@ -415,6 +415,22 @@
         <TabItem Header="Behavior">
             <StackPanel Margin="12">
 
+                <!-- Phrase Language -->
+                <TextBlock Text="Phrase Language" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <TextBlock Text="Auto-detects from Windows display language. Override here."
+                           Foreground="#FF666666" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                <ComboBox x:Name="CmbPhraseLanguage" Width="160" HorizontalAlignment="Left"
+                          Margin="0,0,0,16"
+                          SelectionChanged="CmbPhraseLanguage_SelectionChanged">
+                    <ComboBoxItem Content="Auto (detect from Windows)" Tag="auto"/>
+                    <ComboBoxItem Content="English" Tag="en"/>
+                    <ComboBoxItem Content="French" Tag="fr"/>
+                    <ComboBoxItem Content="Spanish" Tag="es"/>
+                    <ComboBoxItem Content="German" Tag="de"/>
+                    <ComboBoxItem Content="Japanese" Tag="ja"/>
+                    <ComboBoxItem Content="Polish" Tag="pl"/>
+                </ComboBox>
+
                 <CheckBox x:Name="ChkGhostMode"
                           Content="Ghost Mode — auto-hide widget on hover"
                           Margin="0,0,0,10"

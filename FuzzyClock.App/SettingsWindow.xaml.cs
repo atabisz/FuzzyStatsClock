@@ -41,6 +41,7 @@ public sealed partial class SettingsWindow : Window
     public event Action<bool>?   AutoLaunchChanged;
     public event Action<string>? ThemeSelected;
     public event Action<int>?    BatteryAlertThresholdChanged;
+    public event Action<string>? LanguageChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -74,14 +75,30 @@ public sealed partial class SettingsWindow : Window
         SetFontSizeButtonStates(s.FontSize);
         SetClockStyleButtonStates(s.DialMode);
 
-        // Phrase style combo — select by saved value
-        // TODO Phase 46: disable CmbPhraseStyle when non-English locale is active
+        // Phrase language combo
+        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        bool nonEnglishActive = uiLang is "fr" or "es" or "de" or "ja" or "pl";
+        // If AppSettings has an explicit override, show that; otherwise reflect auto-detect result
+        CmbPhraseLanguage.SelectedIndex = s.PhraseLocale switch
+        {
+            "en" => 1,
+            "fr" => 2,
+            "es" => 3,
+            "de" => 4,
+            "ja" => 5,
+            "pl" => 6,
+            _    => 0,  // "auto" or unrecognized
+        };
+
+        // Phrase style combo — disable when non-English is active (auto-detected OR explicit)
+        bool isNonEnglish = nonEnglishActive || (s.PhraseLocale is "fr" or "es" or "de" or "ja" or "pl");
+        CmbPhraseStyle.IsEnabled = !isNonEnglish;
         CmbPhraseStyle.SelectedIndex = s.PhraseStyle switch
         {
             "Terse"  => 1,
             "Poetic" => 2,
             "Rude"   => 3,
-            _        => 0   // Classic or unrecognized
+            _        => 0,
         };
 
         // Stats checkboxes
@@ -368,6 +385,20 @@ public sealed partial class SettingsWindow : Window
         if (_suppressEvents) return;
         if (CmbPhraseStyle.SelectedItem is ComboBoxItem item)
             PhraseStyleChanged?.Invoke((string)item.Content);
+    }
+
+    // ── Phrase language combo ─────────────────────────────────────────────
+    private void CmbPhraseLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        if (CmbPhraseLanguage.SelectedItem is ComboBoxItem item)
+        {
+            string locale = (string)item.Tag;
+            LanguageChanged?.Invoke(locale);
+            // Disable phrase style combo for non-English locales
+            bool isNonEnglish = locale is "fr" or "es" or "de" or "ja" or "pl";
+            CmbPhraseStyle.IsEnabled = !isNonEnglish;
+        }
     }
 
     // ── Stats checkboxes ──────────────────────────────────────────────────

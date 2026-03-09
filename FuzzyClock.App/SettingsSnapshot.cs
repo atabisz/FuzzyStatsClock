@@ -12,6 +12,7 @@ internal sealed record SettingsSnapshot
     public int     FontSize                              { get; init; }
     public bool    DialMode                              { get; init; }
     public string  PhraseStyle                           { get; init; } = "Classic";
+    public string  PhraseLocale                          { get; init; } = "auto";
     public bool    StatsVisible                          { get; init; }
     public bool    CpuVisible                            { get; init; }
     public bool    GpuVisible                            { get; init; }

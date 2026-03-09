@@ -32,7 +32,8 @@ public record AppSettings
     public bool   AutoContrastEnabled  { get; init; } = false;
     public double ProcessCountThresholdPercent { get; init; } = 5.0;
     public string TextStyle   { get; init; } = "Classic";  // "Classic"|"Split"|"Literary"|"Mono"
-    public string PhraseStyle { get; init; } = "Classic";  // "Classic" is the only option in v3.2; Phase 45 adds Terse/Poetic/Rude
+    public string PhraseStyle  { get; init; } = "Classic";  // "Classic" is the only option in v3.2; Phase 45 adds Terse/Poetic/Rude
+    public string PhraseLocale { get; init; } = "auto";     // "auto" = detect from CultureInfo.CurrentUICulture; or explicit "en"/"fr"/"es"/"de"/"ja"/"pl"
     public bool   ShowDate    { get; init; } = true;
     public string DateFormat  { get; init; } = "Short";   // "Short"|"Long"|"Numeric"|"ISO"
     public string? Theme      { get; init; } = null;       // null = no named theme active; "Midnight"|"Neon"|"Ghost"|"Warm"|"Terminal"
