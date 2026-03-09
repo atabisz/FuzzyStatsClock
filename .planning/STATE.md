@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: in_progress
-stopped_at: Completed 45-01-PLAN.md
-last_updated: "2026-03-09T02:41:15.457Z"
+stopped_at: Completed 45-02-PLAN.md
+last_updated: "2026-03-09T02:45:12.343Z"
 last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 ---
@@ -84,6 +84,8 @@ Recent decisions affecting v3.2:
 - [Phase 44-battery-low-alert]: BatteryAlertThresholdPercent is int (not double) — matches discrete 10/15/20 ladder, avoids floating-point equality issues
 - [Phase 44-battery-low-alert]: _batteryAlertActive guards BattBar.Background only — BattLabel and BattText keep accent/display color; 1% dead-band prevents threshold-boundary flicker
 - [Phase 45-english-phrase-style-personalities]: Terse bucket merges half {h1} to cover minutes 23-32 so minute 30 produces British 'half four'; flat independent providers with no shared base class
+- [Phase 45]: ApplySettings uses inline SetLocale rather than calling SetPhraseStyle: avoids redundant SaveSettings at startup while still restoring PhraseEngine locale
+- [Phase 45]: SetPhraseStyle clears PhraseText.Text cache before UpdatePhraseIfChanged to force redraw when style changes to same phrase text
 
 ### Pending Todos
 
@@ -95,6 +97,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T02:41:15.451Z
-Stopped at: Completed 45-01-PLAN.md
+Last session: 2026-03-09T02:45:07.239Z
+Stopped at: Completed 45-02-PLAN.md
 Resume file: None
