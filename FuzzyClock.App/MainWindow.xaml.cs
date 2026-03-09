@@ -201,6 +201,7 @@ public partial class MainWindow : Window
 
         _statsIntervalSeconds = s.StatsIntervalSeconds;
         _processCountThreshold = s.ProcessCountThresholdPercent;
+        _batteryAlertThreshold = s.BatteryAlertThresholdPercent;
 
         // Apply stats visibility directly (NOT via SetStatsVisible — that calls UpdateLayout()+Clamp()
         // which are unsafe before Show(), where ActualHeight is 0).
@@ -330,6 +331,7 @@ public partial class MainWindow : Window
         UptimeVisible          = UptimeText.Visibility == Visibility.Visible,
         StatsIntervalSeconds   = _statsIntervalSeconds,
         ProcessCountThreshold  = _processCountThreshold,
+        BatteryAlertThreshold  = _batteryAlertThreshold,
         ShowDate               = _showDate,
         DateFormat             = _dateFormat,
         GhostModeEnabled       = _ghostMode.IsEnabled,
@@ -374,6 +376,7 @@ public partial class MainWindow : Window
             if (v) AutoLaunchService.Enable(exePath); else AutoLaunchService.Disable();
             SaveSettings();
         };
+        _settingsWindow.BatteryAlertThresholdChanged += t => SetBatteryAlertThreshold(t);
         _settingsWindow.ThemeSelected += name =>
         {
             if (BuiltInThemes.TryGet(name) is { } theme)
@@ -431,6 +434,7 @@ public partial class MainWindow : Window
             AutoLaunchEnabled    = _autoLaunchEnabled,
             AutoContrastEnabled  = _contrast.IsEnabled,
             ProcessCountThresholdPercent = _processCountThreshold,
+            BatteryAlertThresholdPercent = _batteryAlertThreshold,
             TextStyle            = _currentTextStyle,
             PhraseStyle          = _currentPhraseStyle,
             ShowDate             = _showDate,
@@ -774,6 +778,14 @@ public partial class MainWindow : Window
         _processCountThreshold = threshold;
         SaveSettings();
         UpdateStatsDisplay();
+    }
+
+    private void SetBatteryAlertThreshold(int threshold)
+    {
+        _batteryAlertThreshold = threshold;
+        SaveSettings();
+        if (_statsService.IsReady)
+            UpdateBatteryAlertState();
     }
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
