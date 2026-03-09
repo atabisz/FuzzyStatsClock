@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: in_progress
-stopped_at: Completed 45-02-PLAN.md
-last_updated: "2026-03-09T02:45:12.343Z"
+stopped_at: Completed 46-01-PLAN.md
+last_updated: "2026-03-09T04:38:23.228Z"
 last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 15
+  completed_plans: 14
 ---
 
 ---
@@ -86,6 +86,8 @@ Recent decisions affecting v3.2:
 - [Phase 45-english-phrase-style-personalities]: Terse bucket merges half {h1} to cover minutes 23-32 so minute 30 produces British 'half four'; flat independent providers with no shared base class
 - [Phase 45]: ApplySettings uses inline SetLocale rather than calling SetPhraseStyle: avoids redundant SaveSettings at startup while still restoring PhraseEngine locale
 - [Phase 45]: SetPhraseStyle clears PhraseText.Text cache before UpdatePhraseIfChanged to force redraw when style changes to same phrase text
+- [Phase 46-multilingual-phrases]: [DoNotParallelize] added to PhraseEngineCoordinatorTests: SetLocale mutates static PhraseEngine state; parallel tests caused locale contamination
+- [Phase 46-multilingual-phrases]: Japanese phrases provisional — native-speaker review recommended for bucket naturalness before App wiring
 
 ### Pending Todos
 
@@ -97,6 +99,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T02:45:07.239Z
-Stopped at: Completed 45-02-PLAN.md
+Last session: 2026-03-09T04:38:23.221Z
+Stopped at: Completed 46-01-PLAN.md
 Resume file: None

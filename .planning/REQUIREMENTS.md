@@ -31,8 +31,8 @@
 ### Multilingual
 
 - [ ] **LANG-01**: Widget detects Windows UI culture (`CultureInfo.CurrentUICulture`) and displays phrases in the matching language when supported
-- [ ] **LANG-02**: Supported languages: English (default fallback), French, Spanish, German, Japanese, Polish
-- [ ] **LANG-03**: Each supported language provides phrase sets covering all 5-minute time buckets (all hours, noon, midnight special cases)
+- [x] **LANG-02**: Supported languages: English (default fallback), French, Spanish, German, Japanese, Polish
+- [x] **LANG-03**: Each supported language provides phrase sets covering all 5-minute time buckets (all hours, noon, midnight special cases)
 - [ ] **LANG-04**: Unsupported locales display phrases in English
 
 ### Battery Alert
@@ -77,8 +77,8 @@
 | STYLE-03 | Phase 45 | Complete |
 | STYLE-04 | Phase 45 | Complete |
 | LANG-01 | Phase 46 | Pending |
-| LANG-02 | Phase 46 | Pending |
-| LANG-03 | Phase 46 | Pending |
+| LANG-02 | Phase 46 | Complete |
+| LANG-03 | Phase 46 | Complete |
 | LANG-04 | Phase 46 | Pending |
 | ALERT-01 | Phase 44 | Complete |
 | ALERT-02 | Phase 44 | Complete |

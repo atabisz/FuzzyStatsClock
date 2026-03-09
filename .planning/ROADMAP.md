@@ -228,7 +228,7 @@ Plans:
 | 43. Named Themes | 3/3 | Complete    | 2026-03-08 | - |
 | 44. Battery Low Alert | 2/2 | Complete    | 2026-03-09 | - |
 | 45. English Phrase Style Personalities | 2/2 | Complete    | 2026-03-09 | - |
-| 46. Multilingual Phrases | v3.2 | 0/2 | Not started | - |
+| 46. Multilingual Phrases | 1/2 | In Progress|  | - |
 
 ---
 *Last updated: 2026-03-09 — Phase 46 planned (2 plans)*
