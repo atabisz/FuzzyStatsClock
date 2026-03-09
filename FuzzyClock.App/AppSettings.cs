@@ -36,5 +36,6 @@ public record AppSettings
     public bool   ShowDate    { get; init; } = true;
     public string DateFormat  { get; init; } = "Short";   // "Short"|"Long"|"Numeric"|"ISO"
     public string? Theme      { get; init; } = null;       // null = no named theme active; "Midnight"|"Neon"|"Ghost"|"Warm"|"Terminal"
+    public int BatteryAlertThresholdPercent { get; init; } = 20;
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"

@@ -81,6 +81,10 @@ public static class SettingsService
         double[] validThresholds = { 2.0, 5.0, 10.0 };
         if (!validThresholds.Contains(loaded.ProcessCountThresholdPercent))
             loaded = loaded with { ProcessCountThresholdPercent = Defaults().ProcessCountThresholdPercent };
+        // BatteryAlertThresholdPercent guard — only 10, 15, 20 are valid ladder values
+        int[] validAlertThresholds = { 10, 15, 20 };
+        if (!validAlertThresholds.Contains(loaded.BatteryAlertThresholdPercent))
+            loaded = loaded with { BatteryAlertThresholdPercent = Defaults().BatteryAlertThresholdPercent };
         // TextStyle guard — only the four named presets are valid
         string[] validStyles = { "Classic", "Split", "Literary", "Mono" };
         if (string.IsNullOrWhiteSpace(loaded.TextStyle) || !validStyles.Contains(loaded.TextStyle))
@@ -121,7 +125,8 @@ public static class SettingsService
         ShowDate = true,
         DateFormat = "Short",
         MonitorPositions = new Dictionary<string, MonitorPosition>(),
-        LastActiveMonitor = ""
+        LastActiveMonitor = "",
+        BatteryAlertThresholdPercent = 20
     };
 
     /// <summary>

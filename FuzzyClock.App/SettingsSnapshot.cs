@@ -27,4 +27,5 @@ internal sealed record SettingsSnapshot
     public bool    AutoContrastEnabled                   { get; init; }
     public bool    AutoLaunchEnabled                     { get; init; }
     public string? ActiveTheme                           { get; init; } = null;
+    public int     BatteryAlertThreshold                 { get; init; } = 20;
 }
