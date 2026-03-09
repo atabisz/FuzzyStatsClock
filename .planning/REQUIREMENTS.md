@@ -23,9 +23,9 @@
 
 ### Phrase Styles
 
-- [ ] **STYLE-01**: User can select Terse style (compact: "half three", "quarter past", "noon") in the Settings window
-- [ ] **STYLE-02**: User can select Poetic style (evocative: "the small hours", "the day grows long") in the Settings window
-- [ ] **STYLE-03**: User can select Rude style (blunt: "nearly four, move it", "just gone midnight, go to bed") in the Settings window
+- [x] **STYLE-01**: User can select Terse style (compact: "half three", "quarter past", "noon") in the Settings window
+- [x] **STYLE-02**: User can select Poetic style (evocative: "the small hours", "the day grows long") in the Settings window
+- [x] **STYLE-03**: User can select Rude style (blunt: "nearly four, move it", "just gone midnight, go to bed") in the Settings window
 - [ ] **STYLE-04**: Selected phrase style persists to settings.json and restores on launch
 
 ### Multilingual
@@ -72,9 +72,9 @@
 | THM-01 | Phase 43 | Complete |
 | THM-02 | Phase 43 | Complete |
 | THM-03 | Phase 43 | Complete |
-| STYLE-01 | Phase 45 | Pending |
-| STYLE-02 | Phase 45 | Pending |
-| STYLE-03 | Phase 45 | Pending |
+| STYLE-01 | Phase 45 | Complete |
+| STYLE-02 | Phase 45 | Complete |
+| STYLE-03 | Phase 45 | Complete |
 | STYLE-04 | Phase 45 | Pending |
 | LANG-01 | Phase 46 | Pending |
 | LANG-02 | Phase 46 | Pending |

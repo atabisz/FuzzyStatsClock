@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: in_progress
-stopped_at: Completed 44-02-PLAN.md
-last_updated: "2026-03-09T01:55:29.596Z"
+stopped_at: Completed 45-01-PLAN.md
+last_updated: "2026-03-09T02:41:15.457Z"
 last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 13
+  completed_plans: 12
 ---
 
 ---
@@ -83,6 +83,7 @@ Recent decisions affecting v3.2:
 - [Phase 43-named-themes]: ApplySettings() theme restore is field-only; ContentRendered ApplyTheme() handles visual update after decoration lists are populated
 - [Phase 44-battery-low-alert]: BatteryAlertThresholdPercent is int (not double) — matches discrete 10/15/20 ladder, avoids floating-point equality issues
 - [Phase 44-battery-low-alert]: _batteryAlertActive guards BattBar.Background only — BattLabel and BattText keep accent/display color; 1% dead-band prevents threshold-boundary flicker
+- [Phase 45-english-phrase-style-personalities]: Terse bucket merges half {h1} to cover minutes 23-32 so minute 30 produces British 'half four'; flat independent providers with no shared base class
 
 ### Pending Todos
 
@@ -94,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T01:55:29.591Z
-Stopped at: Completed 44-02-PLAN.md
+Last session: 2026-03-09T02:41:15.451Z
+Stopped at: Completed 45-01-PLAN.md
 Resume file: None
