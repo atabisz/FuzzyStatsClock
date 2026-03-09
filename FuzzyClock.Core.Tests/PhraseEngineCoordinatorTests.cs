@@ -38,10 +38,56 @@ public class PhraseEngineCoordinatorTests
     [TestMethod]
     public void SetLocale_UnknownLocale_ReturnsFalse_LocaleUnchanged()
     {
-        bool result = PhraseEngine.SetLocale("fr");
+        // "zh" is not registered (LANG-04 baseline — unsupported locales fall back gracefully).
+        bool result = PhraseEngine.SetLocale("zh");
 
         Assert.IsFalse(result);
         Assert.AreEqual("en-classic", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
+    public void SetLocale_Fr_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("fr");
+
+        Assert.IsTrue(result);
+        Assert.AreEqual("fr", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
+    public void SetLocale_Es_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("es");
+
+        Assert.IsTrue(result);
+        Assert.AreEqual("es", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
+    public void SetLocale_De_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("de");
+
+        Assert.IsTrue(result);
+        Assert.AreEqual("de", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
+    public void SetLocale_Ja_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("ja");
+
+        Assert.IsTrue(result);
+        Assert.AreEqual("ja", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
+    public void SetLocale_Pl_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("pl");
+
+        Assert.IsTrue(result);
+        Assert.AreEqual("pl", PhraseEngine.CurrentLocale);
     }
 
     [TestMethod]
