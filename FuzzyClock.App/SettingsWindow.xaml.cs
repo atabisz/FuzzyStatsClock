@@ -74,8 +74,15 @@ public sealed partial class SettingsWindow : Window
         SetFontSizeButtonStates(s.FontSize);
         SetClockStyleButtonStates(s.DialMode);
 
-        // Phrase style combo — "Classic" is the only item; always index 0
-        CmbPhraseStyle.SelectedIndex = 0;
+        // Phrase style combo — select by saved value
+        // TODO Phase 46: disable CmbPhraseStyle when non-English locale is active
+        CmbPhraseStyle.SelectedIndex = s.PhraseStyle switch
+        {
+            "Terse"  => 1,
+            "Poetic" => 2,
+            "Rude"   => 3,
+            _        => 0   // Classic or unrecognized
+        };
 
         // Stats checkboxes
         ChkStatsVisible.IsChecked  = s.StatsVisible;

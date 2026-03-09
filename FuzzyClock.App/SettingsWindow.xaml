@@ -304,6 +304,9 @@
                               Margin="0,8,0,0" VerticalAlignment="Center"
                               SelectionChanged="CmbPhraseStyle_SelectionChanged">
                         <ComboBoxItem Content="Classic"/>
+                        <ComboBoxItem Content="Terse"/>
+                        <ComboBoxItem Content="Poetic"/>
+                        <ComboBoxItem Content="Rude"/>
                     </ComboBox>
 
                 </Grid>
