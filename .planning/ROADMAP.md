@@ -106,7 +106,7 @@
 - [x] **Phase 41: PhraseEngine Provider Refactor** - Extract IPhraseProvider interface + EnglishPhraseProvider; PhraseEngine becomes static dispatcher; all 122 tests still pass (completed 2026-03-08)
 - [x] **Phase 42: Settings Window Infrastructure** - SettingsWindow (3 tabs), "Open Settings..." tray item, modeless Owner=MainWindow, SettingsChanged event wired to ApplySettings+SaveSettings (completed 2026-03-08)
 - [x] **Phase 43: Named Themes** - ThemeDefinition record, BuiltInThemes registry (5 presets), ApplyNamedTheme() batch method, AppSettings.Theme persisted (completed 2026-03-08)
-- [ ] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab
+- [x] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab (completed 2026-03-09)
 - [ ] **Phase 45: English Phrase Style Personalities** - PhraseStyle enum (Classic/Terse/Poetic/Rude); bucket tables in EnglishPhraseProvider; AppSettings.PhraseStyle; Settings window wiring; per-style tests
 - [ ] **Phase 46: Multilingual Phrases** - Fr/Es/De/Ja/Pl providers; CultureInfo.CurrentUICulture detection; AppSettings.PhraseLocale; Settings window language selector; 1440-minute tests per language
 
@@ -220,7 +220,7 @@ Plans:
 | 41. PhraseEngine Provider Refactor | v3.2 | 2/2 | Complete | 2026-03-08 |
 | 42. Settings Window Infrastructure | v3.2 | 3/3 | Complete | 2026-03-08 |
 | 43. Named Themes | 3/3 | Complete    | 2026-03-08 | - |
-| 44. Battery Low Alert | 1/2 | In Progress|  | - |
+| 44. Battery Low Alert | 2/2 | Complete   | 2026-03-09 | - |
 | 45. English Phrase Style Personalities | v3.2 | 0/TBD | Not started | - |
 | 46. Multilingual Phrases | v3.2 | 0/TBD | Not started | - |
 
