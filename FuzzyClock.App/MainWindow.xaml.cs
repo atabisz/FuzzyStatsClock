@@ -16,6 +16,8 @@ public partial class MainWindow : Window
     private StatsService _statsService = null!;
     private int _statsIntervalSeconds = 3;       // default matches AppSettings.StatsIntervalSeconds default
     private double _processCountThreshold = 5.0; // default matches AppSettings.ProcessCountThresholdPercent default
+    private bool _batteryAlertActive    = false;
+    private int  _batteryAlertThreshold = 20;   // matches AppSettings.BatteryAlertThresholdPercent default
     private bool _isHoverFastRefresh = false;
     private readonly Queue<float> _cpuSamples = new();
     // Bounded by trim logic in UpdateUptimeDisplay(). Max 900 entries at 1s interval (~3.5KB).
@@ -587,6 +589,41 @@ public partial class MainWindow : Window
             string pluggedPrefix = _statsService.IsPluggedIn ? "⚡" : "";
             BattText.Text = $"{pluggedPrefix}{_statsService.BatteryPercent:F0}%";
             BattBar.Width = StatsBarTrackWidth * (_statsService.BatteryPercent / 100.0);
+        }
+
+        UpdateBatteryAlertState();
+    }
+
+    private void UpdateBatteryAlertState()
+    {
+        // No battery present (desktop/VM, sentinel = -1f) — never alert
+        if (_statsService.BatteryPercent < 0f)
+        {
+            if (_batteryAlertActive)
+            {
+                _batteryAlertActive = false;
+                BattBar.Background = new System.Windows.Media.SolidColorBrush(_accentColor);
+            }
+            return;
+        }
+
+        bool shouldAlert = !_statsService.IsPluggedIn
+                        && _statsService.BatteryPercent <= _batteryAlertThreshold;
+
+        // 1% dead-band on clear — prevents flicker when battery oscillates at threshold boundary
+        bool shouldClear = _statsService.IsPluggedIn
+                        || _statsService.BatteryPercent > (_batteryAlertThreshold + 1f);
+
+        if (!_batteryAlertActive && shouldAlert)
+        {
+            _batteryAlertActive = true;
+            BattBar.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0x44, 0x44));  // #FFFF4444
+        }
+        else if (_batteryAlertActive && shouldClear)
+        {
+            _batteryAlertActive = false;
+            BattBar.Background = new System.Windows.Media.SolidColorBrush(_accentColor);
         }
     }
 
@@ -1181,7 +1218,8 @@ public partial class MainWindow : Window
         GpuBar.Background = brush;
         MemBar.Background = brush;
         PagBar.Background = brush;
-        BattBar.Background = brush;
+        if (!_batteryAlertActive)
+            BattBar.Background = brush;
 
         // Stats row labels (CPU/GPU/MEM/PAG/BATT — named so auto-contrast can update them)
         CpuLabel.Foreground = brush;
@@ -1228,7 +1266,9 @@ public partial class MainWindow : Window
         foreach (var el in _minuteDotElements)  el.Fill       = brush;
         foreach (var el in _hourNumberElements) el.Foreground = brush;
         CpuBar.Background  = brush; GpuBar.Background  = brush;
-        MemBar.Background  = brush; PagBar.Background  = brush; BattBar.Background  = brush;
+        MemBar.Background  = brush; PagBar.Background  = brush;
+        if (!_batteryAlertActive)
+            BattBar.Background = brush;
         CpuLabel.Foreground = brush; GpuLabel.Foreground = brush;
         MemLabel.Foreground = brush; PagLabel.Foreground = brush; BattLabel.Foreground = brush;
         CpuText.Foreground = brush; GpuText.Foreground = brush;
