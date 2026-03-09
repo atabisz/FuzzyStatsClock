@@ -109,7 +109,7 @@
 - [x] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab (completed 2026-03-09)
 - [x] **Phase 45: English Phrase Style Personalities** - PhraseStyle enum (Classic/Terse/Poetic/Rude); bucket tables in EnglishPhraseProvider; AppSettings.PhraseStyle; Settings window wiring; per-style tests (completed 2026-03-09)
 - [x] **Phase 46: Multilingual Phrases** - Fr/Es/De/Ja/Pl providers; CultureInfo.CurrentUICulture detection; AppSettings.PhraseLocale; Settings window language selector; exhaustive per-language tests (completed 2026-03-09)
-- [ ] **Phase 47: Tech Debt Cleanup** - Ghost theme FontSize 28→24 (Settings button alignment); remove stale AppSettings.cs comment (Phase 45 shipped); remove redundant `_suppressEvents = true` in SettingsWindow constructor
+- [x] **Phase 47: Tech Debt Cleanup** - Ghost theme FontSize 28→24 (Settings button alignment); remove stale AppSettings.cs comment (Phase 45 shipped); remove redundant `_suppressEvents = true` in SettingsWindow constructor (completed 2026-03-09)
 
 ## Phase Details
 
@@ -244,7 +244,7 @@ Plans:
 | 44. Battery Low Alert | 2/2 | Complete    | 2026-03-09 | - |
 | 45. English Phrase Style Personalities | 2/2 | Complete    | 2026-03-09 | - |
 | 46. Multilingual Phrases | 2/2 | Complete    | 2026-03-09 | - |
-| 47. Tech Debt Cleanup | v3.2 | 0/1 | Pending | — |
+| 47. Tech Debt Cleanup | 1/1 | Complete   | 2026-03-09 | — |
 
 ---
 *Last updated: 2026-03-09 — Phase 47 added (tech debt cleanup)*

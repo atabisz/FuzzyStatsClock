@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Expanded Experience
 status: in_progress
-stopped_at: Completed 46-02-PLAN.md
-last_updated: "2026-03-09T04:44:10.985Z"
+stopped_at: Completed 47-01-PLAN.md
+last_updated: "2026-03-09T05:30:25.515Z"
 last_activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 15
-  completed_plans: 15
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 16
+  completed_plans: 16
 ---
 
 ---
@@ -40,12 +40,12 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 
 ## Current Position
 
-Phase: 42 of 46 (Settings Window Infrastructure)
-Plan: 3 of 3 complete in current phase
-Status: Phase 42 complete — ready for Phase 43
-Last activity: 2026-03-09 — Phase 42 Plan 03 complete; Settings window fully operational
+Phase: 47 of 47 (Tech Debt Cleanup)
+Plan: 1 of 1 complete in current phase
+Status: Phase 47 complete — v3.2 tech debt cleanup done
+Last activity: 2026-03-09 — Phase 47 Plan 01 complete; three surgical tech debt edits applied
 
-Progress: [████░░░░░░] 47% (v3.2: 1/6 phases complete, Phase 42 in progress)
+Progress: [██████████] 95% (v3.2: 19/20 plans complete)
 
 ## Accumulated Context
 
@@ -90,6 +90,7 @@ Recent decisions affecting v3.2:
 - [Phase 46-multilingual-phrases]: Japanese phrases provisional — native-speaker review recommended for bucket naturalness before App wiring
 - [Phase 46-multilingual-phrases]: PhraseLocale default 'auto': absent field in existing settings.json deserializes to 'auto', preserving English for all existing users
 - [Phase 46-multilingual-phrases]: SetPhraseStyle guard: return early if CurrentLocale does not start with 'en-'; prevents English style overriding active non-English locale
+- [Phase 47-tech-debt-cleanup]: Ghost theme FontSize=24 (was 28): ensures 24pt button in Settings Appearance tab is highlighted when Ghost theme active
 
 ### Pending Todos
 
@@ -101,6 +102,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T04:44:10.980Z
-Stopped at: Completed 46-02-PLAN.md
+Last session: 2026-03-09T05:30:25.510Z
+Stopped at: Completed 47-01-PLAN.md
 Resume file: None
