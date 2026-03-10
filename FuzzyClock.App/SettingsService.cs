@@ -50,6 +50,16 @@ public static class SettingsService
                 }
             }
 
+            // Migrate legacy "DialMode" bool to ClockType enum
+            bool hasDialMode = doc.RootElement.TryGetProperty("DialMode", out var dialEl);
+            if (hasDialMode && loaded.ClockType == ClockType.Phrase)
+            {
+                // Only migrate if the new ClockType field was absent (defaulted to Phrase)
+                if (dialEl.ValueKind == System.Text.Json.JsonValueKind.True)
+                    loaded = loaded with { ClockType = ClockType.Dial };
+                // false → stays Phrase (already the default, no action needed)
+            }
+
             return Validate(loaded);
         }
         catch { return Defaults(); }
@@ -114,6 +124,7 @@ public static class SettingsService
         StatsVisible = false, StatsIntervalSeconds = 3,
         CpuVisible = true, GpuVisible = true, MemVisible = true,
         PagVisible = true, BatteryVisible = true, UptimeVisible = true, DialMode = false,
+        ClockType = ClockType.Phrase,
         ShowHourTicks = false, ShowMinuteDots = false, ShowHourNumbers = false,
         AccentColor = "#FFFFFFFF",
         Opacity = 1.0,

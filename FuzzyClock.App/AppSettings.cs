@@ -1,4 +1,6 @@
 // Source: official .NET 10 docs — System.Text.Json handles init-property records natively
+using System.Text.Json.Serialization;
+
 namespace FuzzyClock.App;
 
 /// <summary>Saved window position for a specific monitor.</summary>
@@ -22,6 +24,8 @@ public record AppSettings
     public bool   BatteryVisible       { get; init; } = true;
     public bool   UptimeVisible        { get; init; } = true;
     public bool   DialMode             { get; init; } = false;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ClockType ClockType         { get; init; } = ClockType.Phrase;
     public bool   ShowHourTicks        { get; init; } = false;
     public bool   ShowMinuteDots       { get; init; } = false;
     public bool   ShowHourNumbers      { get; init; } = false;
