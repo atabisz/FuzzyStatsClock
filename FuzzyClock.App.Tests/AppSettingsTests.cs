@@ -34,6 +34,10 @@ public class AppSettingsTests
             PagVisible           = false,
             UptimeVisible        = false,
             ClockType            = ClockType.Dial,
+            LcdTheme             = LcdTheme.Amber,
+            LcdUse24Hr           = true,
+            LcdShowSeconds       = false,
+            LcdSize              = LcdSize.Large,
             ShowHourTicks        = true,
             ShowMinuteDots       = true,
             ShowHourNumbers      = true,
@@ -62,6 +66,10 @@ public class AppSettingsTests
         Assert.AreEqual(original.PagVisible,           result.PagVisible,                        "PagVisible");
         Assert.AreEqual(original.UptimeVisible,        result.UptimeVisible,                     "UptimeVisible");
         Assert.AreEqual(original.ClockType,             result.ClockType,                         "ClockType");
+        Assert.AreEqual(original.LcdTheme,             result.LcdTheme,                          "LcdTheme");
+        Assert.AreEqual(original.LcdUse24Hr,           result.LcdUse24Hr,                        "LcdUse24Hr");
+        Assert.AreEqual(original.LcdShowSeconds,       result.LcdShowSeconds,                    "LcdShowSeconds");
+        Assert.AreEqual(original.LcdSize,              result.LcdSize,                           "LcdSize");
         Assert.AreEqual(original.ShowHourTicks,        result.ShowHourTicks,                     "ShowHourTicks");
         Assert.AreEqual(original.ShowMinuteDots,       result.ShowMinuteDots,                    "ShowMinuteDots");
         Assert.AreEqual(original.ShowHourNumbers,      result.ShowHourNumbers,                   "ShowHourNumbers");
@@ -147,5 +155,43 @@ public class AppSettingsTests
         Assert.IsNotNull(result.MonitorPositions, "MonitorPositions should not be null when absent from JSON");
         Assert.IsEmpty(result.MonitorPositions, "MonitorPositions should be empty when absent from JSON");
         Assert.AreEqual("", result.LastActiveMonitor, "LastActiveMonitor should default to empty string");
+    }
+
+    // F10 LCD absent-field defaults
+
+    [TestMethod]
+    public void Deserialize_MissingLcdTheme_DefaultsToGreen()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(LcdTheme.Green, result.LcdTheme,
+            "LcdTheme should default to Green when absent from JSON");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingLcdUse24Hr_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.LcdUse24Hr,
+            "LcdUse24Hr should default to false when absent from JSON");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingLcdShowSeconds_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.LcdShowSeconds,
+            "LcdShowSeconds should default to true when absent from JSON");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingLcdSize_DefaultsToMedium()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(LcdSize.Medium, result.LcdSize,
+            "LcdSize should default to Medium when absent from JSON");
     }
 }
