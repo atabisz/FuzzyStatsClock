@@ -118,13 +118,14 @@ last_updated: 2026-03-11
 </details>
 
 <details open>
-<summary>v3.3 LCD Clock (Phases 48–52) — IN PROGRESS</summary>
+<summary>v3.3 LCD Clock (Phases 48–53) — IN PROGRESS</summary>
 
 - [x] **Phase 48: ClockType Enum Migration** — Replace `bool DialMode` with `ClockType` enum (Phrase/Dial/Lcd) across AppSettings, MainWindow, SettingsWindow, TrayMenuBuilder; JSON backward-compat migration; all 224 existing tests remain green (completed 2026-03-10)
 - [x] **Phase 49: SevenSegmentEncoder** — `SevenSegmentEncoder.Encode(char): byte` in FuzzyClock.Core; 7-bit segment masks for digits 0–9, colon, space; 12 unit tests (completed 2026-03-10)
 - [x] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer) (completed 2026-03-10)
 - [x] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults (completed 2026-03-10)
 - [x] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated (completed 2026-03-10)
+- [ ] **Phase 53: v3.3 LCD Tech Debt Cleanup** — Fix LcdSize persistence in SaveSettings(); add LcdSize to SettingsSnapshot; add Ghost color column to README LCD theme table
 
 </details>
 
@@ -188,6 +189,16 @@ Plans:
 - [ ] 52-01-PLAN.md — Fix LcdSize/LcdTimeFormatHelper gaps; AppSettings LCD round-trip + absent-field tests; LcdTimeFormatHelperTests
 - [ ] 52-02-PLAN.md — README LCD Clock section, Nixie backlog note, accurate test count
 
+### Phase 53: v3.3 LCD Tech Debt Cleanup
+
+**Goal:** Close 3 consistency items found during milestone audit: persist LcdSize correctly in SaveSettings(), add LcdSize to SettingsSnapshot, and add Ghost color column to README LCD theme table.
+
+**Gap Closure:** Closes tech debt gaps from v3.3 audit
+
+**Plans:** 0/1 plans complete
+
+Plans:
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -222,6 +233,7 @@ Plans:
 | 50. WPF Segment Controls | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 51. App Integration | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 52. Tests + README | 3/3 | Complete    | 2026-03-10 | — |
+| 53. v3.3 LCD Tech Debt Cleanup | v3.3 | 0/1 | Pending | — |
 
 ---
-*Last updated: 2026-03-11 — Phase 52 planned (2 plans)*
+*Last updated: 2026-03-11 — Phase 53 added (gap closure from v3.3 audit)*
