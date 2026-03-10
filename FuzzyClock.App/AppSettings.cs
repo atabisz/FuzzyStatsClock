@@ -29,6 +29,8 @@ public record AppSettings
     public LcdTheme LcdTheme           { get; init; } = LcdTheme.Green;
     public bool     LcdUse24Hr         { get; init; } = false;
     public bool     LcdShowSeconds     { get; init; } = true;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public LcdSize  LcdSize            { get; init; } = LcdSize.Medium;
     public bool   ShowHourTicks        { get; init; } = false;
     public bool   ShowMinuteDots       { get; init; } = false;
     public bool   ShowHourNumbers      { get; init; } = false;

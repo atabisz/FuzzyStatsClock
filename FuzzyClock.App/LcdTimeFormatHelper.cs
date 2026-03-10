@@ -1,6 +1,6 @@
 namespace FuzzyClock.App;
 
-internal static class LcdTimeFormatHelper
+public static class LcdTimeFormatHelper
 {
     public static string FormatTime(System.DateTime now, bool use24Hr, bool showSeconds)
     {
