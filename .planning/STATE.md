@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 48-clocktype-enum-migration 48-01-PLAN.md
-last_updated: "2026-03-10T00:58:08.871Z"
+stopped_at: Completed 49-sevensegmentencoder 49-01-PLAN.md
+last_updated: "2026-03-10T01:54:23.569Z"
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
   percent: 80
 ---
 
@@ -55,6 +55,8 @@ Previous milestone: v3.3 inherits 224 tests (199 Core + 25 App) from v3.2.
 - LCD theme system is independent of the existing named-theme system
 - Nixie-style is backlog (out of scope for v3.3)
 - [Phase 48-clocktype-enum-migration]: ClockType serializes as string via JsonStringEnumConverter; DialMode->ClockType migration in Load()
+- [Phase 49-sevensegmentencoder]: Assert.Throws<T>() is the correct MSTest 4.x API; Assert.ThrowsException<T>() removed in MSTest 4.0
+- [Phase 49-sevensegmentencoder]: SevenSegmentEncoder in FuzzyClock.Core as static class; colon maps to 0x80 sentinel (not a segment bit)
 
 ### Pending Todos
 
@@ -67,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T00:54:02.913Z
-Stopped at: Completed 48-clocktype-enum-migration 48-01-PLAN.md
+Last session: 2026-03-10T01:54:23.566Z
+Stopped at: Completed 49-sevensegmentencoder 49-01-PLAN.md
 Resume: `/gsd:plan-phase 48` to start execution
