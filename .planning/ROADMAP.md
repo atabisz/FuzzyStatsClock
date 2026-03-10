@@ -195,9 +195,10 @@ Plans:
 
 **Gap Closure:** Closes tech debt gaps from v3.3 audit
 
-**Plans:** 0/1 plans complete
+**Plans:** 1 plan
 
 Plans:
+- [ ] 53-01-PLAN.md — Fix LcdSize persistence in SaveSettings() and SettingsSnapshot; add Ghost color column to README LCD theme table
 
 ## Progress
 
