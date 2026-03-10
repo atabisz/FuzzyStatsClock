@@ -182,7 +182,7 @@ Plans:
 
 **Requirements:** F10, F11
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 52-01-PLAN.md — Fix LcdSize/LcdTimeFormatHelper gaps; AppSettings LCD round-trip + absent-field tests; LcdTimeFormatHelperTests
@@ -221,7 +221,7 @@ Plans:
 | 49. SevenSegmentEncoder | v3.3 | 1/1 | Complete | 2026-03-10 |
 | 50. WPF Segment Controls | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 51. App Integration | v3.3 | 2/2 | Complete | 2026-03-10 |
-| 52. Tests + README | v3.3 | 0/2 | Pending | — |
+| 52. Tests + README | 1/2 | In Progress|  | — |
 
 ---
 *Last updated: 2026-03-11 — Phase 52 planned (2 plans)*
