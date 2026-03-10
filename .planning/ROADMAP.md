@@ -124,7 +124,7 @@ last_updated: 2026-03-11
 - [x] **Phase 49: SevenSegmentEncoder** — `SevenSegmentEncoder.Encode(char): byte` in FuzzyClock.Core; 7-bit segment masks for digits 0–9, colon, space; 12 unit tests (completed 2026-03-10)
 - [x] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer) (completed 2026-03-10)
 - [x] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults (completed 2026-03-10)
-- [x] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated (completed 2026-03-10)
+- [x] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated (completed 2026-03-10)
 - [x] **Phase 53: v3.3 LCD Tech Debt Cleanup** — Fix LcdSize persistence in SaveSettings(); add LcdSize to SettingsSnapshot; add Ghost color column to README LCD theme table (completed 2026-03-10)
 
 </details>
@@ -235,6 +235,18 @@ Plans:
 | 51. App Integration | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 52. Tests + README | 3/3 | Complete    | 2026-03-10 | — |
 | 53. v3.3 LCD Tech Debt Cleanup | 1/1 | Complete    | 2026-03-10 | — |
+| 54. Additional LCD Themes | v3.3 | 0/3 | In Progress | — |
+
+### Phase 54: Additional LCD Themes
+
+**Goal:** Expand the LCD theme palette from 5 to 17 themes. Add 12 new `LcdTheme` enum values (Vfd, Nixie, Magenta, Purple, Cyan, Lime, Cream, Ice, Mint, Lavender, LcdGrey, Paper), corresponding `LcdPalette.Get()` cases, replace the SettingsWindow ComboBox with a WrapPanel swatch row, add 3 round-trip tests, and update README.
+**Depends on:** Phase 53
+**Plans:** 3 plans
+
+Plans:
+- [ ] 54-01-PLAN.md — Extend LcdTheme enum (17 values) and LcdPalette.Get() switch (17 cases)
+- [ ] 54-02-PLAN.md — Replace CmbLcdTheme ComboBox with WrapPanel swatch row in SettingsWindow
+- [ ] 54-03-PLAN.md — AppSettings round-trip tests for Vfd/LcdGrey/Paper; README LCD table updated to 17 themes
 
 ---
-*Last updated: 2026-03-11 — Phase 53 added (gap closure from v3.3 audit)*
+*Last updated: 2026-03-11 — Phase 54 plans created*
