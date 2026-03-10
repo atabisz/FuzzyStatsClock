@@ -6,6 +6,7 @@ A minimal WPF desktop widget that displays the current time as a fuzzy English p
 
 - **Phrase mode** — time expressed as natural English, updating on 5-minute boundaries
 - **Dial mode** — hour and minute hands on a transparent background (no face, no numbers); optional hour ticks, minute marks, and hour labels
+- **LCD clock** — retro 7-segment display rendered with WPF polygon geometry (no fonts or bitmaps); ghost (inactive) segments always visible at a dimmed color; five retro color themes; 12hr (space-padded) or 24hr (zero-padded); optional seconds display; three size variants (Small / Medium / Large)
 - **Stats panel** — live CPU / GPU / MEM / PAG usage as horizontal bars below the phrase or dial; per-row visibility toggles; 1s / 3s / 10s update interval
 - **Battery row** — shows battery charge percentage and `⚡` when AC-connected (e.g. `⚡ 87%`); displays `N/A` on desktops or VMs with no battery; toggleable per-row like other stat rows
 - **Uptime row** — system uptime (`up 5h 3m`), rolling 1m/5m/15m CPU load averages, and active process count (`142p`) in a single compact line
@@ -25,6 +26,36 @@ A minimal WPF desktop widget that displays the current time as a fuzzy English p
 - **Font size** — Small (16pt) / Medium (24pt) / Large (32pt) via tray menu (phrase mode only)
 - **Context-aware menus** — Font Size submenu hidden in dial mode; Dial Face submenu hidden in phrase mode
 - **Persistence** — all preferences saved to `%LOCALAPPDATA%\FuzzyClock\settings.json`
+
+## LCD Clock
+
+*Screenshot placeholder — v3.3*
+
+A retro 7-segment LCD clock type, rendered entirely with WPF polygon geometry (no fonts or bitmaps).
+
+### Themes
+
+| Theme | Lit color | Background |
+|-------|-----------|------------|
+| Green | `#00FF41` | `#001A00`  |
+| Amber | `#FFAA00` | `#1A0A00`  |
+| Blue  | `#00CFFF` | `#00001A`  |
+| Teal  | `#00B4B4` | `#001010`  |
+| Red   | `#FF2200` | `#1A0000`  |
+
+Ghost (inactive) segments are always visible at a dimmed color — a hallmark of real LCD hardware.
+
+### Size, format, and seconds
+
+| Setting | Options |
+|---------|---------|
+| Size | Small (32px) / Medium (48px) / Large (64px) |
+| Hour format | 12hr (space-padded, no AM/PM) or 24hr (zero-padded) |
+| Show seconds | Appends `:SS` to the display |
+
+### Backlog
+
+> **Nixie-style clock** — a warm-glow Nixie tube variant is planned for a future milestone.
 
 ## Requirements
 
@@ -56,7 +87,7 @@ dotnet build FuzzyClock.slnx -c Release
 dotnet test FuzzyClock.slnx
 ```
 
-122 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), settings validation and migration, and app integration tests.
+237 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), seven-segment encoder, LCD time format helper, settings validation and migration, and app integration tests.
 
 ## Usage
 
