@@ -6,7 +6,7 @@ A minimal WPF desktop widget that displays the current time as a fuzzy English p
 
 - **Phrase mode** — time expressed as natural English, updating on 5-minute boundaries
 - **Dial mode** — hour and minute hands on a transparent background (no face, no numbers); optional hour ticks, minute marks, and hour labels
-- **LCD clock** — retro 7-segment display rendered with WPF polygon geometry (no fonts or bitmaps); ghost (inactive) segments always visible at a dimmed color; five retro color themes; 12hr (space-padded) or 24hr (zero-padded); optional seconds display; three size variants (Small / Medium / Large)
+- **LCD clock** — retro 7-segment display rendered with WPF polygon geometry (no fonts or bitmaps); ghost (inactive) segments always visible at a dimmed color; 17 color themes (10 dark phosphor/neon, 5 muted pastel, 2 inverted light-background); 12hr (space-padded) or 24hr (zero-padded); optional seconds display; three size variants (Small / Medium / Large)
 - **Stats panel** — live CPU / GPU / MEM / PAG usage as horizontal bars below the phrase or dial; per-row visibility toggles; 1s / 3s / 10s update interval
 - **Battery row** — shows battery charge percentage and `⚡` when AC-connected (e.g. `⚡ 87%`); displays `N/A` on desktops or VMs with no battery; toggleable per-row like other stat rows
 - **Uptime row** — system uptime (`up 5h 3m`), rolling 1m/5m/15m CPU load averages, and active process count (`142p`) in a single compact line
@@ -35,13 +35,25 @@ A retro 7-segment LCD clock type, rendered entirely with WPF polygon geometry (n
 
 ### Themes
 
-| Theme | Lit color | Ghost color | Background |
-|-------|-----------|-------------|------------|
-| Green | `#00FF41` | `#003310`   | `#001A00`  |
-| Amber | `#FFAA00` | `#3D2800`   | `#1A0A00`  |
-| Blue  | `#00CFFF` | `#002A35`   | `#00001A`  |
-| Teal  | `#00B4B4` | `#002525`   | `#001010`  |
-| Red   | `#FF2200` | `#380800`   | `#1A0000`  |
+| Theme    | Lit color | Ghost color | Background |
+|----------|-----------|-------------|------------|
+| Green    | `#00FF41` | `#003310`   | `#001A00`  |
+| Amber    | `#FFAA00` | `#3D2800`   | `#1A0A00`  |
+| Blue     | `#00CFFF` | `#002A35`   | `#00001A`  |
+| Teal     | `#00B4B4` | `#002525`   | `#001010`  |
+| Red      | `#FF2200` | `#380800`   | `#1A0000`  |
+| Vfd      | `#14F0A0` | `#023A28`   | `#001A10`  |
+| Nixie    | `#FF6000` | `#3D1800`   | `#1A0800`  |
+| Magenta  | `#FF00CC` | `#3D0030`   | `#1A0015`  |
+| Purple   | `#CC00FF` | `#300040`   | `#15001A`  |
+| Cyan     | `#00FFFF` | `#003838`   | `#001A1A`  |
+| Lime     | `#CCFF00` | `#2E3800`   | `#141A00`  |
+| Cream    | `#FFEEDD` | `#3D3020`   | `#1A1208`  |
+| Ice      | `#B0D8FF` | `#1A2D3D`   | `#0A1520`  |
+| Mint     | `#66FFCC` | `#003D28`   | `#001A12`  |
+| Lavender | `#CC99FF` | `#280040`   | `#120018`  |
+| LcdGrey  | `#2A3020` | `#8A9080`   | `#C8D0C0`  |
+| Paper    | `#1A1A18` | `#9090A0`   | `#F0F0E8`  |
 
 Ghost (inactive) segments are always visible at a dimmed color — a hallmark of real LCD hardware.
 
@@ -87,7 +99,7 @@ dotnet build FuzzyClock.slnx -c Release
 dotnet test FuzzyClock.slnx
 ```
 
-245 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), seven-segment encoder, LCD time format helper, settings validation and migration, and app integration tests.
+248 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), seven-segment encoder, LCD time format helper, settings validation and migration, and app integration tests.
 
 ## Usage
 
