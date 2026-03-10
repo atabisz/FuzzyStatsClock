@@ -125,7 +125,7 @@ last_updated: 2026-03-11
 - [x] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer) (completed 2026-03-10)
 - [x] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults (completed 2026-03-10)
 - [x] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated (completed 2026-03-10)
-- [ ] **Phase 53: v3.3 LCD Tech Debt Cleanup** — Fix LcdSize persistence in SaveSettings(); add LcdSize to SettingsSnapshot; add Ghost color column to README LCD theme table
+- [x] **Phase 53: v3.3 LCD Tech Debt Cleanup** — Fix LcdSize persistence in SaveSettings(); add LcdSize to SettingsSnapshot; add Ghost color column to README LCD theme table (completed 2026-03-10)
 
 </details>
 
@@ -195,7 +195,7 @@ Plans:
 
 **Gap Closure:** Closes tech debt gaps from v3.3 audit
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 53-01-PLAN.md — Fix LcdSize persistence in SaveSettings() and SettingsSnapshot; add Ghost color column to README LCD theme table
@@ -234,7 +234,7 @@ Plans:
 | 50. WPF Segment Controls | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 51. App Integration | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 52. Tests + README | 3/3 | Complete    | 2026-03-10 | — |
-| 53. v3.3 LCD Tech Debt Cleanup | v3.3 | 0/1 | Pending | — |
+| 53. v3.3 LCD Tech Debt Cleanup | 1/1 | Complete   | 2026-03-10 | — |
 
 ---
 *Last updated: 2026-03-11 — Phase 53 added (gap closure from v3.3 audit)*
