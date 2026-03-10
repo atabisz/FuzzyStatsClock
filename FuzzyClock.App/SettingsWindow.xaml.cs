@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -18,6 +19,9 @@ public sealed partial class SettingsWindow : Window
 
     // ── Suppress events during control population ─────────────────────────
     private bool _suppressEvents;
+
+    // ── LCD swatch ring map ───────────────────────────────────────────────
+    private (LcdTheme Theme, Border Ring)[] _lcdSwatchRings = [];
 
     // ── Per-setting events ────────────────────────────────────────────────
     public event Action<Color>?  AccentColorChanged;
@@ -52,6 +56,27 @@ public sealed partial class SettingsWindow : Window
         _suppressEvents = true;
         InitializeComponent();
 
+        _lcdSwatchRings = new (LcdTheme, Border)[]
+        {
+            (LcdTheme.Green,    RingLcdGreen),
+            (LcdTheme.Amber,    RingLcdAmber),
+            (LcdTheme.Blue,     RingLcdBlue),
+            (LcdTheme.Teal,     RingLcdTeal),
+            (LcdTheme.Red,      RingLcdRed),
+            (LcdTheme.Vfd,      RingLcdVfd),
+            (LcdTheme.Nixie,    RingLcdNixie),
+            (LcdTheme.Magenta,  RingLcdMagenta),
+            (LcdTheme.Purple,   RingLcdPurple),
+            (LcdTheme.Cyan,     RingLcdCyan),
+            (LcdTheme.Lime,     RingLcdLime),
+            (LcdTheme.Cream,    RingLcdCream),
+            (LcdTheme.Ice,      RingLcdIce),
+            (LcdTheme.Mint,     RingLcdMint),
+            (LcdTheme.Lavender, RingLcdLavender),
+            (LcdTheme.LcdGrey,  RingLcdLcdGrey),
+            (LcdTheme.Paper,    RingLcdPaper),
+        };
+
         // Restore within-session position
         if (!double.IsNaN(_savedLeft))
         {
@@ -78,7 +103,7 @@ public sealed partial class SettingsWindow : Window
         SetClockStyleButtonStates(s.ClockType);
 
         // LCD options (populated inside _suppressEvents guard — already true at this point)
-        CmbLcdTheme.SelectedIndex = (int)s.LcdTheme;  // Green=0, Amber=1, Blue=2, Teal=3, Red=4
+        SetActiveLcdSwatch(s.LcdTheme);
         BtnLcd12hr.Tag = !s.LcdUse24Hr ? "selected" : null;
         BtnLcd24hr.Tag = s.LcdUse24Hr  ? "selected" : null;
         ChkLcdSeconds.IsChecked = s.LcdShowSeconds;
@@ -200,12 +225,12 @@ public sealed partial class SettingsWindow : Window
     private void SetLcdRowsVisible(bool visible)
     {
         var vis = visible ? Visibility.Visible : Visibility.Collapsed;
-        LcdThemeRowLabel.Visibility   = vis;
-        CmbLcdTheme.Visibility        = vis;
-        LcdFormatRowLabel.Visibility  = vis;
-        LcdFormatRow.Visibility       = vis;
-        LcdSecondsRowLabel.Visibility = vis;
-        ChkLcdSeconds.Visibility      = vis;
+        LcdThemeRowLabel.Visibility      = vis;
+        LcdThemeSwatchPanel.Visibility   = vis;
+        LcdFormatRowLabel.Visibility     = vis;
+        LcdFormatRow.Visibility          = vis;
+        LcdSecondsRowLabel.Visibility    = vis;
+        ChkLcdSeconds.Visibility         = vis;
     }
 
     private void SetActiveSwatch(Border? activeRing)
@@ -217,6 +242,22 @@ public sealed partial class SettingsWindow : Window
             r.BorderThickness = new Thickness(0);
             r.BorderBrush     = null;
         }
+        if (activeRing is not null)
+        {
+            activeRing.BorderThickness = new Thickness(2);
+            activeRing.BorderBrush     = blue;
+        }
+    }
+
+    private void SetActiveLcdSwatch(LcdTheme theme)
+    {
+        var blue = new SolidColorBrush(Color.FromRgb(0x00, 0x78, 0xD4));
+        foreach (var (t, ring) in _lcdSwatchRings)
+        {
+            ring.BorderThickness = new Thickness(0);
+            ring.BorderBrush     = null;
+        }
+        var activeRing = _lcdSwatchRings.FirstOrDefault(x => x.Theme == theme).Ring;
         if (activeRing is not null)
         {
             activeRing.BorderThickness = new Thickness(2);
@@ -408,12 +449,15 @@ public sealed partial class SettingsWindow : Window
     }
 
     // ── LCD controls ─────────────────────────────────────────────────────
-    private void CmbLcdTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void LcdSwatch_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (_suppressEvents) return;
-        if (CmbLcdTheme.SelectedItem is ComboBoxItem item &&
-            System.Enum.TryParse<LcdTheme>((string)item.Tag, out var theme))
+        if (sender is Border swatch &&
+            Enum.TryParse<LcdTheme>((string?)swatch.Tag, out var theme))
+        {
+            SetActiveLcdSwatch(theme);
             LcdThemeChanged?.Invoke(theme);
+        }
     }
 
     private void BtnLcd12hr_Click(object sender, RoutedEventArgs e)
