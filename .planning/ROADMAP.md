@@ -170,7 +170,7 @@ Plans:
 
 **Requirements:** F1, F6, F7, F8, F9
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 51-01-PLAN.md — AppSettings/SettingsSnapshot LCD fields + MainWindow LCD wiring (LcdView XAML, SetClockType, timer, ApplySettings, SaveSettings, ResetToDefaults)
@@ -215,7 +215,7 @@ Plans:
 | 48. ClockType Enum Migration | v3.3 | 1/1 | Complete | 2026-03-10 |
 | 49. SevenSegmentEncoder | v3.3 | 1/1 | Complete | 2026-03-10 |
 | 50. WPF Segment Controls | v3.3 | 2/2 | Complete | 2026-03-10 |
-| 51. App Integration | v3.3 | 0/2 | Pending | — |
+| 51. App Integration | 1/2 | In Progress|  | — |
 | 52. Tests + README | v3.3 | 0/1 | Pending | — |
 
 ---
