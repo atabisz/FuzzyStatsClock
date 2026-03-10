@@ -249,6 +249,9 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>  <!-- row 4: LCD Theme -->
+                        <RowDefinition Height="Auto"/>  <!-- row 5: LCD Format -->
+                        <RowDefinition Height="Auto"/>  <!-- row 6: LCD Seconds -->
                     </Grid.RowDefinitions>
 
                     <!-- Opacity -->
@@ -291,6 +294,7 @@
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="BtnPhrase" Content="Phrase" Style="{StaticResource SegmentButtonStyle}" Click="BtnPhrase_Click"/>
                             <Button x:Name="BtnDial"   Content="Dial"   Style="{StaticResource SegmentButtonStyle}" Click="BtnDial_Click"/>
+                            <Button x:Name="BtnLcd"    Content="LCD"    Style="{StaticResource SegmentButtonStyle}" Click="BtnLcd_Click"/>
                         </StackPanel>
                     </Border>
 
@@ -308,6 +312,49 @@
                         <ComboBoxItem Content="Poetic"/>
                         <ComboBoxItem Content="Rude"/>
                     </ComboBox>
+
+                    <!-- LCD Theme — row 4 -->
+                    <TextBlock x:Name="LcdThemeRowLabel" Grid.Row="4" Grid.Column="0"
+                               Text="LCD Theme" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"
+                               Visibility="Collapsed"/>
+                    <ComboBox x:Name="CmbLcdTheme" Grid.Row="4" Grid.Column="1"
+                              Width="120" HorizontalAlignment="Left"
+                              Margin="0,8,0,0" VerticalAlignment="Center"
+                              Visibility="Collapsed"
+                              SelectionChanged="CmbLcdTheme_SelectionChanged">
+                        <ComboBoxItem Content="Green" Tag="Green"/>
+                        <ComboBoxItem Content="Amber" Tag="Amber"/>
+                        <ComboBoxItem Content="Blue"  Tag="Blue"/>
+                        <ComboBoxItem Content="Teal"  Tag="Teal"/>
+                        <ComboBoxItem Content="Red"   Tag="Red"/>
+                    </ComboBox>
+
+                    <!-- LCD Format — row 5 -->
+                    <TextBlock x:Name="LcdFormatRowLabel" Grid.Row="5" Grid.Column="0"
+                               Text="Format" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"
+                               Visibility="Collapsed"/>
+                    <StackPanel x:Name="LcdFormatRow" Grid.Row="5" Grid.Column="1"
+                                Orientation="Horizontal" Margin="0,8,0,0"
+                                Visibility="Collapsed">
+                        <Border Background="#FFE8E8E8" CornerRadius="4" Padding="2" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="BtnLcd12hr" Content="12hr" Style="{StaticResource SegmentButtonStyle}" Click="BtnLcd12hr_Click"/>
+                                <Button x:Name="BtnLcd24hr" Content="24hr" Style="{StaticResource SegmentButtonStyle}" Click="BtnLcd24hr_Click"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- LCD Seconds — row 6 -->
+                    <TextBlock x:Name="LcdSecondsRowLabel" Grid.Row="6" Grid.Column="0"
+                               Text="Seconds" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"
+                               Visibility="Collapsed"/>
+                    <CheckBox x:Name="ChkLcdSeconds" Grid.Row="6" Grid.Column="1"
+                              Content="Show seconds" Margin="0,8,0,0" VerticalAlignment="Center"
+                              Visibility="Collapsed"
+                              Checked="ChkLcdSeconds_Changed" Unchecked="ChkLcdSeconds_Changed"/>
 
                 </Grid>
 

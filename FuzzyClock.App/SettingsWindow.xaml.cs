@@ -24,6 +24,9 @@ public sealed partial class SettingsWindow : Window
     public event Action<double>? OpacityChanged;
     public event Action<int>?    FontSizeChanged;
     public event Action<ClockType>? ClockTypeChanged;
+    public event Action<LcdTheme>? LcdThemeChanged;
+    public event Action<bool>?     LcdUse24HrChanged;
+    public event Action<bool>?     LcdShowSecondsChanged;
     public event Action<string>? PhraseStyleChanged;
     public event Action<bool>?   StatsVisibleChanged;
     public event Action<bool>?   CpuVisibleChanged;
@@ -73,6 +76,12 @@ public sealed partial class SettingsWindow : Window
         // Font size / clock style toggle buttons
         SetFontSizeButtonStates(s.FontSize);
         SetClockStyleButtonStates(s.ClockType);
+
+        // LCD options (populated inside _suppressEvents guard — already true at this point)
+        CmbLcdTheme.SelectedIndex = (int)s.LcdTheme;  // Green=0, Amber=1, Blue=2, Teal=3, Red=4
+        BtnLcd12hr.Tag = !s.LcdUse24Hr ? "selected" : null;
+        BtnLcd24hr.Tag = s.LcdUse24Hr  ? "selected" : null;
+        ChkLcdSeconds.IsChecked = s.LcdShowSeconds;
 
         // Phrase language combo
         string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
@@ -184,7 +193,19 @@ public sealed partial class SettingsWindow : Window
     {
         BtnPhrase.Tag = clockType == ClockType.Phrase ? "selected" : null;
         BtnDial.Tag   = clockType == ClockType.Dial   ? "selected" : null;
-        // BtnLcd added in Phase 51
+        BtnLcd.Tag    = clockType == ClockType.Lcd    ? "selected" : null;
+        SetLcdRowsVisible(clockType == ClockType.Lcd);
+    }
+
+    private void SetLcdRowsVisible(bool visible)
+    {
+        var vis = visible ? Visibility.Visible : Visibility.Collapsed;
+        LcdThemeRowLabel.Visibility   = vis;
+        CmbLcdTheme.Visibility        = vis;
+        LcdFormatRowLabel.Visibility  = vis;
+        LcdFormatRow.Visibility       = vis;
+        LcdSecondsRowLabel.Visibility = vis;
+        ChkLcdSeconds.Visibility      = vis;
     }
 
     private void SetActiveSwatch(Border? activeRing)
@@ -377,6 +398,44 @@ public sealed partial class SettingsWindow : Window
         if (_suppressEvents) return;
         SetClockStyleButtonStates(ClockType.Dial);
         ClockTypeChanged?.Invoke(ClockType.Dial);
+    }
+
+    private void BtnLcd_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetClockStyleButtonStates(ClockType.Lcd);
+        ClockTypeChanged?.Invoke(ClockType.Lcd);
+    }
+
+    // ── LCD controls ─────────────────────────────────────────────────────
+    private void CmbLcdTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        if (CmbLcdTheme.SelectedItem is ComboBoxItem item &&
+            System.Enum.TryParse<LcdTheme>((string)item.Tag, out var theme))
+            LcdThemeChanged?.Invoke(theme);
+    }
+
+    private void BtnLcd12hr_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        BtnLcd12hr.Tag = "selected";
+        BtnLcd24hr.Tag = null;
+        LcdUse24HrChanged?.Invoke(false);
+    }
+
+    private void BtnLcd24hr_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        BtnLcd12hr.Tag = null;
+        BtnLcd24hr.Tag = "selected";
+        LcdUse24HrChanged?.Invoke(true);
+    }
+
+    private void ChkLcdSeconds_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        LcdShowSecondsChanged?.Invoke(ChkLcdSeconds.IsChecked == true);
     }
 
     // ── Phrase style combo ────────────────────────────────────────────────
