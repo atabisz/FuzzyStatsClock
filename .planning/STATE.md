@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: "Completed 50-01-PLAN.md: SevenSegmentDigit UserControl"
-last_updated: "2026-03-10T02:33:42.361Z"
+stopped_at: "Completed 50-02-PLAN.md: LcdClockView UserControl"
+last_updated: "2026-03-10T02:37:25.476Z"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 80
 ---
 
@@ -59,6 +59,8 @@ Previous milestone: v3.3 inherits 224 tests (199 Core + 25 App) from v3.2.
 - [Phase 49-sevensegmentencoder]: SevenSegmentEncoder in FuzzyClock.Core as static class; colon maps to 0x80 sentinel (not a segment bit)
 - [Phase 50-01]: WPF/WinForms type aliases (WpfUserControl, WpfRectangle, WpfPoint) used in SevenSegmentDigit to resolve CS0104 ambiguity in mixed UseWPF+UseWindowsForms project
 - [Phase 50-01]: SevenSegmentDigit background rect width updated alongside RootCanvas.Width on colon slot to prevent background bleed
+- [Phase 50-wpf-segment-controls]: DispatcherTimer starts only via IsVisibleChanged, never in constructor — prevents timer leak if control created but never shown
+- [Phase 50-wpf-segment-controls]: Visibility.Collapsed (not Hidden) for seconds slots when ShowSeconds=false — ensures StackPanel width is correct for HH:MM mode
 
 ### Pending Todos
 
@@ -71,6 +73,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T02:33:42.357Z
-Stopped at: Completed 50-01-PLAN.md: SevenSegmentDigit UserControl
+Last session: 2026-03-10T02:37:25.472Z
+Stopped at: Completed 50-02-PLAN.md: LcdClockView UserControl
 Resume: `/gsd:plan-phase 48` to start execution
