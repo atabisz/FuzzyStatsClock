@@ -1,0 +1,15 @@
+<UserControl x:Class="FuzzyClock.App.Controls.LcdClockView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FuzzyClock.App.Controls">
+    <StackPanel x:Name="DigitPanel" Orientation="Horizontal">
+        <controls:SevenSegmentDigit x:Name="D0" />
+        <controls:SevenSegmentDigit x:Name="D1" />
+        <controls:SevenSegmentDigit x:Name="Colon1" Character=":" />
+        <controls:SevenSegmentDigit x:Name="D2" />
+        <controls:SevenSegmentDigit x:Name="D3" />
+        <controls:SevenSegmentDigit x:Name="Colon2" Character=":" />
+        <controls:SevenSegmentDigit x:Name="D4" />
+        <controls:SevenSegmentDigit x:Name="D5" />
+    </StackPanel>
+</UserControl>
