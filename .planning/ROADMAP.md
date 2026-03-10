@@ -124,7 +124,7 @@ last_updated: 2026-03-11
 - [x] **Phase 49: SevenSegmentEncoder** — `SevenSegmentEncoder.Encode(char): byte` in FuzzyClock.Core; 7-bit segment masks for digits 0–9, colon, space; 12 unit tests (completed 2026-03-10)
 - [x] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer) (completed 2026-03-10)
 - [x] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults (completed 2026-03-10)
-- [ ] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated
+- [x] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated (completed 2026-03-10)
 
 </details>
 
@@ -182,7 +182,7 @@ Plans:
 
 **Requirements:** F10, F11
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 52-01-PLAN.md — Fix LcdSize/LcdTimeFormatHelper gaps; AppSettings LCD round-trip + absent-field tests; LcdTimeFormatHelperTests
@@ -221,7 +221,7 @@ Plans:
 | 49. SevenSegmentEncoder | v3.3 | 1/1 | Complete | 2026-03-10 |
 | 50. WPF Segment Controls | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 51. App Integration | v3.3 | 2/2 | Complete | 2026-03-10 |
-| 52. Tests + README | 1/2 | In Progress|  | — |
+| 52. Tests + README | 2/2 | Complete   | 2026-03-10 | — |
 
 ---
 *Last updated: 2026-03-11 — Phase 52 planned (2 plans)*

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 52-02-PLAN.md
-last_updated: "2026-03-10T19:52:02.091Z"
+stopped_at: Completed 52-01-PLAN.md
+last_updated: "2026-03-10T19:55:35.131Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 80
 ---
 
@@ -65,6 +65,8 @@ Previous milestone: v3.3 inherits 224 tests (199 Core + 25 App) from v3.2.
 - [Phase 51-app-integration]: TrayMenuCallbacks.SetClockType is required (not optional) — consistent with all other callbacks in the record
 - [Phase 51-app-integration]: LCD rows in SettingsWindow show/hide as a unit via SetLcdRowsVisible() — never toggled individually
 - [Phase 52-tests-readme]: Test count updated to 237 (212 Core + 25 App) based on actual dotnet test output
+- [Phase 52-tests-readme]: LcdTimeFormatHelper changed from internal to public static class — pure logic helper, test access requires public modifier
+- [Phase 52-tests-readme]: LcdSize added with JsonStringEnumConverter for string serialization consistency with LcdTheme
 
 ### Pending Todos
 
@@ -77,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T19:52:02.087Z
-Stopped at: Completed 52-02-PLAN.md
+Last session: 2026-03-10T19:55:35.127Z
+Stopped at: Completed 52-01-PLAN.md
 Resume: `/gsd:plan-phase 48` to start execution
