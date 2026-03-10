@@ -25,6 +25,10 @@ public record AppSettings
     public bool   UptimeVisible        { get; init; } = true;
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public ClockType ClockType         { get; init; } = ClockType.Phrase;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public LcdTheme LcdTheme           { get; init; } = LcdTheme.Green;
+    public bool     LcdUse24Hr         { get; init; } = false;
+    public bool     LcdShowSeconds     { get; init; } = true;
     public bool   ShowHourTicks        { get; init; } = false;
     public bool   ShowMinuteDots       { get; init; } = false;
     public bool   ShowHourNumbers      { get; init; } = false;

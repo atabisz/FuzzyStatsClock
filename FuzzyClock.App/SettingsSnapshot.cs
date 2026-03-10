@@ -11,6 +11,9 @@ internal sealed record SettingsSnapshot
     public double  Opacity                               { get; init; }
     public int     FontSize                              { get; init; }
     public ClockType ClockType                           { get; init; }
+    public LcdTheme  LcdTheme                            { get; init; } = LcdTheme.Green;
+    public bool      LcdUse24Hr                          { get; init; } = false;
+    public bool      LcdShowSeconds                      { get; init; } = true;
     public string  PhraseStyle                           { get; init; } = "Classic";
     public string  PhraseLocale                          { get; init; } = "auto";
     public bool    StatsVisible                          { get; init; }
