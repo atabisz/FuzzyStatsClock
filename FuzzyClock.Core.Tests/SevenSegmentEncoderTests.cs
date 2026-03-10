@@ -26,6 +26,6 @@ public class SevenSegmentEncoderTests
     [TestMethod]
     public void Encode_UnsupportedCharacter_ThrowsArgumentException()
     {
-        Assert.ThrowsException<ArgumentException>(() => SevenSegmentEncoder.Encode('X'));
+        Assert.Throws<ArgumentException>(() => SevenSegmentEncoder.Encode('X'));
     }
 }
