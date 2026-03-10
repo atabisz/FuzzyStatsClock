@@ -168,6 +168,7 @@ public partial class MainWindow : Window
                 OpenSettings    = () => Dispatcher.Invoke(OpenSettings),
                 ResetToDefaults = () => Dispatcher.Invoke(ResetToDefaults),
                 Quit            = () => Dispatcher.Invoke(() => Application.Current.Shutdown()),
+                SetClockType    = ct => Dispatcher.Invoke(() => SetClockType(ct)),
             });
             _trayIcon = _trayMenu.Build(GetCurrentTrayState(), GetCurrentTrayState);
 
@@ -417,6 +418,24 @@ public partial class MainWindow : Window
         _settingsWindow.OpacityChanged        += o => { ClearActiveTheme(); SetOpacity(o); };
         _settingsWindow.FontSizeChanged       += sz => { ClearActiveTheme(); ApplyFontSize(sz); SaveSettings(); };
         _settingsWindow.ClockTypeChanged      += ct => { ClearActiveTheme(); SetClockType(ct); };
+        _settingsWindow.LcdThemeChanged += theme =>
+        {
+            _lcdTheme = theme;
+            if (_clockType == ClockType.Lcd) LcdView.Theme = theme;
+            SaveSettings();
+        };
+        _settingsWindow.LcdUse24HrChanged += use24 =>
+        {
+            _lcdUse24Hr = use24;
+            if (_clockType == ClockType.Lcd) { LcdView.Use24Hr = use24; LcdView.UpdateTime(); }
+            SaveSettings();
+        };
+        _settingsWindow.LcdShowSecondsChanged += show =>
+        {
+            _lcdShowSeconds = show;
+            if (_clockType == ClockType.Lcd) { LcdView.ShowSeconds = show; LcdView.UpdateTime(); }
+            SaveSettings();
+        };
         _settingsWindow.PhraseStyleChanged    += ps => SetPhraseStyle(ps);
         _settingsWindow.LanguageChanged       += locale => SetLanguage(locale);
         _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };

@@ -26,6 +26,7 @@ internal sealed class TrayMenuCallbacks
     public required Action OpenSettings       { get; init; }
     public required Action ResetToDefaults    { get; init; }
     public required Action Quit               { get; init; }
+    public required Action<ClockType> SetClockType { get; init; }
 }
 
 /// <summary>
@@ -41,6 +42,9 @@ internal sealed class TrayMenuBuilder
     private System.Windows.Forms.ToolStripMenuItem _showStatsItem    = null!;
     private System.Windows.Forms.ToolStripMenuItem _autoContrastItem = null!;
     private System.Windows.Forms.ToolStripMenuItem _autoLaunchItem   = null!;
+    private System.Windows.Forms.ToolStripMenuItem _phraseClockItem  = null!;
+    private System.Windows.Forms.ToolStripMenuItem _dialClockItem    = null!;
+    private System.Windows.Forms.ToolStripMenuItem _lcdClockItem     = null!;
 
     public TrayMenuBuilder(TrayMenuCallbacks callbacks) => _cb = callbacks;
 
@@ -89,6 +93,26 @@ internal sealed class TrayMenuBuilder
         openSettingsItem.Click += (_, _) => _cb.OpenSettings();
         menu.Items.Add(openSettingsItem);
         menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+        // Clock Type submenu
+        var clockTypeMenu = new System.Windows.Forms.ToolStripMenuItem("Clock Type");
+
+        _phraseClockItem = new System.Windows.Forms.ToolStripMenuItem("Phrase")
+            { Checked = initialState.ClockType == ClockType.Phrase };
+        _phraseClockItem.Click += (_, _) => _cb.SetClockType(ClockType.Phrase);
+        clockTypeMenu.DropDownItems.Add(_phraseClockItem);
+
+        _dialClockItem = new System.Windows.Forms.ToolStripMenuItem("Dial")
+            { Checked = initialState.ClockType == ClockType.Dial };
+        _dialClockItem.Click += (_, _) => _cb.SetClockType(ClockType.Dial);
+        clockTypeMenu.DropDownItems.Add(_dialClockItem);
+
+        _lcdClockItem = new System.Windows.Forms.ToolStripMenuItem("LCD")
+            { Checked = initialState.ClockType == ClockType.Lcd };
+        _lcdClockItem.Click += (_, _) => _cb.SetClockType(ClockType.Lcd);
+        clockTypeMenu.DropDownItems.Add(_lcdClockItem);
+
+        menu.Items.Add(clockTypeMenu);
 
         // Ghost Mode
         _ghostModeItem = new System.Windows.Forms.ToolStripMenuItem("Ghost Mode")
@@ -158,5 +182,8 @@ internal sealed class TrayMenuBuilder
         _showStatsItem.Checked    = s.StatsVisible;
         _autoContrastItem.Checked = s.AutoContrastEnabled;
         _autoLaunchItem.Checked   = s.AutoLaunchEnabled;
+        _phraseClockItem.Checked  = s.ClockType == ClockType.Phrase;
+        _dialClockItem.Checked    = s.ClockType == ClockType.Dial;
+        _lcdClockItem.Checked     = s.ClockType == ClockType.Lcd;
     }
 }
