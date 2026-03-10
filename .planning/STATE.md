@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 51-01-PLAN.md
-last_updated: "2026-03-10T10:47:13.979Z"
+stopped_at: Completed 51-02-PLAN.md
+last_updated: "2026-03-10T10:48:56.731Z"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 80
 ---
 
@@ -62,6 +62,8 @@ Previous milestone: v3.3 inherits 224 tests (199 Core + 25 App) from v3.2.
 - [Phase 50-wpf-segment-controls]: DispatcherTimer starts only via IsVisibleChanged, never in constructor — prevents timer leak if control created but never shown
 - [Phase 50-wpf-segment-controls]: Visibility.Collapsed (not Hidden) for seconds slots when ShowSeconds=false — ensures StackPanel width is correct for HH:MM mode
 - [Phase 51-app-integration]: LCD foundation wired: LcdClockView in MainWindow with three-way SetClockType, timer guard, and SettingsWindow/tray integration. IsVisibleChanged drives timer, not UpdateTime(). FontSizeToLcdSize maps 16->Small, 24->Medium, 32+->Large.
+- [Phase 51-app-integration]: TrayMenuCallbacks.SetClockType is required (not optional) — consistent with all other callbacks in the record
+- [Phase 51-app-integration]: LCD rows in SettingsWindow show/hide as a unit via SetLcdRowsVisible() — never toggled individually
 
 ### Pending Todos
 
@@ -74,6 +76,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T10:47:13.975Z
-Stopped at: Completed 51-01-PLAN.md
+Last session: 2026-03-10T10:48:46.125Z
+Stopped at: Completed 51-02-PLAN.md
 Resume: `/gsd:plan-phase 48` to start execution
