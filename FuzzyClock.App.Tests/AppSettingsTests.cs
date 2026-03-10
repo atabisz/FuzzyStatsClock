@@ -194,4 +194,33 @@ public class AppSettingsTests
         Assert.AreEqual(LcdSize.Medium, result.LcdSize,
             "LcdSize should default to Medium when absent from JSON");
     }
+
+    // F54: LcdTheme round-trip for new enum values
+
+    [TestMethod]
+    public void RoundTrip_LcdTheme_Vfd()
+    {
+        var original = new AppSettings { LcdTheme = LcdTheme.Vfd };
+        string json  = JsonSerializer.Serialize(original);
+        var result   = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(LcdTheme.Vfd, result.LcdTheme, "Vfd should round-trip via JsonStringEnumConverter");
+    }
+
+    [TestMethod]
+    public void RoundTrip_LcdTheme_LcdGrey()
+    {
+        var original = new AppSettings { LcdTheme = LcdTheme.LcdGrey };
+        string json  = JsonSerializer.Serialize(original);
+        var result   = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(LcdTheme.LcdGrey, result.LcdTheme, "LcdGrey should round-trip via JsonStringEnumConverter");
+    }
+
+    [TestMethod]
+    public void RoundTrip_LcdTheme_Paper()
+    {
+        var original = new AppSettings { LcdTheme = LcdTheme.Paper };
+        string json  = JsonSerializer.Serialize(original);
+        var result   = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(LcdTheme.Paper, result.LcdTheme, "Paper should round-trip via JsonStringEnumConverter");
+    }
 }
