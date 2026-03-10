@@ -87,7 +87,7 @@ dotnet build FuzzyClock.slnx -c Release
 dotnet test FuzzyClock.slnx
 ```
 
-237 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), seven-segment encoder, LCD time format helper, settings validation and migration, and app integration tests.
+245 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), seven-segment encoder, LCD time format helper, settings validation and migration, and app integration tests.
 
 ## Usage
 
