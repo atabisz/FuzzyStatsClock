@@ -1,3 +1,7 @@
+---
+last_updated: 2026-03-10
+---
+
 # Roadmap: Fuzzy Clock
 
 ## Milestones
@@ -118,8 +122,8 @@
 
 - [x] **Phase 48: ClockType Enum Migration** — Replace `bool DialMode` with `ClockType` enum (Phrase/Dial/Lcd) across AppSettings, MainWindow, SettingsWindow, TrayMenuBuilder; JSON backward-compat migration; all 224 existing tests remain green (completed 2026-03-10)
 - [x] **Phase 49: SevenSegmentEncoder** — `SevenSegmentEncoder.Encode(char): byte` in FuzzyClock.Core; 7-bit segment masks for digits 0–9, colon, space; 12 unit tests (completed 2026-03-10)
-- [x] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer) (completed 2026-03-10)
-- [ ] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds/LcdSize); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults
+- [x] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer) (completed 2026-03-10)
+- [ ] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults
 - [ ] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated
 
 </details>
@@ -162,9 +166,15 @@ Plans:
 
 ### Phase 51: App Integration
 
-**Goal:** Wire the LCD clock type into the running application. Add AppSettings fields (ClockType, LcdTheme, LcdUse24Hr, LcdShowSeconds, LcdSize), MainWindow 3-way clock switching with SetClockType(), SettingsWindow LCD button + collapsible LCD options panel, Tray "Clock Type" submenu (Phrase/Dial/LCD checkable), and ResetToDefaults support.
+**Goal:** Wire the LCD clock type into the running application. Add AppSettings fields (LcdTheme, LcdUse24Hr, LcdShowSeconds), MainWindow 3-way clock switching with SetClockType(), SettingsWindow LCD button + collapsible LCD options panel, Tray "Clock Type" submenu (Phrase/Dial/LCD checkable), and ResetToDefaults support.
 
 **Requirements:** F1, F6, F7, F8, F9
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 51-01-PLAN.md — AppSettings/SettingsSnapshot LCD fields + MainWindow LCD wiring (LcdView XAML, SetClockType, timer, ApplySettings, SaveSettings, ResetToDefaults)
+- [ ] 51-02-PLAN.md — SettingsWindow BtnLcd + LCD options rows + TrayMenuBuilder Clock Type submenu
 
 ### Phase 52: Tests + README
 
@@ -202,11 +212,11 @@ Plans:
 | 45. English Phrase Style Personalities | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
-| 48. ClockType Enum Migration | 1/1 | Complete    | 2026-03-10 | — |
-| 49. SevenSegmentEncoder | 1/1 | Complete    | 2026-03-10 | — |
-| 50. WPF Segment Controls | 2/2 | Complete    | 2026-03-10 | — |
-| 51. App Integration | v3.3 | 0/1 | Pending | — |
+| 48. ClockType Enum Migration | v3.3 | 1/1 | Complete | 2026-03-10 |
+| 49. SevenSegmentEncoder | v3.3 | 1/1 | Complete | 2026-03-10 |
+| 50. WPF Segment Controls | v3.3 | 2/2 | Complete | 2026-03-10 |
+| 51. App Integration | v3.3 | 0/2 | Pending | — |
 | 52. Tests + README | v3.3 | 0/1 | Pending | — |
 
 ---
-*Last updated: 2026-03-10 — Phase 50 planned (2 plans)*
+*Last updated: 2026-03-10 — Phase 51 planned (2 plans)*
