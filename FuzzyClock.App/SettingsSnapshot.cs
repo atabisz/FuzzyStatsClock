@@ -14,6 +14,7 @@ internal sealed record SettingsSnapshot
     public LcdTheme  LcdTheme                            { get; init; } = LcdTheme.Green;
     public bool      LcdUse24Hr                          { get; init; } = false;
     public bool      LcdShowSeconds                      { get; init; } = true;
+    public LcdSize   LcdSize                              { get; init; } = LcdSize.Medium;
     public string  PhraseStyle                           { get; init; } = "Classic";
     public string  PhraseLocale                          { get; init; } = "auto";
     public bool    StatsVisible                          { get; init; }
