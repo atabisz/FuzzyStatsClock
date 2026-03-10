@@ -116,7 +116,7 @@
 <details open>
 <summary>v3.3 LCD Clock (Phases 48–52) — IN PROGRESS</summary>
 
-- [x] **Phase 48: ClockType Enum Migration** — Replace `bool DialMode` with `ClockType` enum (Phrase/Dial/Lcd) across AppSettings, MainWindow, SettingsWindow, TrayMenuBuilder; JSON backward-compat migration; all 224 existing tests remain green (completed 2026-03-10)
+- [x] **Phase 48: ClockType Enum Migration** — Replace `bool DialMode` with `ClockType` enum (Phrase/Dial/Lcd) across AppSettings, MainWindow, SettingsWindow, TrayMenuBuilder; JSON backward-compat migration; all 224 existing tests remain green (completed 2026-03-10)
 - [ ] **Phase 49: SevenSegmentEncoder** — `SevenSegmentEncoder.Encode(char): byte` in FuzzyClock.Core; 7-bit segment masks for digits 0–9, colon, space; 12 unit tests
 - [ ] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer)
 - [ ] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds/LcdSize); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults
@@ -142,6 +142,11 @@ Plans:
 **Goal:** Add `SevenSegmentEncoder.Encode(char): byte` to FuzzyClock.Core. Returns a 7-bit segment mask for digits 0–9, colon, and space. 12 MSTest unit tests covering all supported characters plus one unsupported-char exception case.
 
 **Requirements:** F2, F10
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 49-01-PLAN.md — TDD: implement SevenSegmentEncoder static class and 13 test cases
 
 ### Phase 50: WPF Segment Controls
 
