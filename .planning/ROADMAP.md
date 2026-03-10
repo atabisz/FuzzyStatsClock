@@ -25,6 +25,7 @@
 - **v3.0 Date Display** (2026-03-07) — Date line below clock/dial, muted accent color, 4 format options, show/hide tray toggle, persisted. 1 phase, 2 plans. → [Archive](milestones/v3.0-ROADMAP.md)
 - **v3.1 Quality + Battery** (2026-03-08) — Battery stat row, DateFormatter extraction with tests, AppSettings round-trip coverage, README accuracy pass. 4 phases, 6 plans. → [Archive](milestones/v3.1-ROADMAP.md)
 - **v3.2 Expanded Experience** (2026-03-09) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 7 phases (41–47), 16 plans. → [Archive](milestones/v3.2-ROADMAP.md)
+- **v3.3 LCD Clock** (in progress) — 7-segment LCD clock type; WPF-drawn segments; ghost segments; 5 retro color themes; 12/24hr toggle; show/hide seconds; three size variants. 5 phases (48–52).
 
 ## Phases
 
@@ -112,6 +113,17 @@
 
 </details>
 
+<details open>
+<summary>v3.3 LCD Clock (Phases 48–52) — IN PROGRESS</summary>
+
+- [ ] **Phase 48: ClockType Enum Migration** — Replace `bool DialMode` with `ClockType` enum (Phrase/Dial/Lcd) across AppSettings, MainWindow, SettingsWindow, TrayMenuBuilder; JSON backward-compat migration; all 224 existing tests remain green
+- [ ] **Phase 49: SevenSegmentEncoder** — `SevenSegmentEncoder.Encode(char): byte` in FuzzyClock.Core; 7-bit segment masks for digits 0–9, colon, space; 12 unit tests
+- [ ] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer)
+- [ ] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds/LcdSize); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults
+- [ ] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated
+
+</details>
+
 ## Phase Details
 
 *v3.2 phase details archived to [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md)*
@@ -146,6 +158,11 @@
 | 45. English Phrase Style Personalities | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
+| 48. ClockType Enum Migration | v3.3 | 0/1 | Pending | — |
+| 49. SevenSegmentEncoder | v3.3 | 0/1 | Pending | — |
+| 50. WPF Segment Controls | v3.3 | 0/1 | Pending | — |
+| 51. App Integration | v3.3 | 0/1 | Pending | — |
+| 52. Tests + README | v3.3 | 0/1 | Pending | — |
 
 ---
-*Last updated: 2026-03-09 — v3.2 milestone complete*
+*Last updated: 2026-03-10 — v3.3 LCD Clock milestone started*
