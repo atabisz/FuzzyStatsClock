@@ -128,6 +128,39 @@
 
 *v3.2 phase details archived to [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md)*
 
+### Phase 48: ClockType Enum Migration
+
+**Goal:** Replace `bool DialMode` with a `ClockType` enum (Phrase/Dial/Lcd) across AppSettings, MainWindow, SettingsWindow, and TrayMenuBuilder. JSON backward-compat migration handles persisted `"DialMode": true/false`. All 224 existing tests remain green.
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 48-01-PLAN.md — Add ClockType enum, migrate DialMode references across all files, remove bool DialMode
+
+### Phase 49: SevenSegmentEncoder
+
+**Goal:** Add `SevenSegmentEncoder.Encode(char): byte` to FuzzyClock.Core. Returns a 7-bit segment mask for digits 0–9, colon, and space. 12 MSTest unit tests covering all supported characters plus one unsupported-char exception case.
+
+**Requirements:** F2, F10
+
+### Phase 50: WPF Segment Controls
+
+**Goal:** Build `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme color palettes, scales with SegmentHeight) and `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr format, colon slots, 1-second DispatcherTimer) in FuzzyClock.App/Controls/.
+
+**Requirements:** F3, F4, F5
+
+### Phase 51: App Integration
+
+**Goal:** Wire the LCD clock type into the running application. Add AppSettings fields (ClockType, LcdTheme, LcdUse24Hr, LcdShowSeconds, LcdSize), MainWindow 3-way clock switching with SetClockType(), SettingsWindow LCD button + collapsible LCD options panel, Tray "Clock Type" submenu (Phrase/Dial/LCD checkable), and ResetToDefaults support.
+
+**Requirements:** F1, F6, F7, F8, F9
+
+### Phase 52: Tests + README
+
+**Goal:** Add AppSettings round-trip tests for the 5 new fields, LcdTimeFormat helper tests (12/24hr with and without seconds), update README with LCD section, theme/size/format docs, and Nixie backlog note. Update test count.
+
+**Requirements:** F10, F11
+
 
 ## Progress
 
