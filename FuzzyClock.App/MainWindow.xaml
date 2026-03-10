@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FuzzyClock.App"
+        xmlns:controls="clr-namespace:FuzzyClock.App.Controls"
         mc:Ignorable="d"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -94,6 +95,14 @@
                               Stroke="White" StrokeThickness="2"
                               StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                     </Canvas>
+
+                    <!-- LcdClockView: seven-segment LCD display — toggled visible in LCD mode.
+                         Sits in the same inner Grid as PhraseText/DialCanvas; mutually exclusive.
+                         Timer starts/stops automatically via IsVisibleChanged. -->
+                    <controls:LcdClockView x:Name="LcdView"
+                                           Visibility="Collapsed"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
                 </Grid>
             </Border>
 

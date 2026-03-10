@@ -30,6 +30,9 @@ public partial class MainWindow : Window
     private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
     private bool _hasUserPosition = false;
     private ClockType _clockType = ClockType.Phrase;
+    private LcdTheme _lcdTheme       = LcdTheme.Green;
+    private bool     _lcdUse24Hr     = false;
+    private bool     _lcdShowSeconds = true;
     private string _currentTextStyle  = "Classic";
     private string _currentPhraseStyle  = "Classic";
     private string _currentPhraseLocale = "auto";  // "auto" or explicit "en"/"fr"/"es"/"de"/"ja"/"pl"
@@ -97,8 +100,11 @@ public partial class MainWindow : Window
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
             _timer.Tick += (_, _) =>
             {
-                UpdatePhraseIfChanged();
-                if (_clockType == ClockType.Dial) UpdateDialDisplay();
+                if (_clockType != ClockType.Lcd)
+                {
+                    UpdatePhraseIfChanged();
+                    if (_clockType == ClockType.Dial) UpdateDialDisplay();
+                }
                 UpdateDateDisplay();
             };
             _timer.Start();
@@ -221,19 +227,33 @@ public partial class MainWindow : Window
         UptimeText.Visibility = s.UptimeVisible ? Visibility.Visible : Visibility.Collapsed;
 
         // Apply clock type directly (NOT via SetClockType — unsafe before Show(), same invariant as StatsPanel).
+        _lcdTheme       = s.LcdTheme;
+        _lcdUse24Hr     = s.LcdUse24Hr;
+        _lcdShowSeconds = s.LcdShowSeconds;
+
         _clockType = s.ClockType;
+        // Collapse all display areas first
+        PhraseText.Visibility       = Visibility.Collapsed;
+        SplitPhrasePanel.Visibility = Visibility.Collapsed;
+        DialCanvas.Visibility       = Visibility.Collapsed;
+        LcdView.Visibility          = Visibility.Collapsed;
+
         if (s.ClockType == ClockType.Dial)
         {
-            PhraseText.Visibility       = Visibility.Collapsed;
-            SplitPhrasePanel.Visibility = Visibility.Collapsed;
-            DialCanvas.Visibility       = Visibility.Visible;
+            DialCanvas.Visibility = Visibility.Visible;
         }
-        else
+        else if (s.ClockType == ClockType.Lcd)
         {
-            DialCanvas.Visibility = Visibility.Collapsed;
-            // TextStyle visibility handled below after _currentTextStyle is set
-            PhraseText.Visibility = Visibility.Visible;
-            SplitPhrasePanel.Visibility = Visibility.Collapsed;
+            LcdView.Theme       = s.LcdTheme;
+            LcdView.Use24Hr     = s.LcdUse24Hr;
+            LcdView.ShowSeconds = s.LcdShowSeconds;
+            LcdView.Size        = FontSizeToLcdSize(s.FontSize);
+            LcdView.Visibility  = Visibility.Visible;
+            // Do NOT call UpdateTime() — LcdClockView.IsVisibleChanged handles the initial render
+        }
+        else // Phrase — visibility set later in text style block
+        {
+            // PhraseText/SplitPhrasePanel visibility is set by the text style block below in ApplySettings()
         }
 
         _showHourTicks   = s.ShowHourTicks;
@@ -330,13 +350,13 @@ public partial class MainWindow : Window
         EmphasisText.FontSize    = (int)(s.FontSize * 1.40);
 
         // Layout visibility — accounts for ClockType (already applied above in this method)
-        if (s.ClockType != ClockType.Dial)
+        if (s.ClockType == ClockType.Phrase)
         {
             bool isSplitStyle = s.TextStyle == "Split";
             PhraseText.Visibility       = isSplitStyle ? Visibility.Collapsed : Visibility.Visible;
             SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
         }
-        // If s.ClockType == Dial: both PhraseText and SplitPhrasePanel are already Collapsed by the ClockType block above
+        // If s.ClockType == Dial or Lcd: phrase/split panels are already Collapsed by the ClockType block above
 
         // Startup theme restore: set fields only — NEVER call ApplyTheme() here.
         // _hourTickElements etc. are empty until ContentRendered; ApplyTheme() would be a no-op or throw.
@@ -359,6 +379,9 @@ public partial class MainWindow : Window
         Opacity                = _windowOpacity,
         FontSize               = _currentFontSize,
         ClockType              = _clockType,
+        LcdTheme               = _lcdTheme,
+        LcdUse24Hr             = _lcdUse24Hr,
+        LcdShowSeconds         = _lcdShowSeconds,
         PhraseStyle            = _currentPhraseStyle,
         PhraseLocale           = _currentPhraseLocale,
         StatsVisible           = StatsPanel.Visibility == Visibility.Visible,
@@ -466,6 +489,9 @@ public partial class MainWindow : Window
             BatteryVisible       = (BattRow.Visibility   == Visibility.Visible),
             UptimeVisible        = (UptimeText.Visibility == Visibility.Visible),
             ClockType            = _clockType,
+            LcdTheme             = _lcdTheme,
+            LcdUse24Hr           = _lcdUse24Hr,
+            LcdShowSeconds       = _lcdShowSeconds,
             ShowHourTicks        = _showHourTicks,
             ShowMinuteDots       = _showMinuteDots,
             ShowHourNumbers      = _showHourNumbers,
@@ -989,8 +1015,13 @@ public partial class MainWindow : Window
         // Reset font size to small (16pt)
         ApplyFontSize(16);
 
-        // Reset to phrase (text) mode — disable dial if active
+        // Reset to phrase (text) mode — disable dial/lcd if active
         if (_clockType != ClockType.Phrase) SetClockType(ClockType.Phrase);
+
+        // Reset LCD settings to defaults
+        _lcdTheme       = LcdTheme.Green;
+        _lcdUse24Hr     = false;
+        _lcdShowSeconds = true;
 
         // Center on primary screen
         // ActualWidth/ActualHeight are valid at runtime (ContentRendered has already fired)
@@ -1065,24 +1096,43 @@ public partial class MainWindow : Window
     {
         _clockType = clockType;
 
-        if (clockType == ClockType.Dial)
-        {
-            PhraseText.Visibility       = Visibility.Collapsed;
-            SplitPhrasePanel.Visibility = Visibility.Collapsed;
-            DialCanvas.Visibility       = Visibility.Visible;
-        }
-        else
-        {
-            DialCanvas.Visibility = Visibility.Collapsed;
-            bool isSplit = _currentTextStyle == "Split";
-            PhraseText.Visibility       = isSplit ? Visibility.Collapsed : Visibility.Visible;
-            SplitPhrasePanel.Visibility = isSplit ? Visibility.Visible   : Visibility.Collapsed;
-        }
+        // Collapse all display areas first
+        PhraseText.Visibility       = Visibility.Collapsed;
+        SplitPhrasePanel.Visibility = Visibility.Collapsed;
+        DialCanvas.Visibility       = Visibility.Collapsed;
+        LcdView.Visibility          = Visibility.Collapsed;
 
-        if (clockType == ClockType.Dial) UpdateDialDisplay();
+        switch (clockType)
+        {
+            case ClockType.Dial:
+                DialCanvas.Visibility = Visibility.Visible;
+                UpdateDialDisplay();
+                break;
+            case ClockType.Lcd:
+                LcdView.Theme       = _lcdTheme;
+                LcdView.Use24Hr     = _lcdUse24Hr;
+                LcdView.ShowSeconds = _lcdShowSeconds;
+                LcdView.Size        = FontSizeToLcdSize(_currentFontSize);
+                LcdView.Visibility  = Visibility.Visible;
+                // Do NOT call UpdateTime() — IsVisibleChanged fires automatically
+                break;
+            default: // Phrase
+                bool isSplit = _currentTextStyle == "Split";
+                PhraseText.Visibility       = isSplit ? Visibility.Collapsed : Visibility.Visible;
+                SplitPhrasePanel.Visibility = isSplit ? Visibility.Visible   : Visibility.Collapsed;
+                break;
+        }
 
         SaveSettings();
     }
+
+    private static LcdSize FontSizeToLcdSize(int fontSize) => fontSize switch
+    {
+        16 => LcdSize.Small,
+        24 => LcdSize.Medium,
+        32 => LcdSize.Large,
+        _  => LcdSize.Large,  // 40pt caps at Large (64px); no XLarge enum value
+    };
 
     private void SetShowHourTicks(bool show)
     {
