@@ -235,13 +235,13 @@ Plans:
 | 51. App Integration | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 52. Tests + README | 3/3 | Complete    | 2026-03-10 | — |
 | 53. v3.3 LCD Tech Debt Cleanup | 1/1 | Complete    | 2026-03-10 | — |
-| 54. Additional LCD Themes | 1/3 | In Progress|  | — |
+| 54. Additional LCD Themes | 2/3 | In Progress|  | — |
 
 ### Phase 54: Additional LCD Themes
 
 **Goal:** Expand the LCD theme palette from 5 to 17 themes. Add 12 new `LcdTheme` enum values (Vfd, Nixie, Magenta, Purple, Cyan, Lime, Cream, Ice, Mint, Lavender, LcdGrey, Paper), corresponding `LcdPalette.Get()` cases, replace the SettingsWindow ComboBox with a WrapPanel swatch row, add 3 round-trip tests, and update README.
 **Depends on:** Phase 53
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 54-01-PLAN.md — Extend LcdTheme enum (17 values) and LcdPalette.Get() switch (17 cases)
