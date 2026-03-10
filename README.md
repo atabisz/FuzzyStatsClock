@@ -35,13 +35,13 @@ A retro 7-segment LCD clock type, rendered entirely with WPF polygon geometry (n
 
 ### Themes
 
-| Theme | Lit color | Background |
-|-------|-----------|------------|
-| Green | `#00FF41` | `#001A00`  |
-| Amber | `#FFAA00` | `#1A0A00`  |
-| Blue  | `#00CFFF` | `#00001A`  |
-| Teal  | `#00B4B4` | `#001010`  |
-| Red   | `#FF2200` | `#1A0000`  |
+| Theme | Lit color | Ghost color | Background |
+|-------|-----------|-------------|------------|
+| Green | `#00FF41` | `#003310`   | `#001A00`  |
+| Amber | `#FFAA00` | `#3D2800`   | `#1A0A00`  |
+| Blue  | `#00CFFF` | `#002A35`   | `#00001A`  |
+| Teal  | `#00B4B4` | `#002525`   | `#001010`  |
+| Red   | `#FF2200` | `#380800`   | `#1A0000`  |
 
 Ghost (inactive) segments are always visible at a dimmed color — a hallmark of real LCD hardware.
 
