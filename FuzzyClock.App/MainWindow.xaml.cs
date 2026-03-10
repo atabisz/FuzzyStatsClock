@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     private string _currentMonitorKey = "";      // monitor key for the screen currently hosting the window
     private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
     private bool _hasUserPosition = false;
-    private bool _dialMode;
+    private ClockType _clockType = ClockType.Phrase;
     private string _currentTextStyle  = "Classic";
     private string _currentPhraseStyle  = "Classic";
     private string _currentPhraseLocale = "auto";  // "auto" or explicit "en"/"fr"/"es"/"de"/"ja"/"pl"
@@ -98,7 +98,7 @@ public partial class MainWindow : Window
             _timer.Tick += (_, _) =>
             {
                 UpdatePhraseIfChanged();
-                if (_dialMode) UpdateDialDisplay();
+                if (_clockType == ClockType.Dial) UpdateDialDisplay();
                 UpdateDateDisplay();
             };
             _timer.Start();
@@ -125,7 +125,7 @@ public partial class MainWindow : Window
                 UpdateStatsDisplay();
             }
 
-            if (_dialMode) UpdateDialDisplay();
+            if (_clockType == ClockType.Dial) UpdateDialDisplay();
             InitDialDecorations();
             ApplyTheme();            // must come AFTER InitDialDecorations() — decoration lists are empty before this point
             UpdateDateDisplay();     // set initial date text (timer hasn't fired yet)
@@ -220,9 +220,9 @@ public partial class MainWindow : Window
         // UptimeText is inside StatsPanel; StatsPanel.Collapsed hides it automatically.
         UptimeText.Visibility = s.UptimeVisible ? Visibility.Visible : Visibility.Collapsed;
 
-        // Apply dial mode directly (NOT via SetDialMode — unsafe before Show(), same invariant as StatsPanel).
-        _dialMode = s.DialMode;
-        if (s.DialMode)
+        // Apply clock type directly (NOT via SetClockType — unsafe before Show(), same invariant as StatsPanel).
+        _clockType = s.ClockType;
+        if (s.ClockType == ClockType.Dial)
         {
             PhraseText.Visibility       = Visibility.Collapsed;
             SplitPhrasePanel.Visibility = Visibility.Collapsed;
@@ -329,14 +329,14 @@ public partial class MainWindow : Window
         QualifierText.FontSize   = (int)(s.FontSize * 0.65);
         EmphasisText.FontSize    = (int)(s.FontSize * 1.40);
 
-        // Layout visibility — accounts for DialMode (already applied above in this method)
-        if (!s.DialMode)
+        // Layout visibility — accounts for ClockType (already applied above in this method)
+        if (s.ClockType != ClockType.Dial)
         {
             bool isSplitStyle = s.TextStyle == "Split";
             PhraseText.Visibility       = isSplitStyle ? Visibility.Collapsed : Visibility.Visible;
             SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
         }
-        // If s.DialMode is true: both PhraseText and SplitPhrasePanel are already Collapsed by the DialMode block above
+        // If s.ClockType == Dial: both PhraseText and SplitPhrasePanel are already Collapsed by the ClockType block above
 
         // Startup theme restore: set fields only — NEVER call ApplyTheme() here.
         // _hourTickElements etc. are empty until ContentRendered; ApplyTheme() would be a no-op or throw.
@@ -347,7 +347,7 @@ public partial class MainWindow : Window
             _accentColor     = savedTheme.AccentColor;
             _windowOpacity   = savedTheme.Opacity;
             _currentFontSize = savedTheme.FontSize;
-            _dialMode        = savedTheme.DialMode;
+            _clockType       = savedTheme.ClockType;
             // StatsVisible already applied earlier from s.StatsVisible
             // (the theme's StatsVisible was persisted to s.StatsVisible at save time)
         }
@@ -358,7 +358,7 @@ public partial class MainWindow : Window
         AccentColor            = _accentColor,
         Opacity                = _windowOpacity,
         FontSize               = _currentFontSize,
-        DialMode               = _dialMode,
+        ClockType              = _clockType,
         PhraseStyle            = _currentPhraseStyle,
         PhraseLocale           = _currentPhraseLocale,
         StatsVisible           = StatsPanel.Visibility == Visibility.Visible,
@@ -393,7 +393,7 @@ public partial class MainWindow : Window
         _settingsWindow.AccentColorChanged    += c => { ClearActiveTheme(); SetAccentColor(c); };
         _settingsWindow.OpacityChanged        += o => { ClearActiveTheme(); SetOpacity(o); };
         _settingsWindow.FontSizeChanged       += sz => { ClearActiveTheme(); ApplyFontSize(sz); SaveSettings(); };
-        _settingsWindow.DialModeChanged       += d => { ClearActiveTheme(); SetDialMode(d); };
+        _settingsWindow.ClockTypeChanged      += ct => { ClearActiveTheme(); SetClockType(ct); };
         _settingsWindow.PhraseStyleChanged    += ps => SetPhraseStyle(ps);
         _settingsWindow.LanguageChanged       += locale => SetLanguage(locale);
         _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
@@ -464,7 +464,7 @@ public partial class MainWindow : Window
             PagVisible           = (PagRow.Visibility    == Visibility.Visible),
             BatteryVisible       = (BattRow.Visibility   == Visibility.Visible),
             UptimeVisible        = (UptimeText.Visibility == Visibility.Visible),
-            DialMode             = _dialMode,
+            ClockType            = _clockType,
             ShowHourTicks        = _showHourTicks,
             ShowMinuteDots       = _showMinuteDots,
             ShowHourNumbers      = _showHourNumbers,
@@ -989,7 +989,7 @@ public partial class MainWindow : Window
         ApplyFontSize(16);
 
         // Reset to phrase (text) mode — disable dial if active
-        if (_dialMode) SetDialMode(false);
+        if (_clockType != ClockType.Phrase) SetClockType(ClockType.Phrase);
 
         // Center on primary screen
         // ActualWidth/ActualHeight are valid at runtime (ContentRendered has already fired)
@@ -1038,12 +1038,12 @@ public partial class MainWindow : Window
         _currentTheme = theme.Name;
 
         // Apply all theme properties using existing setters.
-        // SetAccentColor, SetOpacity, SetDialMode call SaveSettings() internally.
+        // SetAccentColor, SetOpacity, SetClockType call SaveSettings() internally.
         // ApplyFontSize and SetStatsVisible do NOT — the final SaveSettings() below covers them.
         SetAccentColor(theme.AccentColor);
         SetOpacity(theme.Opacity);
         ApplyFontSize(theme.FontSize);
-        SetDialMode(theme.DialMode);
+        SetClockType(theme.ClockType);
         SetStatsVisible(theme.StatsVisible);
 
         // Final save to persist Theme field and any unsaved property changes.
@@ -1060,11 +1060,11 @@ public partial class MainWindow : Window
     }
 
 
-    private void SetDialMode(bool dialMode)
+    private void SetClockType(ClockType clockType)
     {
-        _dialMode = dialMode;
+        _clockType = clockType;
 
-        if (dialMode)
+        if (clockType == ClockType.Dial)
         {
             PhraseText.Visibility       = Visibility.Collapsed;
             SplitPhrasePanel.Visibility = Visibility.Collapsed;
@@ -1078,7 +1078,7 @@ public partial class MainWindow : Window
             SplitPhrasePanel.Visibility = isSplit ? Visibility.Visible   : Visibility.Collapsed;
         }
 
-        if (dialMode) UpdateDialDisplay();
+        if (clockType == ClockType.Dial) UpdateDialDisplay();
 
         SaveSettings();
     }
@@ -1187,7 +1187,7 @@ public partial class MainWindow : Window
 
         // Layout visibility: split modes show SplitPhrasePanel; inline modes show PhraseText
         // (no changes when dial mode is active — dial hides all phrase elements)
-        if (!_dialMode)
+        if (_clockType != ClockType.Dial)
         {
             bool isSplit = style == "Split";
             PhraseText.Visibility       = isSplit ? Visibility.Collapsed : Visibility.Visible;
@@ -1422,7 +1422,7 @@ public partial class MainWindow : Window
 
     private void UpdateDialDisplay()
     {
-        if (!_dialMode) return;
+        if (_clockType != ClockType.Dial) return;
 
         var now    = DateTime.Now;
         int hour   = now.Hour;

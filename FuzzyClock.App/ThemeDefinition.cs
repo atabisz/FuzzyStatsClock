@@ -10,7 +10,7 @@ internal record ThemeDefinition
     public required Color  AccentColor  { get; init; }
     public required double Opacity      { get; init; }
     public required int    FontSize     { get; init; }
-    public required bool   DialMode     { get; init; }
+    public required ClockType ClockType  { get; init; }
     public required bool   StatsVisible { get; init; }
 }
 
@@ -26,7 +26,7 @@ internal static class BuiltInThemes
                 AccentColor  = Color.FromArgb(0xFF, 0x6A, 0x7F, 0xDB),
                 Opacity      = 0.85,
                 FontSize     = 32,
-                DialMode     = false,
+                ClockType    = ClockType.Phrase,
                 StatsVisible = false,
             },
             ["Neon"] = new ThemeDefinition
@@ -35,7 +35,7 @@ internal static class BuiltInThemes
                 AccentColor  = Color.FromArgb(0xFF, 0x00, 0xF5, 0xD4),
                 Opacity      = 1.0,
                 FontSize     = 32,
-                DialMode     = true,
+                ClockType    = ClockType.Dial,
                 StatsVisible = true,
             },
             ["Ghost"] = new ThemeDefinition
@@ -44,7 +44,7 @@ internal static class BuiltInThemes
                 AccentColor  = Color.FromArgb(0xFF, 0xC0, 0xC8, 0xD8),
                 Opacity      = 0.35,
                 FontSize     = 24,
-                DialMode     = false,
+                ClockType    = ClockType.Phrase,
                 StatsVisible = false,
             },
             ["Warm"] = new ThemeDefinition
@@ -53,7 +53,7 @@ internal static class BuiltInThemes
                 AccentColor  = Color.FromArgb(0xFF, 0xF4, 0xA2, 0x61),
                 Opacity      = 0.90,
                 FontSize     = 32,
-                DialMode     = false,
+                ClockType    = ClockType.Phrase,
                 StatsVisible = true,
             },
             ["Terminal"] = new ThemeDefinition
@@ -62,7 +62,7 @@ internal static class BuiltInThemes
                 AccentColor  = Color.FromArgb(0xFF, 0x39, 0xFF, 0x14),
                 Opacity      = 0.95,
                 FontSize     = 24,
-                DialMode     = true,
+                ClockType    = ClockType.Dial,
                 StatsVisible = true,
             },
         };

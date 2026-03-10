@@ -23,7 +23,7 @@ public sealed partial class SettingsWindow : Window
     public event Action<Color>?  AccentColorChanged;
     public event Action<double>? OpacityChanged;
     public event Action<int>?    FontSizeChanged;
-    public event Action<bool>?   DialModeChanged;
+    public event Action<ClockType>? ClockTypeChanged;
     public event Action<string>? PhraseStyleChanged;
     public event Action<bool>?   StatsVisibleChanged;
     public event Action<bool>?   CpuVisibleChanged;
@@ -72,7 +72,7 @@ public sealed partial class SettingsWindow : Window
 
         // Font size / clock style toggle buttons
         SetFontSizeButtonStates(s.FontSize);
-        SetClockStyleButtonStates(s.DialMode);
+        SetClockStyleButtonStates(s.ClockType);
 
         // Phrase language combo
         string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
@@ -180,10 +180,11 @@ public sealed partial class SettingsWindow : Window
         BtnFontXL.Tag = size == 40 ? "selected" : null;
     }
 
-    private void SetClockStyleButtonStates(bool dialMode)
+    private void SetClockStyleButtonStates(ClockType clockType)
     {
-        BtnPhrase.Tag = !dialMode ? "selected" : null;
-        BtnDial.Tag   =  dialMode ? "selected" : null;
+        BtnPhrase.Tag = clockType == ClockType.Phrase ? "selected" : null;
+        BtnDial.Tag   = clockType == ClockType.Dial   ? "selected" : null;
+        // BtnLcd added in Phase 51
     }
 
     private void SetActiveSwatch(Border? activeRing)
@@ -367,15 +368,15 @@ public sealed partial class SettingsWindow : Window
     private void BtnPhrase_Click(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        SetClockStyleButtonStates(false);
-        DialModeChanged?.Invoke(false);
+        SetClockStyleButtonStates(ClockType.Phrase);
+        ClockTypeChanged?.Invoke(ClockType.Phrase);
     }
 
     private void BtnDial_Click(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        SetClockStyleButtonStates(true);
-        DialModeChanged?.Invoke(true);
+        SetClockStyleButtonStates(ClockType.Dial);
+        ClockTypeChanged?.Invoke(ClockType.Dial);
     }
 
     // ── Phrase style combo ────────────────────────────────────────────────

@@ -10,7 +10,7 @@ internal sealed record SettingsSnapshot
     public System.Windows.Media.Color AccentColor        { get; init; }
     public double  Opacity                               { get; init; }
     public int     FontSize                              { get; init; }
-    public bool    DialMode                              { get; init; }
+    public ClockType ClockType                           { get; init; }
     public string  PhraseStyle                           { get; init; } = "Classic";
     public string  PhraseLocale                          { get; init; } = "auto";
     public bool    StatsVisible                          { get; init; }
