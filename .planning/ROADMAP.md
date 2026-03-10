@@ -234,7 +234,7 @@ Plans:
 | 50. WPF Segment Controls | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 51. App Integration | v3.3 | 2/2 | Complete | 2026-03-10 |
 | 52. Tests + README | 3/3 | Complete    | 2026-03-10 | — |
-| 53. v3.3 LCD Tech Debt Cleanup | 1/1 | Complete   | 2026-03-10 | — |
+| 53. v3.3 LCD Tech Debt Cleanup | 1/1 | Complete    | 2026-03-10 | — |
 
 ---
 *Last updated: 2026-03-11 — Phase 53 added (gap closure from v3.3 audit)*
