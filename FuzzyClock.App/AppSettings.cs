@@ -23,7 +23,6 @@ public record AppSettings
     public bool   PagVisible           { get; init; } = true;
     public bool   BatteryVisible       { get; init; } = true;
     public bool   UptimeVisible        { get; init; } = true;
-    public bool   DialMode             { get; init; } = false;
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public ClockType ClockType         { get; init; } = ClockType.Phrase;
     public bool   ShowHourTicks        { get; init; } = false;

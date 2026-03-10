@@ -10,6 +10,7 @@ internal sealed record TrayMenuState
     public bool StatsVisible        { get; init; }
     public bool AutoContrastEnabled { get; init; }
     public bool AutoLaunchEnabled   { get; init; }
+    public ClockType ClockType      { get; init; } = ClockType.Phrase;
 }
 
 /// <summary>

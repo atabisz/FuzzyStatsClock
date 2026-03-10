@@ -123,7 +123,7 @@ public static class SettingsService
         FontSize = 32,
         StatsVisible = false, StatsIntervalSeconds = 3,
         CpuVisible = true, GpuVisible = true, MemVisible = true,
-        PagVisible = true, BatteryVisible = true, UptimeVisible = true, DialMode = false,
+        PagVisible = true, BatteryVisible = true, UptimeVisible = true,
         ClockType = ClockType.Phrase,
         ShowHourTicks = false, ShowMinuteDots = false, ShowHourNumbers = false,
         AccentColor = "#FFFFFFFF",

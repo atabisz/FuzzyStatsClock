@@ -33,7 +33,7 @@ public class AppSettingsTests
             MemVisible           = false,
             PagVisible           = false,
             UptimeVisible        = false,
-            DialMode             = true,
+            ClockType            = ClockType.Dial,
             ShowHourTicks        = true,
             ShowMinuteDots       = true,
             ShowHourNumbers      = true,
@@ -61,7 +61,7 @@ public class AppSettingsTests
         Assert.AreEqual(original.MemVisible,           result.MemVisible,                        "MemVisible");
         Assert.AreEqual(original.PagVisible,           result.PagVisible,                        "PagVisible");
         Assert.AreEqual(original.UptimeVisible,        result.UptimeVisible,                     "UptimeVisible");
-        Assert.AreEqual(original.DialMode,             result.DialMode,                          "DialMode");
+        Assert.AreEqual(original.ClockType,             result.ClockType,                         "ClockType");
         Assert.AreEqual(original.ShowHourTicks,        result.ShowHourTicks,                     "ShowHourTicks");
         Assert.AreEqual(original.ShowMinuteDots,       result.ShowMinuteDots,                    "ShowMinuteDots");
         Assert.AreEqual(original.ShowHourNumbers,      result.ShowHourNumbers,                   "ShowHourNumbers");
@@ -81,7 +81,7 @@ public class AppSettingsTests
     public void Deserialize_MissingUptimeVisible_DefaultsToTrue()
     {
         // JSON from a hypothetical older settings file that predates UptimeVisible.
-        // Left/Top are ignored (unknown fields are silently skipped by System.Text.Json).
+        // "DialMode" is now a legacy field (removed in Phase 48); System.Text.Json silently ignores unknown fields.
         const string json = """{"FontSize":32,"StatsVisible":false,"StatsIntervalSeconds":3,"CpuVisible":true,"GpuVisible":true,"MemVisible":true,"PagVisible":true,"DialMode":false,"ShowHourTicks":false,"ShowMinuteDots":false,"ShowHourNumbers":false,"AccentColor":"#FFFFFFFF","Opacity":1.0,"GhostModeEnabled":true}""";
 
         var result = JsonSerializer.Deserialize<AppSettings>(json)!;

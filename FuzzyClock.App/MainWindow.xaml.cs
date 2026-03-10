@@ -435,6 +435,7 @@ public partial class MainWindow : Window
         StatsVisible        = StatsPanel.Visibility == Visibility.Visible,
         AutoContrastEnabled = _contrast.IsEnabled,
         AutoLaunchEnabled   = _autoLaunchEnabled,
+        ClockType           = _clockType,
     };
 
     /// <summary>
