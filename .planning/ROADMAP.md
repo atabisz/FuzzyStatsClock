@@ -133,7 +133,7 @@ last_updated: 2026-03-11
 
 ### v3.4 Personalities & Nixie (Phases 55–57) — IN PROGRESS
 
-- [ ] **Phase 55: Phrase Personalities** - Rude 2.0 rewrite + 6 new English personality providers (Pirate, Dwarf, Jive, Valley Girl, Yoda, Shakespearean); all registered in PhraseEngine, wired in Settings ComboBox, and test-covered
+- [x] **Phase 55: Phrase Personalities** - Rude 2.0 rewrite + 6 new English personality providers (Pirate, Dwarf, Jive, Valley Girl, Yoda, Shakespearean); all registered in PhraseEngine, wired in Settings ComboBox, and test-covered (265 tests passing)
 - [ ] **Phase 56: Nixie Tube Clock** - NixieClockView + NixieDigit WPF UserControls; warm orange glow via stacked RadialGradientBrush (no UIElement.Effect); stacked ghost cathodes; glass tube border; wire mesh overlay; ClockType.Nixie as 4th enum value; full integration in Settings and tray
 - [ ] **Phase 57: Dial Enhancements** - Parametric dial geometry refactor (no more literal 40.0 center); round/oval shape toggle; dial canvas size scales with font size setting; AppSettings.DialShape persisted
 
@@ -154,9 +154,9 @@ last_updated: 2026-03-11
   5. All 7 new/rewritten providers have at least 2 passing test methods each verifying distinct phrase samples
 **Plans**: 3 plans
 Plans:
-- [ ] 55-01-PLAN.md — Rude 2.0 rewrite + 6 new provider classes (FuzzyClock.Core)
-- [ ] 55-02-PLAN.md — PhraseEngine registration, MainWindow routing, SettingsWindow wiring, Validate() guard
-- [ ] 55-03-PLAN.md — Updated Rude tests + 6 new provider test classes
+- [x] 55-01-PLAN.md — Rude 2.0 rewrite + 6 new provider classes (FuzzyClock.Core)
+- [x] 55-02-PLAN.md — PhraseEngine registration, MainWindow routing, SettingsWindow wiring, Validate() guard
+- [x] 55-03-PLAN.md — Updated Rude tests + 6 new provider test classes
 
 ### Phase 56: Nixie Tube Clock
 **Goal**: Users can select a Nixie tube clock as a fourth clock type that renders a retro warm-orange digit display entirely from WPF vector primitives
@@ -216,9 +216,9 @@ Plans:
 | 52. Tests + README | v3.3 | 3/3 | Complete | 2026-03-10 |
 | 53. v3.3 LCD Tech Debt Cleanup | v3.3 | 1/1 | Complete | 2026-03-10 |
 | 54. Additional LCD Themes | v3.3 | 3/3 | Complete | 2026-03-11 |
-| 55. Phrase Personalities | 2/3 | In Progress|  | - |
+| 55. Phrase Personalities | v3.4 | 3/3 | Complete | 2026-03-11 |
 | 56. Nixie Tube Clock | v3.4 | 0/? | Not started | - |
 | 57. Dial Enhancements | v3.4 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-11 — v3.4 roadmap created*
+*Last updated: 2026-03-11 — Phase 55 complete (265 tests passing)*
