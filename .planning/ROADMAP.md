@@ -168,7 +168,11 @@ Plans:
   3. All 10 ghost cathode digits are visible behind the active digit as faint stacked shadows
   4. Each digit slot is enclosed in a rounded glass tube border with a faint wire mesh overlay
   5. Selecting Nixie type, closing and reopening the widget restores Nixie — the ClockType.Nixie value round-trips through settings.json
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 56-01-PLAN.md — NixieDigit + NixieClockView UserControls + NixieSizeMap helper (WPF render core)
+- [ ] 56-02-PLAN.md — ClockType.Nixie enum + full integration (MainWindow 5 sites, SettingsWindow, TrayMenuBuilder)
+- [ ] 56-03-PLAN.md — NixieSizeMap unit tests + visual review checkpoint
 
 ### Phase 57: Dial Enhancements
 **Goal**: Users can choose between round and oval dial shapes, and the dial canvas scales automatically with the font size setting
@@ -217,8 +221,8 @@ Plans:
 | 53. v3.3 LCD Tech Debt Cleanup | v3.3 | 1/1 | Complete | 2026-03-10 |
 | 54. Additional LCD Themes | v3.3 | 3/3 | Complete | 2026-03-11 |
 | 55. Phrase Personalities | v3.4 | Complete    | 2026-03-11 | 2026-03-11 |
-| 56. Nixie Tube Clock | v3.4 | 0/? | Not started | - |
+| 56. Nixie Tube Clock | v3.4 | 0/3 | Not started | - |
 | 57. Dial Enhancements | v3.4 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-11 — Phase 55 complete (265 tests passing)*
+*Last updated: 2026-03-11 — Phase 56 planned (3 plans)*
