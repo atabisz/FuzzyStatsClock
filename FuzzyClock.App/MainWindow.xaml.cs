@@ -100,7 +100,7 @@ public partial class MainWindow : Window
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
             _timer.Tick += (_, _) =>
             {
-                if (_clockType != ClockType.Lcd)
+                if (_clockType != ClockType.Lcd && _clockType != ClockType.Nixie)
                 {
                     UpdatePhraseIfChanged();
                     if (_clockType == ClockType.Dial) UpdateDialDisplay();
@@ -238,6 +238,7 @@ public partial class MainWindow : Window
         SplitPhrasePanel.Visibility = Visibility.Collapsed;
         DialCanvas.Visibility       = Visibility.Collapsed;
         LcdView.Visibility          = Visibility.Collapsed;
+        NixieView.Visibility        = Visibility.Collapsed;
 
         if (s.ClockType == ClockType.Dial)
         {
@@ -251,6 +252,12 @@ public partial class MainWindow : Window
             LcdView.Size        = FontSizeToLcdSize(s.FontSize);
             LcdView.Visibility  = Visibility.Visible;
             // Do NOT call UpdateTime() — LcdClockView.IsVisibleChanged handles the initial render
+        }
+        else if (s.ClockType == ClockType.Nixie)
+        {
+            NixieView.Size       = FontSizeToLcdSize(s.FontSize);
+            NixieView.Visibility = Visibility.Visible;
+            // Do NOT call UpdateTime() — NixieClockView.IsVisibleChanged handles the initial render
         }
         else // Phrase — visibility set later in text style block
         {
@@ -369,7 +376,7 @@ public partial class MainWindow : Window
             PhraseText.Visibility       = isSplitStyle ? Visibility.Collapsed : Visibility.Visible;
             SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
         }
-        // If s.ClockType == Dial or Lcd: phrase/split panels are already Collapsed by the ClockType block above
+        // If s.ClockType == Dial, Lcd, or Nixie: phrase/split panels are already Collapsed by the ClockType block above
 
         // Startup theme restore: set fields only — NEVER call ApplyTheme() here.
         // _hourTickElements etc. are empty until ContentRendered; ApplyTheme() would be a no-op or throw.
@@ -1017,6 +1024,7 @@ public partial class MainWindow : Window
         EmphasisText.FontSize  = (int)(size * 1.40);
         DateText.FontSize      = (int)(size * 0.80);
         LcdView.Size           = FontSizeToLcdSize(size);
+        NixieView.Size         = FontSizeToLcdSize(size);
         // Re-clamp: font size change resizes window (SizeToContent=WidthAndHeight).
         // Must call UpdateLayout() before Clamp() — ActualWidth/ActualHeight are stale until layout runs.
         UpdateLayout();
@@ -1138,6 +1146,7 @@ public partial class MainWindow : Window
         SplitPhrasePanel.Visibility = Visibility.Collapsed;
         DialCanvas.Visibility       = Visibility.Collapsed;
         LcdView.Visibility          = Visibility.Collapsed;
+        NixieView.Visibility        = Visibility.Collapsed;
 
         switch (clockType)
         {
@@ -1151,6 +1160,11 @@ public partial class MainWindow : Window
                 LcdView.ShowSeconds = _lcdShowSeconds;
                 LcdView.Size        = FontSizeToLcdSize(_currentFontSize);
                 LcdView.Visibility  = Visibility.Visible;
+                // Do NOT call UpdateTime() — IsVisibleChanged fires automatically
+                break;
+            case ClockType.Nixie:
+                NixieView.Size       = FontSizeToLcdSize(_currentFontSize);
+                NixieView.Visibility = Visibility.Visible;
                 // Do NOT call UpdateTime() — IsVisibleChanged fires automatically
                 break;
             default: // Phrase

@@ -103,6 +103,14 @@
                                            Visibility="Collapsed"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"/>
+
+                    <!-- NixieClockView: nixie tube display — toggled visible in Nixie mode.
+                         Sits in the same inner Grid as the other displays; mutually exclusive.
+                         Manages its own internal DispatcherTimer via IsVisibleChanged. -->
+                    <controls:NixieClockView x:Name="NixieView"
+                                             Visibility="Collapsed"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center"/>
                 </Grid>
             </Border>
 

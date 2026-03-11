@@ -4,5 +4,6 @@ public enum ClockType
 {
     Phrase,
     Dial,
-    Lcd
+    Lcd,
+    Nixie
 }
