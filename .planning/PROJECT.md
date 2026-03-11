@@ -8,7 +8,20 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v3.4 Personalities & Nixie
+
+**Goal:** Expand phrase vocabulary with 7 new personality styles, add a visually distinct Nixie tube clock face, and add dial shape/size options.
+
+**Target features:**
+- Rude style rewritten with internet lingo (WTF, dafaq, etc.)
+- New phrase styles: Pirate, Dwarf, Jive, Valley Girl, Yoda, Shakespearean
+- Nixie tube clock (4th ClockType) with glow bloom, stacked digit shadows, glass tube border, wire mesh overlay
+- Dial shape option (round / oval) in Settings Appearance tab
+- Dial size scales with Font Size setting
+
 ## Current State
+
+**v3.4 started: 2026-03-11** — Personalities & Nixie milestone in progress
 
 **v3.3 shipped: 2026-03-11** — 7-segment LCD clock (3rd clock type); 17 LCD themes with swatch UI; ClockType enum migration; SevenSegmentDigit + LcdClockView WPF controls; WPF-drawn polygon segments; ghost segments; 12/24hr + seconds; 3 size variants
 
@@ -204,6 +217,30 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ UTEST-04: `SevenSegmentEncoder` unit tests — 13 cases covering digits 0–9, colon, space, unsupported-char exception — v3.3
 - ✓ STEST-09: AppSettings round-trip tests for LcdTheme, LcdUse24Hr, LcdShowSeconds, LcdSize; absent-field defaults verified — v3.3
 
+### Active
+
+<!-- v3.4 scope — building toward these -->
+
+- [ ] PHRASE-01: Rude style uses internet-slang vocabulary (WTF, dafaq, tf, etc.)
+- [ ] PHRASE-02: User can select Pirate phrase style
+- [ ] PHRASE-03: User can select Dwarf phrase style
+- [ ] PHRASE-04: User can select Jive phrase style (1940s Harlem Jive)
+- [ ] PHRASE-05: User can select Valley Girl phrase style
+- [ ] PHRASE-06: User can select Yoda phrase style
+- [ ] PHRASE-07: User can select Shakespearean phrase style
+- [ ] PHRASE-08: All new styles appear in Settings and persist across restarts
+- [ ] PHRASE-09: Tests cover each new style (≥ 2 phrase samples per provider)
+- [ ] NIXIE-01: User can select Nixie as a fourth clock type
+- [ ] NIXIE-02: Nixie digits show warm orange glow/bloom around active digits
+- [ ] NIXIE-03: All 10 digit ghost cathodes visible behind active digit (stacked shadow)
+- [ ] NIXIE-04: Each digit slot enclosed in a glass tube border
+- [ ] NIXIE-05: Faint wire mesh / anode grid texture overlays each digit slot
+- [ ] NIXIE-06: Nixie available in Settings window and tray Clock Type submenu
+- [ ] NIXIE-07: Nixie clock type persists across restarts
+- [ ] DIAL-01: User can select round or oval dial shape in Settings Appearance tab
+- [ ] DIAL-02: Dial size scales with Font Size setting (Small/Medium/Large)
+- [ ] DIAL-03: Dial shape preference persists across restarts
+
 ### Deferred (v2+)
 
 - WIN-07: Widget snaps to screen edges when dragged near them
@@ -359,4 +396,4 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | WrapPanel swatch row replaces ComboBox for theme picker | 17 themes in a ComboBox is unusable (no color preview, too many items to scan); color swatches are the standard LCD theme picker pattern | ✓ Validated — swatch row visually shows all 17 themes at once in a compact 4-row wrap |
 
 ---
-*Last updated: 2026-03-11 after v3.3 milestone*
+*Last updated: 2026-03-11 after v3.4 milestone start*

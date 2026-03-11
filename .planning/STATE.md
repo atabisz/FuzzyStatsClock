@@ -1,44 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.3
-milestone_name: LCD Tech Debt Cleanup
-status: in_progress
-stopped_at: Completed 54-02-PLAN.md
-last_updated: "2026-03-11T05:59:29.774Z"
+milestone: v3.4
+milestone_name: Personalities & Nixie
+status: planning
+stopped_at: Defining requirements
+last_updated: "2026-03-11T00:00:00Z"
+last_activity: 2026-03-11 — Milestone v3.4 started
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 13
-  completed_plans: 13
----
-
----
-gsd_state_version: 1.0
-milestone: v3.3
-milestone_name: LCD Tech Debt Cleanup
-status: in_progress
-stopped_at: Completed 53-01-PLAN.md
-last_updated: "2026-03-10T20:45:15.790Z"
-progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 10
-  completed_plans: 10
-  percent: 80
----
-
----
-gsd_state_version: 1.0
-milestone: v3.3
-milestone_name: LCD Clock
-status: in_progress
-stopped_at: Milestone planning complete
-last_updated: "2026-03-10T00:00:00Z"
-last_activity: 2026-03-10 — v3.3 LCD Clock milestone started; REQUIREMENTS.md + ROADMAP phases 48-52 written
-progress:
-  [████████░░] 80%
+  total_phases: 0
   completed_phases: 0
-  total_plans: 5
+  total_plans: 0
   completed_plans: 0
 ---
 
@@ -53,43 +24,32 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 ## Current Position
 
-Milestone v3.3 complete. All 7 phases (48–54) shipped 2026-03-11. Ready for next milestone.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-11 — Milestone v3.4 Personalities & Nixie started
 
 ## Accumulated Context
 
-### Decisions
+### Decisions (carried from v3.3)
 
 - LCD segments drawn with WPF Polygons (no font assets/bitmaps)
 - Ghost segments required (dimmed, not hidden)
-- `bool DialMode` → `ClockType` enum migration done first as isolated phase to keep tests green
+- `ClockType` enum (Phrase/Dial/Lcd/Nixie); JSON serialized as string via JsonStringEnumConverter
 - `SevenSegmentEncoder` lives in FuzzyClock.Core (pure logic, testable)
 - WPF controls (`SevenSegmentDigit`, `LcdClockView`) live in FuzzyClock.App/Controls/
 - LCD theme system is independent of the existing named-theme system
-- Nixie-style is backlog (out of scope for v3.3)
-- [Phase 48-clocktype-enum-migration]: ClockType serializes as string via JsonStringEnumConverter; DialMode->ClockType migration in Load()
-- [Phase 49-sevensegmentencoder]: Assert.Throws<T>() is the correct MSTest 4.x API; Assert.ThrowsException<T>() removed in MSTest 4.0
-- [Phase 49-sevensegmentencoder]: SevenSegmentEncoder in FuzzyClock.Core as static class; colon maps to 0x80 sentinel (not a segment bit)
-- [Phase 50-01]: WPF/WinForms type aliases (WpfUserControl, WpfRectangle, WpfPoint) used in SevenSegmentDigit to resolve CS0104 ambiguity in mixed UseWPF+UseWindowsForms project
-- [Phase 50-01]: SevenSegmentDigit background rect width updated alongside RootCanvas.Width on colon slot to prevent background bleed
-- [Phase 50-wpf-segment-controls]: DispatcherTimer starts only via IsVisibleChanged, never in constructor — prevents timer leak if control created but never shown
-- [Phase 50-wpf-segment-controls]: Visibility.Collapsed (not Hidden) for seconds slots when ShowSeconds=false — ensures StackPanel width is correct for HH:MM mode
-- [Phase 51-app-integration]: LCD foundation wired: LcdClockView in MainWindow with three-way SetClockType, timer guard, and SettingsWindow/tray integration. IsVisibleChanged drives timer, not UpdateTime(). FontSizeToLcdSize maps 16->Small, 24->Medium, 32+->Large.
-- [Phase 51-app-integration]: TrayMenuCallbacks.SetClockType is required (not optional) — consistent with all other callbacks in the record
-- [Phase 51-app-integration]: LCD rows in SettingsWindow show/hide as a unit via SetLcdRowsVisible() — never toggled individually
-- [Phase 52-tests-readme]: Test count updated to 237 (212 Core + 25 App) based on actual dotnet test output
-- [Phase 52-tests-readme]: LcdTimeFormatHelper changed from internal to public static class — pure logic helper, test access requires public modifier
-- [Phase 52-tests-readme]: LcdSize added with JsonStringEnumConverter for string serialization consistency with LcdTheme
-- [Phase 52-tests-readme]: README test count corrected to 245 (212 Core + 33 App) to match post-52-01 dotnet test output
-- [Phase 53-v3-3-lcd-tech-debt-cleanup]: LcdSize derived via FontSizeToLcdSize in SaveSettings() and GetCurrentSettingsSnapshot() — no backing field, consistent with existing call sites
-- [Phase 53-v3-3-lcd-tech-debt-cleanup]: SettingsSnapshot.LcdSize defaults to LcdSize.Medium matching AppSettings record default
-- [Phase 54-additional-lcd-themes]: Appended 12 new LcdTheme enum values after Red (positions 5-16) to preserve existing integer ordinals; no migration needed as JsonStringEnumConverter serializes by name
-- [Phase 54-additional-lcd-themes]: README test count updated to 248 to match actual dotnet test output after 3 new round-trip tests
-- [Phase 54-additional-lcd-themes]: Tasks 1 and 2 committed atomically: XAML handler reference requires C# implementation to compile
-- [Phase 54-additional-lcd-themes]: LcdThemeRowLabel updated to VerticalAlignment=Top with adjusted margin for WrapPanel multi-row alignment
+- IPhraseProvider interface + provider registry (established v3.2) — new styles follow this pattern
+- Phrase style selector disabled for non-English locales; new styles are English-only
 
-### Roadmap Evolution
+### Key Architecture (for roadmapper)
 
-- Phase 54 added: Additional lcd themes
+- `ClockType` enum: adding `Nixie` as 4th value after Lcd
+- New phrase providers: implement `IPhraseProvider`, register in `PhraseEngine` coordinator
+- Nixie clock: new `NixieClockView` UserControl in `FuzzyClock.App/Controls/`; WPF RadialGradientBrush for glow; stacked ghost digits in Canvas layers
+- Dial enhancements: `AppSettings.DialShape` enum (Round/Oval), dial canvas size tied to `_currentFontSize`
+- Last phase shipped: Phase 54 (v3.3)
+- Next phase starts at: Phase 55
 
 ### Pending Todos
 
@@ -103,5 +63,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-11
-Stopped at: v3.3 milestone complete
-Resume: `/gsd:new-milestone` to plan v3.4
+Stopped at: v3.3 milestone complete; v3.4 requirements defined
+Resume: `/gsd:plan-phase 55` after roadmap is created
