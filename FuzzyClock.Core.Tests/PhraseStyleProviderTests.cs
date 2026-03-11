@@ -121,12 +121,28 @@ public class RudePhraseProviderTests
     }
 
     [TestMethod]
-    public void Rude_NearlyHour_ContainsCallout()
+    public void Rude_NearlyHour_ContainsInternetSlang()
     {
         PhraseEngine.SetLocale("en-rude");
         string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
-        bool hasCallout = phrase.Contains("move it") || phrase.Contains("get on with it");
-        Assert.IsTrue(hasCallout, $"Expected callout phrase but got: {phrase}");
+        bool hasSlang = phrase.Contains("smh") || phrase.Contains("WTF") || phrase.Contains("bruh");
+        Assert.IsTrue(hasSlang, $"Expected internet slang but got: {phrase}");
+    }
+
+    [TestMethod]
+    public void Rude_Noon_ReturnsBruh()
+    {
+        PhraseEngine.SetLocale("en-rude");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("noon, bruh", phrase);
+    }
+
+    [TestMethod]
+    public void Rude_Midnight_ReturnsMidnightWtf()
+    {
+        PhraseEngine.SetLocale("en-rude");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
+        Assert.AreEqual("midnight, wtf are you doing", phrase);
     }
 
     [TestMethod]

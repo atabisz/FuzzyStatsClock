@@ -1,8 +1,8 @@
 namespace FuzzyClock.Core;
 
 /// <summary>
-/// Blunt callout phrase provider (en-rude).
-/// Uses direct phrases with attitude, including callout suffixes on selected entries.
+/// Internet-slang phrase provider (Rude 2.0) (en-rude).
+/// Uses internet-slang vocabulary: WTF, bruh, dafaq, smh, ngl, lmao, rn, literally, tf.
 /// </summary>
 public class RudePhraseProvider : IPhraseProvider
 {
@@ -16,25 +16,25 @@ public class RudePhraseProvider : IPhraseProvider
     // {h1} = next hour in 12-hour format (1–12, wraps after 12)
     private static readonly (int UpperBound, string Template)[] Buckets =
     [
-        ( 2, "exactly {h}, what do you want"),
-        ( 7, "just gone {h}"),
-        (12, "ten past {h}, wake up"),
-        (17, "quarter past {h}"),
-        (22, "gone quarter past {h}"),
-        (27, "nearly half past {h}"),
-        (32, "half past {h}, still here?"),
-        (37, "just gone half past {h}"),
-        (42, "almost quarter to {h1}"),
-        (47, "quarter to {h1}"),
-        (52, "nearly {h1}, move it"),
-        (59, "almost {h1}, get on with it"),
+        ( 2, "{h} o'clock, bruh"),
+        ( 7, "just after {h}, tf"),
+        (12, "ten past {h}, smh"),
+        (17, "quarter past {h}, ngl"),
+        (22, "WTF, still quarter past {h}"),
+        (27, "almost half past {h}, lmao"),
+        (32, "half past {h}, bruh"),
+        (37, "just past half {h}, dafaq"),
+        (42, "almost quarter to {h1}, rn"),
+        (47, "quarter to {h1}, literally"),
+        (52, "nearly {h1}, smh"),
+        (59, "almost {h1}, WTF"),
     ];
 
     public string GetPhrase(DateTime dt)
     {
         int totalMinutes = dt.Hour * 60 + dt.Minute;
-        if (totalMinutes == 720) return "noon";
-        if (totalMinutes == 0)   return "midnight";
+        if (totalMinutes == 720) return "noon, bruh";
+        if (totalMinutes == 0)   return "midnight, wtf are you doing";
 
         int minute = dt.Minute;
 
