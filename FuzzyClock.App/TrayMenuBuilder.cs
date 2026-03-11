@@ -45,6 +45,7 @@ internal sealed class TrayMenuBuilder
     private System.Windows.Forms.ToolStripMenuItem _phraseClockItem  = null!;
     private System.Windows.Forms.ToolStripMenuItem _dialClockItem    = null!;
     private System.Windows.Forms.ToolStripMenuItem _lcdClockItem     = null!;
+    private System.Windows.Forms.ToolStripMenuItem _nixieClockItem   = null!;
 
     public TrayMenuBuilder(TrayMenuCallbacks callbacks) => _cb = callbacks;
 
@@ -111,6 +112,11 @@ internal sealed class TrayMenuBuilder
             { Checked = initialState.ClockType == ClockType.Lcd };
         _lcdClockItem.Click += (_, _) => _cb.SetClockType(ClockType.Lcd);
         clockTypeMenu.DropDownItems.Add(_lcdClockItem);
+
+        _nixieClockItem = new System.Windows.Forms.ToolStripMenuItem("Nixie")
+            { Checked = initialState.ClockType == ClockType.Nixie };
+        _nixieClockItem.Click += (_, _) => _cb.SetClockType(ClockType.Nixie);
+        clockTypeMenu.DropDownItems.Add(_nixieClockItem);
 
         menu.Items.Add(clockTypeMenu);
 
@@ -185,5 +191,6 @@ internal sealed class TrayMenuBuilder
         _phraseClockItem.Checked  = s.ClockType == ClockType.Phrase;
         _dialClockItem.Checked    = s.ClockType == ClockType.Dial;
         _lcdClockItem.Checked     = s.ClockType == ClockType.Lcd;
+        _nixieClockItem.Checked   = s.ClockType == ClockType.Nixie;
     }
 }

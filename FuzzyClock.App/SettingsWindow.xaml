@@ -296,6 +296,7 @@
                             <Button x:Name="BtnPhrase" Content="Phrase" Style="{StaticResource SegmentButtonStyle}" Click="BtnPhrase_Click"/>
                             <Button x:Name="BtnDial"   Content="Dial"   Style="{StaticResource SegmentButtonStyle}" Click="BtnDial_Click"/>
                             <Button x:Name="BtnLcd"    Content="LCD"    Style="{StaticResource SegmentButtonStyle}" Click="BtnLcd_Click"/>
+                            <Button x:Name="BtnNixie"  Content="Nixie"  Style="{StaticResource SegmentButtonStyle}" Click="BtnNixie_Click"/>
                         </StackPanel>
                     </Border>
 

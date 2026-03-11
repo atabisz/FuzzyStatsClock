@@ -209,6 +209,7 @@ public sealed partial class SettingsWindow : Window
         BtnPhrase.Tag = clockType == ClockType.Phrase ? "selected" : null;
         BtnDial.Tag   = clockType == ClockType.Dial   ? "selected" : null;
         BtnLcd.Tag    = clockType == ClockType.Lcd    ? "selected" : null;
+        BtnNixie.Tag  = clockType == ClockType.Nixie  ? "selected" : null;
         SetLcdRowsVisible(clockType == ClockType.Lcd);
         var dialVis = clockType == ClockType.Dial ? Visibility.Visible : Visibility.Collapsed;
         DialOptionsRowLabel.Visibility = dialVis;
@@ -433,6 +434,13 @@ public sealed partial class SettingsWindow : Window
         if (_suppressEvents) return;
         SetClockStyleButtonStates(ClockType.Lcd);
         ClockTypeChanged?.Invoke(ClockType.Lcd);
+    }
+
+    private void BtnNixie_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetClockStyleButtonStates(ClockType.Nixie);
+        ClockTypeChanged?.Invoke(ClockType.Nixie);
     }
 
     private void BtnLcd12hr_Click(object sender, RoutedEventArgs e)
