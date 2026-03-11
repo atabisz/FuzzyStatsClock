@@ -112,10 +112,16 @@ public sealed partial class SettingsWindow : Window
         CmbPhraseStyle.IsEnabled = !isNonEnglish;
         CmbPhraseStyle.SelectedIndex = s.PhraseStyle switch
         {
-            "Terse"  => 1,
-            "Poetic" => 2,
-            "Rude"   => 3,
-            _        => 0,
+            "Terse"       => 1,
+            "Poetic"      => 2,
+            "Rude"        => 3,
+            "Pirate"      => 4,
+            "Dwarf"       => 5,
+            "Jive"        => 6,
+            "ValleyGirl"  => 7,
+            "Yoda"        => 8,
+            "Shakespeare" => 9,
+            _             => 0,
         };
 
         // Stats checkboxes

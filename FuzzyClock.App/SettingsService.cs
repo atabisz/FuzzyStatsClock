@@ -103,6 +103,13 @@ public static class SettingsService
         string[] validDateFormats = { "Short", "Long", "Numeric", "ISO" };
         if (string.IsNullOrWhiteSpace(loaded.DateFormat) || !validDateFormats.Contains(loaded.DateFormat))
             loaded = loaded with { DateFormat = Defaults().DateFormat };
+        // PhraseStyle guard — unknown values fall through to Classic in the locale switch,
+        // but an explicit guard is consistent with TextStyle and DateFormat patterns.
+        string[] validPhraseStyles = { "Classic", "Terse", "Poetic", "Rude",
+                                        "Pirate", "Dwarf", "Jive", "ValleyGirl",
+                                        "Yoda", "Shakespeare" };
+        if (string.IsNullOrWhiteSpace(loaded.PhraseStyle) || !validPhraseStyles.Contains(loaded.PhraseStyle))
+            loaded = loaded with { PhraseStyle = Defaults().PhraseStyle };
         // MonitorPositions null guard — null can occur if someone manually edits settings.json
         // and writes "MonitorPositions":null
         if (loaded.MonitorPositions == null)

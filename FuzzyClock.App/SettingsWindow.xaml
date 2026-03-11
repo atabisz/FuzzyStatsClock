@@ -321,13 +321,19 @@
                                HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <ComboBox x:Name="CmbPhraseStyle"
                               Grid.Row="4" Grid.Column="1"
-                              Width="120" HorizontalAlignment="Left"
+                              Width="140" HorizontalAlignment="Left"
                               Margin="0,8,0,0" VerticalAlignment="Center"
                               SelectionChanged="CmbPhraseStyle_SelectionChanged">
                         <ComboBoxItem Content="Classic"/>
                         <ComboBoxItem Content="Terse"/>
                         <ComboBoxItem Content="Poetic"/>
                         <ComboBoxItem Content="Rude"/>
+                        <ComboBoxItem Content="Pirate"/>
+                        <ComboBoxItem Content="Dwarf"/>
+                        <ComboBoxItem Content="Jive"/>
+                        <ComboBoxItem Content="ValleyGirl"/>
+                        <ComboBoxItem Content="Yoda"/>
+                        <ComboBoxItem Content="Shakespeare"/>
                     </ComboBox>
 
                     <!-- LCD Format — row 5 -->
