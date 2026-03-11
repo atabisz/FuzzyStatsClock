@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Personalities & Nixie
 status: in_progress
-stopped_at: Completed 55-01-PLAN.md
-last_updated: "2026-03-11T08:29:56Z"
-last_activity: 2026-03-11 — Phase 55 Plan 01 complete (provider classes)
+stopped_at: Completed 55-02-PLAN.md
+last_updated: "2026-03-11T00:09:00Z"
+last_activity: 2026-03-11 — Phase 55 Plan 02 complete (wiring: PhraseEngine, MainWindow, SettingsWindow, SettingsService)
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 7
-  completed_plans: 1
-  bar: "[█░░░░░░░░░] 14%"
+  completed_plans: 2
+  bar: "[██░░░░░░░░] 29%"
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 55 (in progress)
-Plan: 01 complete — 02 next
-Status: Plan 01 complete; provider classes written; wiring (Plan 02) next
-Last activity: 2026-03-11 — Phase 55 Plan 01 complete (7 provider files created/rewritten)
+Plan: 02 complete — 03 next
+Status: Plan 02 complete; all 6 new providers wired into PhraseEngine, MainWindow, SettingsWindow, SettingsService; tests (Plan 03) next
+Last activity: 2026-03-11 — Phase 55 Plan 02 complete (wiring all touch points)
 
-Progress: [█░░░░░░░░░] 1/7 plans complete
+Progress: [██░░░░░░░░] 2/7 plans complete
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [█░░░░░░░░░] 1/7 plans complete
 - v3.4 target: >= 265 tests (net +17 from new providers and Nixie/dial coverage)
 - Test floor: 248 (zero regressions)
 - 55-01: 3 min, 2 tasks, 8 files
+- 55-02: 8 min, 2 tasks, 5 files
 
 ## Accumulated Context
 
@@ -52,16 +53,17 @@ Progress: [█░░░░░░░░░] 1/7 plans complete
 - `UpdateDialDisplay()` literal `40.0` center must be refactored to `DialCanvas.Width / 2` before adding any shape or size options
 - RudePhraseProvider rewritten in-place (same class, same en-rude locale key); only bucket strings and specials replaced with Rude 2.0 internet-slang vocabulary (WTF/bruh/dafaq/smh/ngl/lmao/rn/literally/tf)
 - ShakespearePhraseProvider resolves {ho} token before {h} to avoid partial substring replacement in templates containing both tokens
+- MainWindow.xaml.cs has 5 locale switch sites (not 4 as documented): 2 in ApplySettings (en + auto branches), 1 in SetPhraseStyle, 2 in SetLanguage (en + auto branches); all 5 must be updated when adding new phrase styles
 
 ### Touch Points Per Feature
 
 **Phrase Personalities (Phase 55) — 6 touch points per new style:**
 1. New `IPhraseProvider` class in `FuzzyClock.Core/` (DONE in Plan 01)
-2. Registration in `PhraseEngine._providers` dictionary
-3. New `ComboBoxItem` in `SettingsWindow.xaml` `CmbPhraseStyle`
-4. All 4 locale-switch sites in `MainWindow.xaml.cs` (2x ApplySettings, SetPhraseStyle, SetLanguage)
-5. `PopulateControls()` PhraseStyle switch in `SettingsWindow.xaml.cs`
-6. `SettingsService.Validate()` valid styles list (optional but consistent with TextStyle pattern)
+2. Registration in `PhraseEngine._providers` dictionary (DONE in Plan 02)
+3. New `ComboBoxItem` in `SettingsWindow.xaml` `CmbPhraseStyle` (DONE in Plan 02)
+4. All 5 locale-switch sites in `MainWindow.xaml.cs` (2x ApplySettings, SetPhraseStyle, 2x SetLanguage) (DONE in Plan 02)
+5. `PopulateControls()` PhraseStyle switch in `SettingsWindow.xaml.cs` (DONE in Plan 02)
+6. `SettingsService.Validate()` valid styles list (DONE in Plan 02)
 
 **Nixie Clock (Phase 56) — must update all 3 ClockType sites in MainWindow before building UserControl:**
 1. `ClockType.Nixie = 3` added to `ClockType.cs`
@@ -90,5 +92,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-11
-Stopped at: Completed 55-01-PLAN.md
-Resume: `/gsd:execute-phase 55 02`
+Stopped at: Completed 55-02-PLAN.md
+Resume: `/gsd:execute-phase 55 03`

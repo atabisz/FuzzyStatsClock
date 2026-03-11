@@ -24,7 +24,7 @@ shape and size options.
 - [x] **PHRASE-05**: User can select Valley Girl phrase style ("like, it's literally almost noon")
 - [x] **PHRASE-06**: User can select Yoda phrase style ("quarter past three, it is")
 - [x] **PHRASE-07**: User can select Shakespearean phrase style ("Hark! 'Tis a quarter past the third hour")
-- [ ] **PHRASE-08**: All new styles appear in Settings window Phrase Style selector and persist across restarts
+- [x] **PHRASE-08**: All new styles appear in Settings window Phrase Style selector and persist across restarts
 - [ ] **PHRASE-09**: Tests cover each new style with ≥ 2 phrase samples verified per provider
 
 ### Nixie Tube Clock
@@ -96,7 +96,7 @@ shape and size options.
 | PHRASE-05 | Phase 55 | Complete |
 | PHRASE-06 | Phase 55 | Complete |
 | PHRASE-07 | Phase 55 | Complete |
-| PHRASE-08 | Phase 55 | Pending |
+| PHRASE-08 | Phase 55 | Complete |
 | PHRASE-09 | Phase 55 | Pending |
 | NIXIE-01 | Phase 56 | Pending |
 | NIXIE-02 | Phase 56 | Pending |
