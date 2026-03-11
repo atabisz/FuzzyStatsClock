@@ -152,7 +152,11 @@ last_updated: 2026-03-11
   3. Switching to any new style immediately updates the displayed phrase without restarting the widget
   4. The selected style persists across a restart and is restored exactly (not falling back to Classic)
   5. All 7 new/rewritten providers have at least 2 passing test methods each verifying distinct phrase samples
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 55-01-PLAN.md — Rude 2.0 rewrite + 6 new provider classes (FuzzyClock.Core)
+- [ ] 55-02-PLAN.md — PhraseEngine registration, MainWindow routing, SettingsWindow wiring, Validate() guard
+- [ ] 55-03-PLAN.md — Updated Rude tests + 6 new provider test classes
 
 ### Phase 56: Nixie Tube Clock
 **Goal**: Users can select a Nixie tube clock as a fourth clock type that renders a retro warm-orange digit display entirely from WPF vector primitives
