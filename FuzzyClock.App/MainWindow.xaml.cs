@@ -317,10 +317,16 @@ public partial class MainWindow : Window
             // User has explicitly chosen English — respect PhraseStyle
             effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
             {
-                "terse"  => "en-terse",
-                "poetic" => "en-poetic",
-                "rude"   => "en-rude",
-                _        => "en-classic",
+                "terse"       => "en-terse",
+                "poetic"      => "en-poetic",
+                "rude"        => "en-rude",
+                "pirate"      => "en-pirate",
+                "dwarf"       => "en-dwarf",
+                "jive"        => "en-jive",
+                "valleygirl"  => "en-valleygirl",
+                "yoda"        => "en-yoda",
+                "shakespeare" => "en-shakespeare",
+                _             => "en-classic",
             };
         }
         else
@@ -331,10 +337,16 @@ public partial class MainWindow : Window
             else
                 effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
                 {
-                    "terse"  => "en-terse",
-                    "poetic" => "en-poetic",
-                    "rude"   => "en-rude",
-                    _        => "en-classic",
+                    "terse"       => "en-terse",
+                    "poetic"      => "en-poetic",
+                    "rude"        => "en-rude",
+                    "pirate"      => "en-pirate",
+                    "dwarf"       => "en-dwarf",
+                    "jive"        => "en-jive",
+                    "valleygirl"  => "en-valleygirl",
+                    "yoda"        => "en-yoda",
+                    "shakespeare" => "en-shakespeare",
+                    _             => "en-classic",
                 };
         }
         PhraseEngine.SetLocale(effectiveLocale);
@@ -1199,10 +1211,16 @@ public partial class MainWindow : Window
         _currentPhraseStyle = style;
         string localeKey = style.ToLowerInvariant() switch
         {
-            "terse"  => "en-terse",
-            "poetic" => "en-poetic",
-            "rude"   => "en-rude",
-            _        => "en-classic",
+            "terse"       => "en-terse",
+            "poetic"      => "en-poetic",
+            "rude"        => "en-rude",
+            "pirate"      => "en-pirate",
+            "dwarf"       => "en-dwarf",
+            "jive"        => "en-jive",
+            "valleygirl"  => "en-valleygirl",
+            "yoda"        => "en-yoda",
+            "shakespeare" => "en-shakespeare",
+            _             => "en-classic",
         };
         PhraseEngine.SetLocale(localeKey);
         PhraseText.Text = "";          // invalidate UpdatePhraseIfChanged guard cache
@@ -1221,20 +1239,32 @@ public partial class MainWindow : Window
         else if (locale == "en")
             effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
             {
-                "terse"  => "en-terse",
-                "poetic" => "en-poetic",
-                "rude"   => "en-rude",
-                _        => "en-classic",
+                "terse"       => "en-terse",
+                "poetic"      => "en-poetic",
+                "rude"        => "en-rude",
+                "pirate"      => "en-pirate",
+                "dwarf"       => "en-dwarf",
+                "jive"        => "en-jive",
+                "valleygirl"  => "en-valleygirl",
+                "yoda"        => "en-yoda",
+                "shakespeare" => "en-shakespeare",
+                _             => "en-classic",
             };
         else  // "auto"
             effectiveLocale = (uiLang is "fr" or "es" or "de" or "ja" or "pl")
                 ? uiLang
                 : _currentPhraseStyle.ToLowerInvariant() switch
                   {
-                      "terse"  => "en-terse",
-                      "poetic" => "en-poetic",
-                      "rude"   => "en-rude",
-                      _        => "en-classic",
+                      "terse"       => "en-terse",
+                      "poetic"      => "en-poetic",
+                      "rude"        => "en-rude",
+                      "pirate"      => "en-pirate",
+                      "dwarf"       => "en-dwarf",
+                      "jive"        => "en-jive",
+                      "valleygirl"  => "en-valleygirl",
+                      "yoda"        => "en-yoda",
+                      "shakespeare" => "en-shakespeare",
+                      _             => "en-classic",
                   };
 
         PhraseEngine.SetLocale(effectiveLocale);
