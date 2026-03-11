@@ -217,6 +217,9 @@ public class GetStructuredPhraseTests
     private static DateTime T(int hour, int minute) =>
         new DateTime(2024, 1, 15, hour, minute, 0);
 
+    [TestInitialize]
+    public void EnsureClassicLocale() => PhraseEngine.SetLocale("en-classic");
+
     [TestMethod]
     [DataRow(12, 0, "",           "noon")]
     [DataRow(0,  0, "",           "midnight")]

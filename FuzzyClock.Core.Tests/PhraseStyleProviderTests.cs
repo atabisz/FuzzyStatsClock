@@ -154,3 +154,201 @@ public class RudePhraseProviderTests
         Assert.IsFalse(string.IsNullOrEmpty(emphasis));
     }
 }
+
+// ---------------------------------------------------------------------------
+// PiratePhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class PiratePhraseProviderTests
+{
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void SetLocale_EnPirate_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-pirate");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Pirate_OnTheHour_ContainsArr()
+    {
+        PhraseEngine.SetLocale("en-pirate");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        StringAssert.Contains(phrase, "arr");
+    }
+
+    [TestMethod]
+    public void Pirate_Noon_ReturnsHighNoonAtSea()
+    {
+        PhraseEngine.SetLocale("en-pirate");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("high noon at sea, arr", phrase);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DwarfPhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class DwarfPhraseProviderTests
+{
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void SetLocale_EnDwarf_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-dwarf");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Dwarf_OnTheHour_ContainsAye()
+    {
+        PhraseEngine.SetLocale("en-dwarf");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        StringAssert.Contains(phrase, "aye");
+    }
+
+    [TestMethod]
+    public void Dwarf_Noon_ReturnsMidday()
+    {
+        PhraseEngine.SetLocale("en-dwarf");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("midday. eat.", phrase);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// JivePhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class JivePhraseProviderTests
+{
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void SetLocale_EnJive_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-jive");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Jive_OnTheHour_ContainsDaddyO()
+    {
+        PhraseEngine.SetLocale("en-jive");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        StringAssert.Contains(phrase, "daddy-o");
+    }
+
+    [TestMethod]
+    public void Jive_Noon_ReturnsHighNoon()
+    {
+        PhraseEngine.SetLocale("en-jive");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("high noon, daddy-o", phrase);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ValleyGirlPhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class ValleyGirlPhraseProviderTests
+{
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void SetLocale_EnValleyGirl_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-valleygirl");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void ValleyGirl_OnTheHour_ReturnsNonEmpty()
+    {
+        PhraseEngine.SetLocale("en-valleygirl");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        Assert.IsFalse(string.IsNullOrEmpty(phrase));
+    }
+
+    [TestMethod]
+    public void ValleyGirl_Noon_ReturnsLiterallyNoon()
+    {
+        PhraseEngine.SetLocale("en-valleygirl");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("like, it's literally noon", phrase);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// YodaPhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class YodaPhraseProviderTests
+{
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void SetLocale_EnYoda_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-yoda");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Yoda_OnTheHour_ContainsItIs()
+    {
+        PhraseEngine.SetLocale("en-yoda");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        StringAssert.Contains(phrase, "it is");
+    }
+
+    [TestMethod]
+    public void Yoda_Noon_ReturnsNoonItIs()
+    {
+        PhraseEngine.SetLocale("en-yoda");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("noon it is, hmm", phrase);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ShakespearePhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class ShakespearePhraseProviderTests
+{
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void SetLocale_EnShakespeare_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-shakespeare");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Shakespeare_OnTheHour_ContainsHark()
+    {
+        PhraseEngine.SetLocale("en-shakespeare");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        StringAssert.Contains(phrase, "Hark");
+    }
+
+    [TestMethod]
+    public void Shakespeare_Noon_ReturnsNoontideHour()
+    {
+        PhraseEngine.SetLocale("en-shakespeare");
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("Hark! 'Tis the noontide hour", phrase);
+    }
+}
