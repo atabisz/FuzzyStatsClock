@@ -1,0 +1,29 @@
+<UserControl x:Class="FuzzyClock.App.Controls.NixieClockView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FuzzyClock.App.Controls">
+    <StackPanel x:Name="DigitPanel" Orientation="Horizontal">
+        <controls:NixieDigit x:Name="D0" />
+        <controls:NixieDigit x:Name="D1" />
+        <StackPanel x:Name="ColonPanel" Orientation="Vertical" VerticalAlignment="Center">
+            <Ellipse x:Name="ColonDot1" Width="8" Height="8" Margin="4,0,4,6">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#A0FF8C00" Offset="0" />
+                        <GradientStop Color="Transparent" Offset="1" />
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <Ellipse x:Name="ColonDot2" Width="8" Height="8" Margin="4,0,4,0">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#A0FF8C00" Offset="0" />
+                        <GradientStop Color="Transparent" Offset="1" />
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+        </StackPanel>
+        <controls:NixieDigit x:Name="D2" />
+        <controls:NixieDigit x:Name="D3" />
+    </StackPanel>
+</UserControl>
