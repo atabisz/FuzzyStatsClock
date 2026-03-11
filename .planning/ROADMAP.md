@@ -221,7 +221,7 @@ Plans:
 | 53. v3.3 LCD Tech Debt Cleanup | v3.3 | 1/1 | Complete | 2026-03-10 |
 | 54. Additional LCD Themes | v3.3 | 3/3 | Complete | 2026-03-11 |
 | 55. Phrase Personalities | v3.4 | Complete    | 2026-03-11 | 2026-03-11 |
-| 56. Nixie Tube Clock | v3.4 | 0/3 | Not started | - |
+| 56. Nixie Tube Clock | 1/3 | In Progress|  | - |
 | 57. Dial Enhancements | v3.4 | 0/? | Not started | - |
 
 ---

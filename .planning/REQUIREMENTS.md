@@ -30,10 +30,10 @@ shape and size options.
 ### Nixie Tube Clock
 
 - [ ] **NIXIE-01**: User can select Nixie as a fourth clock type (alongside Phrase, Dial, LCD)
-- [ ] **NIXIE-02**: Nixie digits show warm orange glow/bloom effect around each active digit
-- [ ] **NIXIE-03**: All 10 digit ghost cathodes are visible behind the active digit (stacked digit shadow)
-- [ ] **NIXIE-04**: Each digit slot is enclosed in a glass tube border
-- [ ] **NIXIE-05**: A faint wire mesh / anode grid texture overlays each digit slot
+- [x] **NIXIE-02**: Nixie digits show warm orange glow/bloom effect around each active digit
+- [x] **NIXIE-03**: All 10 digit ghost cathodes are visible behind the active digit (stacked digit shadow)
+- [x] **NIXIE-04**: Each digit slot is enclosed in a glass tube border
+- [x] **NIXIE-05**: A faint wire mesh / anode grid texture overlays each digit slot
 - [ ] **NIXIE-06**: Nixie clock type is available in Settings window and tray Clock Type submenu
 - [ ] **NIXIE-07**: Nixie clock type persists across restarts via `AppSettings.ClockType`
 
@@ -99,10 +99,10 @@ shape and size options.
 | PHRASE-08 | Phase 55 | Complete |
 | PHRASE-09 | Phase 55 | Complete |
 | NIXIE-01 | Phase 56 | Pending |
-| NIXIE-02 | Phase 56 | Pending |
-| NIXIE-03 | Phase 56 | Pending |
-| NIXIE-04 | Phase 56 | Pending |
-| NIXIE-05 | Phase 56 | Pending |
+| NIXIE-02 | Phase 56 | Complete |
+| NIXIE-03 | Phase 56 | Complete |
+| NIXIE-04 | Phase 56 | Complete |
+| NIXIE-05 | Phase 56 | Complete |
 | NIXIE-06 | Phase 56 | Pending |
 | NIXIE-07 | Phase 56 | Pending |
 | DIAL-01 | Phase 57 | Pending |
