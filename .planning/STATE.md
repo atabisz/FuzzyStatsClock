@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Personalities & Nixie
 status: in_progress
+stopped_at: Completed 56-02-PLAN.md
+last_updated: "2026-03-11T10:57:12.887Z"
+last_activity: 2026-03-11 — Phase 56 Plan 01 complete (NixieDigit, NixieClockView, NixieSizeMap; 5 files)
+progress:
+  total_phases: 3
+  completed_phases: 1
+  total_plans: 6
+  completed_plans: 5
+  percent: 80
+---
+
+---
+gsd_state_version: 1.0
+milestone: v3.4
+milestone_name: Personalities & Nixie
+status: in_progress
 stopped_at: Completed 56-01-PLAN.md
 last_updated: "2026-03-11T10:51:15.068Z"
 last_activity: 2026-03-11 — Phase 55 Plan 03 complete (six new test classes, serial execution fix)
 progress:
-  total_phases: 3
+  [████████░░] 80%
   completed_phases: 1
   total_plans: 6
   completed_plans: 4
@@ -41,11 +57,11 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 56
-Plan: 01 complete — Plan 02 next
-Status: Phase 56 Plan 01 complete; NixieDigit + NixieClockView UserControls created; build passes 0 errors
-Last activity: 2026-03-11 — Phase 56 Plan 01 complete (NixieDigit, NixieClockView, NixieSizeMap; 5 files)
+Plan: 02 complete — Plan 03 next
+Status: Phase 56 Plan 02 complete; ClockType.Nixie wired into all integration touch points; 265 tests passing
+Last activity: 2026-03-11 — Phase 56 Plan 02 complete (ClockType.Nixie, MainWindow 5 sites, SettingsWindow, TrayMenuBuilder; 6 files)
 
-Progress: [███████░░░] 4/7 plans complete
+Progress: [████████░░] 5/7 plans complete
 
 ## Performance Metrics
 
@@ -56,6 +72,7 @@ Progress: [███████░░░] 4/7 plans complete
 - 55-02: 8 min, 2 tasks, 5 files
 - 55-03: 20 min, 2 tasks, 3 files
 - 56-01: 3 min, 2 tasks, 5 files
+- 56-02: 7 min, 2 tasks, 6 files
 
 ## Accumulated Context
 
@@ -73,6 +90,8 @@ Progress: [███████░░░] 4/7 plans complete
 - MainWindow.xaml.cs has 5 locale switch sites (not 4 as documented): 2 in ApplySettings (en + auto branches), 1 in SetPhraseStyle, 2 in SetLanguage (en + auto branches); all 5 must be updated when adding new phrase styles
 - MSTestSettings.cs MethodLevel parallelism removed: PhraseEngine._activeProvider is a single global static field; MethodLevel parallelism causes non-deterministic locale races; serial execution adds <50ms and eliminates races permanently
 - Test count v3.4: 265 (232 Core + 33 App), met the >= 265 target established in performance metrics
+- `SetClockStyleButtonStates(s.ClockType)` handles all clock types via BtnX.Tag assignments — no switch case needed in PopulateControls for new clock types, only add Tag assignment to SetClockStyleButtonStates
+- Timer tick guard excludes self-managing views: `if (_clockType != ClockType.Lcd && _clockType != ClockType.Nixie)` — any self-managing clock view added in future must be added to this guard
 
 ### Touch Points Per Feature
 
@@ -85,11 +104,11 @@ Progress: [███████░░░] 4/7 plans complete
 6. `SettingsService.Validate()` valid styles list (DONE in Plan 02)
 
 **Nixie Clock (Phase 56) — must update all 3 ClockType sites in MainWindow before building UserControl:**
-1. `ClockType.Nixie = 3` added to `ClockType.cs`
-2. All 3 `if/else if` chains in `MainWindow.xaml.cs` (ApplySettings, timer Tick, SetClockType)
-3. `NixieClockView` element in `MainWindow.xaml`
-4. Nixie button in `SettingsWindow.xaml` Clock Style row
-5. Nixie item in `TrayMenuBuilder.cs` Clock Type submenu (same commit as SettingsWindow)
+1. `ClockType.Nixie = 3` added to `ClockType.cs` (DONE in Plan 02)
+2. All 3 `if/else if` chains in `MainWindow.xaml.cs` (ApplySettings, timer Tick, SetClockType) (DONE in Plan 02)
+3. `NixieClockView` element in `MainWindow.xaml` (DONE in Plan 02)
+4. Nixie button in `SettingsWindow.xaml` Clock Style row (DONE in Plan 02)
+5. Nixie item in `TrayMenuBuilder.cs` Clock Type submenu (same commit as SettingsWindow) (DONE in Plan 02)
 
 **Dial Enhancements (Phase 57) — refactor before adding options:**
 1. Refactor `UpdateDialDisplay()` to derive center from `DialCanvas.Width / 2` (pitfall mitigation first)
@@ -110,6 +129,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T10:51:15.065Z
-Stopped at: Completed 56-01-PLAN.md
-Resume: `/gsd:execute-phase 56 02`
+Last session: 2026-03-11T10:57:12.883Z
+Stopped at: Completed 56-02-PLAN.md
+Resume: `/gsd:execute-phase 56 03`
