@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: Personalities & Nixie
-status: roadmap_ready
-stopped_at: Roadmap created; ready to plan Phase 55
-last_updated: "2026-03-11T00:00:00Z"
-last_activity: 2026-03-11 — v3.4 roadmap created (3 phases, 19 requirements mapped)
+status: in_progress
+stopped_at: Completed 55-01-PLAN.md
+last_updated: "2026-03-11T08:29:56Z"
+last_activity: 2026-03-11 — Phase 55 Plan 01 complete (provider classes)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 7
+  completed_plans: 1
+  bar: "[█░░░░░░░░░] 14%"
 ---
 
 # Project State
@@ -24,18 +25,19 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 ## Current Position
 
-Phase: 55 (not started)
-Plan: —
-Status: Roadmap ready; awaiting phase planning
-Last activity: 2026-03-11 — v3.4 roadmap created
+Phase: 55 (in progress)
+Plan: 01 complete — 02 next
+Status: Plan 01 complete; provider classes written; wiring (Plan 02) next
+Last activity: 2026-03-11 — Phase 55 Plan 01 complete (7 provider files created/rewritten)
 
-Progress: [----------] 0/3 phases complete
+Progress: [█░░░░░░░░░] 1/7 plans complete
 
 ## Performance Metrics
 
 - v3.3 shipped: 248 tests passing, 0 failures
 - v3.4 target: >= 265 tests (net +17 from new providers and Nixie/dial coverage)
 - Test floor: 248 (zero regressions)
+- 55-01: 3 min, 2 tasks, 8 files
 
 ## Accumulated Context
 
@@ -48,15 +50,18 @@ Progress: [----------] 0/3 phases complete
 - `Canvas` requires explicit `Width`/`Height` in a `SizeToContent="WidthAndHeight"` window — follow `SevenSegmentDigit.RebuildGeometry()` pattern
 - `AppSettings.DialShape` string property ("Round"/"Oval"); must have `= "Round"` init default, `Validate()` guard, and `Defaults()` entry to handle upgrade from v3.3 settings.json
 - `UpdateDialDisplay()` literal `40.0` center must be refactored to `DialCanvas.Width / 2` before adding any shape or size options
+- RudePhraseProvider rewritten in-place (same class, same en-rude locale key); only bucket strings and specials replaced with Rude 2.0 internet-slang vocabulary (WTF/bruh/dafaq/smh/ngl/lmao/rn/literally/tf)
+- ShakespearePhraseProvider resolves {ho} token before {h} to avoid partial substring replacement in templates containing both tokens
 
 ### Touch Points Per Feature
 
-**Phrase Personalities (Phase 55) — 3 touch points per new style:**
-1. New `IPhraseProvider` class in `FuzzyClock.Core/Providers/`
+**Phrase Personalities (Phase 55) — 6 touch points per new style:**
+1. New `IPhraseProvider` class in `FuzzyClock.Core/` (DONE in Plan 01)
 2. Registration in `PhraseEngine._providers` dictionary
 3. New `ComboBoxItem` in `SettingsWindow.xaml` `CmbPhraseStyle`
-- Plus: both locale-switch sites in `MainWindow.xaml.cs` (`ApplySettings` and `SetPhraseStyle`) must be updated together
-- Plus: `SettingsService.Validate()` valid styles list must include new style names
+4. All 4 locale-switch sites in `MainWindow.xaml.cs` (2x ApplySettings, SetPhraseStyle, SetLanguage)
+5. `PopulateControls()` PhraseStyle switch in `SettingsWindow.xaml.cs`
+6. `SettingsService.Validate()` valid styles list (optional but consistent with TextStyle pattern)
 
 **Nixie Clock (Phase 56) — must update all 3 ClockType sites in MainWindow before building UserControl:**
 1. `ClockType.Nixie = 3` added to `ClockType.cs`
@@ -85,5 +90,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-11
-Stopped at: v3.4 roadmap created
-Resume: `/gsd:plan-phase 55`
+Stopped at: Completed 55-01-PLAN.md
+Resume: `/gsd:execute-phase 55 02`

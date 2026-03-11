@@ -17,13 +17,13 @@ shape and size options.
 
 ### Phrase Personalities
 
-- [ ] **PHRASE-01**: User sees significantly ruder vocabulary in Rude style (WTF, dafaq, tf, etc.)
-- [ ] **PHRASE-02**: User can select Pirate phrase style ("'Tis nearly half past the third bell, yarr")
-- [ ] **PHRASE-03**: User can select Dwarf phrase style (gruff, blunt, mining/ale references)
-- [ ] **PHRASE-04**: User can select Jive phrase style (1940s Harlem Jive slang)
-- [ ] **PHRASE-05**: User can select Valley Girl phrase style ("like, it's literally almost noon")
-- [ ] **PHRASE-06**: User can select Yoda phrase style ("quarter past three, it is")
-- [ ] **PHRASE-07**: User can select Shakespearean phrase style ("Hark! 'Tis a quarter past the third hour")
+- [x] **PHRASE-01**: User sees significantly ruder vocabulary in Rude style (WTF, dafaq, tf, etc.)
+- [x] **PHRASE-02**: User can select Pirate phrase style ("'Tis nearly half past the third bell, yarr")
+- [x] **PHRASE-03**: User can select Dwarf phrase style (gruff, blunt, mining/ale references)
+- [x] **PHRASE-04**: User can select Jive phrase style (1940s Harlem Jive slang)
+- [x] **PHRASE-05**: User can select Valley Girl phrase style ("like, it's literally almost noon")
+- [x] **PHRASE-06**: User can select Yoda phrase style ("quarter past three, it is")
+- [x] **PHRASE-07**: User can select Shakespearean phrase style ("Hark! 'Tis a quarter past the third hour")
 - [ ] **PHRASE-08**: All new styles appear in Settings window Phrase Style selector and persist across restarts
 - [ ] **PHRASE-09**: Tests cover each new style with ≥ 2 phrase samples verified per provider
 
@@ -89,13 +89,13 @@ shape and size options.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PHRASE-01 | Phase 55 | Pending |
-| PHRASE-02 | Phase 55 | Pending |
-| PHRASE-03 | Phase 55 | Pending |
-| PHRASE-04 | Phase 55 | Pending |
-| PHRASE-05 | Phase 55 | Pending |
-| PHRASE-06 | Phase 55 | Pending |
-| PHRASE-07 | Phase 55 | Pending |
+| PHRASE-01 | Phase 55 | Complete |
+| PHRASE-02 | Phase 55 | Complete |
+| PHRASE-03 | Phase 55 | Complete |
+| PHRASE-04 | Phase 55 | Complete |
+| PHRASE-05 | Phase 55 | Complete |
+| PHRASE-06 | Phase 55 | Complete |
+| PHRASE-07 | Phase 55 | Complete |
 | PHRASE-08 | Phase 55 | Pending |
 | PHRASE-09 | Phase 55 | Pending |
 | NIXIE-01 | Phase 56 | Pending |
