@@ -30,6 +30,7 @@ last_updated: 2026-03-11
 - **v3.1 Quality + Battery** (2026-03-08) — Battery stat row, DateFormatter extraction with tests, AppSettings round-trip coverage, README accuracy pass. 4 phases, 6 plans. → [Archive](milestones/v3.1-ROADMAP.md)
 - **v3.2 Expanded Experience** (2026-03-09) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 7 phases (41–47), 16 plans. → [Archive](milestones/v3.2-ROADMAP.md)
 - **v3.3 LCD Clock** (2026-03-11) — 7-segment LCD clock type; WPF-drawn segments; ghost segments; 17 retro color themes; 12/24hr toggle; show/hide seconds; three size variants. 7 phases (48–54), 13 plans. → [Archive](milestones/v3.3-ROADMAP.md)
+- **v3.4 Personalities & Nixie** (in progress) — 7 new phrase personality styles (Rude 2.0 + Pirate/Dwarf/Jive/Valley Girl/Yoda/Shakespearean), Nixie tube clock as fourth clock type, dial round/oval shape and size scaling. 3 phases (55–57).
 
 ## Phases
 
@@ -130,10 +131,50 @@ last_updated: 2026-03-11
 
 </details>
 
+### v3.4 Personalities & Nixie (Phases 55–57) — IN PROGRESS
+
+- [ ] **Phase 55: Phrase Personalities** - Rude 2.0 rewrite + 6 new English personality providers (Pirate, Dwarf, Jive, Valley Girl, Yoda, Shakespearean); all registered in PhraseEngine, wired in Settings ComboBox, and test-covered
+- [ ] **Phase 56: Nixie Tube Clock** - NixieClockView + NixieDigit WPF UserControls; warm orange glow via stacked RadialGradientBrush (no UIElement.Effect); stacked ghost cathodes; glass tube border; wire mesh overlay; ClockType.Nixie as 4th enum value; full integration in Settings and tray
+- [ ] **Phase 57: Dial Enhancements** - Parametric dial geometry refactor (no more literal 40.0 center); round/oval shape toggle; dial canvas size scales with font size setting; AppSettings.DialShape persisted
+
 ## Phase Details
 
 *v3.2 phase details archived to [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md)*
 *v3.3 phase details archived to [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md)*
+
+### Phase 55: Phrase Personalities
+**Goal**: Users can choose from 7 personality styles for the English phrase clock, each with a distinct vocabulary that transforms how the time reads
+**Depends on**: Phase 54 (v3.3 complete)
+**Requirements**: PHRASE-01, PHRASE-02, PHRASE-03, PHRASE-04, PHRASE-05, PHRASE-06, PHRASE-07, PHRASE-08, PHRASE-09
+**Success Criteria** (what must be TRUE):
+  1. Selecting "Rude" in Settings produces visibly coarser vocabulary (WTF, dafaq, tf) instead of the v3.2 passive-aggressive British register
+  2. Each of the 6 new styles (Pirate, Dwarf, Jive, Valley Girl, Yoda, Shakespearean) appears as a selectable item in the Settings window Phrase Style ComboBox
+  3. Switching to any new style immediately updates the displayed phrase without restarting the widget
+  4. The selected style persists across a restart and is restored exactly (not falling back to Classic)
+  5. All 7 new/rewritten providers have at least 2 passing test methods each verifying distinct phrase samples
+**Plans**: TBD
+
+### Phase 56: Nixie Tube Clock
+**Goal**: Users can select a Nixie tube clock as a fourth clock type that renders a retro warm-orange digit display entirely from WPF vector primitives
+**Depends on**: Phase 55
+**Requirements**: NIXIE-01, NIXIE-02, NIXIE-03, NIXIE-04, NIXIE-05, NIXIE-06, NIXIE-07
+**Success Criteria** (what must be TRUE):
+  1. Selecting "Nixie" in the Settings Clock Style row or tray Clock Type submenu switches the clock face to the Nixie display and hides the phrase/dial/LCD controls
+  2. Each active digit glows with a warm orange bloom (no black rectangle artifacts at any zoom or DPI — glow uses stacked RadialGradientBrush, not UIElement.Effect)
+  3. All 10 ghost cathode digits are visible behind the active digit as faint stacked shadows
+  4. Each digit slot is enclosed in a rounded glass tube border with a faint wire mesh overlay
+  5. Selecting Nixie type, closing and reopening the widget restores Nixie — the ClockType.Nixie value round-trips through settings.json
+**Plans**: TBD
+
+### Phase 57: Dial Enhancements
+**Goal**: Users can choose between round and oval dial shapes, and the dial canvas scales automatically with the font size setting
+**Depends on**: Phase 56
+**Requirements**: DIAL-01, DIAL-02, DIAL-03
+**Success Criteria** (what must be TRUE):
+  1. The Appearance tab of the Settings window shows round/oval shape radio buttons that immediately change the dial shape when clicked
+  2. Switching font size to Small, Medium, or Large while in dial mode changes the dial canvas to the corresponding size (80px / 110px / 150px)
+  3. The selected dial shape persists across a restart (AppSettings.DialShape round-trips through settings.json)
+**Plans**: TBD
 
 ## Progress
 
@@ -171,6 +212,9 @@ last_updated: 2026-03-11
 | 52. Tests + README | v3.3 | 3/3 | Complete | 2026-03-10 |
 | 53. v3.3 LCD Tech Debt Cleanup | v3.3 | 1/1 | Complete | 2026-03-10 |
 | 54. Additional LCD Themes | v3.3 | 3/3 | Complete | 2026-03-11 |
+| 55. Phrase Personalities | v3.4 | 0/? | Not started | - |
+| 56. Nixie Tube Clock | v3.4 | 0/? | Not started | - |
+| 57. Dial Enhancements | v3.4 | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-11 — v3.3 milestone complete*
+*Last updated: 2026-03-11 — v3.4 roadmap created*
