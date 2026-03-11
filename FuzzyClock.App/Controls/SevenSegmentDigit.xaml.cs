@@ -4,8 +4,9 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using FuzzyClock.Core;
 using WpfUserControl = System.Windows.Controls.UserControl;
-using WpfRectangle = System.Windows.Shapes.Rectangle;
-using WpfPoint = System.Windows.Point;
+using WpfRectangle   = System.Windows.Shapes.Rectangle;
+using WpfColor       = System.Windows.Media.Color;
+using WpfPoint       = System.Windows.Point;
 
 namespace FuzzyClock.App.Controls;
 
@@ -19,13 +20,27 @@ public partial class SevenSegmentDigit : WpfUserControl
         DependencyProperty.Register(nameof(Character), typeof(char), typeof(SevenSegmentDigit),
             new PropertyMetadata(' ', OnVisualPropertyChanged));
 
-    public static readonly DependencyProperty ThemeProperty =
-        DependencyProperty.Register(nameof(Theme), typeof(LcdTheme), typeof(SevenSegmentDigit),
-            new PropertyMetadata(LcdTheme.Green, OnVisualPropertyChanged));
+    public static readonly DependencyProperty LitColorProperty =
+        DependencyProperty.Register(nameof(LitColor), typeof(WpfColor), typeof(SevenSegmentDigit),
+            new PropertyMetadata(Colors.White, OnVisualPropertyChanged));
+
+    public static readonly DependencyProperty BgColorProperty =
+        DependencyProperty.Register(nameof(BgColor), typeof(WpfColor), typeof(SevenSegmentDigit),
+            new PropertyMetadata(WpfColor.FromRgb(0x0F, 0x0F, 0x0F), OnVisualPropertyChanged));
+
+    // Transparent = auto-compute ghost from LitColor (15% formula)
+    public static readonly DependencyProperty GhostColorProperty =
+        DependencyProperty.Register(nameof(GhostColor), typeof(WpfColor), typeof(SevenSegmentDigit),
+            new PropertyMetadata(Colors.Transparent, OnVisualPropertyChanged));
 
     public static readonly DependencyProperty SegmentHeightProperty =
         DependencyProperty.Register(nameof(SegmentHeight), typeof(double), typeof(SevenSegmentDigit),
             new PropertyMetadata(48.0, OnSegmentHeightChanged));
+
+    // "Classic" (default) = slender segments with gaps; "Bold" = thick segments, minimal gaps
+    public static readonly DependencyProperty SegmentStyleProperty =
+        DependencyProperty.Register(nameof(SegmentStyle), typeof(string), typeof(SevenSegmentDigit),
+            new PropertyMetadata("Classic", OnSegmentStyleChanged));
 
     public char Character
     {
@@ -33,10 +48,22 @@ public partial class SevenSegmentDigit : WpfUserControl
         set => SetValue(CharacterProperty, value);
     }
 
-    public LcdTheme Theme
+    public WpfColor LitColor
     {
-        get => (LcdTheme)GetValue(ThemeProperty);
-        set => SetValue(ThemeProperty, value);
+        get => (WpfColor)GetValue(LitColorProperty);
+        set => SetValue(LitColorProperty, value);
+    }
+
+    public WpfColor BgColor
+    {
+        get => (WpfColor)GetValue(BgColorProperty);
+        set => SetValue(BgColorProperty, value);
+    }
+
+    public WpfColor GhostColor
+    {
+        get => (WpfColor)GetValue(GhostColorProperty);
+        set => SetValue(GhostColorProperty, value);
     }
 
     public double SegmentHeight
@@ -45,10 +72,23 @@ public partial class SevenSegmentDigit : WpfUserControl
         set => SetValue(SegmentHeightProperty, value);
     }
 
+    public string SegmentStyle
+    {
+        get => (string)GetValue(SegmentStyleProperty);
+        set => SetValue(SegmentStyleProperty, value);
+    }
+
     private static void OnVisualPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((SevenSegmentDigit)d).UpdateSegments();
 
     private static void OnSegmentHeightChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var ctrl = (SevenSegmentDigit)d;
+        ctrl.RebuildGeometry();
+        ctrl.UpdateSegments();
+    }
+
+    private static void OnSegmentStyleChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var ctrl = (SevenSegmentDigit)d;
         ctrl.RebuildGeometry();
@@ -64,10 +104,17 @@ public partial class SevenSegmentDigit : WpfUserControl
     private WpfRectangle _dot2 = null!;
     private WpfRectangle _backgroundRect = null!;
 
-    private SolidColorBrush _litBrush = null!;
+    private SolidColorBrush _litBrush   = null!;
     private SolidColorBrush _ghostBrush = null!;
-    private SolidColorBrush _bgBrush = null!;
-    private LcdTheme _lastTheme = (LcdTheme)(-1); // sentinel — force first rebuild
+    private SolidColorBrush _bgBrush    = null!;
+    private WpfColor _lastLitColor   = WpfColor.FromArgb(0, 0, 0, 0); // sentinel — force first brush rebuild
+    private WpfColor _lastBgColor    = WpfColor.FromArgb(0, 0, 0, 0);
+    private WpfColor _lastGhostColor = WpfColor.FromArgb(0, 0, 0, 0);
+
+    // Geometry cache — set by RebuildGeometry(), consumed by UpdateSegments()
+    private double _builtDigitW;
+    private double _builtColonW;
+    private double _builtCanvasH;
 
     // ---------------------------------------------------------------
     // Constructor
@@ -89,13 +136,29 @@ public partial class SevenSegmentDigit : WpfUserControl
         RootCanvas.Children.Clear();
 
         double h = SegmentHeight;
-        double t      = h * 0.13;
-        double gap    = h * 0.05;
-        double pad    = h * 0.05;
-        double ch     = t * 0.5;
-        double bw     = h * 0.6 - 2 * pad;
+
+        // Classic: slender segments, visible gaps, standard proportions
+        // Bold:    thick segments, minimal gaps, wider digit (Bodet-style display)
+        double t, gap, pad, ch, digitW;
+        if (SegmentStyle == "Bold")
+        {
+            t      = h * 0.19;
+            gap    = h * 0.012;
+            pad    = h * 0.04;
+            ch     = t * 0.25;
+            digitW = h * 0.70;
+        }
+        else // "Classic"
+        {
+            t      = h * 0.10;
+            gap    = h * 0.05;
+            pad    = h * 0.05;
+            ch     = t * 0.50;
+            digitW = h * 0.60;
+        }
+
+        double bw     = digitW - 2 * pad;
         double vhalf  = (h - 3 * t - 4 * gap) / 2;
-        double digitW = h * 0.6;
         double canvasH = h + 2 * pad;
 
         // Background
@@ -138,6 +201,10 @@ public partial class SevenSegmentDigit : WpfUserControl
         RootCanvas.Children.Add(_dot1);
         RootCanvas.Children.Add(_dot2);
 
+        _builtDigitW = digitW;
+        _builtColonW = digitW * 0.30;
+        _builtCanvasH = canvasH;
+
         RootCanvas.Width = digitW;
         RootCanvas.Height = canvasH;
         Width = digitW;
@@ -177,24 +244,26 @@ public partial class SevenSegmentDigit : WpfUserControl
     {
         if (_segments is null || _segments.Length == 0) return;
 
-        // Rebuild brushes if theme changed
-        if (Theme != _lastTheme)
+        // Compute effective ghost: Transparent sentinel means auto-compute from LitColor
+        var effectiveGhost = GhostColor.A == 0
+            ? WpfColor.FromRgb(
+                (byte)(LitColor.R * 15 / 100),
+                (byte)(LitColor.G * 15 / 100),
+                (byte)(LitColor.B * 15 / 100))
+            : GhostColor;
+
+        // Rebuild brushes if any color changed
+        if (LitColor != _lastLitColor || BgColor != _lastBgColor || effectiveGhost != _lastGhostColor)
         {
-            var (lit, ghost, bg) = LcdPalette.Get(Theme);
-            _litBrush   = new SolidColorBrush(lit);
-            _ghostBrush = new SolidColorBrush(ghost);
-            _bgBrush    = new SolidColorBrush(bg);
-            _lastTheme  = Theme;
+            _litBrush       = new SolidColorBrush(LitColor);
+            _ghostBrush     = new SolidColorBrush(effectiveGhost);
+            _bgBrush        = new SolidColorBrush(BgColor);
+            _lastLitColor   = LitColor;
+            _lastBgColor    = BgColor;
+            _lastGhostColor = effectiveGhost;
         }
 
         _backgroundRect.Fill = _bgBrush;
-
-        double h       = SegmentHeight;
-        double digitW  = h * 0.6;
-        double t       = h * 0.13;
-        double pad     = h * 0.05;
-        double canvasH = h + 2 * pad;
-        double colonW  = digitW * 0.30;
 
         if (Character == ':')
         {
@@ -206,9 +275,9 @@ public partial class SevenSegmentDigit : WpfUserControl
             _dot2.Fill = _litBrush;
 
             // Narrow the canvas to colon width
-            _backgroundRect.Width = colonW;
-            RootCanvas.Width = colonW;
-            Width = colonW;
+            _backgroundRect.Width = _builtColonW;
+            RootCanvas.Width = _builtColonW;
+            Width = _builtColonW;
         }
         else
         {
@@ -220,9 +289,9 @@ public partial class SevenSegmentDigit : WpfUserControl
             _dot2.Fill = _ghostBrush;
 
             // Full digit width
-            _backgroundRect.Width = digitW;
-            RootCanvas.Width = digitW;
-            Width = digitW;
+            _backgroundRect.Width = _builtDigitW;
+            RootCanvas.Width = _builtDigitW;
+            Width = _builtDigitW;
 
             byte mask = SevenSegmentEncoder.Encode(Character);
             for (int i = 0; i < 7; i++)

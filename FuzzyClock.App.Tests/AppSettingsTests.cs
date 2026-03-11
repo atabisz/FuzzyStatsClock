@@ -34,7 +34,6 @@ public class AppSettingsTests
             PagVisible           = false,
             UptimeVisible        = false,
             ClockType            = ClockType.Dial,
-            LcdTheme             = LcdTheme.Amber,
             LcdUse24Hr           = true,
             LcdShowSeconds       = false,
             LcdSize              = LcdSize.Large,
@@ -48,6 +47,7 @@ public class AppSettingsTests
             ProcessCountThresholdPercent = 2.0,
             ShowDate   = false,
             DateFormat = "ISO",
+            LcdStyle   = "Paper",
         };
 
         string json = JsonSerializer.Serialize(original);
@@ -66,7 +66,6 @@ public class AppSettingsTests
         Assert.AreEqual(original.PagVisible,           result.PagVisible,                        "PagVisible");
         Assert.AreEqual(original.UptimeVisible,        result.UptimeVisible,                     "UptimeVisible");
         Assert.AreEqual(original.ClockType,             result.ClockType,                         "ClockType");
-        Assert.AreEqual(original.LcdTheme,             result.LcdTheme,                          "LcdTheme");
         Assert.AreEqual(original.LcdUse24Hr,           result.LcdUse24Hr,                        "LcdUse24Hr");
         Assert.AreEqual(original.LcdShowSeconds,       result.LcdShowSeconds,                    "LcdShowSeconds");
         Assert.AreEqual(original.LcdSize,              result.LcdSize,                           "LcdSize");
@@ -80,6 +79,7 @@ public class AppSettingsTests
         Assert.AreEqual(original.ProcessCountThresholdPercent, result.ProcessCountThresholdPercent, 0.0001, "ProcessCountThresholdPercent");
         Assert.AreEqual(original.ShowDate,   result.ShowDate,   "ShowDate");
         Assert.AreEqual(original.DateFormat, result.DateFormat, "DateFormat");
+        Assert.AreEqual(original.LcdStyle,   result.LcdStyle,   "LcdStyle");
     }
 
     // STEST-02: Deserialize JSON that omits the UptimeVisible field entirely.
@@ -160,15 +160,6 @@ public class AppSettingsTests
     // F10 LCD absent-field defaults
 
     [TestMethod]
-    public void Deserialize_MissingLcdTheme_DefaultsToGreen()
-    {
-        const string json = """{"FontSize":32}""";
-        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
-        Assert.AreEqual(LcdTheme.Green, result.LcdTheme,
-            "LcdTheme should default to Green when absent from JSON");
-    }
-
-    [TestMethod]
     public void Deserialize_MissingLcdUse24Hr_DefaultsToFalse()
     {
         const string json = """{"FontSize":32}""";
@@ -187,6 +178,15 @@ public class AppSettingsTests
     }
 
     [TestMethod]
+    public void Deserialize_MissingLcdStyle_DefaultsToDark()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual("Dark", result.LcdStyle,
+            "LcdStyle should default to Dark when absent from JSON");
+    }
+
+    [TestMethod]
     public void Deserialize_MissingLcdSize_DefaultsToMedium()
     {
         const string json = """{"FontSize":32}""";
@@ -195,32 +195,4 @@ public class AppSettingsTests
             "LcdSize should default to Medium when absent from JSON");
     }
 
-    // F54: LcdTheme round-trip for new enum values
-
-    [TestMethod]
-    public void RoundTrip_LcdTheme_Vfd()
-    {
-        var original = new AppSettings { LcdTheme = LcdTheme.Vfd };
-        string json  = JsonSerializer.Serialize(original);
-        var result   = JsonSerializer.Deserialize<AppSettings>(json)!;
-        Assert.AreEqual(LcdTheme.Vfd, result.LcdTheme, "Vfd should round-trip via JsonStringEnumConverter");
-    }
-
-    [TestMethod]
-    public void RoundTrip_LcdTheme_LcdGrey()
-    {
-        var original = new AppSettings { LcdTheme = LcdTheme.LcdGrey };
-        string json  = JsonSerializer.Serialize(original);
-        var result   = JsonSerializer.Deserialize<AppSettings>(json)!;
-        Assert.AreEqual(LcdTheme.LcdGrey, result.LcdTheme, "LcdGrey should round-trip via JsonStringEnumConverter");
-    }
-
-    [TestMethod]
-    public void RoundTrip_LcdTheme_Paper()
-    {
-        var original = new AppSettings { LcdTheme = LcdTheme.Paper };
-        string json  = JsonSerializer.Serialize(original);
-        var result   = JsonSerializer.Deserialize<AppSettings>(json)!;
-        Assert.AreEqual(LcdTheme.Paper, result.LcdTheme, "Paper should round-trip via JsonStringEnumConverter");
-    }
 }

@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. Five built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — a minimal analog dial with hour and minute hands, or a retro 7-segment LCD clock. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. Below the clock, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). An optional date line and uptime row (with rolling 1m/5m/15m CPU load averages) also appear below the clock. Users can choose from accent color presets or pick a custom color; the LCD clock has its own 17-theme palette (Green, Amber, Blue, Teal, Red, VFD, Nixie, Magenta, Purple, Cyan, Lime, Cream, Ice, Mint, Lavender, LcdGrey, Paper) with colored swatches in the Settings window. Widget opacity is adjustable via scroll wheel or Settings. The widget features ghost mode (auto-hides on hover), auto-contrast (WCAG screen sampling), auto-launch at login, and per-monitor position memory. A system tray icon and a modeless three-tab Settings window (Appearance / Stats / Behavior) provide full configuration. Five named themes apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports Classic, Terse, Poetic, and Rude styles; phrases display automatically in French, Spanish, German, Japanese, or Polish based on Windows UI language. All preferences are saved across restarts.
 
 ## Core Value
 
@@ -10,15 +10,13 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v3.3 shipped: 2026-03-11** — 7-segment LCD clock (3rd clock type); 17 LCD themes with swatch UI; ClockType enum migration; SevenSegmentDigit + LcdClockView WPF controls; WPF-drawn polygon segments; ghost segments; 12/24hr + seconds; 3 size variants
+
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
 
 **v3.1 shipped: 2026-03-08** — Battery stat row, DateFormatter extraction + tests, AppSettings round-trip tests, README accuracy pass
 
-**v3.0 shipped: 2026-03-07** — Date display under clock (Show Date toggle, 4 format options, persisted)
-
-**v2.9 shipped: 2026-03-05** — Configurable process count threshold (2%/5%/10%)
-
-224 MSTest tests (199 Core + 25 App) passing. CI gate enforced. ~1,450 LOC C# / XAML.
+248 MSTest tests (all passing). CI gate enforced. ~6,500 LOC C# / XAML.
 
 
 ## Requirements
@@ -195,6 +193,17 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ ALERT-02: Battery row returns to normal accent color when battery rises above threshold or is plugged in — v3.2
 - ✓ ALERT-03: Battery alert threshold configurable in Settings Behavior tab (10% / 15% / 20%, default 20%) — v3.2
 
+### Validated (v3.3)
+
+- ✓ LCD-01: User can switch to LCD clock mode (7-segment retro display) from Settings or tray Clock Type submenu; persisted to settings.json — v3.3
+- ✓ LCD-02: LCD renders time using WPF-drawn Polygon segments (no fonts, no bitmaps); inactive segments show as ghost (dimmed) — v3.3
+- ✓ LCD-03: LCD supports 17 color themes (Green/Amber/Blue/Teal/Red/VFD/Nixie/Magenta/Purple/Cyan/Lime/Cream/Ice/Mint/Lavender/LcdGrey/Paper); theme shown as colored swatch ring in Settings — v3.3
+- ✓ LCD-04: LCD supports 12hr and 24hr format toggle; optional seconds display; three size variants (Small/Medium/Large) — v3.3
+- ✓ LCD-05: LCD has its own 1-second DispatcherTimer; pauses when not visible — v3.3
+- ✓ ENUM-01: `ClockType` enum (Phrase/Dial/Lcd) replaces `bool DialMode` throughout; JSON backward-compat migration handles persisted `"DialMode": true/false` — v3.3
+- ✓ UTEST-04: `SevenSegmentEncoder` unit tests — 13 cases covering digits 0–9, colon, space, unsupported-char exception — v3.3
+- ✓ STEST-09: AppSettings round-trip tests for LcdTheme, LcdUse24Hr, LcdShowSeconds, LcdSize; absent-field defaults verified — v3.3
+
 ### Deferred (v2+)
 
 - WIN-07: Widget snaps to screen edges when dragged near them
@@ -342,6 +351,12 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | SetPhraseStyle guard: early return if CurrentLocale !starts-with "en-" | Prevents English style from overriding active non-English locale when style setting is restored at startup | ✓ Validated — locale restoration order in ApplySettings preserves correct provider |
 | Ghost theme FontSize=24 (not 28) | 24pt is the closest button in Settings Appearance tab; 28pt has no corresponding button, leaving ghost theme with no highlighted selection | ✓ Validated — 24pt button correctly highlighted after Phase 47 fix |
 | [DoNotParallelize] on PhraseEngineCoordinatorTests | PhraseEngine static state is shared across tests; parallel execution causes locale contamination between test methods | ✓ Validated — test isolation restored; all 224 tests pass |
+| ClockType enum replaces bool DialMode | Three-way switch (Phrase/Dial/Lcd) cannot be modelled with a bool; enum is explicit and extensible | ✓ Validated — JSON migration handles persisted DialMode:true/false cleanly; all 224 tests remain green |
+| WPF-only polygon segments (no font/bitmap) for LCD | Font-based LCD digits require a font asset file with license; bitmap-based requires a designer; Polygon math is fully code-generated, scales arbitrarily, themes via DP | ✓ Validated — SevenSegmentDigit renders at Small/Medium/Large with no external assets |
+| Ghost sentinel Transparent (A=0) on GhostColor DP | Allows auto-compute formula (15% of LitColor) as backward-compat default while letting Paper/Silver themes override with explicit ghost | ✓ Validated — Dark mode uses auto ghost; Paper and Silver set explicit ghost colors |
+| SegmentStyle "Classic" vs "Bold" as string DP (not enum) | Avoids a new enum type for two values; string is sufficient for a closed 2-way toggle; existing XAML binding patterns support string | ✓ Validated — Silver uses Bold (thick segments, minimal gaps); Classic used by all other themes |
+| LcdPalette.Get() as central color lookup (not per-control) | Single source of truth for 17 theme color triples; controls receive LitColor/GhostColor/BgColor DPs — palette is not coupled to controls | ✓ Validated — 17 themes added without modifying SevenSegmentDigit or LcdClockView |
+| WrapPanel swatch row replaces ComboBox for theme picker | 17 themes in a ComboBox is unusable (no color preview, too many items to scan); color swatches are the standard LCD theme picker pattern | ✓ Validated — swatch row visually shows all 17 themes at once in a compact 4-row wrap |
 
 ---
-*Last updated: 2026-03-09 after v3.2 milestone*
+*Last updated: 2026-03-11 after v3.3 milestone*

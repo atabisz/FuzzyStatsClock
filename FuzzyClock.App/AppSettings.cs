@@ -25,8 +25,6 @@ public record AppSettings
     public bool   UptimeVisible        { get; init; } = true;
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public ClockType ClockType         { get; init; } = ClockType.Phrase;
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public LcdTheme LcdTheme           { get; init; } = LcdTheme.Green;
     public bool     LcdUse24Hr         { get; init; } = false;
     public bool     LcdShowSeconds     { get; init; } = true;
     [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -47,5 +45,6 @@ public record AppSettings
     public string DateFormat  { get; init; } = "Short";   // "Short"|"Long"|"Numeric"|"ISO"
     public string? Theme      { get; init; } = null;       // null = no named theme active; "Midnight"|"Neon"|"Ghost"|"Warm"|"Terminal"
     public int BatteryAlertThresholdPercent { get; init; } = 20;
+    public string LcdStyle    { get; init; } = "Dark";     // "Dark" | "Paper"
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"

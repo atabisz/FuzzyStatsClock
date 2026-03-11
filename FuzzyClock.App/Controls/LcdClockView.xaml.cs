@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using WpfUserControl = System.Windows.Controls.UserControl;
+using WpfColor       = System.Windows.Media.Color;
 
 namespace FuzzyClock.App.Controls;
 
@@ -20,13 +22,25 @@ public partial class LcdClockView : WpfUserControl
         DependencyProperty.Register(nameof(ShowSeconds), typeof(bool), typeof(LcdClockView),
             new PropertyMetadata(true, OnVisualPropertyChanged));
 
-    public static readonly DependencyProperty ThemeProperty =
-        DependencyProperty.Register(nameof(Theme), typeof(LcdTheme), typeof(LcdClockView),
-            new PropertyMetadata(LcdTheme.Green, OnThemePropertyChanged));
+    public static readonly DependencyProperty LitColorProperty =
+        DependencyProperty.Register(nameof(LitColor), typeof(WpfColor), typeof(LcdClockView),
+            new PropertyMetadata(Colors.White, OnLitColorPropertyChanged));
+
+    public static readonly DependencyProperty BgColorProperty =
+        DependencyProperty.Register(nameof(BgColor), typeof(WpfColor), typeof(LcdClockView),
+            new PropertyMetadata(Colors.Transparent, OnBgColorPropertyChanged));
+
+    public static readonly DependencyProperty GhostColorProperty =
+        DependencyProperty.Register(nameof(GhostColor), typeof(WpfColor), typeof(LcdClockView),
+            new PropertyMetadata(Colors.Transparent, OnGhostColorPropertyChanged));
 
     public static readonly DependencyProperty SizeProperty =
         DependencyProperty.Register(nameof(Size), typeof(LcdSize), typeof(LcdClockView),
             new PropertyMetadata(LcdSize.Medium, OnSizePropertyChanged));
+
+    public static readonly DependencyProperty SegmentStyleProperty =
+        DependencyProperty.Register(nameof(SegmentStyle), typeof(string), typeof(LcdClockView),
+            new PropertyMetadata("Classic", OnSegmentStylePropertyChanged));
 
     public bool Use24Hr
     {
@@ -40,16 +54,34 @@ public partial class LcdClockView : WpfUserControl
         set => SetValue(ShowSecondsProperty, value);
     }
 
-    public LcdTheme Theme
+    public WpfColor LitColor
     {
-        get => (LcdTheme)GetValue(ThemeProperty);
-        set => SetValue(ThemeProperty, value);
+        get => (WpfColor)GetValue(LitColorProperty);
+        set => SetValue(LitColorProperty, value);
+    }
+
+    public WpfColor BgColor
+    {
+        get => (WpfColor)GetValue(BgColorProperty);
+        set => SetValue(BgColorProperty, value);
+    }
+
+    public WpfColor GhostColor
+    {
+        get => (WpfColor)GetValue(GhostColorProperty);
+        set => SetValue(GhostColorProperty, value);
     }
 
     public LcdSize Size
     {
         get => (LcdSize)GetValue(SizeProperty);
         set => SetValue(SizeProperty, value);
+    }
+
+    public string SegmentStyle
+    {
+        get => (string)GetValue(SegmentStyleProperty);
+        set => SetValue(SegmentStyleProperty, value);
     }
 
     // ---------------------------------------------------------------
@@ -62,10 +94,28 @@ public partial class LcdClockView : WpfUserControl
             view.UpdateTime();
     }
 
-    private static void OnThemePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    private static void OnLitColorPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is LcdClockView view)
-            view.OnThemeChanged();
+            view.OnLitColorChanged();
+    }
+
+    private static void OnBgColorPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is LcdClockView view)
+            foreach (var digit in view.AllDigits()) digit.BgColor = view.BgColor;
+    }
+
+    private static void OnGhostColorPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is LcdClockView view)
+            foreach (var digit in view.AllDigits()) digit.GhostColor = view.GhostColor;
+    }
+
+    private static void OnSegmentStylePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is LcdClockView view)
+            foreach (var digit in view.AllDigits()) digit.SegmentStyle = view.SegmentStyle;
     }
 
     private static void OnSizePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -134,9 +184,9 @@ public partial class LcdClockView : WpfUserControl
     // Private helpers
     // ---------------------------------------------------------------
 
-    private void OnThemeChanged()
+    private void OnLitColorChanged()
     {
-        foreach (var digit in AllDigits()) digit.Theme = Theme;
+        foreach (var digit in AllDigits()) digit.LitColor = LitColor;
     }
 
     private void OnSizeChanged()

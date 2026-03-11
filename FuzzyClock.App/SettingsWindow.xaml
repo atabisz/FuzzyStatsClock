@@ -248,10 +248,11 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>  <!-- row 4: LCD Theme -->
+                        <RowDefinition Height="Auto"/>  <!-- row 3: Dial Options -->
+                        <RowDefinition Height="Auto"/>  <!-- row 4: Phrase Style -->
                         <RowDefinition Height="Auto"/>  <!-- row 5: LCD Format -->
                         <RowDefinition Height="Auto"/>  <!-- row 6: LCD Seconds -->
+                        <RowDefinition Height="Auto"/>  <!-- row 7: LCD Style -->
                     </Grid.RowDefinitions>
 
                     <!-- Opacity -->
@@ -298,12 +299,28 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Phrase Style -->
-                    <TextBlock Grid.Row="3" Grid.Column="0"
+                    <!-- Dial Options — row 3 -->
+                    <TextBlock x:Name="DialOptionsRowLabel" Grid.Row="3" Grid.Column="0"
+                               Text="Options" VerticalAlignment="Top"
+                               HorizontalAlignment="Right" Margin="0,11,10,0"
+                               Visibility="Collapsed"/>
+                    <StackPanel x:Name="DialOptionsRow" Grid.Row="3" Grid.Column="1"
+                                Orientation="Vertical" Margin="0,8,0,0"
+                                Visibility="Collapsed">
+                        <CheckBox x:Name="ChkShowHourTicks"   Content="Hour ticks"   Margin="0,0,0,4"
+                                  Checked="ChkDialOption_Changed" Unchecked="ChkDialOption_Changed"/>
+                        <CheckBox x:Name="ChkShowMinuteDots"  Content="Minute dots"  Margin="0,0,0,4"
+                                  Checked="ChkDialOption_Changed" Unchecked="ChkDialOption_Changed"/>
+                        <CheckBox x:Name="ChkShowHourNumbers" Content="Hour numbers"
+                                  Checked="ChkDialOption_Changed" Unchecked="ChkDialOption_Changed"/>
+                    </StackPanel>
+
+                    <!-- Phrase Style — row 4 -->
+                    <TextBlock x:Name="PhraseStyleRowLabel" Grid.Row="4" Grid.Column="0"
                                Text="Phrase Style" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <ComboBox x:Name="CmbPhraseStyle"
-                              Grid.Row="3" Grid.Column="1"
+                              Grid.Row="4" Grid.Column="1"
                               Width="120" HorizontalAlignment="Left"
                               Margin="0,8,0,0" VerticalAlignment="Center"
                               SelectionChanged="CmbPhraseStyle_SelectionChanged">
@@ -312,293 +329,6 @@
                         <ComboBoxItem Content="Poetic"/>
                         <ComboBoxItem Content="Rude"/>
                     </ComboBox>
-
-                    <!-- LCD Theme — row 4 -->
-                    <TextBlock x:Name="LcdThemeRowLabel" Grid.Row="4" Grid.Column="0"
-                               Text="LCD Theme" VerticalAlignment="Top"
-                               HorizontalAlignment="Right" Margin="0,12,10,0"
-                               Visibility="Collapsed"/>
-                    <WrapPanel x:Name="LcdThemeSwatchPanel" Grid.Row="4" Grid.Column="1"
-                               Margin="0,8,0,0" Visibility="Collapsed">
-                        <!-- Green -->
-                        <Border x:Name="RingLcdGreen" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdGreen" Width="28" Height="28" Background="#FF00FF41"
-                                    CornerRadius="4" Cursor="Hand" Tag="Green" ToolTip="Green"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Amber -->
-                        <Border x:Name="RingLcdAmber" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdAmber" Width="28" Height="28" Background="#FFFFAA00"
-                                    CornerRadius="4" Cursor="Hand" Tag="Amber" ToolTip="Amber"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Blue -->
-                        <Border x:Name="RingLcdBlue" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdBlue" Width="28" Height="28" Background="#FF00CFFF"
-                                    CornerRadius="4" Cursor="Hand" Tag="Blue" ToolTip="Blue"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Teal -->
-                        <Border x:Name="RingLcdTeal" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdTeal" Width="28" Height="28" Background="#FF00B4B4"
-                                    CornerRadius="4" Cursor="Hand" Tag="Teal" ToolTip="Teal"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Red -->
-                        <Border x:Name="RingLcdRed" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdRed" Width="28" Height="28" Background="#FFFF2200"
-                                    CornerRadius="4" Cursor="Hand" Tag="Red" ToolTip="Red"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Vfd -->
-                        <Border x:Name="RingLcdVfd" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdVfd" Width="28" Height="28" Background="#FF14F0A0"
-                                    CornerRadius="4" Cursor="Hand" Tag="Vfd" ToolTip="Vfd"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Nixie -->
-                        <Border x:Name="RingLcdNixie" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdNixie" Width="28" Height="28" Background="#FFFF6000"
-                                    CornerRadius="4" Cursor="Hand" Tag="Nixie" ToolTip="Nixie"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Magenta -->
-                        <Border x:Name="RingLcdMagenta" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdMagenta" Width="28" Height="28" Background="#FFFF00CC"
-                                    CornerRadius="4" Cursor="Hand" Tag="Magenta" ToolTip="Magenta"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Purple -->
-                        <Border x:Name="RingLcdPurple" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdPurple" Width="28" Height="28" Background="#FFCC00FF"
-                                    CornerRadius="4" Cursor="Hand" Tag="Purple" ToolTip="Purple"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Cyan -->
-                        <Border x:Name="RingLcdCyan" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdCyan" Width="28" Height="28" Background="#FF00FFFF"
-                                    CornerRadius="4" Cursor="Hand" Tag="Cyan" ToolTip="Cyan"
-                                    BorderBrush="#FFAAAAAA" BorderThickness="1"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Lime -->
-                        <Border x:Name="RingLcdLime" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdLime" Width="28" Height="28" Background="#FFCCFF00"
-                                    CornerRadius="4" Cursor="Hand" Tag="Lime" ToolTip="Lime"
-                                    BorderBrush="#FFAAAAAA" BorderThickness="1"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Cream -->
-                        <Border x:Name="RingLcdCream" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdCream" Width="28" Height="28" Background="#FFFFEEDD"
-                                    CornerRadius="4" Cursor="Hand" Tag="Cream" ToolTip="Cream"
-                                    BorderBrush="#FFAAAAAA" BorderThickness="1"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Ice -->
-                        <Border x:Name="RingLcdIce" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdIce" Width="28" Height="28" Background="#FFB0D8FF"
-                                    CornerRadius="4" Cursor="Hand" Tag="Ice" ToolTip="Ice"
-                                    BorderBrush="#FFAAAAAA" BorderThickness="1"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Mint -->
-                        <Border x:Name="RingLcdMint" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdMint" Width="28" Height="28" Background="#FF66FFCC"
-                                    CornerRadius="4" Cursor="Hand" Tag="Mint" ToolTip="Mint"
-                                    BorderBrush="#FFAAAAAA" BorderThickness="1"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Lavender -->
-                        <Border x:Name="RingLcdLavender" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdLavender" Width="28" Height="28" Background="#FFCC99FF"
-                                    CornerRadius="4" Cursor="Hand" Tag="Lavender" ToolTip="Lavender"
-                                    BorderBrush="#FFAAAAAA" BorderThickness="1"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- LcdGrey -->
-                        <Border x:Name="RingLcdLcdGrey" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdLcdGrey" Width="28" Height="28" Background="#FF2A3020"
-                                    CornerRadius="4" Cursor="Hand" Tag="LcdGrey" ToolTip="LcdGrey"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                        <!-- Paper -->
-                        <Border x:Name="RingLcdPaper" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,4,4">
-                            <Border x:Name="SwatchLcdPaper" Width="28" Height="28" Background="#FF1A1A18"
-                                    CornerRadius="4" Cursor="Hand" Tag="Paper" ToolTip="Paper"
-                                    MouseLeftButtonDown="LcdSwatch_MouseLeftButtonDown">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="0.75"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
-                        </Border>
-                    </WrapPanel>
 
                     <!-- LCD Format — row 5 -->
                     <TextBlock x:Name="LcdFormatRowLabel" Grid.Row="5" Grid.Column="0"
@@ -625,6 +355,23 @@
                               Content="Show seconds" Margin="0,8,0,0" VerticalAlignment="Center"
                               Visibility="Collapsed"
                               Checked="ChkLcdSeconds_Changed" Unchecked="ChkLcdSeconds_Changed"/>
+
+                    <!-- LCD Style — row 7 -->
+                    <TextBlock x:Name="LcdStyleRowLabel" Grid.Row="7" Grid.Column="0"
+                               Text="LCD Style" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"
+                               Visibility="Collapsed"/>
+                    <StackPanel x:Name="LcdStyleRow" Grid.Row="7" Grid.Column="1"
+                                Orientation="Horizontal" Margin="0,8,0,0"
+                                Visibility="Collapsed">
+                        <Border Background="#FFE8E8E8" CornerRadius="4" Padding="2" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="BtnLcdDark"   Content="Dark"   Style="{StaticResource SegmentButtonStyle}" Click="BtnLcdDark_Click"/>
+                                <Button x:Name="BtnLcdPaper"  Content="Paper"  Style="{StaticResource SegmentButtonStyle}" Click="BtnLcdPaper_Click"/>
+                                <Button x:Name="BtnLcdSilver" Content="Silver" Style="{StaticResource SegmentButtonStyle}" Click="BtnLcdSilver_Click"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
 
                 </Grid>
 

@@ -30,9 +30,9 @@ public partial class MainWindow : Window
     private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
     private bool _hasUserPosition = false;
     private ClockType _clockType = ClockType.Phrase;
-    private LcdTheme _lcdTheme       = LcdTheme.Green;
     private bool     _lcdUse24Hr     = false;
     private bool     _lcdShowSeconds = true;
+    private string   _lcdStyle       = "Dark";
     private string _currentTextStyle  = "Classic";
     private string _currentPhraseStyle  = "Classic";
     private string _currentPhraseLocale = "auto";  // "auto" or explicit "en"/"fr"/"es"/"de"/"ja"/"pl"
@@ -228,9 +228,9 @@ public partial class MainWindow : Window
         UptimeText.Visibility = s.UptimeVisible ? Visibility.Visible : Visibility.Collapsed;
 
         // Apply clock type directly (NOT via SetClockType — unsafe before Show(), same invariant as StatsPanel).
-        _lcdTheme       = s.LcdTheme;
         _lcdUse24Hr     = s.LcdUse24Hr;
         _lcdShowSeconds = s.LcdShowSeconds;
+        _lcdStyle       = s.LcdStyle;
 
         _clockType = s.ClockType;
         // Collapse all display areas first
@@ -245,7 +245,7 @@ public partial class MainWindow : Window
         }
         else if (s.ClockType == ClockType.Lcd)
         {
-            LcdView.Theme       = s.LcdTheme;
+            ApplyLcdColors();
             LcdView.Use24Hr     = s.LcdUse24Hr;
             LcdView.ShowSeconds = s.LcdShowSeconds;
             LcdView.Size        = FontSizeToLcdSize(s.FontSize);
@@ -380,10 +380,10 @@ public partial class MainWindow : Window
         Opacity                = _windowOpacity,
         FontSize               = _currentFontSize,
         ClockType              = _clockType,
-        LcdTheme               = _lcdTheme,
         LcdUse24Hr             = _lcdUse24Hr,
         LcdShowSeconds         = _lcdShowSeconds,
         LcdSize                = FontSizeToLcdSize(_currentFontSize),
+        LcdStyle               = _lcdStyle,
         PhraseStyle            = _currentPhraseStyle,
         PhraseLocale           = _currentPhraseLocale,
         StatsVisible           = StatsPanel.Visibility == Visibility.Visible,
@@ -419,12 +419,6 @@ public partial class MainWindow : Window
         _settingsWindow.OpacityChanged        += o => { ClearActiveTheme(); SetOpacity(o); };
         _settingsWindow.FontSizeChanged       += sz => { ClearActiveTheme(); ApplyFontSize(sz); SaveSettings(); };
         _settingsWindow.ClockTypeChanged      += ct => { ClearActiveTheme(); SetClockType(ct); };
-        _settingsWindow.LcdThemeChanged += theme =>
-        {
-            _lcdTheme = theme;
-            if (_clockType == ClockType.Lcd) LcdView.Theme = theme;
-            SaveSettings();
-        };
         _settingsWindow.LcdUse24HrChanged += use24 =>
         {
             _lcdUse24Hr = use24;
@@ -437,6 +431,15 @@ public partial class MainWindow : Window
             if (_clockType == ClockType.Lcd) { LcdView.ShowSeconds = show; LcdView.UpdateTime(); }
             SaveSettings();
         };
+        _settingsWindow.LcdStyleChanged += style =>
+        {
+            _lcdStyle = style;
+            if (_clockType == ClockType.Lcd) ApplyLcdColors();
+            SaveSettings();
+        };
+        _settingsWindow.ShowHourTicksChanged   += v => SetShowHourTicks(v);
+        _settingsWindow.ShowMinuteDotsChanged  += v => SetShowMinuteDots(v);
+        _settingsWindow.ShowHourNumbersChanged += v => SetShowHourNumbers(v);
         _settingsWindow.PhraseStyleChanged    += ps => SetPhraseStyle(ps);
         _settingsWindow.LanguageChanged       += locale => SetLanguage(locale);
         _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
@@ -509,10 +512,10 @@ public partial class MainWindow : Window
             BatteryVisible       = (BattRow.Visibility   == Visibility.Visible),
             UptimeVisible        = (UptimeText.Visibility == Visibility.Visible),
             ClockType            = _clockType,
-            LcdTheme             = _lcdTheme,
             LcdUse24Hr           = _lcdUse24Hr,
             LcdShowSeconds       = _lcdShowSeconds,
             LcdSize              = FontSizeToLcdSize(_currentFontSize),
+            LcdStyle             = _lcdStyle,
             ShowHourTicks        = _showHourTicks,
             ShowMinuteDots       = _showMinuteDots,
             ShowHourNumbers      = _showHourNumbers,
@@ -1001,6 +1004,7 @@ public partial class MainWindow : Window
         QualifierText.FontSize = (int)(size * 0.65);
         EmphasisText.FontSize  = (int)(size * 1.40);
         DateText.FontSize      = (int)(size * 0.80);
+        LcdView.Size           = FontSizeToLcdSize(size);
         // Re-clamp: font size change resizes window (SizeToContent=WidthAndHeight).
         // Must call UpdateLayout() before Clamp() — ActualWidth/ActualHeight are stale until layout runs.
         UpdateLayout();
@@ -1040,9 +1044,9 @@ public partial class MainWindow : Window
         if (_clockType != ClockType.Phrase) SetClockType(ClockType.Phrase);
 
         // Reset LCD settings to defaults
-        _lcdTheme       = LcdTheme.Green;
         _lcdUse24Hr     = false;
         _lcdShowSeconds = true;
+        _lcdStyle       = "Dark";
 
         // Center on primary screen
         // ActualWidth/ActualHeight are valid at runtime (ContentRendered has already fired)
@@ -1130,7 +1134,7 @@ public partial class MainWindow : Window
                 UpdateDialDisplay();
                 break;
             case ClockType.Lcd:
-                LcdView.Theme       = _lcdTheme;
+                ApplyLcdColors();
                 LcdView.Use24Hr     = _lcdUse24Hr;
                 LcdView.ShowSeconds = _lcdShowSeconds;
                 LcdView.Size        = FontSizeToLcdSize(_currentFontSize);
@@ -1458,9 +1462,44 @@ public partial class MainWindow : Window
         DateText.Foreground = new System.Windows.Media.SolidColorBrush(dateDisplayColor);
     }
 
+    // Paper LCD — muted sage-green bg, near-black segments (transflective display look)
+    private static readonly System.Windows.Media.Color _paperLitColor   = System.Windows.Media.Color.FromRgb(0x1A, 0x1C, 0x14);
+    private static readonly System.Windows.Media.Color _paperBgColor    = System.Windows.Media.Color.FromRgb(0xB2, 0xC4, 0xA0);
+    private static readonly System.Windows.Media.Color _paperGhostColor = System.Windows.Media.Color.FromRgb(0x8D, 0x9B, 0x7E);
+    // Silver LCD — cool neutral-gray bg, near-black segments (Bodet-style display look)
+    private static readonly System.Windows.Media.Color _silverLitColor   = System.Windows.Media.Color.FromRgb(0x18, 0x18, 0x18);
+    private static readonly System.Windows.Media.Color _silverBgColor    = System.Windows.Media.Color.FromRgb(0xD0, 0xD2, 0xCC);
+    private static readonly System.Windows.Media.Color _silverGhostColor = System.Windows.Media.Color.FromRgb(0xB0, 0xB2, 0xAC);
+
+    private void ApplyLcdColors()
+    {
+        if (_lcdStyle == "Paper")
+        {
+            LcdView.SegmentStyle = "Classic";
+            LcdView.LitColor     = _paperLitColor;
+            LcdView.BgColor      = _paperBgColor;
+            LcdView.GhostColor   = _paperGhostColor;
+        }
+        else if (_lcdStyle == "Silver")
+        {
+            LcdView.SegmentStyle = "Bold";
+            LcdView.LitColor     = _silverLitColor;
+            LcdView.BgColor      = _silverBgColor;
+            LcdView.GhostColor   = _silverGhostColor;
+        }
+        else // "Dark"
+        {
+            LcdView.SegmentStyle = "Classic";
+            LcdView.LitColor     = _accentColor;
+            LcdView.BgColor      = System.Windows.Media.Color.FromRgb(0x0F, 0x0F, 0x0F);
+            LcdView.GhostColor   = System.Windows.Media.Colors.Transparent; // auto: 15% of lit
+        }
+    }
+
     private void SetAccentColor(System.Windows.Media.Color color)
     {
         _accentColor = color;
+        ApplyLcdColors();
         ApplyTheme();
         SaveSettings();
     }

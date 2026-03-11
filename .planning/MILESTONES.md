@@ -1,4 +1,20 @@
 # Milestones
+## v3.3 LCD Clock (Shipped: 2026-03-11)
+
+**Phases completed:** 7 phases (48–54), 13 plans
+**Test suite:** 248 tests passing, 0 failures
+**Files changed:** 68 files changed, +10,150 lines
+
+**Key accomplishments:**
+- Replaced `bool DialMode` with `ClockType` enum (Phrase/Dial/Lcd) across all layers; JSON backward-compat migration for persisted `"DialMode": true/false`
+- Built `SevenSegmentEncoder` in `FuzzyClock.Core` — pure 7-bit bitmask lookup for digits 0–9, colon, and space; 13 unit tests
+- Created `SevenSegmentDigit` and `LcdClockView` WPF UserControls — fully WPF-drawn polygon segments, ghost effect, LcdTheme palettes, 3 size variants scaling via SegmentHeight DP
+- Integrated LCD as third clock type in MainWindow, SettingsWindow (collapsible LCD options panel), and tray Clock Type submenu
+- Expanded LCD theme palette from 5 to 17 themes; replaced Settings ComboBox with a WrapPanel of colored swatches
+- Fixed tech debt from audit: LcdSize persistence in SaveSettings(), LcdSize in SettingsSnapshot, README Ghost color column, stale test count
+
+---
+
 
 ## v1.0 MVP (Shipped: 2026-02-25)
 

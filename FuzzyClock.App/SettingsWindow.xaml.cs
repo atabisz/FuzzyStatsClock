@@ -20,15 +20,11 @@ public sealed partial class SettingsWindow : Window
     // ── Suppress events during control population ─────────────────────────
     private bool _suppressEvents;
 
-    // ── LCD swatch ring map ───────────────────────────────────────────────
-    private (LcdTheme Theme, Border Ring)[] _lcdSwatchRings = [];
-
     // ── Per-setting events ────────────────────────────────────────────────
     public event Action<Color>?  AccentColorChanged;
     public event Action<double>? OpacityChanged;
     public event Action<int>?    FontSizeChanged;
     public event Action<ClockType>? ClockTypeChanged;
-    public event Action<LcdTheme>? LcdThemeChanged;
     public event Action<bool>?     LcdUse24HrChanged;
     public event Action<bool>?     LcdShowSecondsChanged;
     public event Action<string>? PhraseStyleChanged;
@@ -49,33 +45,16 @@ public sealed partial class SettingsWindow : Window
     public event Action<string>? ThemeSelected;
     public event Action<int>?    BatteryAlertThresholdChanged;
     public event Action<string>? LanguageChanged;
+    public event Action<string>? LcdStyleChanged;
+    public event Action<bool>?   ShowHourTicksChanged;
+    public event Action<bool>?   ShowMinuteDotsChanged;
+    public event Action<bool>?   ShowHourNumbersChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
     {
         _suppressEvents = true;
         InitializeComponent();
-
-        _lcdSwatchRings = new (LcdTheme, Border)[]
-        {
-            (LcdTheme.Green,    RingLcdGreen),
-            (LcdTheme.Amber,    RingLcdAmber),
-            (LcdTheme.Blue,     RingLcdBlue),
-            (LcdTheme.Teal,     RingLcdTeal),
-            (LcdTheme.Red,      RingLcdRed),
-            (LcdTheme.Vfd,      RingLcdVfd),
-            (LcdTheme.Nixie,    RingLcdNixie),
-            (LcdTheme.Magenta,  RingLcdMagenta),
-            (LcdTheme.Purple,   RingLcdPurple),
-            (LcdTheme.Cyan,     RingLcdCyan),
-            (LcdTheme.Lime,     RingLcdLime),
-            (LcdTheme.Cream,    RingLcdCream),
-            (LcdTheme.Ice,      RingLcdIce),
-            (LcdTheme.Mint,     RingLcdMint),
-            (LcdTheme.Lavender, RingLcdLavender),
-            (LcdTheme.LcdGrey,  RingLcdLcdGrey),
-            (LcdTheme.Paper,    RingLcdPaper),
-        };
 
         // Restore within-session position
         if (!double.IsNaN(_savedLeft))
@@ -103,10 +82,15 @@ public sealed partial class SettingsWindow : Window
         SetClockStyleButtonStates(s.ClockType);
 
         // LCD options (populated inside _suppressEvents guard — already true at this point)
-        SetActiveLcdSwatch(s.LcdTheme);
         BtnLcd12hr.Tag = !s.LcdUse24Hr ? "selected" : null;
         BtnLcd24hr.Tag = s.LcdUse24Hr  ? "selected" : null;
         ChkLcdSeconds.IsChecked = s.LcdShowSeconds;
+        SetLcdStyleButtonStates(s.LcdStyle);
+
+        // Dial options
+        ChkShowHourTicks.IsChecked   = s.ShowHourTicks;
+        ChkShowMinuteDots.IsChecked  = s.ShowMinuteDots;
+        ChkShowHourNumbers.IsChecked = s.ShowHourNumbers;
 
         // Phrase language combo
         string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
@@ -220,17 +204,30 @@ public sealed partial class SettingsWindow : Window
         BtnDial.Tag   = clockType == ClockType.Dial   ? "selected" : null;
         BtnLcd.Tag    = clockType == ClockType.Lcd    ? "selected" : null;
         SetLcdRowsVisible(clockType == ClockType.Lcd);
+        var dialVis = clockType == ClockType.Dial ? Visibility.Visible : Visibility.Collapsed;
+        DialOptionsRowLabel.Visibility = dialVis;
+        DialOptionsRow.Visibility      = dialVis;
+        var phraseVis = clockType == ClockType.Phrase ? Visibility.Visible : Visibility.Collapsed;
+        PhraseStyleRowLabel.Visibility = phraseVis;
+        CmbPhraseStyle.Visibility      = phraseVis;
     }
 
     private void SetLcdRowsVisible(bool visible)
     {
         var vis = visible ? Visibility.Visible : Visibility.Collapsed;
-        LcdThemeRowLabel.Visibility      = vis;
-        LcdThemeSwatchPanel.Visibility   = vis;
         LcdFormatRowLabel.Visibility     = vis;
         LcdFormatRow.Visibility          = vis;
         LcdSecondsRowLabel.Visibility    = vis;
         ChkLcdSeconds.Visibility         = vis;
+        LcdStyleRowLabel.Visibility      = vis;
+        LcdStyleRow.Visibility           = vis;
+    }
+
+    private void SetLcdStyleButtonStates(string style)
+    {
+        BtnLcdDark.Tag   = style == "Dark"   ? "selected" : null;
+        BtnLcdPaper.Tag  = style == "Paper"  ? "selected" : null;
+        BtnLcdSilver.Tag = style == "Silver" ? "selected" : null;
     }
 
     private void SetActiveSwatch(Border? activeRing)
@@ -242,22 +239,6 @@ public sealed partial class SettingsWindow : Window
             r.BorderThickness = new Thickness(0);
             r.BorderBrush     = null;
         }
-        if (activeRing is not null)
-        {
-            activeRing.BorderThickness = new Thickness(2);
-            activeRing.BorderBrush     = blue;
-        }
-    }
-
-    private void SetActiveLcdSwatch(LcdTheme theme)
-    {
-        var blue = new SolidColorBrush(Color.FromRgb(0x00, 0x78, 0xD4));
-        foreach (var (t, ring) in _lcdSwatchRings)
-        {
-            ring.BorderThickness = new Thickness(0);
-            ring.BorderBrush     = null;
-        }
-        var activeRing = _lcdSwatchRings.FirstOrDefault(x => x.Theme == theme).Ring;
         if (activeRing is not null)
         {
             activeRing.BorderThickness = new Thickness(2);
@@ -448,18 +429,6 @@ public sealed partial class SettingsWindow : Window
         ClockTypeChanged?.Invoke(ClockType.Lcd);
     }
 
-    // ── LCD controls ─────────────────────────────────────────────────────
-    private void LcdSwatch_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (_suppressEvents) return;
-        if (sender is Border swatch &&
-            Enum.TryParse<LcdTheme>((string?)swatch.Tag, out var theme))
-        {
-            SetActiveLcdSwatch(theme);
-            LcdThemeChanged?.Invoke(theme);
-        }
-    }
-
     private void BtnLcd12hr_Click(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
@@ -480,6 +449,36 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         LcdShowSecondsChanged?.Invoke(ChkLcdSeconds.IsChecked == true);
+    }
+
+    private void BtnLcdDark_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetLcdStyleButtonStates("Dark");
+        LcdStyleChanged?.Invoke("Dark");
+    }
+
+    private void BtnLcdPaper_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetLcdStyleButtonStates("Paper");
+        LcdStyleChanged?.Invoke("Paper");
+    }
+
+    private void BtnLcdSilver_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetLcdStyleButtonStates("Silver");
+        LcdStyleChanged?.Invoke("Silver");
+    }
+
+    // ── Dial options checkboxes ───────────────────────────────────────────
+    private void ChkDialOption_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        if (sender == ChkShowHourTicks)   ShowHourTicksChanged?.Invoke(ChkShowHourTicks.IsChecked == true);
+        if (sender == ChkShowMinuteDots)  ShowMinuteDotsChanged?.Invoke(ChkShowMinuteDots.IsChecked == true);
+        if (sender == ChkShowHourNumbers) ShowHourNumbersChanged?.Invoke(ChkShowHourNumbers.IsChecked == true);
     }
 
     // ── Phrase style combo ────────────────────────────────────────────────
