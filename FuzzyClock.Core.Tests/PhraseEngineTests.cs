@@ -212,6 +212,7 @@ public class PhraseEngineTests
 // ----- GetStructuredPhrase -----
 
 [TestClass]
+[DoNotParallelize]
 public class GetStructuredPhraseTests
 {
     private static DateTime T(int hour, int minute) =>
