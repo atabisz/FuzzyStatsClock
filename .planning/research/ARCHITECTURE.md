@@ -1,470 +1,421 @@
 # Architecture Research
 
-**Domain:** WPF desktop widget — v3.2 feature integration
-**Researched:** 2026-03-08
-**Confidence:** HIGH (all claims derived from direct source reading of current codebase)
+**Domain:** C# WPF desktop widget — v3.4 Personalities & Nixie feature integration
+**Researched:** 2026-03-11
+**Confidence:** HIGH (all analysis from direct codebase inspection)
 
----
+## Standard Architecture
 
-## System Overview
+### System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                         FuzzyClock.App (UI layer)                    │
-├──────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────────┐  ┌──────────────────┐  ┌────────────────┐  │
-│  │  MainWindow.xaml.cs  │  │  SettingsWindow  │  │ TrayMenuBuilder│  │
-│  │    (~1300 lines)     │  │  (v3.2 — new)    │  │ (WinForms tray)│  │
-│  └──────────┬───────────┘  └────────┬─────────┘  └───────┬────────┘  │
-│             │  ApplySettings()      │ SettingsChanged     │           │
-│             │  SaveSettings()       │ event               │ callbacks │
-│             └──────────────────────┴─────────────────────┘           │
-├──────────────────────────────────────────────────────────────────────┤
-│                       Service layer (FuzzyClock.App)                 │
-│  ┌──────────────┐ ┌──────────────┐ ┌────────────────┐ ┌───────────┐  │
-│  │ StatsService │ │MonitorService│ │ContrastRefresh │ │GhostMode  │  │
-│  │ (PDH, batt)  │ │(monitor keys)│ │Controller      │ │Controller │  │
-│  └──────────────┘ └──────────────┘ └────────────────┘ └───────────┘  │
-├──────────────────────────────────────────────────────────────────────┤
-│                       FuzzyClock.Core (pure, no WPF)                 │
-│  ┌──────────────┐ ┌──────────────┐ ┌────────────────┐ ┌───────────┐  │
-│  │ PhraseEngine │ │DateFormatter │ │ ContrastService│ │DialGeo-   │  │
-│  │ (v3.2: locale│ │(static,pure) │ │(WCAG math)     │ │metry      │  │
-│  │  dispatch)   │ │              │ │                │ │           │  │
-│  └──────────────┘ └──────────────┘ └────────────────┘ └───────────┘  │
-├──────────────────────────────────────────────────────────────────────┤
-│                        Persistence layer                             │
-│  ┌──────────────────────────────────────────────────────────────┐    │
-│  │  SettingsService  (Load / Save / Validate / Defaults)        │    │
-│  │  AppSettings record (flat init-property JSON record)         │    │
-│  └──────────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                     FuzzyClock.App (WPF)                           │
+│                                                                     │
+│  ┌─────────────────┐  ┌───────────────────┐  ┌───────────────────┐ │
+│  │   MainWindow    │  │  SettingsWindow   │  │  TrayMenuBuilder  │ │
+│  │  (orchestrator) │  │  (modeless 3-tab) │  │  (WinForms tray)  │ │
+│  └────────┬────────┘  └────────┬──────────┘  └────────┬──────────┘ │
+│           │  SetClockType()    │ events (Action<T>)    │ callbacks  │
+│           │◄───────────────────┴──────────────────────┘            │
+│           │                                                         │
+│  ┌────────┴──────────────────────────────────────────────────────┐ │
+│  │                    Controls/ (UserControls)                    │ │
+│  │  ┌─────────────┐ ┌──────────────┐ ┌───────────────────────┐  │ │
+│  │  │ DialCanvas  │ │ LcdClockView │ │  NixieClockView (NEW) │  │ │
+│  │  │  (XAML el.) │ │ (UserControl)│ │     (UserControl)     │  │ │
+│  │  └─────────────┘ └──────────────┘ └───────────────────────┘  │ │
+│  │                   SevenSegmentDigit (sub-control)              │ │
+│  └───────────────────────────────────────────────────────────────┘ │
+├────────────────────────────────────────────────────────────────────┤
+│                     FuzzyClock.Core (pure logic)                    │
+│                                                                     │
+│  ┌──────────────┐  ┌────────────────────────────────────────────┐  │
+│  │ PhraseEngine │  │  IPhraseProvider implementations           │  │
+│  │  (static)    │  │  Classic / Terse / Poetic / Rude           │  │
+│  │  SetLocale() │  │  + Pirate / Dwarf / Jive / ValleyGirl      │  │
+│  │  GetPhrase() │  │  + Yoda / Shakespeare (all NEW)            │  │
+│  └──────┬───────┘  └────────────────────────────────────────────┘  │
+│         │ locale key "en-pirate" etc.                               │
+│  ┌──────┴──────────────────────────────────────────────────────┐   │
+│  │  Dictionary<string, IPhraseProvider>  _providers            │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Notes |
-|-----------|----------------|-------|
-| `MainWindow` | All WPF UI state, timers, display update methods, color application | ~1300 lines; single-owner of all live state |
-| `AppSettings` | Flat init-property record; single source of persisted truth | Never positional; JSON forward-compat pattern |
-| `SettingsService` | Load/Save/Validate/Defaults; atomic JSON write via `.tmp` rename | Pure static; no WPF types |
-| `TrayMenuBuilder` | Builds WinForms `NotifyIcon` + `ContextMenuStrip`; syncs checkmarks on `Opening` | All callbacks must `Dispatcher.Invoke` before touching WPF |
-| `PhraseEngine` | Pure static phrase generation and structured decomposition | Currently English-only; v3.2 needs locale dispatch |
-| `ContrastRefreshController` | 500ms sampling timer; fires `ColorChanged`/`Cleared` events | Wired to `ApplyDisplayColor` / `ApplyTheme` in ContentRendered |
-| `SettingsWindow` | v3.2 new — WPF Window for settings UI | Must not own live state; reflects and propagates to MainWindow |
-
----
+| Component | Responsibility | v3.4 Change |
+|-----------|----------------|-------------|
+| `ClockType` enum | Identifies which clock face is active | Add `Nixie = 3` |
+| `AppSettings` record | Persists all user preferences as init-property record | Add `DialShape` enum property |
+| `PhraseEngine` (static) | Locale registry; routes `GetPhrase()` to active provider | Add 6 new locale keys |
+| `IPhraseProvider` | Contract: `GetPhrase(DateTime)` + `GetStructuredPhrase(DateTime)` | Unchanged |
+| `RudePhraseProvider` | English rude bucket-table provider | Full rewrite (ruder vocabulary) |
+| `LcdClockView` | Self-timed UserControl; DependencyProperty-driven colors+size | Unchanged |
+| `SevenSegmentDigit` | Per-character canvas renderer with geometry cache | Unchanged |
+| `NixieClockView` | NEW: self-timed UserControl; WPF-only Nixie rendering | New component |
+| `MainWindow` | Orchestrator; collapse/show clock areas on `SetClockType()` | Add Nixie branch; add DialShape |
+| `SettingsWindow` | Modeless event source; fires `Action<T>` per setting change | Add Nixie button; add DialShape selector |
+| `TrayMenuBuilder` | WinForms tray menu with Clock Type submenu | Add Nixie menu item |
 
 ## Recommended Project Structure
 
 ```
-FuzzyClock.App/
-├── MainWindow.xaml(.cs)         # unchanged owner of all timers and UI state
-├── SettingsWindow.xaml(.cs)     # NEW — second WPF Window; Owner=MainWindow
-├── AppSettings.cs               # add new fields: Theme, PhraseLocale, BatteryAlertPercent, etc.
-├── SettingsService.cs           # add Validate guards and Defaults for new fields
-├── TrayMenuBuilder.cs           # add "Open Settings..." menu item + OpenSettings callback
-├── StatsService.cs              # unchanged
-├── MonitorService.cs            # unchanged
-├── ContrastRefreshController.cs # unchanged
-├── GhostModeController.cs       # unchanged
-
 FuzzyClock.Core/
-├── PhraseEngine.cs              # refactor: static dispatcher calling IPhraseProvider
-├── IPhraseProvider.cs           # NEW interface: GetPhrase + GetStructuredPhrase
-├── EnglishPhraseProvider.cs     # NEW: current bucket table moved here verbatim
-├── FrenchPhraseProvider.cs      # example of additional locale (add as needed)
-├── DateFormatter.cs             # unchanged
-├── ContrastService.cs           # unchanged
-├── DialGeometry.cs              # unchanged
-├── UptimeFormatter.cs           # unchanged
+├── IPhraseProvider.cs              # unchanged
+├── PhraseEngine.cs                 # add 6 new locale keys to _providers dict
+├── EnglishPhraseProvider.cs        # unchanged
+├── TersePhraseProvider.cs          # unchanged
+├── PoeticPhraseProvider.cs         # unchanged
+├── RudePhraseProvider.cs           # REWRITE — ruder vocabulary (WTF, dafaq, tf, etc.)
+├── PiratePhraseProvider.cs         # NEW
+├── DwarfPhraseProvider.cs          # NEW
+├── JivePhraseProvider.cs           # NEW
+├── ValleyGirlPhraseProvider.cs     # NEW
+├── YodaPhraseProvider.cs           # NEW
+└── ShakespearePhraseProvider.cs    # NEW
+
+FuzzyClock.App/
+├── ClockType.cs                    # add Nixie = 3
+├── AppSettings.cs                  # add DialShape property + DialShape enum
+├── MainWindow.xaml / .xaml.cs      # add NixieView element; add Nixie to SetClockType switch;
+│                                   # add DialShape handling to dial sizing
+├── SettingsWindow.xaml / .xaml.cs  # add BtnNixie toggle button; add DialShape radio buttons;
+│                                   # DialShapeChanged event; extend SetClockStyleButtonStates()
+├── TrayMenuBuilder.cs              # add _nixieClockItem field; add Nixie to Clock Type submenu
+└── Controls/
+    ├── LcdClockView.xaml / .xaml.cs      # unchanged
+    ├── SevenSegmentDigit.xaml / .xaml.cs # unchanged
+    └── NixieClockView.xaml / .xaml.cs    # NEW
 ```
 
 ### Structure Rationale
 
-- **`SettingsWindow` in FuzzyClock.App:** WPF Window requires `net10.0-windows`; Core must stay WPF-free for test isolation.
-- **`IPhraseProvider` + `*PhraseProvider` in Core:** Keeps Core's public API stable (`PhraseEngine.GetPhrase` stays the entry point) while isolating each language as its own class. No runtime file I/O.
-- **`AppSettings.cs` additions:** The init-property record pattern (never positional, all fields optional for JSON compat) must be continued for each new setting.
-
----
+- **New providers stay in `FuzzyClock.Core/` root** alongside existing providers. No `Providers/` subdirectory exists in the current codebase; introducing one for 6 new files adds unnecessary friction. Keep flat.
+- **`NixieClockView` in `Controls/`** — matches the pattern established by `LcdClockView` and `SevenSegmentDigit`; a self-contained UserControl that owns its own timer and DependencyProperties.
+- **`DialShape` enum in `AppSettings.cs`** — consistent with `LcdSize` enum which also lives in the App project. Does not belong in Core (Core is display-logic-free).
 
 ## Architectural Patterns
 
-### Pattern 1: Settings Window as Owner-Child with Event Notification
+### Pattern 1: IPhraseProvider Bucket Table
 
-**What:** `SettingsWindow` is opened from a tray callback. `Owner = mainWindowInstance` is set before `Show()`. SettingsWindow does not own an `AppSettings` copy — it receives the current snapshot at open time and fires `event Action<AppSettings> SettingsChanged` when the user applies a change. MainWindow subscribes and calls `ApplySettings()` + `SaveSettings()`.
+**What:** Each provider holds a static `(int UpperBound, string Template)[]` array. `GetPhrase(DateTime)` walks buckets, returns first match where `dt.Minute <= upperBound`, substitutes `{h}` / `{h1}` with hour words.
 
-**When to use:** Any second WPF Window that needs to modify MainWindow-owned state.
+**When to use:** All 6 new English personality providers. The contract is small and well-proven across 4 existing providers.
 
-**Trade-offs:**
-- Owner relationship ensures SettingsWindow renders in front of the `Topmost=True` overlay on all Windows versions. Without Owner, the settings window can fall behind the always-on-top overlay.
-- Event-based notification keeps SettingsWindow ignorant of MainWindow internals. MainWindow remains the single authoritative owner of all live state.
-- SettingsWindow must NOT call `SettingsService.Save()` directly.
-- Use `Show()` not `ShowDialog()`. `ShowDialog()` runs a nested dispatcher loop and freezes all timers — the overlay phrase, stats, and auto-contrast would all stop updating while settings are open.
+**Trade-offs:** Simple and testable; no runtime allocation beyond string substitution. Personality uniqueness lives entirely in the bucket strings, so vocabulary is easy to review and adjust.
 
-**Example:**
+**Locale key convention:**
 ```csharp
-// In ContentRendered, inside TrayMenuCallbacks initialization:
-OpenSettings = () => Dispatcher.Invoke(() =>
-{
-    if (_settingsWindow == null || !_settingsWindow.IsVisible)
-    {
-        _settingsWindow = new SettingsWindow(_settings);
-        _settingsWindow.Owner = this;
-        _settingsWindow.SettingsChanged += s =>
-        {
-            ApplySettings(s);
-            SaveSettings();
-        };
-        _settingsWindow.Show();
-    }
-    else
-    {
-        _settingsWindow.Activate();
-    }
-}),
+// PhraseEngine._providers dictionary — new entries
+["en-pirate"]      = new PiratePhraseProvider(),
+["en-dwarf"]       = new DwarfPhraseProvider(),
+["en-jive"]        = new JivePhraseProvider(),
+["en-valleygirl"]  = new ValleyGirlPhraseProvider(),
+["en-yoda"]        = new YodaPhraseProvider(),
+["en-shakespeare"] = new ShakespearePhraseProvider(),
 ```
 
-`_settingsWindow` must be a field on MainWindow, not a local variable. The null-or-not-visible guard prevents duplicate windows.
+### Pattern 2: Self-Timed UserControl with IsVisibleChanged Guard
 
-### Pattern 2: IPhraseProvider Interface for Multi-Locale PhraseEngine
+**What:** `LcdClockView` owns a `DispatcherTimer`. The timer starts/stops via `IsVisibleChanged` — it runs only when the control is visible. `UpdateTime()` is public so `MainWindow` can force an immediate refresh.
 
-**What:** Extract the English bucket table and `HourWords` array into `EnglishPhraseProvider : IPhraseProvider`. `PhraseEngine` becomes a static dispatcher with a module-level `_provider` field, a `SetLocale(string)` method, and unchanged `GetPhrase`/`GetStructuredPhrase` public methods. Call sites in MainWindow are unmodified.
+**When to use:** `NixieClockView` must follow this exact pattern. `MainWindow` sets `NixieView.Visibility = Visible` to activate; `IsVisibleChanged` fires, calls `UpdateTime()` immediately, then starts the timer.
 
-**When to use:** Adding multilingual phrase generation.
+**Trade-offs:** No wasted CPU ticking when the clock face is hidden. The guard also prevents double-start bugs during `ApplySettings` (which runs before `Show()`).
 
-**Trade-offs:**
-- `PhraseEngine` becomes stateful at module level (holds `_provider`). In unit tests, any test that calls `SetLocale` must restore the default locale afterward (or set locale explicitly before each assertion) to prevent cross-test pollution. This is the tradeoff for leaving call sites unchanged.
-- All 51+ existing `PhraseEngine` unit tests continue to pass without modification — the English provider produces identical output to the current static implementation.
-- Phrase template strings for non-English locales are embedded as `private static readonly` arrays in their provider class (compiled into the assembly). No runtime file I/O. No resource loading. Keeps Core pure and test-safe.
-
-**Example:**
+**NixieClockView skeleton:**
 ```csharp
-// FuzzyClock.Core/PhraseEngine.cs
-public static class PhraseEngine
+public partial class NixieClockView : UserControl
 {
-    private static IPhraseProvider _provider = new EnglishPhraseProvider();
+    private readonly DispatcherTimer _timer;
 
-    public static void SetLocale(string locale)
-        => _provider = locale switch
-        {
-            "fr" => new FrenchPhraseProvider(),
-            _    => new EnglishPhraseProvider()
-        };
+    public NixieClockView()
+    {
+        InitializeComponent();
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _timer.Tick += (_, _) => UpdateTime();
+        IsVisibleChanged += OnIsVisibleChanged;
+    }
 
-    public static string GetPhrase(DateTime dt)
-        => _provider.GetPhrase(dt);
+    private void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if ((bool)e.NewValue) { UpdateTime(); _timer.Start(); }
+        else _timer.Stop();
+    }
 
-    public static (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt)
-        => _provider.GetStructuredPhrase(dt);
+    public void UpdateTime() { /* render current DateTime.Now */ }
 }
 ```
 
-### Pattern 3: Theme as Named Preset — No ThemeService Class
+### Pattern 3: ClockType Switch in MainWindow (two locations)
 
-**What:** A theme is a named color preset stored as a string in `AppSettings`. `ApplyTheme()` in MainWindow already applies `_accentColor` to all UI elements. Adding theme support means: (a) `SetTheme(string)` sets `_accentColor` from the preset palette, and (b) optionally sets a `ContentBorder` background tint. There is no need for a separate `ThemeService`.
+**What:** `SetClockType(ClockType ct)` collapses all display areas, then exposes exactly one based on the enum value. `ApplySettings()` mirrors the same collapse-then-show logic inline (it cannot delegate to `SetClockType` because timers are null before `ContentRendered`).
 
-**When to use:** When theme scope is limited to color presets. A `ThemeService` would only be justified if themes involved fonts, layout variants, or animation — none of which are planned for v3.2.
+**When to use:** Adding `ClockType.Nixie` requires changes in two places that must stay in sync:
+1. `SetClockType` switch — add `case ClockType.Nixie:` branch.
+2. `ApplySettings` inline block — add `else if (s.ClockType == ClockType.Nixie)` branch.
 
-**Trade-offs:**
-- `ApplyTheme()` already covers all 20+ elements. Adding a background tint adds exactly one line: `ContentBorder.Background = new SolidColorBrush(themeBackground)`.
-- `ApplyDisplayColor()` (auto-contrast override path) must also respect the theme background tint — one additional line there too.
-- The `SettingsService.Validate()` guard for the `Theme` field follows the existing pattern: `string[] validThemes = { "Default", "Dark", ... }`.
+Missing either one causes Nixie to never appear (on startup or on live switch, respectively).
 
-### Pattern 4: Battery Alert as Display-Side State Flag
+**Trade-offs:** Duplicated logic is known debt, explicitly called out in source comments at lines 230 and 253. The pattern is well-understood; unifying the two paths is deferred work.
 
-**What:** `AppSettings.BatteryAlertPercent` (int, default 20) and `AppSettings.BatteryAlertEnabled` (bool, default false). MainWindow adds `_batteryAlertActive` bool field. `UpdateStatsDisplay()` computes and sets this flag on every stats tick. `ApplyTheme()` and `ApplyDisplayColor()` check the flag and override the `BattBar`/`BattText` color if alert is active.
+### Pattern 4: SettingsWindow as Pure Event Source
 
-**When to use:** For a visual alert that requires no new timer, service, or event system. The stats timer already calls `UpdateStatsDisplay()` on every tick.
+**What:** `SettingsWindow` fires strongly-typed `Action<T>` events. It never writes `AppSettings` directly. `MainWindow` subscribes in `OpenSettings()` and calls its own setters (which call `SaveSettings()`).
 
-**Trade-offs:**
-- Alert color must be hardcoded (not subject to user theme) — a warning red visible regardless of accent. Suggested: `Color.FromRgb(0xFF, 0x44, 0x00)`.
-- `ApplyTheme()` and `ApplyDisplayColor()` both need an identical battery-section guard. These methods are already parallel (one covers accent path, one covers auto-contrast path) and both must be kept in sync when new battery logic is added.
-- `BatteryAlertEnabled = false` default means no alert on first launch or upgrade — users opt in.
-
----
+**When to use:** New settings (DialShape, Nixie clock type) follow this protocol exactly:
+- Add `event Action<DialShape>? DialShapeChanged` to `SettingsWindow`.
+- Fire it from the radio-button click handler.
+- Subscribe in `MainWindow.OpenSettings()`.
 
 ## Data Flow
 
-### Settings Change Flow
+### Clock Type Switch Flow
 
 ```
-User changes setting
-    |
-    +-- Via tray menu callback (WinForms thread)
-    |       Dispatcher.Invoke(...)
-    |
-    +-- Via SettingsWindow.SettingsChanged event (WPF thread, already correct)
+User clicks Nixie button (SettingsWindow or tray)
     |
     v
-MainWindow.Set*() or MainWindow.ApplySettings(AppSettings s)
+SettingsWindow.ClockTypeChanged fires  OR  TrayMenuCallbacks.SetClockType invoked
     |
     v
-Updates MainWindow private fields (_accentColor, _dialMode, _phraseLocale, etc.)
+MainWindow.SetClockType(ClockType.Nixie)
     |
     v
-Calls ApplyTheme() / PhraseEngine.SetLocale() / UpdateStatsDisplay() etc.
+Collapse: PhraseText, SplitPhrasePanel, DialCanvas, LcdView, [NixieView if already shown]
+Show: NixieView.Visibility = Visible
     |
     v
-SaveSettings()
-    --> builds new _settings record with { ... } expression
-    --> SettingsService.Save(_settings)
-    --> atomic JSON write to %LOCALAPPDATA%\FuzzyClock\settings.json
-```
-
-### Color Application Pipeline
-
-```
-_accentColor (field on MainWindow)
-    |
-    +-- ApplyTheme()
-    |   Applies accent brush to all 20+ UI elements.
-    |   Called when: accent color changes, auto-contrast clears (Cleared event),
-    |   SetTextStyle(), ContentRendered (after InitDialDecorations).
-    |   Battery section: checks _batteryAlertActive → alert color OR accent brush.
-    |
-    +-- ApplyDisplayColor(RgbColor)
-        Applies computed override color to same 20+ elements.
-        Called when: ContrastRefreshController.ColorChanged event fires (500ms tick).
-        Battery section: checks _batteryAlertActive → alert color OR override brush.
-```
-
-### Battery Alert State Flow
-
-```
-_statsTimer.Tick (1s/3s/10s)
+NixieClockView.IsVisibleChanged -> UpdateTime() -> _timer.Start()
     |
     v
-UpdateStatsDisplay()
-    --> _statsService.Refresh()
-    --> reads BatteryPercent, IsPluggedIn
-    --> computes: _batteryAlertActive =
-            _batteryAlertEnabled &&
-            _statsService.BatteryPercent >= 0f &&
-            _statsService.BatteryPercent < _batteryAlertPercent &&
-            !_statsService.IsPluggedIn
-    --> if _batteryAlertActive: applies alert brush to BattBar/BattText directly
-    --> else: applies accent brush to BattBar/BattText
-
-Next call to ApplyTheme() or ApplyDisplayColor():
-    --> battery section checks _batteryAlertActive flag
-    --> if true: skips writing accent/override color to BattBar/BattText
-    --> if false: writes accent/override color as normal
+SaveSettings() -> serializes ClockType.Nixie as "Nixie" via JsonStringEnumConverter
 ```
 
-### Phrase Locale Flow
+### Phrase Style Selection Flow (new personalities)
 
 ```
-AppSettings.PhraseLocale = "fr"  (loaded from settings.json or set via SettingsWindow)
+User selects "Pirate" in CmbPhraseStyle
     |
     v
-ApplySettings(s) calls PhraseEngine.SetLocale(s.PhraseLocale)
+SettingsWindow.PhraseStyleChanged fires with "Pirate"
     |
     v
-_timer.Tick (10s) --> UpdatePhraseIfChanged()
-    --> PhraseEngine.GetPhrase(DateTime.Now) --> FrenchPhraseProvider.GetPhrase()
-    --> PhraseText.Text = French phrase string
+MainWindow.SetPhraseStyle("Pirate")
+    |
+    v
+locale = "en-pirate"
+PhraseEngine.SetLocale("en-pirate") -> _activeProvider = PiratePhraseProvider
+    |
+    v
+SaveSettings() -> persists PhraseStyle = "Pirate"
+    |
+    v
+Next timer tick -> UpdatePhraseIfChanged() -> PhraseEngine.GetPhrase(DateTime.Now)
+    -> PiratePhraseProvider.GetPhrase(dt) -> bucket-table result
 ```
 
----
+### DialShape Flow
 
-## Integration Points: New vs Modified Components
+```
+User selects Oval radio button (SettingsWindow Appearance tab)
+    |
+    v
+SettingsWindow.DialShapeChanged fires with DialShape.Oval
+    |
+    v
+MainWindow stores _dialShape; calls ApplyDialShape()
+    |
+    v
+ApplyDialShape() -> sets DialCanvas Width/Height based on shape + current font size
+    |
+    v
+SaveSettings() -> persists DialShape = "Oval" via JsonStringEnumConverter
+```
 
-### (a) Settings Window
+### Settings Persistence Flow (unchanged mechanism)
 
-**New components:**
-- `FuzzyClock.App/SettingsWindow.xaml` — standard WPF Window; NOT AllowsTransparency; NOT Topmost
-- `FuzzyClock.App/SettingsWindow.xaml.cs` — constructor accepts `AppSettings` snapshot; exposes `event Action<AppSettings> SettingsChanged`
+```
+AppSettings (init-property record)
+    ^ deserialized by SettingsService.Load() at startup
+    ^ serialized by SettingsService.Save() on every SaveSettings() call
+    ^ JsonStringEnumConverter on ClockType and LcdSize
+      -> ClockType.Nixie serializes as "Nixie" (no migration needed for new enum values)
+```
 
-**Modified components:**
-- `MainWindow.xaml.cs`:
-  - Add `private SettingsWindow? _settingsWindow` field
-  - In ContentRendered, add `OpenSettings` to `TrayMenuCallbacks` struct
-  - Subscribe to `_settingsWindow.SettingsChanged` to call `ApplySettings()` + `SaveSettings()`
-- `TrayMenuBuilder.cs`:
-  - Add "Open Settings..." menu item (first item, before Ghost Mode separator)
-  - Add `required Action OpenSettings` to `TrayMenuCallbacks`
-- `TrayMenuCallbacks` record — add `required Action OpenSettings { get; init; }`
+## Integration Points
 
-**Owner relationship:** `_settingsWindow.Owner = this` must be set before `_settingsWindow.Show()`. This ensures the Settings Window renders in front of the `Topmost=True` overlay. Without Owner, the settings window disappears behind the overlay on Windows 10/11.
+### New vs Modified Components
 
-### (b) PhraseEngine Multi-Locale Refactor
+| Component | Status | Files Changed |
+|-----------|--------|---------------|
+| `RudePhraseProvider` | Modified (rewrite) | `FuzzyClock.Core/RudePhraseProvider.cs` |
+| `PiratePhraseProvider` | New | `FuzzyClock.Core/PiratePhraseProvider.cs` |
+| `DwarfPhraseProvider` | New | `FuzzyClock.Core/DwarfPhraseProvider.cs` |
+| `JivePhraseProvider` | New | `FuzzyClock.Core/JivePhraseProvider.cs` |
+| `ValleyGirlPhraseProvider` | New | `FuzzyClock.Core/ValleyGirlPhraseProvider.cs` |
+| `YodaPhraseProvider` | New | `FuzzyClock.Core/YodaPhraseProvider.cs` |
+| `ShakespearePhraseProvider` | New | `FuzzyClock.Core/ShakespearePhraseProvider.cs` |
+| `PhraseEngine` | Modified | `FuzzyClock.Core/PhraseEngine.cs` |
+| `ClockType` enum | Modified | `FuzzyClock.App/ClockType.cs` |
+| `AppSettings` record | Modified | `FuzzyClock.App/AppSettings.cs` |
+| `NixieClockView` | New | `FuzzyClock.App/Controls/NixieClockView.xaml` + `.xaml.cs` |
+| `MainWindow` | Modified | `MainWindow.xaml` + `.xaml.cs` |
+| `SettingsWindow` | Modified | `SettingsWindow.xaml` + `.xaml.cs` |
+| `TrayMenuBuilder` | Modified | `FuzzyClock.App/TrayMenuBuilder.cs` |
 
-**New components in FuzzyClock.Core:**
-- `IPhraseProvider.cs` — interface with `GetPhrase(DateTime)` and `GetStructuredPhrase(DateTime)` methods
-- `EnglishPhraseProvider.cs` — current static `Buckets` array, `HourWords` array, and both methods moved verbatim; implements `IPhraseProvider`
-- Additional locale classes as needed (e.g. `FrenchPhraseProvider.cs`)
+### Locale Key Naming Convention
 
-**Modified components:**
-- `FuzzyClock.Core/PhraseEngine.cs`:
-  - Becomes a static dispatcher
-  - Retains `GetPhrase(DateTime)` and `GetStructuredPhrase(DateTime)` as public static methods (call sites in MainWindow unchanged)
-  - Adds `public static void SetLocale(string locale)` static method
-  - Internal `_provider` field set to `new EnglishPhraseProvider()` by default
-- `FuzzyClock.App/MainWindow.xaml.cs`:
-  - Add `private string _phraseLocale = "en"` field
-  - `ApplySettings(AppSettings s)` calls `PhraseEngine.SetLocale(s.PhraseLocale)` and clears `PhraseText.Text` to force redraw on next tick
-  - `SaveSettings()` includes `PhraseLocale = _phraseLocale` in the settings record expression
-  - `ResetToDefaults()` resets `_phraseLocale = "en"` and calls `PhraseEngine.SetLocale("en")`
-- `FuzzyClock.App/AppSettings.cs` — add `public string PhraseLocale { get; init; } = "en"`
-- `FuzzyClock.App/SettingsService.cs` — add PhraseLocale to `Validate()` (allowed values list) and `Defaults()`
+Existing keys: `"en-classic"`, `"en-terse"`, `"en-poetic"`, `"en-rude"`, `"fr"`, `"es"`, `"de"`, `"ja"`, `"pl"`.
 
-**Test impact:** All existing PhraseEngine unit tests use `PhraseEngine.GetPhrase(DateTime)` with implicit default English provider. They remain valid and pass without modification. New locale tests require explicit `PhraseEngine.SetLocale("fr")` calls with teardown restoring `"en"`.
+New keys follow `"en-{stylename}"` (lowercase, no spaces):
 
-### (c) Theme Logic
+| Provider | Locale Key | PhraseStyle string (persisted) |
+|----------|------------|-------------------------------|
+| `PiratePhraseProvider` | `"en-pirate"` | `"Pirate"` |
+| `DwarfPhraseProvider` | `"en-dwarf"` | `"Dwarf"` |
+| `JivePhraseProvider` | `"en-jive"` | `"Jive"` |
+| `ValleyGirlPhraseProvider` | `"en-valleygirl"` | `"ValleyGirl"` |
+| `YodaPhraseProvider` | `"en-yoda"` | `"Yoda"` |
+| `ShakespearePhraseProvider` | `"en-shakespeare"` | `"Shakespeare"` |
 
-**No new ThemeService class.** Theme is an accent color preset applied through the existing `ApplyTheme()` method.
+### PhraseStyle to Locale Mapping — Two Call Sites
 
-**Modified components:**
-- `FuzzyClock.App/AppSettings.cs` — add `public string Theme { get; init; } = "Default"`
-- `FuzzyClock.App/SettingsService.cs` — add Theme guard in `Validate()`, add to `Defaults()`
-- `FuzzyClock.App/MainWindow.xaml.cs`:
-  - Add `private string _theme = "Default"` field
-  - `ApplyTheme()` — after applying accent brush to all elements, check `_theme` field; apply the theme's background tint (if any) to `ContentBorder.Background`
-  - Add `private void SetTheme(string theme)` — sets `_theme`, derives `_accentColor` from the preset palette, calls `ApplyTheme()`, calls `SaveSettings()`
-  - `ResetToDefaults()` — resets `_theme = "Default"`, calls `SetTheme("Default")`
-  - `ApplySettings(AppSettings s)` — sets `_theme = s.Theme`
-- `TrayMenuBuilder.cs` — new "Theme" submenu in tray menu; new callback `SetTheme` in `TrayMenuCallbacks`
-- `TrayMenuCallbacks` record — add `required Action<string> SetTheme { get; init; }`
+The style-to-locale switch exists in two places in `MainWindow.xaml.cs` and both must be extended identically:
 
-**No changes to ContrastRefreshController or ContrastService.** Auto-contrast computes a display color from sampled background pixels, independent of theme.
-
-### (d) Battery Alert State Flow
-
-**No new service or class.** Alert state is a display flag on MainWindow.
-
-**Modified components:**
-- `FuzzyClock.App/AppSettings.cs`:
-  - Add `public int BatteryAlertPercent { get; init; } = 20`
-  - Add `public bool BatteryAlertEnabled { get; init; } = false`
-- `FuzzyClock.App/SettingsService.cs`:
-  - Add `BatteryAlertPercent` guard (clamp to 1–99 or discrete ladder) in `Validate()`
-  - Add both fields to `Defaults()`
-- `FuzzyClock.App/MainWindow.xaml.cs`:
-  - Add `private bool _batteryAlertActive = false` field
-  - Add `private bool _batteryAlertEnabled = false` field
-  - Add `private int _batteryAlertPercent = 20` field
-  - `UpdateStatsDisplay()` — after reading `BatteryPercent`, compute and set `_batteryAlertActive`; apply alert brush to `BattBar.Background` and `BattText.Foreground` when true
-  - `ApplyTheme()` — in the battery section (lines ~1097–1116 in current code), check `_batteryAlertActive`: if true, apply `Color.FromRgb(0xFF, 0x44, 0x00)` alert brush; if false, apply accent brush
-  - `ApplyDisplayColor(RgbColor)` — same check for `BattBar` and `BattText` elements (lines ~1148–1153 in current code)
-  - `ApplySettings(AppSettings s)` — sets `_batteryAlertEnabled = s.BatteryAlertEnabled`, `_batteryAlertPercent = s.BatteryAlertPercent`
-  - `SaveSettings()` — includes `BatteryAlertEnabled = _batteryAlertEnabled`, `BatteryAlertPercent = _batteryAlertPercent` in record expression
-  - `ResetToDefaults()` — resets `_batteryAlertEnabled = false`, `_batteryAlertPercent = 20`, `_batteryAlertActive = false`
-
----
-
-## AppSettings Migration Strategy
-
-All new fields are added as `{ get; init; }` init-property declarations with explicit `= defaultValue`. This is the established forward/backward JSON compat pattern. Fields absent in an older `settings.json` deserialize to the C# type default (0/false/""), so:
-1. `SettingsService.Defaults()` must use explicit `= value` for all new fields.
-2. `SettingsService.Validate()` must guard each new field against invalid values.
-
-Fields to add for v3.2:
+1. `ApplySettings()` (~lines 319-338) — runs at startup from saved settings.
+2. `SetPhraseStyle(string style)` — runs on live user change.
 
 ```csharp
-// AppSettings.cs additions
-public string PhraseLocale         { get; init; } = "en";
-public string Theme                { get; init; } = "Default";
-public int    BatteryAlertPercent  { get; init; } = 20;
-public bool   BatteryAlertEnabled  { get; init; } = false;
+// Extended switch (both locations):
+effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
+{
+    "terse"       => "en-terse",
+    "poetic"      => "en-poetic",
+    "rude"        => "en-rude",
+    "pirate"      => "en-pirate",      // new
+    "dwarf"       => "en-dwarf",       // new
+    "jive"        => "en-jive",        // new
+    "valleygirl"  => "en-valleygirl",  // new
+    "yoda"        => "en-yoda",        // new
+    "shakespeare" => "en-shakespeare", // new
+    _             => "en-classic",
+};
 ```
 
-No migration code is needed (unlike the v2.6 `MonitorPositions` migration from flat `Left`/`Top`). All new fields are additive with safe defaults on absent keys.
+### CmbPhraseStyle ComboBox Extension
 
----
+`SettingsWindow.PopulateControls` maps `PhraseStyle` string to `CmbPhraseStyle.SelectedIndex` (currently indices 0–3). New styles append as indices 4–9. The XAML must add 6 new `ComboBoxItem` entries. The `PhraseStyleChanged` event already carries a `string`, so no event signature changes.
 
-## Build Order Recommendation
+### Internal Boundaries
 
-Dependencies between v3.2 features determine the safe build order:
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `MainWindow` <-> `SettingsWindow` | `Action<T>` events fired by Settings, consumed by MainWindow | Events declared on SettingsWindow; subscribed in `OpenSettings()` |
+| `MainWindow` <-> `NixieClockView` | WPF Visibility + `UpdateTime()` public method | Identical boundary to `LcdClockView` |
+| `MainWindow` <-> `PhraseEngine` | Static method calls `PhraseEngine.SetLocale()`, `GetPhrase()` | No change to Core interface |
+| `MainWindow` <-> `TrayMenuBuilder` | `TrayMenuCallbacks` struct + `TrayMenuState` record | Add `ClockType.Nixie` to state sync |
+| `FuzzyClock.App` <-> `FuzzyClock.Core` | One-way: App calls Core | Core has zero references to App; no circular dependency risk |
 
-| Phase | Feature | Dependencies | Rationale |
-|-------|---------|--------------|-----------|
-| 1 | `IPhraseProvider` + `EnglishPhraseProvider` extraction | None — pure Core refactor | Highest-risk change (touches Core with 51 unit tests); isolated early so failures are contained; no behavioral changes to MainWindow yet |
-| 2 | Settings Window infrastructure | None (uses existing `AppSettings`) | Establishes Owner/event pattern before features need it as a UI surface; can start as a minimal shell that just displays current settings |
-| 3 | Theme presets | Settings Window (UI surface for theme picker) | Extends `ApplyTheme()` — must be stable before battery alert adds another branch to the same method |
-| 4 | Battery alert | Theme done (`ApplyTheme()` stable); Settings Window available | Adds `_batteryAlertActive` guard to `ApplyTheme()` and `ApplyDisplayColor()` — do after theme to avoid concurrent edits to same methods |
-| 5 | Multilingual phrase support | Phase 1 (`IPhraseProvider` done); Phase 2 (Settings Window for locale picker) | Locale providers are additive; no existing code is broken until `SetLocale` is called |
+## Build Order
 
-**Ordering rationale:**
-- The PhraseEngine refactor is the only change that touches Core and its test suite. Isolating it first means any test regression is immediately attributable.
-- Settings Window infrastructure before specific features means the UI surface is ready by the time theme and locale controls are implemented, avoiding a situation where settings live in the tray while partially moved.
-- Theme before battery alert because both modify `ApplyTheme()`. Sequential changes to the same method are cleaner than parallel.
-- Locale last because `FrenchPhraseProvider` (or other locales) are pure additions with no risk to existing behavior.
+Dependencies flow upward; lower layers must compile before higher layers consume them.
 
----
+```
+Layer 1 — Core: New Providers (no dependencies on App)
+  1a. RudePhraseProvider.cs       rewrite in-place; existing tests updated
+  1b. PiratePhraseProvider.cs     new file
+  1c. DwarfPhraseProvider.cs      new file
+  1d. JivePhraseProvider.cs       new file
+  1e. ValleyGirlPhraseProvider.cs new file
+  1f. YodaPhraseProvider.cs       new file
+  1g. ShakespearePhraseProvider.cs new file
+  1h. PhraseEngine.cs             register all 6 new locale keys in _providers dict
+
+Layer 2 — App: Enum and Settings (no WPF layout dependencies)
+  2a. ClockType.cs                add Nixie = 3
+  2b. AppSettings.cs              add DialShape enum + [JsonConverter] property
+
+Layer 3 — App: New UserControl (depends on Layer 2 only for ClockType compilation)
+  3a. NixieClockView.xaml         XAML structure: digit slots, glow layers, tube borders
+  3b. NixieClockView.xaml.cs      timer, DependencyProperties, UpdateTime()
+
+Layer 4 — App: MainWindow wiring (depends on Layers 2 + 3)
+  4a. MainWindow.xaml             add <controls:NixieClockView x:Name="NixieView">
+  4b. MainWindow.xaml.cs          SetClockType Nixie branch; ApplySettings Nixie branch;
+                                  DialShape field + ApplyDialShape(); extend locale switch
+
+Layer 5 — App: Settings UI (depends on Layer 2 for DialShape type; Layer 4 for event handler pattern)
+  5a. SettingsWindow.xaml         add BtnNixie; add DialShape radio buttons; add ComboBoxItems
+  5b. SettingsWindow.xaml.cs      DialShapeChanged event; extend SetClockStyleButtonStates();
+                                  extend PopulateControls() phrase style index mapping
+
+Layer 6 — App: Tray (depends on Layer 2 for ClockType.Nixie)
+  6a. TrayMenuBuilder.cs          add _nixieClockItem; extend SyncCheckmarks()
+
+Layer 7 — Tests
+  7a. PhraseStyleProviderTests.cs add >= 2 sample tests per new provider (PHRASE-09)
+  7b. Regression: all 248 existing tests must pass
+```
+
+**Rationale:**
+- Layers 1 and 2 have no mutual dependency and can proceed in parallel.
+- `NixieClockView` (Layer 3) must compile before `MainWindow.xaml` can reference it.
+- `SetClockType` and `ApplySettings` wiring (Layer 4) must exist before `SettingsWindow` events can be wired in `OpenSettings()` (Layer 5).
+- Tray (Layer 6) is independent of Settings UI; can proceed once `ClockType.Nixie` exists.
+- Tests (Layer 7) validate finished behavior but provider unit tests can be written TDD-style alongside Layer 1.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: SettingsWindow Owns Live State
+### Anti-Pattern 1: Calling SetClockType Inside ApplySettings
 
-**What people do:** Give `SettingsWindow` its own `AppSettings` copy, let it call `SettingsService.Save()` directly, have MainWindow poll settings on next tick.
+**What people do:** Refactor `ApplySettings` to delegate to `SetClockType()` to avoid duplicated collapse/show logic.
 
-**Why it's wrong:** Creates dual source of truth. MainWindow's private fields (`_accentColor`, `_dialMode`, `_currentTextStyle`, etc.) would be out of sync with what SettingsWindow wrote to disk until the next restart. All 20+ UI elements would display the old values.
+**Why it's wrong:** `SetClockType()` calls `SaveSettings()` and accesses `_statsTimer` / `_timer`, which are null until `ContentRendered` fires. The codebase explicitly guards against this — source comments at lines 230 and 253 document the invariant. Calling `SetClockType` before `Show()` throws `NullReferenceException` or writes corrupt settings.
 
-**Do this instead:** SettingsWindow fires `SettingsChanged` with a new `AppSettings` snapshot. MainWindow calls `ApplySettings()` then `SaveSettings()` — identical path to tray callbacks.
+**Do this instead:** Keep the inline collapse/show block in `ApplySettings` manually synchronized with `SetClockType`. The duplication is intentional.
 
-### Anti-Pattern 2: ShowDialog() for SettingsWindow
+### Anti-Pattern 2: Adding Nixie Visual State to FuzzyClock.Core
 
-**What people do:** `settingsWindow.ShowDialog()` for a modal settings experience.
+**What people do:** Add Nixie rendering preferences (glow intensity, cathode count) to `FuzzyClock.Core` because it seems like "clock logic."
 
-**Why it's wrong:** `ShowDialog()` runs a nested WPF dispatcher loop on the UI thread. All `DispatcherTimer` ticks stop: phrase does not update, stats freeze, auto-contrast stops sampling. The overlay becomes a frozen screenshot while settings are open.
+**Why it's wrong:** `FuzzyClock.Core` is pure logic with no WPF references. Nixie visual parameters belong in `NixieClockView` DependencyProperties, mirroring how `LcdClockView` owns `LitColor`, `BgColor`, `GhostColor`, `Size`.
 
-**Do this instead:** `Show()` (modeless). Guard with `if (_settingsWindow == null || !_settingsWindow.IsVisible)` to prevent duplicate windows.
+**Do this instead:** All Nixie visual state lives in `NixieClockView` DependencyProperties. `AppSettings` holds only what needs to persist across restarts (none for v3.4 — Nixie has no user-configurable visual options in this milestone).
 
-### Anti-Pattern 3: ThemeService as a Separate Stateful Class
+### Anti-Pattern 3: Forgetting TrayMenuBuilder When Adding a New Clock Type
 
-**What people do:** Create a `ThemeService` with its own color dictionaries, inject it into MainWindow, have it fire events when theme changes.
+**What people do:** Add Nixie to `SettingsWindow` and `SetClockType` but forget `TrayMenuBuilder` and `TrayMenuState`.
 
-**Why it's wrong:** No DI container, no reactive binding framework. There would be two write paths to the same `TextBlock.Foreground` properties: `ApplyTheme()` and the new `ThemeService`. Race conditions and stale colors are inevitable.
+**Why it's wrong:** The tray "Clock Type" submenu uses checkmarks synced from `TrayMenuState.ClockType` on every menu open. If `TrayMenuBuilder` has no Nixie item and `SyncCheckmarks` doesn't handle `ClockType.Nixie`, the tray shows no checkmark when Nixie is active.
 
-**Do this instead:** Extend `ApplyTheme()`. Add a `_theme` field to MainWindow alongside `_currentTextStyle`. A theme preset is just a named value for `_accentColor` plus an optional `ContentBorder` background tint.
+**Do this instead:** Add `_nixieClockItem` field to `TrayMenuBuilder`, add the menu item to the Clock Type submenu, and handle `ClockType.Nixie` in `SyncCheckmarks`.
 
-### Anti-Pattern 4: PhraseEngine Loads Phrase Tables from Files at Runtime
+### Anti-Pattern 4: Using Image Assets for Nixie Rendering
 
-**What people do:** Store locale phrase templates in embedded resources or JSON files. Load them in `PhraseEngine.SetLocale()` via `Assembly.GetManifestResourceStream()`.
+**What people do:** Import PNG or SVG tube images to simplify the Nixie visual look.
 
-**Why it's wrong:** `FuzzyClock.Core` is a pure, no-I/O library. Test projects rely on this for deterministic, side-effect-free unit testing. Introducing resource loading adds a failure mode (missing resource, bad manifest path) that does not currently exist. It also forces tests to depend on build artifact layout.
+**Why it's wrong:** REQUIREMENTS.md constraint is explicit: "WPF-only rendering: Nixie glow via WPF `RadialGradientBrush` effects, no image assets." Image assets also break the no-external-resource pattern established by `SevenSegmentDigit` (which draws entirely in code-behind procedural geometry).
 
-**Do this instead:** Embed phrase templates as `private static readonly` arrays inside the `*PhraseProvider` class. Compiled directly into the assembly — no runtime file I/O, no path resolution, no resource loading.
+**Do this instead:** Use `RadialGradientBrush` for the orange glow/bloom effect. Use `Canvas` or `Grid` with stacked `TextBlock` elements at varying `Opacity` for ghost cathode digits. Draw the glass tube border using `Border` with `CornerRadius` and a semi-transparent `BorderBrush`.
 
-### Anti-Pattern 5: Modifying BattBar/BattText Color Only in UpdateStatsDisplay
+### Anti-Pattern 5: Missing the Second Locale Switch Site
 
-**What people do:** Set the alert color for battery elements only in `UpdateStatsDisplay()`, and not add any guard in `ApplyTheme()` or `ApplyDisplayColor()`.
+**What people do:** Update the `PhraseStyle`-to-locale mapping in `SetPhraseStyle()` but forget the identical switch in `ApplySettings()`.
 
-**Why it's wrong:** `ApplyTheme()` is called when the user changes accent color or the auto-contrast contrast controller fires `Cleared`. Both of these happen independently of the stats timer. Without the `_batteryAlertActive` check in those methods, changing accent color while battery is in alert state would overwrite the alert color with the new accent color.
+**Why it's wrong:** New personalities work on live change but revert to Classic on restart — the saved `PhraseStyle = "Pirate"` is not recognized at startup because `ApplySettings` still falls through to `"en-classic"`.
 
-**Do this instead:** Check `_batteryAlertActive` in both `ApplyTheme()` and `ApplyDisplayColor()` for the battery elements. `UpdateStatsDisplay()` sets the flag; color-application methods respect it.
-
----
-
-## Scaling Considerations
-
-This is a single-user desktop widget. Scale means code maintainability, not user load.
-
-| Concern | Current state | Threshold | What to do |
-|---------|--------------|-----------|------------|
-| MainWindow line count | ~1300 lines | ~1800 lines | Extract display helpers to partial class or dedicated DisplayCoordinator |
-| AppSettings field count | 20 fields | 35+ fields | Consider grouping into nested records — but that is a breaking JSON change requiring migration code |
-| Tray menu item count | ~30 items | ~50 items | Settings Window takes over most settings; tray reduces to: Open Settings / Ghost Mode / Auto-Launch / Reset / Quit |
-
----
+**Do this instead:** Search for both `_currentPhraseStyle.ToLowerInvariant() switch` occurrences and update them together. They are the two call sites documented above under "PhraseStyle to Locale Mapping."
 
 ## Sources
 
-All findings derived directly from source code and project documentation, no external verification required.
-
-| Source | What was examined |
-|--------|------------------|
-| `FuzzyClock.App/MainWindow.xaml.cs` | Full file (~1224 lines): all fields, ApplySettings, SaveSettings, ApplyTheme, ApplyDisplayColor, UpdateStatsDisplay, TrayMenuCallbacks wiring, ContentRendered |
-| `FuzzyClock.App/AppSettings.cs` | All 20 init-property fields and their defaults |
-| `FuzzyClock.App/SettingsService.cs` | Load/Validate/Save/Defaults; all existing guards |
-| `FuzzyClock.App/TrayMenuBuilder.cs` | TrayMenuState, TrayMenuCallbacks, TrayMenuBuilder class |
-| `FuzzyClock.App/ContrastRefreshController.cs` | ColorChanged/Cleared event contract; Initialize() signature |
-| `FuzzyClock.Core/PhraseEngine.cs` | Full file: static class, Buckets, HourWords, GetPhrase, GetStructuredPhrase |
-| `FuzzyClock.Core/ContrastService.cs` | RgbColor struct, ContrastState enum; module boundary |
-| `.planning/PROJECT.md` | Architecture decisions, v2.3 ghost mode patterns |
-| `.planning/MILESTONES.md` | v2.3–v3.1 implementation notes |
+- Codebase direct inspection: `FuzzyClock.App/ClockType.cs`, `AppSettings.cs`, `MainWindow.xaml.cs`, `SettingsWindow.xaml.cs`, `TrayMenuBuilder.cs`, `Controls/LcdClockView.xaml.cs`, `Controls/SevenSegmentDigit.xaml.cs`
+- Codebase direct inspection: `FuzzyClock.Core/PhraseEngine.cs`, `IPhraseProvider.cs`, `RudePhraseProvider.cs`
+- `.planning/REQUIREMENTS.md` — v3.4 constraints and acceptance criteria
+- `.planning/PROJECT.md` — milestone context and feature description
 
 ---
-*Architecture research for: FuzzyClock v3.2 — Settings Window, themes, battery alert, phrase styles, multilingual*
-*Researched: 2026-03-08*
+*Architecture research for: FuzzyClock v3.4 Personalities & Nixie — integration into existing C# WPF app*
+*Researched: 2026-03-11*

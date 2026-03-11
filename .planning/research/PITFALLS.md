@@ -1,392 +1,255 @@
 # Pitfalls Research
 
-**Domain:** Adding Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual to an existing WPF transparent overlay widget
-**Project:** Fuzzy Clock v3.2
-**Researched:** 2026-03-08
-**Confidence:** HIGH — all pitfalls grounded in direct reading of `MainWindow.xaml.cs`, `AppSettings.cs`, `SettingsService.cs`, `PhraseEngine.cs`, test files, and `PROJECT.md` Key Decisions log.
+**Domain:** WPF desktop widget — adding Nixie tube rendering, phrase personalities, dial shape/size to existing transparent overlay
+**Project:** Fuzzy Clock v3.4
+**Researched:** 2026-03-11
+**Confidence:** HIGH — all pitfalls grounded in direct reading of `MainWindow.xaml.cs`, `AppSettings.cs`, `SettingsService.cs`, `PhraseEngine.cs`, `ClockType.cs`, `SevenSegmentDigit.xaml.cs`, test files, `MainWindow.xaml`, and `SettingsWindow.xaml`.
 
 ---
 
-> **Scope note:** This document covers pitfalls specific to v3.2 additions: a settings window (SETT-01 through SETT-07), named themes (THM-01 through THM-03), phrase styles (STYLE-01 through STYLE-04), multilingual phrase engine (LANG-01 through LANG-04), and battery alert (ALERT-01 through ALERT-03). Prior milestone pitfalls (WS_EX_TRANSPARENT, ghost mode, frozen brushes, DragMove, AltGr, click-through) are covered in prior PITFALLS.md versions and are not repeated here.
+> **Scope note:** This document covers pitfalls specific to v3.4 additions: Nixie tube clock type (NIXIE-01 through NIXIE-07), phrase personality styles (PHRASE-01 through PHRASE-09), and dial shape/size enhancements (DIAL-01 through DIAL-03). v3.2 pitfalls (settings window architecture, theme atomicity, multilingual bucket coverage) are covered in prior PITFALLS.md versions and are not repeated unless they create new integration risks in v3.4.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause incorrect behavior or require a rewrite to fix.
-
 ---
 
-### Pitfall 1: Settings Window Writes Directly to AppSettings Fields — Widget State Gets Out of Sync
+### Pitfall 1: ClockType Enum Switch Falls Through on Nixie — Widget Shows Blank or Wrong View
 
 **What goes wrong:**
-The settings window directly mutates individual fields in `AppSettings` and calls `SettingsService.Save()`. Meanwhile, `MainWindow` holds its own in-memory state in private fields (`_accentColor`, `_windowOpacity`, `_currentFontSize`, `_currentTextStyle`, `_dialMode`, etc.) that are authoritative for the live widget. `SaveSettings()` in `MainWindow` builds the record from these private fields. If the settings window bypasses these private fields and writes directly to `AppSettings`, the persisted JSON reflects the settings window's view while the live widget reflects `MainWindow`'s stale private fields. Closing and reopening the app produces the settings window's version; the live widget never applied the change.
+`MainWindow.xaml.cs` has multiple `if/else if` chains that branch on `_clockType`. Adding `ClockType.Nixie` to the enum without updating every branch point causes the Nixie clock type to silently fall into the `else` (Phrase) branch, showing empty phrase text. There is no compiler warning because `ClockType` is an enum, not a discriminated union.
+
+The chains exist in at least three locations:
+1. `ApplySettings()` — initial clock view setup on startup
+2. The 10-second `_timer.Tick` handler — determines whether to call `UpdatePhraseIfChanged()` or `UpdateDialDisplay()`
+3. `SetClockType()` — live switching from tray menu or settings window
 
 **Why it happens:**
-The pattern is tempting: the settings window has a reference to the `AppSettings` record or `SettingsService`, writes a field, saves, and considers the job done. But `MainWindow` does not observe `SettingsService` — it only reads settings at startup via `ApplySettings()`. There is no reactive binding between the JSON file and the live widget's private fields.
+The existing pattern uses open `if/else if` chains ending in `else // Phrase` rather than an exhaustive switch with a compile-error for unhandled cases. Developers adding a fourth value must hunt every site manually.
 
 **How to avoid:**
-Route all settings changes through `MainWindow`'s existing `Set*()` methods. The settings window must call into `MainWindow` (or a thin callback interface) for each change, not write to `AppSettings` directly. Example: changing font size must call `MainWindow.ApplyFontSize(size)`, not `settings = settings with { FontSize = size }; SettingsService.Save(settings)`. The existing `TrayMenuCallbacks` pattern (a struct of `Action` delegates) is the correct model — extend it for the settings window callbacks.
+Before writing any Nixie rendering code, grep for every `ClockType` reference in `MainWindow.xaml.cs` and add a `Nixie` branch to each chain in the same commit. Change the final `else // Phrase` to an explicit `else if (... == ClockType.Phrase)` followed by a final `else { throw new InvalidOperationException($"Unhandled ClockType {_clockType}"); }` so future additions fail loudly.
 
 **Warning signs:**
-- Widget does not update when a setting is changed in the settings window.
-- After app restart, the widget shows the settings window's value but the live widget showed something different.
-- `MainWindow._currentFontSize` diverges from `AppSettings.FontSize` in the debugger.
+- Widget shows empty space when Nixie clock type is selected
+- 10-second timer still calls `UpdatePhraseIfChanged()` when Nixie is active
+- `DialCanvas.Visibility` or `PhraseText.Visibility` is unexpectedly Visible when Nixie is shown
 
-**Phase to address:** Settings window architecture phase — establish the callback interface before building any controls.
+**Phase to address:** Nixie rendering phase — before any NixieClockView control is built
 
 ---
 
-### Pitfall 2: Settings Window IsChecked / Control State Out of Sync on Open
+### Pitfall 2: WPF UIElement.Effect on AllowsTransparency=True Window Renders as Black Rectangle
 
 **What goes wrong:**
-The settings window opens and shows stale control states. A checkbox labeled "Ghost Mode" shows checked but ghost mode is actually disabled (the user toggled it via tray). A font size slider shows 32pt but the widget is displaying 16pt. The user changes a setting, clicks OK, and the "change" is a no-op because the control was already wrong and its final value matches the (stale) previous persisted state.
+Any `BlurEffect` or `DropShadowEffect` applied to a WPF element inside a window with `AllowsTransparency="True"` silently produces a black rectangle instead of the intended visual. This is a known established constraint in this codebase — it caused the v1.0 shadow workaround — and directly threatens the Nixie glow implementation.
+
+The Nixie glow bloom (NIXIE-02) planned via `RadialGradientBrush` layers is safe. But if any developer adds `<UIElement.Effect><BlurEffect .../></UIElement.Effect>` to a Nixie digit Canvas or its parent (as a "shortcut" for glow), the result is a black box that obscures the entire digit.
 
 **Why it happens:**
-The existing codebase's established pattern (from `ContextMenu_Opened`) is: sync control state from authoritative sources on every open, never in click handlers. The settings window is a WPF `Window`, not a `ContextMenu`, so there is no `ContextMenu_Opened` event — but the problem is identical. If the settings window is populated once (in the constructor or at creation time) and kept alive, it goes stale.
+`AllowsTransparency="True"` creates a `WS_EX_LAYERED` HWND. WPF's software renderer composites `UIElement.Effect` results through an intermediate render target that cannot be correctly alpha-composited back onto the transparent surface on most GPU/driver combinations.
 
 **How to avoid:**
-Populate all settings window controls from `MainWindow`'s private fields (not from saved `AppSettings`) every time the settings window becomes visible. Do this in the `Loaded` handler or by calling a `Refresh()` method from the caller before showing. Concretely: `GetCurrentTrayState()` already builds a snapshot of all current state — use or extend that snapshot to populate the settings window on open.
+The Nixie glow must be implemented exclusively with `RadialGradientBrush` on a stacked `Canvas` element positioned behind (lower Z-order than) the digit shape layer. The glass tube border (NIXIE-04) must use `Border.CornerRadius`, not a blurred or shadowed overlay. The wire mesh (NIXIE-05) must use a `DrawingBrush` tile or `Path`, not a blurred image. No `UIElement.Effect` anywhere in the NixieClockView subtree.
 
 **Warning signs:**
-- Opening the settings window after a tray menu toggle shows the old value.
-- Making a change in the settings window, closing and reopening: control shows the new value, but the widget still shows the old one (the widget was never updated because the "change" was a no-op from stale initial state).
+- Any `<UIElement.Effect>` tag anywhere inside NixieClockView or its children
+- A black rectangle appears in the digit slot area at runtime on any machine
 
-**Phase to address:** Settings window population phase — enforce the "populate on open" invariant from the first commit.
+**Phase to address:** Nixie rendering phase — establish as a design constraint before building NixieClockView
 
 ---
 
-### Pitfall 3: Settings Window Topmost / Owner Interaction Puts Widget Behind Settings Window
+### Pitfall 3: New Phrase Providers Not Registered in PhraseEngine._providers — SetLocale Returns false Silently
 
 **What goes wrong:**
-The widget is `Topmost="True"`. A standard WPF `Window` is not topmost by default. Opening the settings window causes it to appear behind the always-on-top widget. Alternatively: if the settings window is also set to `Topmost="True"`, it appears above all other applications' windows, which is annoying. A third failure mode: the widget and settings window fight for Z-order, causing flicker.
+`PhraseEngine` is a static class with a `private static readonly Dictionary<string, IPhraseProvider> _providers` initialized at class load. Creating `PiratePhraseProvider`, `DwarfPhraseProvider`, and the other five new provider classes without adding them to this dictionary causes `PhraseEngine.SetLocale("en-pirate")` to return `false` silently. The active provider stays on the previous locale and no exception is thrown. The phrase never changes.
 
 **Why it happens:**
-WPF `Topmost="True"` uses `HWND_TOPMOST` in `SetWindowPos`. When the settings window is opened as a non-topmost window, it lands in the normal Z-order, below the topmost widget. The user cannot interact with the settings window because the widget is covering parts of it.
+The dictionary is a field initializer, not a registration mechanism. There is no auto-discovery. Creating a new `IPhraseProvider` class does nothing unless an entry is manually added to `_providers`.
 
 **How to avoid:**
-Set `Owner` on the settings window to the main widget window. Setting `Owner` causes the settings window to always appear above its owner in Z-order, regardless of topmost status. The settings window should NOT be `Topmost="True"` — it should be owned by the main window. Pattern:
+Every new provider must be added to `_providers` in the same commit that creates the provider class. The locale key used in `_providers["en-pirate"]` must exactly match the string used in the `_currentPhraseStyle.ToLowerInvariant() switch` in `MainWindow.ApplySettings()` (lines ~319-338). Both the dictionary entry and the switch case must be updated atomically.
 
-```csharp
-var settingsWin = new SettingsWindow(callbacks);
-settingsWin.Owner = this;  // 'this' is MainWindow
-settingsWin.Show();
+Additionally: `SettingsWindow.xaml` has a hardcoded `<ComboBox x:Name="CmbPhraseStyle">` with exactly four `<ComboBoxItem>` elements (Classic/Terse/Poetic/Rude). Each new style needs a new `<ComboBoxItem>` added there.
+
+**Warning signs:**
+- `PhraseEngine.SetLocale("en-pirate")` returns `false`
+- Selecting a new phrase style in Settings changes nothing about the displayed phrase
+- The style setting persists to `settings.json` (the field is written correctly) but has no runtime effect
+
+**Phase to address:** Phase 55 (phrase providers) — `_providers` dictionary entry, `ApplySettings()` switch case, and `CmbPhraseStyle` ComboBox item are three distinct touch points that must be updated in the same commit per provider
+
+---
+
+### Pitfall 4: AppSettings Record Missing Init Default or Validate() Guard for New Fields
+
+**What goes wrong:**
+`AppSettings` is an `init`-property record. When `SettingsService.Load()` deserializes a `settings.json` that predates a new field, `System.Text.Json` sets the missing property to the C# type zero-value: `null` for string, `false` for bool, `0` for int, `0` for enum (first value by ordinal). The `init` default expression in the property declaration (`= "Round"`) applies only when constructing via `new AppSettings()`, not during deserialization of JSON missing that field.
+
+Concrete risks for v3.4:
+- A new `DialShape` string field defaulting to `null` will cause a NullReferenceException in the dial rendering code on upgrade from v3.3
+- A new enum field without `[JsonConverter(typeof(JsonStringEnumConverter))]` serializes as an integer (`0`) rather than its name string, and fails to deserialize if the ordinal order ever changes
+
+**Why it happens:**
+Developers add a field to `AppSettings` and assume the init default fires on deserialization. It does not. The `Validate()` method in `SettingsService` exists precisely because this has happened before and caused production bugs.
+
+**How to avoid:**
+For every new field added to `AppSettings` in v3.4:
+1. Set a safe default in the property declaration: `public string DialShape { get; init; } = "Round";`
+2. Add a guard in `SettingsService.Validate()` if the zero/null value is unsafe (same pattern as the existing `TextStyle`, `DateFormat`, `AccentColor` guards)
+3. Add the field with its correct default to `SettingsService.Defaults()` explicitly
+4. Add `[JsonConverter(typeof(JsonStringEnumConverter))]` to any new enum property (match the `ClockType` and `LcdSize` pattern)
+5. Add a round-trip test and an absent-field-isolation test in `SettingsServiceTests`
+
+**Warning signs:**
+- New field appears in `AppSettings` but is absent from `SettingsService.Defaults()`
+- New string or enum field has no corresponding guard in `SettingsService.Validate()`
+- New enum property omits `[JsonConverter(typeof(JsonStringEnumConverter))]`
+
+**Phase to address:** Any phase that introduces a new `AppSettings` field — applies to Nixie (no new field beyond ClockType.Nixie which uses the existing `ClockType` property), dial shape, and phrase style additions
+
+---
+
+### Pitfall 5: DialCanvas Fixed-Size Hand Geometry Breaks Oval Shape and Size Scaling
+
+**What goes wrong:**
+`DialCanvas` in `MainWindow.xaml` is `Width="80" Height="80"`. The clock hands are computed in `UpdateDialDisplay()` against a hard-coded center of `(40, 40)` and a hard-coded radius derived from that size. Adding oval shape support by changing only the canvas dimensions causes the hand pivot to remain at literal `(40, 40)` — hands will originate from the wrong center for any width that differs from height. Adding size scaling by changing `Width`/`Height` also fails because the radius constant does not scale.
+
+**Why it happens:**
+The canvas dimensions and the hand center coordinates are not derived from each other in code — `(40, 40)` is the literal half of the literal `80`. `UpdateDialDisplay()` uses trig with a hard-coded radius, not `DialCanvas.ActualWidth / 2`.
+
+**How to avoid:**
+Before implementing DIAL-01 and DIAL-02, refactor `UpdateDialDisplay()` to compute:
 ```
-
-This causes the settings window to float above the overlay widget without fighting topmost Z-order. It also means the settings window appears in the Alt+Tab list (since it has a normal `WindowStyle`), which is correct — users should be able to Alt+Tab to the settings window.
-
-Do NOT set the settings window as modal (`ShowDialog`) unless the intent is to block interaction with the widget entirely. The requirements specify "non-modal" (PROJECT.md Constraints).
-
-**Warning signs:**
-- Settings window appears behind the widget (can't interact with it).
-- Settings window disappears when user clicks on another app (it fell behind other windows).
-- Widget flickers when settings window is dragged.
-
-**Phase to address:** Settings window creation phase — set `Owner` in the first iteration.
-
----
-
-### Pitfall 4: AppSettings Record Migration — New Fields Silently Revert to C# Default, Not Init Default
-
-**What goes wrong:**
-v3.2 adds new fields to `AppSettings` (e.g., `PhraseStyle`, `Language`, `BatteryAlertThreshold`, `ActiveThemeName`). When an existing user's `settings.json` is loaded, `System.Text.Json` deserializes the fields it finds and leaves new fields at their C# type defaults: `bool` → `false`, `int` → `0`, `double` → `0.0`, `string` → `null`. The init defaults (`= "English"`, `= 20`, etc.) in the record declaration are NOT applied by the deserializer — they are only applied when the `new AppSettings()` constructor is called without specifying the field.
-
-**Why it happens:**
-`AppSettings` is an init-property record. `JsonSerializer.Deserialize<AppSettings>(json)` creates an instance using the parameterless constructor, which does apply init defaults — BUT only for fields not present in the JSON. Fields present in the JSON override the init default. Fields absent from the JSON get the init default. This is the correct behavior for backward compat.
-
-The trap: a developer adds `public string PhraseStyle { get; init; } = "Classic";` to `AppSettings` and assumes `= "Classic"` will always fire. It will — for absent fields. But if `PhraseStyle` was somehow written as `null` or empty string by a bug in a prior version, the `= "Classic"` init default is bypassed and `null` enters the system.
-
-More critically: `Validate()` must be extended for every new string/enum field. Without a `Validate()` guard, an empty or invalid persisted value reaches `MainWindow` and crashes (e.g., `PhraseStyle = null` causes NullReferenceException in the phrase lookup).
-
-**How to avoid:**
-For every new string field that maps to an enum set of valid values, add a guard to `SettingsService.Validate()` matching the existing pattern:
-
-```csharp
-string[] validPhraseStyles = { "Classic", "Terse", "Poetic", "Rude" };
-if (string.IsNullOrWhiteSpace(loaded.PhraseStyle) || !validPhraseStyles.Contains(loaded.PhraseStyle))
-    loaded = loaded with { PhraseStyle = Defaults().PhraseStyle };
+double cx = DialCanvas.Width / 2;
+double cy = DialCanvas.Height / 2;
+double hourRadius   = Math.Min(cx, cy) * 0.55;
+double minuteRadius = Math.Min(cx, cy) * 0.80;
 ```
-
-For numeric fields with valid ranges, add range guards (e.g., `BatteryAlertThreshold` must be 10, 15, or 20).
-
-Also: update `SettingsService.Defaults()` with every new field. The `Defaults()` method is the single source of truth for all default values — the test suite verifies round-trip and absent-field isolation. Add tests for each new field.
+After this refactor, dial size changes only require updating `DialCanvas.Width`/`Height`, and oval support only requires setting different values for the two dimensions. For oval clip, apply `DialCanvas.Clip = new EllipseGeometry(new Point(cx, cy), cx, cy)` rather than changing the canvas shape, since `Canvas` does not natively clip to an ellipse.
 
 **Warning signs:**
-- Widget crashes on startup after upgrading from a prior version (old `settings.json` missing new fields).
-- A new field persists correctly from the settings window, but after closing and reopening, the widget ignores the setting.
-- `Validate()` tests pass but the field was never added to `Validate()`.
+- `UpdateDialDisplay()` contains any literal `40`, `40.0`, `80`, or `80.0` used as center or radius after the dial enhancement phase
+- Oval dial mode shows hands starting from a position that is not the canvas center
 
-**Phase to address:** AppSettings extension phase — every new field must have a Validate() guard and a Defaults() entry in the same commit.
+**Phase to address:** Dial enhancements phase — refactor geometry math first, before implementing shape or size options
 
 ---
 
-### Pitfall 5: Theme Application Is Partial — New Elements Added to XAML but Not to ApplyTheme() and ApplyDisplayColor()
+### Pitfall 6: PhraseEngine Static State Leaks Between Tests for New Provider Test Classes
 
 **What goes wrong:**
-A new XAML element is added for v3.2 (e.g., a theme name label, a battery alert indicator, a settings button). `ApplyTheme()` is not updated to include the new element. The element shows the XAML default color (usually `White` or the XAML `Foreground` from inheritance) rather than the accent color. When the user changes accent color or when auto-contrast fires, the new element does not update. The bug is invisible on the default White theme but immediately visible when the user switches to Amber or Ice Blue.
+`PhraseEngineCoordinatorTests` is already decorated with `[DoNotParallelize]` and has a `[TestCleanup]` that resets to `"en-classic"`. New test classes for Pirate, Dwarf, Jive, Valley Girl, Yoda, and Shakespearean providers that call `PhraseEngine.SetLocale()` but omit `[TestCleanup]` will leave `_activeProvider` pointing at the wrong provider. Subsequent test methods in other classes that assume Classic locale will then produce wrong phrases, causing intermittent failures that differ between parallel and serial test runs.
 
 **Why it happens:**
-`ApplyTheme()` and `ApplyDisplayColor()` (lines 1071–1159 of `MainWindow.xaml.cs`) each contain an explicit list of every UI element that must be colored. There is no mechanism to discover new elements automatically — it is a manual list. Every new colored element must be added to BOTH methods. The two methods must cover identical element sets.
-
-The existing code already has a documented precedent: MEMORY.md notes "Stats label TextBlocks must have x:Name (CpuLabel/GpuLabel/MemLabel/PagLabel) — both `ApplyDisplayColor` and `ApplyTheme` must cover the same full element set." This exact pitfall has happened before.
+`PhraseEngine` is a static class — `_activeProvider` is process-global. The existing `PhraseStyleProviderTests.cs` already demonstrates the correct pattern on `TersePhraseProviderTests`, `PoeticPhraseProviderTests`, and `RudePhraseProviderTests`. New provider test classes written without studying this pattern will inadvertently skip it.
 
 **How to avoid:**
-- Immediately after adding any new XAML element that should be accent-colored, add it to `ApplyTheme()` AND `ApplyDisplayColor()` in the same commit.
-- Run a visual test with Amber accent color after every UI addition — White is deceptively forgiving (XAML default `Foreground="White"` matches the White preset).
-- Consider: add a code comment block at the top of `ApplyTheme()` listing "elements that must also be in ApplyDisplayColor" as a cross-check.
+Every new provider test class must follow the exact pattern in `PhraseStyleProviderTests.cs`:
+1. Include `[TestCleanup] public void ResetLocale() => PhraseEngine.SetLocale("en-classic");`
+2. Call `PhraseEngine.SetLocale("en-pirate")` at the start of each test method (not in `[TestInitialize]`) so the locale is explicit per test
+3. Do not add `[DoNotParallelize]` to individual provider test classes — `PhraseEngineCoordinatorTests` already carries this and the reset pattern makes provider tests safe to run in parallel
 
 **Warning signs:**
-- Element shows white text when accent is Amber/Ice Blue after applying theme.
-- Element does not update when auto-contrast fires (stays accent-colored while everything else switches to black/white).
-- Element reverts to XAML default color on "Reset to Defaults."
+- A new provider test class has no `[TestCleanup]` method
+- Tests for Classic phrases fail intermittently when run after a new provider test class
+- Test results differ between `dotnet test` and `dotnet test --no-parallel`
 
-**Phase to address:** Every phase that adds new accent-colored XAML elements — verify theme coverage before marking done.
+**Phase to address:** Phase 55 (phrase providers) — apply the pattern to all 6-7 new provider test classes on creation
 
 ---
 
-### Pitfall 6: Theme Application Is Not Atomic — Partial Theme State Visible During Apply
+### Pitfall 7: Rude Provider Rewrite Breaks Existing Tests via Vocabulary Change
 
 **What goes wrong:**
-Applying a named theme (THM-02: "sets accent color, opacity, font size, clock style, and stats panel visibility atomically") via multiple sequential calls produces intermediate visible states. Example: `SetAccentColor()` calls `ApplyTheme()` then `SaveSettings()`. Then `ApplyFontSize()` calls `UpdateLayout()` and `SaveSettings()` again. Each call triggers a WPF layout pass and a file write. The user sees the widget reflow mid-theme-apply (phrases resize, widget jumps) and `settings.json` is written 3-4 times.
+PHRASE-01 requires rewriting `RudePhraseProvider` with much ruder vocabulary (WTF, dafaq, tf). The existing `RudePhraseProviderTests` assert specific phrase content: `StringAssert.Contains(phrase, "move it")` and `Contains("get on with it")`. If these phrases are removed in the rewrite, the tests fail. This drops the test count below 248 and blocks CI even though the feature intent is correct.
 
 **Why it happens:**
-Each `Set*()` method is self-contained and calls `SaveSettings()` independently. This was designed for tray menu one-at-a-time changes. For theme application (multiple changes at once), this pattern produces N layout passes and N file writes.
+The tests assert vocabulary by content rather than structural contract. The rewrite is intentionally changing that vocabulary, so the assertions are simultaneously "correct per spec" and "wrong per the new implementation."
 
 **How to avoid:**
-Implement a batch-apply path for themes. Instead of calling `SetAccentColor()` then `ApplyFontSize()` then `SetDialMode()` sequentially, apply all changes to private fields at once and call `ApplyTheme()` + `UpdateLayout()` + `SaveSettings()` once at the end:
+Rewrite `RudePhraseProvider` and update `RudePhraseProviderTests` in the same commit. The updated tests should assert:
+- Non-empty output for all 12 buckets
+- Midnight and noon special cases return their expected values
+- At least one "rude" marker is present in the output (assert one of the new vocabulary items)
+- The structural contract: `GetStructuredPhrase()` returns empty Qualifier and non-empty Emphasis
 
+Do not leave the old vocabulary assertions ("move it", "get on with it") — they will fail against the new text.
+
+**Warning signs:**
+- PHRASE-01 is committed without a corresponding update to `RudePhraseProviderTests`
+- Test count falls below 248 after the rewrite commit
+- CI fails on `RudePhraseProviderTests` while the Rude phrases display correctly in the widget
+
+**Phase to address:** Phase 55 (phrase providers) — update provider and its tests atomically in a single commit
+
+---
+
+### Pitfall 8: Nixie Control Canvas Reports Zero DesiredSize — Window Collapses to Minimum Width
+
+**What goes wrong:**
+`MainWindow` uses `SizeToContent="WidthAndHeight"`. When `NixieClockView` is toggled visible, the window resizes to fit its content. WPF `Canvas` always reports `DesiredSize = (0, 0)` unless `Width` and `Height` are set explicitly — it does not auto-size to its children. A Nixie digit control that uses `Canvas` for stacking layers without explicitly setting `Canvas.Width`, `Canvas.Height`, and the `UserControl.Width`/`Height` will cause the window to collapse to the `StatsPanel` width floor (`Width="184"`) with no visible Nixie content.
+
+**Why it happens:**
+Canvas intentionally ignores children for sizing — it is designed for absolute positioning. `SevenSegmentDigit` already works around this correctly by setting `RootCanvas.Width = digitW` and `Width = digitW` in `RebuildGeometry()`. A new Nixie digit control written from scratch may miss this requirement.
+
+**How to avoid:**
+Use `SevenSegmentDigit.RebuildGeometry()` as the reference pattern for any new Nixie digit `UserControl`. After computing digit geometry, explicitly set:
 ```csharp
-private void ApplyNamedTheme(NamedTheme theme)
-{
-    // Update all private fields without any layout passes or saves
-    _accentColor    = theme.AccentColor;
-    _windowOpacity  = theme.Opacity;
-    this.Opacity    = theme.Opacity;
-    _currentFontSize = theme.FontSize;
-    PhraseText.FontSize = theme.FontSize;
-    // ... etc.
-
-    // Single layout pass and save
-    ApplyTheme();
-    UpdateLayout();
-    if (_hasUserPosition) { /* clamp */ }
-    SaveSettings();
-}
+RootCanvas.Width  = computedDigitWidth;
+RootCanvas.Height = computedDigitHeight;
+Width  = computedDigitWidth;
+Height = computedDigitHeight;
 ```
-
-This avoids the multi-save and multi-layout issue.
+Alternatively, use `Grid` with explicit `ColumnDefinition.Width` values as the Nixie layout container — Grid does participate in WPF measure/arrange correctly without explicit width.
 
 **Warning signs:**
-- Widget visibly flickers or jumps when applying a named theme.
-- `settings.json` is written 4-5 times in rapid succession during theme apply (visible in file modification timestamps).
-- Theme application is noticeably slower than single-setting changes.
+- `NixieDigitControl.ActualWidth` is 0 after the window is shown
+- Window width collapses to `184` (the StatsPanel floor) when Nixie mode is active
+- NixieClockView is `Visible` but nothing is visible on screen
 
-**Phase to address:** Theme implementation phase — design batch-apply from the start.
+**Phase to address:** Nixie rendering phase — verify window sizing after the first iteration of NixieClockView
 
 ---
 
-### Pitfall 7: Multilingual Phrase Engine — CultureInfo from Windows Locale vs. UI Language
+### Pitfall 9: Nixie Not Added to Tray Menu Clock Type Submenu
 
 **What goes wrong:**
-`CultureInfo.CurrentCulture` returns the user's regional format settings (date format, number format) — not the UI display language. A user whose Windows is set to display UI in French but has their regional format as English (US) will get `CurrentCulture = "en-US"` and the phrase engine falls back to English, ignoring the French UI. The correct source is `CultureInfo.CurrentUICulture`, which reflects the Windows display language.
+`TrayMenuBuilder` constructs a Clock Type submenu with items for each `ClockType` value. Adding `ClockType.Nixie` to the enum and to the Settings window Clock Style row without updating `TrayMenuBuilder` leaves Nixie accessible only from the Settings window. The tray menu — which is the primary quick-switch path for most users — will not show Nixie. This is a "looks done but isn't" completeness failure.
 
 **Why it happens:**
-`CurrentCulture` and `CurrentUICulture` are different concepts in .NET. `CurrentCulture` is for formatting; `CurrentUICulture` is for language/display. Most developers reach for `CurrentCulture` first.
+`TrayMenuBuilder` and `SettingsWindow.xaml` are separate files. Updating one does not update the other. The tray menu builds its clock type items from an explicit list, not by reflecting the `ClockType` enum at runtime.
 
 **How to avoid:**
-Use `CultureInfo.CurrentUICulture.TwoLetterISOLanguageName` to detect the Windows display language:
-
-```csharp
-string lang = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName; // "fr", "de", "es", "ja", "en"
-```
-
-Fall back to English for any language not in the supported set. The supported set (LANG-02) is: `en`, `fr`, `es`, `de`, `ja`.
+When adding the Nixie button to `SettingsWindow.xaml`'s Clock Style segmented control, open `TrayMenuBuilder.cs` in the same commit and add the corresponding Nixie menu item. Treat tray menu and settings window as a pair that must be updated together.
 
 **Warning signs:**
-- French Windows user gets English phrases.
-- User with French language but UK regional settings gets English phrases.
-- Setting Windows language to French in a test VM does not change the phrase language.
+- Settings window shows Phrase / Dial / LCD / Nixie buttons
+- Tray menu Clock Type submenu still shows only Phrase / Dial / LCD
+- Selecting Nixie from Settings window and then right-clicking the tray shows no Nixie checkmark
 
-**Phase to address:** Multilingual phrase engine phase — first line of language detection code.
+**Phase to address:** Nixie settings integration phase — update tray menu and settings window together
 
 ---
 
-### Pitfall 8: Multilingual Phrase Engine — Missing Time Bucket Coverage for Non-English Languages
+### Pitfall 10: SettingsWindow Clock Style Row Overflows at Four Buttons
 
 **What goes wrong:**
-The English phrase engine has 12 buckets per hour plus noon and midnight special cases. A partial multilingual implementation provides phrases for the most "interesting" buckets (noon, midnight, o'clock, half past, quarter past) but omits the fill-in buckets. At runtime, `GetPhrase()` throws `InvalidOperationException` ("No bucket matched") for any time that falls in an unmapped bucket. Since time advances continuously, this crash will occur within minutes of running the foreign-language widget.
+The Settings window Clock Style row uses a `StackPanel Orientation="Horizontal"` inside a `Border` with `HorizontalAlignment="Left"`. Currently it has three buttons: Phrase / Dial / LCD. Adding a fourth "Nixie" button may overflow the available space in the settings window column (column width is `*` — fills remaining space after the 90px label column in a 480px window). At 100% DPI this may be fine; at 125% DPI or on narrow screens the row may clip.
 
 **Why it happens:**
-The bucket table in `PhraseEngine` is walk-ordered with an exhaustive fallthrough — every minute from 0 to 59 must match a bucket. The English implementation covers all 12 buckets exhaustively (verified by the test suite). A new language implementation that covers only 6 buckets leaves minutes 33-59 unmatched for most hours.
+The existing segmented control rows were designed for 2-3 buttons. No layout stress-testing with a fourth button has been done.
 
 **How to avoid:**
-Every language implementation must cover all 12 buckets for every minute 0-59. The test suite must verify exhaustive coverage for each language. The existing `PhraseEngineTests` pattern (DataRow per bucket boundary) must be replicated for each supported language. A parametric test across all 1440 minutes of the day (0:00–23:59) is the simplest completeness check:
-
-```csharp
-[TestMethod]
-public void AllMinutesProduceNonEmptyPhrase_French()
-{
-    for (int h = 0; h < 24; h++)
-        for (int m = 0; m < 60; m++)
-            Assert.IsFalse(string.IsNullOrEmpty(
-                PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, h, m, 0), "fr")));
-}
-```
+After adding the Nixie button, visually test the Appearance tab at 100%, 125%, and 150% DPI scaling (or with the Settings window manually narrowed). If the four-button row is tight, abbreviate button labels: "Phrase" → "Phrase", "Dial" → "Dial", "LCD" → "LCD", "Nixie" → "Nixie" (all short enough). Do not use icon-only buttons — text labels match the existing style.
 
 **Warning signs:**
-- Widget crashes within minutes of switching to a non-English language.
-- `InvalidOperationException: No bucket matched minute=X` in the event log.
-- The crash only occurs at certain times of day.
+- Clock Style buttons are clipped or overlap at 125% DPI
+- The fourth button is partially or fully hidden behind the window edge
 
-**Phase to address:** Multilingual phrase engine phase — add exhaustive coverage tests before the language data is considered done.
-
----
-
-### Pitfall 9: Multilingual Phrase Engine — Japanese Requires Character-Level Consideration, Not Template Substitution
-
-**What goes wrong:**
-The English phrase engine uses string template substitution (`{h}`, `{h1}`) for hour words. For Japanese (`ja`), this approach fails because Japanese time expressions have different grammatical structures. "3時" (san-ji) is "three o'clock" but the template `"{h} 時"` assumes the hour word comes first with a space — Japanese doesn't work that way. Time expressions in Japanese also use different forms depending on whether the time is "past" or "before": the template `"almost a quarter before {h1}"` would need to be `"{h1}時15分前ごろ"` — the hour token comes first, not last.
-
-This breaks the assumption that templates always end with `{h}` or `{h1}` (see `GetStructuredPhrase()` which relies on `template.EndsWith("{h}")` and `template.EndsWith("{h1}")`).
-
-**Why it happens:**
-The template system was designed for Western European languages where hour words typically appear at the end of a phrase ("quarter past THREE", "almost FOUR"). Japanese and other non-SVO languages may place the hour reference at a different position.
-
-**How to avoid:**
-For Japanese, either:
-1. Accept that `GetStructuredPhrase()` will always return the full phrase as `Emphasis` with empty `Qualifier` (degrade gracefully for split-layout modes), or
-2. Design a separate phrase table without template substitution — each of the 12 buckets × 12 hours = 144 entries hardcoded in Japanese.
-
-Option 2 is the correct approach for production quality. Option 1 is acceptable for an MVP if split-layout is documented as English-only.
-
-Document in the phase plan which approach is chosen.
-
-**Warning signs:**
-- Japanese phrases appear with odd word ordering (hour number at wrong position).
-- `GetStructuredPhrase()` splits Japanese phrases at the wrong point (returns the hour-word as qualifier, not as emphasis).
-- Template substitution produces grammatically incorrect Japanese.
-
-**Phase to address:** Multilingual phrase engine phase — evaluate Japanese phrase structure before designing the template system.
-
----
-
-### Pitfall 10: Settings Window and Tray Menu State Diverge — Both Act as Independent Sources of Truth
-
-**What goes wrong:**
-The user opens the settings window. The tray menu is also open (or opened while settings window is visible). The user changes accent color in the settings window. The tray menu is not refreshed — its color-swatch indicator (if any) shows the old color. Conversely, the user changes a setting via the tray menu while the settings window is open. The settings window does not reflect the tray change.
-
-More critically: if both the tray menu and the settings window call `Set*()` methods on MainWindow without coordination, and each does a `SaveSettings()`, rapid changes can produce a settings.json write storm.
-
-**Why it happens:**
-The tray menu uses `ContextMenu_Opened` to sync its checkmarks from `GetCurrentTrayState()` — but only on open. The settings window is a persistent (non-modal) window. Unlike a context menu that is rebuilt on open, the settings window controls can become stale while open.
-
-**How to avoid:**
-- The settings window must subscribe to a state-changed notification from `MainWindow` (or use the same `GetCurrentTrayState()` snapshot pattern) and refresh its controls whenever a setting changes via any other path (tray, scroll wheel, etc.).
-- Alternatively, keep the settings window simple: close it whenever a tray menu change is made. This is aggressive but avoids stale state entirely.
-- The simplest defensible approach: the settings window is non-modal and shows current state at open time. State divergence between tray and settings window is documented as "settings window shows values at time of open; use tray menu for quick changes." This is acceptable for v3.2 if clearly documented.
-
-**Warning signs:**
-- Tray menu checkmark doesn't match settings window checkbox for the same setting.
-- User changes opacity via scroll wheel; settings window still shows old opacity.
-- Rapid tray+settings changes corrupt `settings.json`.
-
-**Phase to address:** Settings window architecture phase — decide on the refresh strategy before building controls.
-
----
-
-### Pitfall 11: Battery Alert Color Conflicts with Auto-Contrast Color Override
-
-**What goes wrong:**
-The battery alert (ALERT-01) changes the battery row's accent color to red when the battery is low. `ApplyTheme()` sets `BattBar.Background = brush` and `BattText.Foreground = brush` (the accent color). The battery alert overrides these to red. Auto-contrast (`ApplyDisplayColor()`) also overrides these to black or white. The three systems conflict: auto-contrast fires 500ms after the battery alert sets red, resetting the battery row to the auto-contrast color (black/white). The red alert is never visible when auto-contrast is enabled.
-
-**Why it happens:**
-`ApplyDisplayColor()` unconditionally overrides all named elements including `BattBar` and `BattText`. The battery alert color is a transient per-element override that `ApplyDisplayColor` does not know about.
-
-**How to avoid:**
-Keep a `_batteryAlertActive` bool. In `ApplyDisplayColor()`, skip the battery row if `_batteryAlertActive` is true:
-
-```csharp
-if (!_batteryAlertActive)
-{
-    BattBar.Background  = brush;
-    BattText.Foreground = brush;
-}
-// else: battery alert red is preserved
-```
-
-Symmetrically, when auto-contrast fires `Cleared` (restores accent color via `ApplyTheme()`), `ApplyTheme()` must also respect `_batteryAlertActive` for the battery row.
-
-**Warning signs:**
-- Battery alert red color flashes briefly, then disappears every 500ms when auto-contrast is enabled.
-- Battery alert works when auto-contrast is off but not when it is on.
-
-**Phase to address:** Battery alert phase — add the interaction guard at implementation time, not as a followup.
-
----
-
-### Pitfall 12: SaveSettings() Must Include Every New AppSettings Field — Forgetting One Field Causes Silent Data Loss
-
-**What goes wrong:**
-A new field (`PhraseStyle`, `Language`, `BatteryAlertThreshold`, `ActiveThemeName`) is added to `AppSettings`. `ApplySettings()` reads it correctly on startup. But `SaveSettings()` in `MainWindow` builds the `AppSettings with { ... }` expression by explicitly listing every field. If the new field is not added to that expression, it silently reverts to the init default on every save. The user sets the language to French; `SaveSettings()` is called (e.g., on drag); the next startup shows English.
-
-**Why it happens:**
-`SaveSettings()` uses `_settings with { field1 = ..., field2 = ... }` — an explicit enumeration. This pattern requires manual synchronization. The test `STEST-08` pattern (round-trip test for new fields) catches this if the test is written — but only if the test is written.
-
-**How to avoid:**
-For every new `AppSettings` field, update `SaveSettings()` in the same commit that adds the field. The round-trip test (pattern from `AppSettingsTests.cs`) must cover every field. The existing test file already tests round-trip for all fields — extend it with DataRow entries for each new field.
-
-**Warning signs:**
-- A setting persists correctly in one session but reverts to default after any drag (which calls `SaveSettings()`).
-- The `_settings` field in the debugger shows the correct value but `settings.json` on disk shows the default.
-- Round-trip test catches this if the new field is included in the test.
-
-**Phase to address:** AppSettings extension phase — enforced by the round-trip test that must be added.
-
----
-
-### Pitfall 13: PhraseEngine Refactoring Breaks GetStructuredPhrase() — Split Layout Becomes Incorrect
-
-**What goes wrong:**
-Adding phrase styles (STYLE-01 through STYLE-04) requires changing `PhraseEngine.GetPhrase()` to return different text based on a style parameter. If `GetStructuredPhrase()` is not updated in parallel, the structured decomposition (Qualifier / Emphasis split) no longer matches the phrase text. Example: Terse style returns "half three" but `GetStructuredPhrase()` still decomposes based on the Classic "half past three" template. The `QualifierText` shows "half past" and `EmphasisText` shows "three" — but `PhraseText` would show "half three" if the views were not coordinated.
-
-**Why it happens:**
-`GetPhrase()` and `GetStructuredPhrase()` share the `Buckets` template table and `HourWords` array but are implemented independently. Adding phrase style changes the output of `GetPhrase()` but `GetStructuredPhrase()` is a separate method that may not be updated.
-
-**How to avoid:**
-`GetStructuredPhrase()` must accept the same style parameter as `GetPhrase()` and produce a decomposition consistent with the styled phrase text. Both methods must be updated atomically. The test suite must verify that `GetPhrase(dt, style)` and `GetStructuredPhrase(dt, style)` produce consistent output:
-
-```csharp
-// Invariant: Qualifier + " " + Emphasis == GetPhrase(dt, style) (modulo whitespace normalization)
-```
-
-This invariant should be a test.
-
-**Warning signs:**
-- In Split layout mode, `QualifierText` shows the Classic phrase qualifier while the phrase text shows the Terse/Poetic form.
-- Split layout text is grammatically incorrect for non-Classic styles.
-- Test suite passes because `GetStructuredPhrase` was not updated to accept a style parameter and tests only cover the Classic case.
-
-**Phase to address:** Phrase style implementation phase — update both methods together, add consistency test.
-
----
-
-### Pitfall 14: Test Coverage Gaps When Refactoring PhraseEngine — Existing Tests Are English-Only and Style-Agnostic
-
-**What goes wrong:**
-`PhraseEngineTests.cs` covers all 12 buckets and special cases (noon, midnight, hour conversion edge cases) for the Classic English style. Adding phrase styles and multilingual support changes the method signatures. The tests pass because they only test `GetPhrase(dt)` — the no-style, English-only overload. The new `GetPhrase(dt, "fr")` and `GetPhrase(dt, "Terse")` overloads have zero test coverage. Regressions in new overloads are invisible to CI.
-
-**How to avoid:**
-- Each new language must have its own exhaustive test class covering all 12 buckets × representative hours.
-- Each new phrase style must have its own test class covering the expected output for each bucket.
-- The completeness test (all 1440 minutes produce non-empty output) must run for every language and style combination.
-- Do not rely on the existing English tests to validate new code paths — they test a different code path.
-
-**Warning signs:**
-- CI passes but the widget shows empty or incorrect phrases in French.
-- A bucket mapping error in the German implementation is never caught by tests.
-- `GetPhrase(dt, "Rude")` throws for certain minute values but this is not covered by any test.
-
-**Phase to address:** Phrase style phase and multilingual phase — each must include comprehensive tests as a done-criteria, not as a followup.
+**Phase to address:** Nixie settings integration phase — visual review before marking NIXIE-06 done
 
 ---
 
@@ -394,35 +257,26 @@ This invariant should be a test.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Settings window reads from `AppSettings` record directly instead of `MainWindow` callbacks | Simpler settings window code | Widget state and settings window diverge; live widget not updated | Never — callbacks required |
-| Apply theme by calling `SetAccentColor()` + `ApplyFontSize()` sequentially | Reuses existing code | N layout passes + N file writes; visible flicker | Acceptable for MVP if user won't notice; must be fixed before v3.2 ships |
-| Use `CultureInfo.CurrentCulture` for language detection | Familiar API | Returns regional format, not display language; French users get English | Never — must use `CurrentUICulture` |
-| Add new XAML element without updating `ApplyTheme()` + `ApplyDisplayColor()` | Saves one step | Element stays white on non-white accent; breaks auto-contrast | Never |
-| Hardcode English phrase structure assumptions in `GetStructuredPhrase()` | Less refactoring | Japanese and other non-SVO languages produce incorrect splits | Acceptable with documentation: split-layout is English-only in v3.2 |
-| Omit `Validate()` guard for new string fields | Less boilerplate | Null/invalid values from old settings.json crash the widget | Never — every new string enum field needs a guard |
-| Omit new fields from `SaveSettings()` with { ... } | Easy to miss | Silent data loss — setting reverts to default on every drag | Never — caught by round-trip test if test is written |
-| Battery alert color applied without `_batteryAlertActive` guard | Simpler code | Auto-contrast resets red alert color every 500ms | Never — interaction guard required |
+| Hard-code Nixie warm orange glow color rather than linking to AccentColor | Nixie "just works" visually; simpler implementation | Nixie ignores user accent color; blocks future theme support (NIXIE-X) | Acceptable for v3.4 — color options are explicitly deferred to v5+ |
+| Add Nixie as another `else if` branch in the existing ClockType chains rather than refactoring to a strategy/factory pattern | No structural change needed; consistent with current patterns | Every new ClockType requires touching 3+ `if/else` sites; brittle as types grow | Acceptable for 4 clock types; refactor if a 5th type is ever added |
+| Store DialShape as a string ("Round"/"Oval") rather than a new enum | No new file needed | String comparison throughout; no compiler help; must add `Validate()` guard manually | Never — use an enum with `[JsonConverter(typeof(JsonStringEnumConverter))]` matching ClockType pattern |
+| Skip `Validate()` guards for new AppSettings fields | Faster implementation | Old `settings.json` on upgrade sets null/zero field; widget crashes or silently misconfigures | Never — prior bugs exist precisely because this was skipped |
+| Implement dial size scaling by resizing `DialCanvas` without refactoring hand geometry math | Faster dial size implementation | Hard-coded `40.0` center constants break for any non-80px canvas | Never — refactor math first, then add size options |
+| Test new phrase providers by running the widget manually without unit tests | Quick visual verification | No regression protection; PHRASE-09 explicitly requires ≥ 2 samples per provider verified by test | Never — 265 test target is a hard requirement |
 
 ---
 
 ## Integration Gotchas
 
-Common mistakes when connecting new features to the existing MainWindow system.
-
-| Integration Point | Common Mistake | Correct Approach |
-|-------------------|----------------|------------------|
-| Settings window → MainWindow | Settings window calls `SettingsService.Save()` directly | Route through `MainWindow.Set*()` callbacks (extend `TrayMenuCallbacks` pattern) |
-| Settings window open state | Populate controls once at creation | Populate every time the window becomes visible from `GetCurrentTrayState()` snapshot |
-| Settings window Z-order | Set `Topmost=True` on settings window | Set `Owner = mainWindow` — owned window floats above owner without needing topmost |
-| Named theme apply | Call `SetAccentColor()` then `ApplyFontSize()` sequentially | Batch all field mutations, then single `ApplyTheme()` + `UpdateLayout()` + `SaveSettings()` |
-| Battery alert + auto-contrast | `ApplyDisplayColor()` overrides battery row to black/white | Guard battery row in `ApplyDisplayColor()` with `_batteryAlertActive` bool |
-| Battery alert + `ApplyTheme()` | `ApplyTheme()` overrides red alert back to accent color | Same guard — `ApplyTheme()` skips battery row when `_batteryAlertActive` |
-| Language detection | `CultureInfo.CurrentCulture` | `CultureInfo.CurrentUICulture.TwoLetterISOLanguageName` |
-| Multilingual `GetPhrase()` signature | Add overload `GetPhrase(dt, lang)` only | Also update `GetStructuredPhrase(dt, lang)` — they must be consistent |
-| New AppSettings fields | Add to record, forget `SaveSettings()` and `Validate()` | Three-part atomic update: field in record + entry in `Defaults()` + guard in `Validate()` + row in `SaveSettings() with {}` |
-| New accent-colored XAML elements | Only add to `ApplyTheme()` | Must add to BOTH `ApplyTheme()` and `ApplyDisplayColor()` |
-| Settings window dismiss | `ShowDialog()` modal | `Show()` non-modal with `Owner = this` — PROJECT.md requires non-modal |
-| Phrase style + split layout | Ignore `GetStructuredPhrase()` for non-Classic styles | Keep `GetPhrase()` and `GetStructuredPhrase()` consistent for every style; or document split-layout as English Classic only |
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| PhraseEngine + new style locale keys | Creating a provider but using a key not in the `_currentPhraseStyle.ToLowerInvariant() switch` in `ApplySettings()` | The key in `_providers["en-pirate"]` must exactly match the switch case string used in `ApplySettings()`; update both together |
+| ClockType.Nixie + tray menu | Adding Nixie to Settings window only | `TrayMenuBuilder.cs` has its own clock type list; update both files in the same commit |
+| Nixie timer pattern | Starting a `DispatcherTimer` in the NixieClockView constructor | `LcdClockView` starts/stops its timer in `IsVisibleChanged` to avoid wasted ticks when collapsed; Nixie must follow the same pattern |
+| DialCanvas + SizeToContent | Changing `Width`/`Height` in code without invalidating layout | After resizing the canvas, call `UpdateLayout()` before reading `ActualWidth`/`ActualHeight` for position clamping — the same issue that caused the existing `ApplySettings()` unsafe-before-Show warning |
+| AppSettings new enum property | Omitting `[JsonConverter(typeof(JsonStringEnumConverter))]` | Without the converter, the enum serializes as an integer; `settings.json` becomes fragile to reordering; always match the `ClockType` and `LcdSize` property pattern |
+| Nixie ghost digits + Canvas.Children | Rebuilding all 10 ghost digit children on every timer tick | Build ghost digit geometry once in constructor; on tick, only update the fill brush of the active digit indicator |
+| New phrase styles + PhraseLocale "auto" | New en-pirate etc. styles not included in the "auto" path in `ApplySettings()` | The "auto" path resolves locale from Windows UI culture and then falls into the `_currentPhraseStyle` switch; ensure the switch includes all new style names |
 
 ---
 
@@ -430,29 +284,40 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Settings window triggers `SaveSettings()` on every control change event | `settings.json` written on every slider tick; file I/O during typing | Debounce or save only on OK/close; use `PreviewMouseUp` for sliders | Any interactive slider or text field |
-| Named theme calls multiple `Set*()` methods sequentially | N layout passes; widget visibly reflows during theme apply | Batch-apply pattern — mutate fields, then single `ApplyTheme()` + `UpdateLayout()` + `SaveSettings()` | Always visible during theme apply |
-| Exhaustive multilingual test (1440 minutes × 5 languages × 4 styles) | Test suite slow | DataRow parametric tests — MSTest handles large DataRow tables efficiently; acceptable | Not a performance trap for test runtime |
-| Language detection called on every `GetPhrase()` tick | `CultureInfo.CurrentUICulture` lookup every 10s | Cache language detection at startup; only re-detect on settings change | 10-second interval — effectively no impact |
+| Allocating new `SolidColorBrush` on every Nixie render tick | GC pressure; micro-stutters every second | Cache brushes as fields (pattern from `SevenSegmentDigit._litBrush`); rebuild only when the color parameter changes | Every second if brush is allocated per-tick |
+| RadialGradientBrush with many gradient stops on the Nixie glow layer | Frame drops on software renderer (integrated Intel GPU) | Use at most 3 gradient stops; do not animate brush stops — switch between two static cached brushes (lit/ghost) | Immediately visible on software renderer |
+| Rebuilding all Nixie digit Canvas children (ghost + active) on every tick | CPU spike every 10 seconds | Geometry is immutable per digit; only the "which digit is lit" needs to change per tick | Every tick if full rebuild is done |
+| Dial decoration re-adding elements on every font size change | Brief visual flash, layout thrash | Use `ScaleTransform` on existing `_hourTickElements` / `_minuteDotElements` list elements; do not clear and re-add | Every font size change |
+
+---
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Phrase Style ComboBox shows Pirate/Dwarf/etc. but they only apply in Phrase clock type | User selects Pirate while on LCD clock; nothing changes; confusing | Consider greying out Phrase Style selector when a non-Phrase clock type is active, or add a tooltip |
+| Nixie glow RadialGradientBrush radiates visually outside the glass tube Border clip | Glow bleeds into adjacent digit slots or past the widget edge | Clip the glow Canvas to the tube bounds using `Canvas.Clip = new RectangleGeometry(...)` or contain glow within the tube Border |
+| Dial "oval" shape visually looks the same as "round" on small sizes | User cannot tell the options apart | Ensure the oval variant has a visibly different aspect ratio (e.g., width:height = 4:3 or 3:2) — not just a 5% difference |
+| Nixie clock active at startup but NixieClockView timer fires before window is shown | First tick may run during layout, before `ActualWidth` is valid | Follow the `LcdClockView` `IsVisibleChanged` pattern — start timer only after the control becomes visible |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Settings window sync:** Open settings window, change accent color via tray menu — settings window reflects the tray change (if live-sync is implemented) or vice-versa.
-- [ ] **Settings window on open:** Toggle ghost mode via tray. Open settings window. Ghost mode checkbox shows correct current state.
-- [ ] **Settings window Z-order:** Open settings window while widget is showing. Settings window is interactive and not hidden behind widget.
-- [ ] **AppSettings round-trip for all new fields:** Add `PhraseStyle`, `Language`, `BatteryAlertThreshold`, `ActiveThemeName` to `AppSettingsTests.cs` round-trip test. All new fields appear in the serialized JSON and deserialize correctly.
-- [ ] **Absent-field isolation for each new field:** Add test: `AppSettings` with new field absent deserializes to init default, not C# type default.
-- [ ] **Validate() guards all new string enums:** `PhraseStyle = "NotAStyle"` → `Validate()` resets to `"Classic"`. Same for `Language`, `ActiveThemeName`.
-- [ ] **SaveSettings() includes all new fields:** Drag widget after setting language to French. Close and reopen app. Language is still French.
-- [ ] **Theme is atomic:** Apply a named theme. Observe widget — no intermediate flicker. `settings.json` written exactly once.
-- [ ] **Battery alert + auto-contrast:** Enable auto-contrast. Simulate low battery. Red alert color is visible (not overridden by auto-contrast to black/white).
-- [ ] **Battery alert cleared on plugin:** Plug in (or set IsPluggedIn=true). Red alert immediately disappears; accent color restored.
-- [ ] **Multilingual exhaustive coverage:** `GetPhrase(dt, "fr")` does not throw for any minute 0–59, any hour 0–23. Same for `"de"`, `"es"`, `"ja"`.
-- [ ] **Phrase style consistency:** For every style, `GetPhrase()` output is consistent with `GetStructuredPhrase()` output. Qualifier + space + Emphasis equals or is consistent with the full phrase.
-- [ ] **ApplyTheme() + ApplyDisplayColor() element parity:** List all elements in `ApplyTheme()`. Verify same list appears in `ApplyDisplayColor()`. Test with Amber accent + auto-contrast: every accent element changes to black/white.
-- [ ] **Language detection uses CurrentUICulture:** Set Windows display language to French. Widget shows French phrases. (Without this test, `CurrentCulture` bug is invisible on US-English setups.)
+- [ ] **ClockType.Nixie enum:** Value added to `ClockType.cs` — verify all `if/else if` chains in `MainWindow.xaml.cs` have a `Nixie` branch (at least 3 sites)
+- [ ] **Nixie Settings window:** Clock Style segmented control has a 4th "Nixie" button in `SettingsWindow.xaml`
+- [ ] **Nixie tray menu:** Tray menu Clock Type submenu lists Nixie — verify `TrayMenuBuilder.cs` includes Nixie item
+- [ ] **Nixie persistence:** Selecting Nixie, closing, and reopening the app still shows Nixie — `ClockType.Nixie` round-trips through `settings.json` correctly via `JsonStringEnumConverter`
+- [ ] **New phrase providers registered:** `PhraseEngine.SetLocale("en-pirate")` returns `true` — verify all 7 new locale keys are in `_providers`
+- [ ] **New phrase styles in ApplySettings switch:** `_currentPhraseStyle = "Pirate"` (etc.) routes to correct locale key — verify all 7 new style names are in the switch in `ApplySettings()`
+- [ ] **New phrase styles in ComboBox:** `CmbPhraseStyle` in `SettingsWindow.xaml` has all 11 items (Classic / Terse / Poetic / Rude + 7 new)
+- [ ] **Rude provider rewrite tests updated:** `RudePhraseProviderTests` vocabulary assertions match new phrases — test count >= 248 after rewrite
+- [ ] **All new provider test classes have TestCleanup:** Each of the 7 new provider test files includes `[TestCleanup] public void ResetLocale() => PhraseEngine.SetLocale("en-classic");`
+- [ ] **PHRASE-09 coverage met:** Each new provider has >= 2 test methods with verified phrase samples
+- [ ] **Dial hand geometry refactored:** `UpdateDialDisplay()` derives center from `DialCanvas.Width / 2` — no literal `40` or `40.0` as center coordinate
+- [ ] **Dial shape persists:** Selecting oval shape, closing, reopening — oval shape is restored (new `AppSettings` field with `Validate()` guard and `Defaults()` entry)
+- [ ] **AppSettings new fields have Defaults() entries:** Every new field in `AppSettings` for v3.4 appears in `SettingsService.Defaults()`
+- [ ] **Nixie canvas has explicit Width/Height:** `NixieDigitControl.ActualWidth > 0` after window is shown — window does not collapse to StatsPanel width
 
 ---
 
@@ -460,18 +325,16 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Widget state / settings window out of sync (P1) | HIGH — architectural | Add callback interface to `MainWindow`; route all settings changes through it; remove direct `AppSettings` writes from settings window |
-| Settings window shows stale state on open (P2) | LOW | Add `Refresh()` call using `GetCurrentTrayState()` before `Show()` |
-| Settings window behind widget (P3) | LOW | Set `settingsWin.Owner = this` — one line |
-| Missing Validate() guard for new field (P4) | LOW | Add guard + test; deploy patch settings.json with correct default |
-| Partial theme application — element not in ApplyTheme/ApplyDisplayColor (P5) | LOW | Add element to both methods; test with all accent presets |
-| Non-atomic theme apply causing flicker (P6) | MEDIUM | Refactor to batch-apply method; one layout pass |
-| Wrong CultureInfo type for language detection (P7) | LOW | Change `CurrentCulture` to `CurrentUICulture` — one-line fix |
-| Missing multilingual bucket coverage → crash (P8) | HIGH — data work | Write all missing bucket translations; add exhaustive test |
-| Japanese template substitution incorrect (P9) | HIGH — redesign | Replace template system with full phrase table for Japanese |
-| Battery alert overridden by auto-contrast (P11) | LOW | Add `_batteryAlertActive` guard in `ApplyDisplayColor()` and `ApplyTheme()` |
-| New field missing from SaveSettings() (P12) | LOW | Add field to `with {}` expression; add round-trip test |
-| GetStructuredPhrase() inconsistent after PhraseEngine refactor (P13) | MEDIUM | Update `GetStructuredPhrase()` to match `GetPhrase()` for each new style |
+| ClockType switch fall-through (Nixie shows blank) | LOW | Grep all `ClockType` branches in `MainWindow.xaml.cs`; add `Nixie` case to each; retest |
+| GPU effect black-box on layered HWND | MEDIUM | Remove all `UIElement.Effect` from Nixie subtree; reimplement glow with `RadialGradientBrush` layers |
+| Provider not in `_providers` dictionary | LOW | Add single-line entry to `PhraseEngine._providers`; rerun test suite |
+| `ApplySettings()` switch missing new style key | LOW | Add case to switch in `MainWindow.ApplySettings()`; test by selecting style in Settings |
+| `AppSettings` missing `Validate()` guard on upgrade | LOW | Add guard to `Validate()`; add absent-field isolation test to `SettingsServiceTests` |
+| Dial hand origin wrong after canvas resize | MEDIUM | Refactor `UpdateDialDisplay()` to use `DialCanvas.Width / 2` as center; verify with `DialGeometryTests` |
+| Static test state leak from missing `[TestCleanup]` | LOW | Add `[TestCleanup]` to offending test class; run full suite serially to confirm fix |
+| Rude provider rewrite breaks tests | LOW | Update `RudePhraseProviderTests` assertions to match new vocabulary in same commit |
+| Nixie canvas reports zero `ActualWidth` | LOW | Set `RootCanvas.Width`, `RootCanvas.Height`, `Width`, `Height` explicitly after geometry computation |
+| Nixie missing from tray menu | LOW | Add Nixie item to `TrayMenuBuilder.cs`; test by right-clicking tray icon |
 
 ---
 
@@ -479,20 +342,17 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Settings window writes directly — widget not updated (P1) | Settings window architecture | Change a setting via window; verify widget updates live |
-| Settings window stale state on open (P2) | Settings window population | Toggle ghost mode via tray; open settings window; checkbox correct |
-| Settings window behind widget (P3) | Settings window creation | Open settings window; confirm it is interactive and in front of widget |
-| New AppSettings fields missing Validate() (P4) | AppSettings extension | Inject invalid string into `settings.json`; verify Validate() corrects it |
-| New XAML elements missing from ApplyTheme/ApplyDisplayColor (P5) | Any phase adding UI elements | Test with Amber and Ice Blue accent; verify all elements change color |
-| Non-atomic theme apply (P6) | Theme implementation | Apply named theme; observe widget — no intermediate reflow |
-| Wrong CultureInfo for language detection (P7) | Multilingual phase | Set Windows to French display language; verify French phrases |
-| Missing bucket coverage in non-English languages (P8) | Multilingual phase | Exhaustive 1440-minute test for each language |
-| Japanese template substitution (P9) | Multilingual phase | Review all Japanese phrase outputs manually; compare to native speaker |
-| Tray / settings window state divergence (P10) | Settings window architecture | Change setting via tray while settings window open; document behavior |
-| Battery alert + auto-contrast conflict (P11) | Battery alert phase | Enable auto-contrast; simulate low battery; red alert persists |
-| Missing field in SaveSettings() (P12) | AppSettings extension | Round-trip test in `AppSettingsTests.cs` for each new field |
-| GetStructuredPhrase() inconsistency after refactor (P13) | Phrase style phase | Add consistency invariant test |
-| Test coverage gaps for new styles/languages (P14) | Phrase style and multilingual phases | CI gate: exhaustive DataRow tests for every new overload |
+| ClockType switch fall-through | Nixie rendering phase | Zero occurrences of `ClockType.Lcd` branch without adjacent `ClockType.Nixie` branch in `MainWindow.xaml.cs` |
+| GPU effect on layered HWND | Nixie rendering phase | No `UIElement.Effect` in NixieClockView or its children; black-box regression test at runtime |
+| Provider not registered in `_providers` | Phase 55 (phrase providers) | `PhraseEngine.SetLocale("en-pirate")` returns `true` in a unit test for each new key |
+| `ApplySettings()` switch missing new style keys | Phase 55 (phrase providers) | Selecting each new style in Settings changes the displayed phrase |
+| AppSettings missing init defaults / Validate() guards | Any phase adding new AppSettings fields | Absent-field isolation test: deserializing JSON without new field produces safe default, not null/0 |
+| DialCanvas fixed-size center coordinates | Dial enhancements phase | `UpdateDialDisplay()` has no literal `40.0` center constants; hands are centered correctly at all dial sizes |
+| Static test state leaks | Phase 55 (phrase providers) | Full test suite passes at expected count in both serial and default parallel modes |
+| Rude provider rewrite breaks tests | Phase 55 (phrase providers) | Test count >= 248 after rewrite; all tests green |
+| Nixie canvas zero `DesiredSize` | Nixie rendering phase | `NixieClockView.ActualWidth > 0` after window shown; window does not collapse |
+| Nixie missing from tray menu | Nixie settings integration phase | Tray menu Clock Type submenu lists all four types including Nixie |
+| Settings window Clock Style row overflow | Nixie settings integration phase | Visual review at 100% and 125% DPI; four buttons all visible and readable |
 
 ---
 
@@ -500,18 +360,20 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Source | Confidence |
 |--------|------------|
-| `MainWindow.xaml.cs` — `ApplyTheme()`, `ApplyDisplayColor()`, `SaveSettings()`, `ApplySettings()`, `TrayMenuCallbacks` pattern, `GetCurrentTrayState()`; read directly from source | HIGH |
-| `AppSettings.cs` — init-property record pattern; all current fields and defaults; read directly from source | HIGH |
-| `SettingsService.cs` — `Validate()` guards for each existing string enum field; `Defaults()`; read directly from source | HIGH |
-| `PhraseEngine.cs` — `GetPhrase()`, `GetStructuredPhrase()`, `Buckets` table, template substitution pattern; read directly from source | HIGH |
-| `PhraseEngineTests.cs` — existing test coverage (12 buckets, edge cases, English-only); read directly from source | HIGH |
-| `SettingsServiceTests.cs` + `AppSettingsTests.cs` — existing round-trip and Validate test patterns; read directly from source | HIGH |
-| `PROJECT.md` Key Decisions — "ApplySettings() before Show()" invariant, "SetStatsVisible() separate from ApplySettings()" invariant, "ContextMenu_Opened for IsChecked sync", "init-property record for JSON forward/backward compat", "AppSettings → init-property record" decision; read directly from source | HIGH |
-| `MEMORY.md` — "Stats label TextBlocks must have x:Name — both ApplyDisplayColor and ApplyTheme must cover the same full element set" (documented from past regression); project memory file | HIGH |
-| .NET documentation — `CultureInfo.CurrentCulture` vs `CultureInfo.CurrentUICulture`: `CurrentUICulture` reflects the OS display language; `CurrentCulture` reflects regional format. Confirmed from .NET BCL docs (learn.microsoft.com/en-us/dotnet/api/system.globalization.cultureinfo.currentuiculture) | HIGH |
-| WPF Window ownership — `Window.Owner` causes owned window to always appear above owner in Z-order; owned window follows owner when it is minimized/restored. Standard WPF pattern documented in MSDN. | HIGH |
+| `FuzzyClock.App/ClockType.cs` — existing enum with 3 values; Nixie adds as 4th; read directly | HIGH |
+| `FuzzyClock.App/MainWindow.xaml.cs` — `ApplySettings()`, `_timer.Tick` handler, `SetClockType()` chains; static `_clockType` field; read directly | HIGH |
+| `FuzzyClock.App/AppSettings.cs` — init-property record pattern; all current fields; `[JsonConverter]` attribute pattern for `ClockType` and `LcdSize`; read directly | HIGH |
+| `FuzzyClock.App/SettingsService.cs` — `Validate()` guards; `Defaults()` method; read directly | HIGH |
+| `FuzzyClock.Core/PhraseEngine.cs` — static `_providers` dictionary; `SetLocale()` return-false-on-unknown pattern; read directly | HIGH |
+| `FuzzyClock.Core.Tests/PhraseEngineCoordinatorTests.cs` — `[DoNotParallelize]`, `[TestCleanup]` reset pattern; read directly | HIGH |
+| `FuzzyClock.Core.Tests/PhraseStyleProviderTests.cs` — `[TestCleanup]` pattern on per-provider test classes; read directly | HIGH |
+| `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — `RebuildGeometry()` explicit Canvas size pattern; brush caching pattern; read directly | HIGH |
+| `FuzzyClock.App/MainWindow.xaml` — `AllowsTransparency="True"`, `DialCanvas Width="80" Height="80"`, `SizeToContent="WidthAndHeight"`, `StatsPanel Width="184"`; read directly | HIGH |
+| `FuzzyClock.App/SettingsWindow.xaml` — `CmbPhraseStyle` with 4 hardcoded items; Clock Style segmented control with 3 buttons; fixed `Width="480"`; read directly | HIGH |
+| Established v1.0 known issue: `DropShadowEffect` fails on `AllowsTransparency=True` layered HWND — manual offset shadow used instead; documented in project history | HIGH |
+| WPF `Canvas` layout behavior: `DesiredSize = (0, 0)` unless `Width`/`Height` set explicitly — standard WPF layout system behavior, confirmed by `SevenSegmentDigit` workaround pattern in this codebase | HIGH |
 
 ---
 
-*Pitfalls research for: Fuzzy Clock v3.2 — Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual*
-*Researched: 2026-03-08*
+*Pitfalls research for: Fuzzy Clock v3.4 — Nixie Tube Rendering, Phrase Personalities, Dial Shape/Size*
+*Researched: 2026-03-11*

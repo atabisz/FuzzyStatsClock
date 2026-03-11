@@ -1,378 +1,338 @@
-# Technology Stack: v3.2 Settings Window, Themes, Alerts, Phrase Styles, Multilingual
+# Stack Research
 
-**Project:** FuzzyClock v3.2 — Settings window + 5 built-in themes + battery alert + phrase styles + multilingual
-**Researched:** 2026-03-08
-**Scope:** Additions only — existing validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, System.Diagnostics.PerformanceCounter 10.0.0) is unchanged
-**Confidence:** HIGH
-
----
-
-## What Changes vs v3.1
-
-v3.1 validated stack (not re-researched):
-- .NET 10, C# 13, WPF (`net10.0-windows`), `UseWindowsForms=true`
-- `MainWindow.xaml.cs` (~1300 lines), `FuzzyClock.Core` (pure static), `SettingsService` atomic JSON I/O
-- `AppSettings` init-property record, `System.Text.Json` for settings
-- `System.Diagnostics.PerformanceCounter` NuGet 10.0.0
-- MSTest 4.0.1, `FuzzyClock.Core.Tests` + `FuzzyClock.App.Tests`, 122 tests
-
-v3.2 additions by feature:
-
-| Feature | Stack Change | NuGet Needed |
-|---------|-------------|--------------|
-| Settings window | New WPF `Window` + `TabControl` — pure WPF built-ins | None |
-| 5 named themes | New `ThemeDefinition` record + `AppSettings` theme name property | None |
-| Battery low alert | `SystemInformation.PowerStatus` already used; conditional color logic only | None |
-| Phrase styles | New enum + strategy dispatch in `PhraseEngine` or sibling classes | None |
-| Multilingual phrases | `.resx` files + `ResourceManager` in `FuzzyClock.Core` | None |
-
-**Zero new NuGet packages. Zero csproj changes.**
+**Domain:** C# WPF desktop widget — v3.4 Nixie tube rendering, phrase personality styles, dial shape/size
+**Researched:** 2026-03-11
+**Scope:** Additions only — existing validated stack (net10.0-windows, WPF, MSTest 4.x, System.Text.Json, System.Diagnostics.PerformanceCounter 10.0.0) is unchanged
+**Confidence:** HIGH (all techniques verified against existing codebase; WPF APIs are stable .NET 10 BCL)
 
 ---
 
-## Recommended Stack Additions
+## No New NuGet Packages Required
 
-### 1. Settings Window — WPF TabControl (Built-in)
+All three feature areas are achievable with the existing project stack. Adding a WPF effects library (WPF-UI, HandyControl, MaterialDesignInXamlToolkit) for Nixie glow would pull 200-400 KB of dependencies for effects that WPF's built-in `System.Windows.Media.Effects` already provides.
 
-**What it is:** A standard WPF `Window` with a `TabControl` containing three `TabItem` children (Appearance / Stats / Behavior).
+| Feature Area | Stack Change | NuGet Needed |
+|-------------|-------------|--------------|
+| Nixie tube rendering | New `NixieClockView` + `NixieDigit` UserControls; WPF built-in brush/effect types | None |
+| Phrase personalities | 7 new `IPhraseProvider` classes in `FuzzyClock.Core` | None |
+| Dial shape/size | AppSettings field addition; code-behind rx/ry math change | None |
 
-**Why no packages are needed:** `TabControl` and `TabItem` are part of `PresentationFramework.dll`, which is already referenced via `<UseWPF>true</UseWPF>`. No third-party UI toolkit is needed for a simple settings dialog in an existing WPF app.
+---
 
-**Window pattern:**
-```csharp
-// SettingsWindow.xaml.cs
-public partial class SettingsWindow : Window
-{
-    public SettingsWindow(AppSettings current)
-    {
-        InitializeComponent();
-        // populate controls from current settings
-    }
+## Recommended Stack
 
-    public AppSettings? Result { get; private set; }   // null = cancelled
-}
-```
+### Core Technologies
 
-**Launch from tray (modeless, single-instance guard):**
-```csharp
-private SettingsWindow? _settingsWindow;
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `System.Windows.Media.Effects.DropShadowEffect` | .NET 10 BCL | Nixie warm orange outer glow/bloom | Built-in hardware-accelerated (D3D); `ShadowDepth=0` produces symmetric halo; `Color` set to Nixie orange; already used on `PhraseText` in MainWindow.xaml — pattern validated in this codebase |
+| `System.Windows.Media.RadialGradientBrush` | .NET 10 BCL | Nixie active digit inner fill — bright center fading to dim amber | Mandated by REQUIREMENTS.md constraint ("Nixie glow via WPF RadialGradientBrush effects"); already referenced throughout the LCD palette system |
+| `System.Windows.Media.LinearGradientBrush` | .NET 10 BCL | Glass tube specular highlight strip | Narrow white-to-transparent gradient on the left edge of the tube Border conveys glass refraction; no image asset needed |
+| `System.Windows.Media.DrawingBrush` | .NET 10 BCL | Wire mesh / anode grid texture overlay | Tile-brush with a `GeometryDrawing` containing a grid of thin `LineGeometry` elements; `TileMode=Tile`, `ViewportUnits=Absolute`, small Viewport (e.g. 8x8 DIP) produces repeating mesh without image assets |
+| `System.Windows.Controls.Canvas` | .NET 10 BCL | Nixie digit slot — stacked ghost cathode layers at same position | Z-order via child order (last child paints last); matches existing `SevenSegmentDigit` Canvas approach exactly |
+| `System.Windows.Shapes.Ellipse` | .NET 10 BCL | Optional: diffuse glow halo behind active digit | BlurEffect applied to a colored Ellipse behind the digit; used if DropShadowEffect alone is insufficient |
+| `IPhraseProvider` (FuzzyClock.Core) | internal | New personality phrase styles | Established registry pattern; zero new infrastructure; each style = one class with a bucket table |
 
-private void OpenSettings()
-{
-    if (_settingsWindow is not null) { _settingsWindow.Activate(); return; }
-    _settingsWindow = new SettingsWindow(_currentSettings);
-    _settingsWindow.Owner = this;                 // keeps it above MainWindow
-    _settingsWindow.Closed += (_, _) =>
-    {
-        if (_settingsWindow.Result is { } updated)
-            ApplyAndSaveSettings(updated);
-        _settingsWindow = null;
-    };
-    _settingsWindow.Show();                       // modeless — tray stays usable
-}
-```
+### Supporting Libraries
 
-**Key XAML pattern:**
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `System.Windows.Media.Effects.BlurEffect` | .NET 10 BCL | Soft diffuse halo layer behind Nixie digit | Add a second element (Ellipse or Rectangle) behind the digit slot with `BlurEffect` applied; only if `DropShadowEffect` alone looks insufficient at the chosen opacity levels |
+| `System.Windows.Media.GradientStop` | .NET 10 BCL | Color stops for RadialGradientBrush on Nixie digit | Inner GradientStop: bright orange-white (#FFFFD0 at offset 0.0); outer stops fade to dim amber (#FF6600 at 0.6) then near-transparent at 1.0 |
+| `System.Windows.Threading.DispatcherTimer` | .NET 10 BCL | 1-second tick for NixieClockView time updates | Same pattern as `LcdClockView` — already used; `IsVisibleChanged` start/stop pattern carries forward unchanged |
+
+### Development Tools
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| MSTest 4.x (already in project) | Unit tests for new phrase providers | All 7 new `IPhraseProvider` classes are pure C# in `FuzzyClock.Core`; test pattern follows established `PhraseStyleProviderTests.cs` — ≥ 2 sample assertions per provider per PHRASE-09 |
+| WPF Designer (Visual Studio) | XAML preview for NixieClockView layout | Use for sanity-checking Canvas z-order and brush assignments; runtime rendering is authoritative |
+
+---
+
+## Feature-by-Feature Technique Guide
+
+### 1. Nixie Tube Glow / Bloom (NIXIE-02)
+
+**Technique:** `DropShadowEffect` on the active digit element with `ShadowDepth=0`.
+
 ```xml
-<TabControl>
-    <TabItem Header="Appearance">
-        <!-- FontSize slider, AccentColor pickers, Opacity slider, ClockStyle radio buttons -->
-    </TabItem>
-    <TabItem Header="Stats">
-        <!-- Per-row CheckBoxes: CPU/GPU/MEM/PAG/BATT/Uptime, interval selector -->
-    </TabItem>
-    <TabItem Header="Behavior">
-        <!-- Ghost mode, Auto-contrast, Auto-launch, Date display toggles -->
-    </TabItem>
-</TabControl>
+<TextBlock Text="3">
+    <TextBlock.Effect>
+        <DropShadowEffect Color="#FF8C00" BlurRadius="18" ShadowDepth="0" Opacity="0.85" />
+    </TextBlock.Effect>
+</TextBlock>
 ```
 
-**Why modeless (Show) not modal (ShowDialog):** The tray icon NotifyIcon context menu must remain functional while settings are open. `ShowDialog` blocks the calling thread's message pump in WPF, which would freeze the tray menu interaction.
+`ShadowDepth=0` centres the effect under the element, creating a symmetric glow corona. `BlurRadius` 14-22 produces bloom-like spread. `Color` tuned to warm amber-orange. This is identical in mechanism to the existing `DropShadowEffect` on `PhraseText` (MainWindow.xaml line 50), validating the pattern is already working in this codebase.
 
-**Source:** https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-window-dialog-box (HIGH confidence — official, updated 2024-10-24)
+**Why not `BlurEffect` alone:** `BlurEffect` blurs the element itself; `DropShadowEffect` with `ShadowDepth=0` leaves the digit sharp while adding a coloured halo. Nixie digits should be crisp with a glowing corona.
 
----
+**Why not a third-party glow library:** Hardware-accelerated `DropShadowEffect` has been in WPF since .NET Framework 3.0; zero dependency cost; identical visual result to third-party glow implementations which internally compose the same D3D effect.
 
-### 2. Named Themes — AppSettings Extension + ThemeDefinition Record
+### 2. Stacked Ghost Cathode Digits (NIXIE-03)
 
-**What it is:** A named bundle of existing settings properties (accent color, opacity, font size, clock style, stats visibility).
+**Technique:** Canvas with 10 ghost digit elements (digits 0-9) drawn at the same Canvas.Left/Top position, with the active digit element added last (paints on top).
 
-**Why no packages are needed:** Themes are pure data — a `record` bundling existing property types. The theme name is persisted as a `string` in `AppSettings`. Theme data lives in a static lookup table in code (no resource files, no external config).
+```
+Canvas (digit slot, e.g. 50x80 DIP)
+  ├── TextBlock "0" Foreground=GhostAmber Opacity=0.12  ← Canvas.Left=0, Top=0
+  ├── TextBlock "1" Foreground=GhostAmber Opacity=0.12
+  ├── ... (2-8)
+  ├── TextBlock "9" Foreground=GhostAmber Opacity=0.12
+  └── TextBlock "3" Foreground=BrightOrange + DropShadowEffect  ← active digit, painted last
+```
 
-**Pattern:**
+All elements share the same Canvas.Left and Canvas.Top. WPF Canvas paints children in declaration order — the active element is declared last, so it paints over the ghosts. `Panel.ZIndex` is not needed.
+
+**Font choice for digit shapes:** `Courier New` or `Consolas` — both installed on all Windows systems, condensed aspect ratio approximates Nixie tube cathode proportions. Regular proportional fonts (Segoe UI) are too wide. The ghost stacking effect is the visually distinctive element; exact wire-cathode glyph shape is deferred to v5+ per requirements.
+
+**Ghost opacity calibration:** Opacity 0.10-0.15 on ghost digits is the sweet spot — visible but clearly subordinate to the active digit. This matches the 15% ghost formula used in `SevenSegmentDigit` (`LitColor.R * 15 / 100`).
+
+### 3. Glass Tube Border (NIXIE-04)
+
+**Technique:** WPF `Border` element as the outer container per digit slot, with a `LinearGradientBrush` specular strip overlaid inside it.
+
+```xml
+<Border CornerRadius="8,8,20,20"
+        BorderBrush="#40AADDFF" BorderThickness="1.5"
+        Background="#18C0E8FF">
+    <!-- digit slot Canvas here -->
+
+    <!-- specular highlight: narrow left-edge strip, absolute-positioned inside Border -->
+    <Rectangle Width="6" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+               Opacity="0.35" IsHitTestVisible="False">
+        <Rectangle.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="White" Offset="0"/>
+                <GradientStop Color="Transparent" Offset="1"/>
+            </LinearGradientBrush>
+        </Rectangle.Fill>
+    </Rectangle>
+</Border>
+```
+
+`Background="#18C0E8FF"` is ~9% opacity blue-tinted white for the faint glass tint. `BorderBrush="#40AADDFF"` at 25% opacity adds a subtle edge line. `CornerRadius="8,8,20,20"` (TL,TR,BR,BL) makes the bottom ends more rounded, approximating a tube bottom. The narrow gradient Rectangle simulates the glass specular reflection line. No image assets.
+
+**Grid wrapper required:** `Border` accepts one child; to overlay the specular strip on top of the Canvas, use a `Grid` as the Border's child with the Canvas and the Rectangle both as Grid children (Rectangle last = paints on top).
+
+### 4. Wire Mesh / Anode Grid Overlay (NIXIE-05)
+
+**Technique:** `DrawingBrush` with `TileMode=Tile` on a low-opacity Rectangle placed over the digit slot.
+
+```xml
+<Rectangle Opacity="0.18" IsHitTestVisible="False">
+    <Rectangle.Fill>
+        <DrawingBrush TileMode="Tile"
+                      Viewport="0,0,8,8"
+                      ViewportUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing>
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FFCC88" Thickness="0.4"/>
+                        </GeometryDrawing.Pen>
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <LineGeometry StartPoint="0,4" EndPoint="8,4"/>
+                                <LineGeometry StartPoint="4,0" EndPoint="4,8"/>
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+    </Rectangle.Fill>
+</Rectangle>
+```
+
+`Viewport="0,0,8,8"` with `ViewportUnits=Absolute` tiles an 8x8 DIP cell. One horizontal + one vertical `LineGeometry` per cell produces a repeating grid. `Opacity=0.18` on the Rectangle keeps it subtle. Amber line color (`#FFCC88`) blends with the Nixie orange palette. `DrawingBrush` is hardware-composited by WPF.
+
+**Mesh density tuning:** `Viewport="0,0,6,6"` for denser mesh; `"0,0,12,12"` for coarser. Keep `ViewportUnits=Absolute` so density is independent of digit slot size.
+
+### 5. NixieClockView UserControl Structure
+
+`NixieClockView` mirrors `LcdClockView` in architecture: a UserControl with a StackPanel of `NixieDigit` sub-controls, a `DispatcherTimer` for 1-second updates, and `IsVisibleChanged` timer start/stop — the same pattern `LcdClockView` uses.
+
+`NixieDigit` is a UserControl managing a single digit slot: a `Grid` containing the `Border` (glass tube), the `Canvas` (stacked ghost + active digit elements), and the mesh overlay `Rectangle`.
+
+**File placement:**
+- `FuzzyClock.App/Controls/NixieClockView.xaml` + `.xaml.cs`
+- `FuzzyClock.App/Controls/NixieDigit.xaml` + `.xaml.cs`
+
+This is consistent with `LcdClockView.xaml` + `SevenSegmentDigit.xaml` placement.
+
+**ClockType.Nixie:** Add `Nixie` as 4th value in `FuzzyClock.App/ClockType.cs`. The `[JsonConverter(typeof(JsonStringEnumConverter))]` attribute already applied to `AppSettings.ClockType` handles serialization automatically. Old settings.json files that lack a `ClockType` field deserialize to `Phrase` (the default) — no migration code needed. Files with `"ClockType": "Nixie"` deserialize correctly once the enum value exists.
+
+### 6. New IPhraseProvider Implementations (PHRASE-01 through PHRASE-07)
+
+**Technique:** One new class per style in `FuzzyClock.Core/`, implementing `IPhraseProvider` with a bucket table using the same `(int UpperBound, string Template)[]` pattern established in `RudePhraseProvider`.
+
 ```csharp
-// FuzzyClock.Core or FuzzyClock.App
-public record ThemeDefinition(
-    string  Name,
-    string  AccentColor,   // AARRGGBB hex, matches AppSettings.AccentColor format
-    double  Opacity,
-    int     FontSize,
-    string  TextStyle,     // "Classic"|"Split"|"Literary"|"Mono"
-    bool    StatsVisible
-);
-
-public static class BuiltInThemes
+public class PiratePhraseProvider : IPhraseProvider
 {
-    public static readonly ThemeDefinition[] All =
+    private static readonly string[] HourWords =
+        ["", "one", "two", "three", ...];
+
+    private static readonly (int UpperBound, string Template)[] Buckets =
     [
-        new("Minimal",    "#FFFFFFFF", 0.75, 28, "Classic", false),
-        new("Dashboard",  "#FF40C4FF", 1.0,  28, "Classic", true),
-        new("Cinematic",  "#FFFFAB00", 0.85, 40, "Literary", false),
-        new("Terminal",   "#FF00E676", 0.9,  28, "Mono",    true),
-        new("Soft Night", "#FFCE93D8", 0.6,  32, "Classic", false),
+        ( 2, "'tis {h} bells, yarr"),
+        ( 7, "just past {h} bells"),
+        (12, "ten past {h}, ye scallywag"),
+        // ... 12 buckets covering 0-59 minutes
     ];
+
+    public string GetPhrase(DateTime dt) { /* walk Buckets */ }
+    public (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt) => ("", GetPhrase(dt));
 }
 ```
 
-**AppSettings addition:**
+**PhraseEngine registration:** Add 7 new keys to the `_providers` dictionary in `PhraseEngine.cs`:
+
 ```csharp
-public string ActiveThemeName { get; init; } = "";  // "" = no theme (custom)
+["en-pirate"]       = new PiratePhraseProvider(),
+["en-dwarf"]        = new DwarfPhraseProvider(),
+["en-jive"]         = new JivePhraseProvider(),
+["en-valleygirl"]   = new ValleyGirlPhraseProvider(),
+["en-yoda"]         = new YodaPhraseProvider(),
+["en-shakespearean"]= new ShakespeareanPhraseProvider(),
+["en-rude"]         = new RudePhraseProvider(),   // replaces existing entry with enhanced Rude
 ```
 
-**No serialization changes required** — `string` init-property follows the established pattern. Existing settings.json without this field deserializes to `""` (no active theme).
+Note: the existing `"en-rude"` key is updated in-place with the enhanced `RudePhraseProvider` — no key rename needed.
 
----
+**AppSettings.PhraseStyle:** The field already exists as `public string PhraseStyle { get; init; } = "Classic"`. Add the 7 new style names as valid values in `SettingsService.Validate()`:
 
-### 3. Battery Low Alert — Conditional Color Logic
-
-**What it is:** When `BatteryPercent < threshold` (e.g., 20%), the battery stat row accent color shifts to red.
-
-**Why no packages are needed:** `SystemInformation.PowerStatus` is already used in `StatsService.cs` (v3.1). This is a conditional branch in the existing `ApplyDisplayColor` / stats rendering pipeline.
-
-**Integration point:**
 ```csharp
-// In the battery stat display logic (MainWindow.xaml.cs or StatsService)
-Color batteryColor = (batteryPct >= 0 && batteryPct < LowBatteryThresholdPercent)
-    ? Colors.OrangeRed     // alert color — not user accent
-    : _accentColor;        // normal accent
+string[] validStyles = { "Classic", "Terse", "Poetic", "Rude",
+                         "Pirate", "Dwarf", "Jive", "ValleyGirl", "Yoda", "Shakespearean" };
 ```
 
-**AppSettings addition:**
+**Settings window ComboBox:** Add the 7 new items to the `CmbPhraseStyle` ComboBox in `SettingsWindow.xaml`. The existing selection-changed handler maps display names to provider keys — extend the mapping table.
+
+**Why no new infrastructure:** The `IPhraseProvider` registry already supports arbitrary keys. Adding providers is purely additive: new classes + new dictionary entries + new ComboBox items. Zero interface changes, zero breaking changes to existing 248 tests.
+
+### 7. Dial Shape: Round to Oval (DIAL-01, DIAL-02)
+
+**Technique:** Change `DialCanvas` from a fixed-square `Canvas` to a Canvas with independent Width and Height, driven by an `AppSettings.DialShape` value. The existing `DialGeometry.cs` angle math is unchanged — only the endpoint calculation in code-behind gains separate rx/ry radii.
+
+**Oval hand endpoint math:**
+
 ```csharp
-public int BatteryLowAlertPercent { get; init; } = 20;  // 0 = disabled
+// Current (round): symmetric radius
+double r  = canvas.Width / 2 * handFraction;
+double cx = canvas.Width  / 2, cy = canvas.Height / 2;
+double x2 = cx + r  * Math.Sin(angleRad);
+double y2 = cy - r  * Math.Cos(angleRad);
+
+// Oval: independent x-radius and y-radius
+double rx = canvas.Width  / 2 * handFraction;
+double ry = canvas.Height / 2 * handFraction;
+double cx = canvas.Width  / 2, cy = canvas.Height / 2;
+double x2 = cx + rx * Math.Sin(angleRad);
+double y2 = cy - ry * Math.Cos(angleRad);
 ```
 
-No new services, no new NuGet packages.
+Using separate `rx`/`ry` makes hands correctly reach the oval perimeter at all angles. This is a ~3-line change to the existing hand-update method. `DialGeometry.GetHourAngleDegrees` and `GetMinuteAngleDegrees` are unchanged.
 
----
+**Canvas dimensions:**
+- Round: `Width = H, Height = H` (existing behavior)
+- Oval: `Width = H * 1.5, Height = H` (e.g. 120x80 for Medium font size)
 
-### 4. Phrase Styles — Strategy Pattern in FuzzyClock.Core
+**AppSettings field:**
 
-**What it is:** Three named personalities for the English phrase engine: Terse (shortest phrase), Poetic (lyrical), Rude (irreverent). The current engine produces "Classic" phrases.
-
-**Why no packages are needed:** This is a pure C# code addition in `FuzzyClock.Core`. Each style is a static bucket table (same data structure as `PhraseEngine.Buckets`). A `PhraseStyle` enum selects which table `GetPhrase` uses.
-
-**Pattern:**
 ```csharp
-public enum PhraseStyle { Classic, Terse, Poetic, Rude }
-
-public static class PhraseEngine
-{
-    public static string GetPhrase(DateTime dt, PhraseStyle style = PhraseStyle.Classic)
-    {
-        var buckets = style switch
-        {
-            PhraseStyle.Terse  => TerseBuckets,
-            PhraseStyle.Poetic => PoeticBuckets,
-            PhraseStyle.Rude   => RudeBuckets,
-            _                  => ClassicBuckets,
-        };
-        // ... existing bucket-walk logic
-    }
-}
+public string DialShape { get; init; } = "Round";  // "Round" | "Oval"
 ```
 
-**AppSettings addition:**
-```csharp
-public string PhraseStyle { get; init; } = "Classic";  // "Classic"|"Terse"|"Poetic"|"Rude"
-```
+String (not enum) is consistent with `TextStyle`, `DateFormat`, `LcdStyle` — all string fields in this codebase. Add `"Round"` and `"Oval"` to the `Validate()` guard.
 
-**Testability:** Each new bucket table gets its own `[DataRow]` tests in `FuzzyClock.Core.Tests` — same pattern as existing `PhraseEngineTests`.
-
----
-
-### 5. Multilingual Phrases — .resx + ResourceManager in FuzzyClock.Core
-
-**What it is:** Locale-specific phrase output in French, Spanish, German, Japanese, driven by `CultureInfo.CurrentUICulture`.
-
-**Why .resx + ResourceManager (not IStringLocalizer):** `IStringLocalizer` requires `Microsoft.Extensions.Localization` + `Microsoft.Extensions.Hosting` and a DI container. This project has no DI container and is a single-process WPF app. `System.Resources.ResourceManager` is built into the BCL, zero-dependency, and is the correct tool for a class library that needs culture-aware string lookup without a host.
-
-**Why not WPF BAML/LocBaml:** LocBaml only works with WPF .NET Framework, not .NET 10. The phrase strings are business logic strings in `FuzzyClock.Core` (a plain `net10.0` class library with no WPF reference), not XAML UI strings. `.resx` + `ResourceManager` is the right scope.
-
-**File structure:**
-```
-FuzzyClock.Core/
-  Resources/
-    PhraseStrings.resx          ← English (neutral/fallback)
-    PhraseStrings.fr.resx       ← French
-    PhraseStrings.de.resx       ← German
-    PhraseStrings.es.resx       ← Spanish
-    PhraseStrings.ja.resx       ← Japanese
-```
-
-**Resource key convention:** One key per phrase bucket slot, e.g.:
-```
-oclock         → "{h} o'clock"      (fr: "{h} heure pile")
-just_after     → "just after {h}"   (fr: "juste après {h}")
-ten_past       → "ten past {h}"     ...
-```
-
-Hour words are also localized (French: "une", "deux", "trois"...).
-
-**ResourceManager usage in PhraseEngine:**
-```csharp
-private static readonly ResourceManager _rm =
-    new ResourceManager("FuzzyClock.Core.Resources.PhraseStrings",
-                        typeof(PhraseEngine).Assembly);
-
-private static string L(string key) =>
-    _rm.GetString(key, CultureInfo.CurrentUICulture) ?? key;
-```
-
-**Locale detection — CultureInfo.CurrentUICulture:**
-```csharp
-// Read the Windows display language (set in Settings > Language)
-var culture = CultureInfo.CurrentUICulture;
-// culture.TwoLetterISOLanguageName → "fr", "de", "es", "ja", "en", ...
-// ResourceManager falls back: fr-FR → fr → neutral (.resx) automatically
-```
-
-`CultureInfo.CurrentUICulture` is the correct property. `CurrentCulture` controls formatting; `CurrentUICulture` controls which resource file the ResourceManager loads. On Windows 11 (the only supported OS), `CurrentUICulture` reflects the Windows display language.
-
-**Satellite assembly build — csproj addition to FuzzyClock.Core.csproj:**
-```xml
-<PropertyGroup>
-    <NeutralLanguage>en</NeutralLanguage>
-</PropertyGroup>
-```
-
-This sets `[assembly: NeutralResourcesLanguage("en")]` which tells the runtime the fallback is English. Satellite assemblies (`fr/FuzzyClock.Core.resources.dll`, etc.) are built automatically by MSBuild when `.resx` files with locale suffixes exist — no manual steps.
-
-**Culture fallback chain (built-in, no code needed):**
-```
-fr-FR → fr → en (neutral / main assembly)
-de-AT → de → en
-ja-JP → ja → en
-unknown culture → en (always)
-```
-
-**Manual override in AppSettings (optional):**
-```csharp
-public string LanguageOverride { get; init; } = "";  // "" = follow Windows CultureInfo
-```
-
-If non-empty, `PhraseEngine` uses `CultureInfo.GetCultureInfo(LanguageOverride)` instead of `CurrentUICulture`. Allows users to force a language independent of Windows locale.
-
-**Source:** https://learn.microsoft.com/en-us/dotnet/core/extensions/localization (HIGH confidence, updated 2026-02-04); https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-globalization-cultureinfo (HIGH confidence, updated 2026-02-12)
-
----
-
-## Core Technologies: No Changes
-
-| Technology | Version | Status |
-|------------|---------|--------|
-| .NET 10 WPF (`net10.0-windows`) | 10.0 | Unchanged |
-| `FuzzyClock.Core` (`net10.0`) | — | Gains `.resx` files |
-| `System.Text.Json` | inbox .NET 10 | Unchanged |
-| `System.Diagnostics.PerformanceCounter` | 10.0.0 | Unchanged |
-| MSTest | 4.0.1 | Unchanged |
-| `System.Resources.ResourceManager` | BCL inbox | New usage in Core |
-
----
-
-## Supporting Libraries: No Changes
-
-All additions use BCL types already in `net10.0`:
-- `System.Resources.ResourceManager` — `.resx` resource lookup (BCL inbox, no NuGet)
-- `System.Globalization.CultureInfo` — locale detection (BCL inbox)
-- `System.Windows.Controls.TabControl` — settings window tabs (WPF built-in via `UseWPF=true`)
-
----
-
-## Installation
-
-**No new package installs.** All required types are in:
-- `PresentationFramework.dll` (WPF built-in) — `TabControl`, `TabItem`, `Window`
-- BCL (`System.Resources`, `System.Globalization`) — `ResourceManager`, `CultureInfo`
-
----
-
-## What NOT to Add
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `Microsoft.Extensions.Localization` NuGet | Requires DI host; over-engineered for a standalone WPF app with no service container | `System.Resources.ResourceManager` (BCL inbox) |
-| `Microsoft.Extensions.Hosting` NuGet | Brings in the entire generic host for a single-process overlay widget | None needed |
-| WPF LocBaml / BAML localization | LocBaml does not work with WPF .NET (only .NET Framework); requires complex toolchain | `.resx` + `ResourceManager` |
-| Third-party UI toolkit (MahApps.Metro, MaterialDesign, etc.) | Adds hundreds of KB, styles would conflict with the existing minimal custom UI | WPF built-in `TabControl` |
-| MVVM framework (CommunityToolkit.Mvvm, Prism) | No existing MVVM infrastructure; settings window is simple enough for code-behind | Direct code-behind in `SettingsWindow.xaml.cs` |
-| Separate settings JSON file per locale | Fragile; phrases are not user-configurable | `.resx` compiled into satellite assemblies |
-| `CultureInfo.CurrentCulture` for language detection | Controls number/date formatting, NOT UI language selection | `CultureInfo.CurrentUICulture` (resource lookup) |
+**Dial size (DIAL-02):** The `DialCanvas` Width/Height are already driven by `_currentFontSize` in code-behind. The scaling relation (Small/Medium/Large → pixel sizes) applies to both Width and Height dimensions — no new settings field needed. Oval just applies a fixed 1.5x width multiplier to the same size tiers.
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | When Alternative Is Better |
-|----------|-------------|-------------|---------------------------|
-| Settings UI | WPF built-in `TabControl` | MahApps.Metro `MetroWindow` | If the project adopted a full design system; overkill for 3 tabs |
-| Localization | `.resx` + `ResourceManager` | `IStringLocalizer` + DI | Only when the app already uses `IHost` / generic host |
-| Theme storage | Static `ThemeDefinition[]` in code | JSON theme files | If users need to create custom themes — not in v3.2 scope |
-| Phrase styles | Static bucket tables per style | External JSON phrase files | If phrase content must be user-editable |
-| Settings window lifetime | Modeless (`Show`) | Modal (`ShowDialog`) | If the settings window must block all other interaction |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| `DropShadowEffect` with `ShadowDepth=0` for Nixie glow | Third-party WPF glow shader (WPF-UI `GlowElement`) | Only if animated glow pulsing or glow that exceeds element layout bounds is needed — not in v3.4 scope |
+| `DrawingBrush` tile for wire mesh | PNG/SVG image asset overlay | If the mesh needs photorealistic appearance or diagonal diagonal angles; DrawingBrush grid is sufficient for the faint anode grid effect and avoids image assets |
+| `TextBlock` with `Courier New` for Nixie digit glyphs | `Path`/`PathGeometry` vector numeral glyphs | If v5+ requires exact wire-cathode visual; PathGeometry is significantly more authoring effort for 10 digits per slot — deferred |
+| Separate `rx`/`ry` in code-behind for oval hands | `ScaleTransform` on the Canvas | ScaleTransform would also scale stroke thickness and any tick marks, causing visual distortion; explicit rx/ry math is cleaner |
+| String field `DialShape` in AppSettings | New `DialShape` enum | Enum requires `[JsonConverter(typeof(JsonStringEnumConverter))]` and migration if values are renamed; string is consistent with the other non-ClockType settings fields in this codebase |
+| Per-digit `NixieDigit` UserControl | Single flat Canvas in `NixieClockView` | Flat Canvas is simpler for 4 digits but makes per-digit state (ghost set, active character, glow) harder to encapsulate and test; `NixieDigit` mirrors `SevenSegmentDigit` encapsulation precedent |
+
+---
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `System.Windows.Media.Effects.BitmapEffect` | Removed in .NET 3.5+; compile error on net10.0 | `DropShadowEffect` or `BlurEffect` from `System.Windows.Media.Effects` |
+| Custom HLSL pixel shader (`PixelShaderEffect`) | Requires HLSL compilation, DX feature level negotiation, significant added complexity | `DropShadowEffect` achieves equivalent glow with zero authoring overhead |
+| `WriteableBitmap` for Nixie pixel rendering | Pixel-level rendering is inappropriate for a WPF vector UI; loses scaling, hit testing, and WPF compositing | Canvas + Brush composition as described above |
+| Image assets (PNG/SVG) for wire mesh or glass texture | Explicitly forbidden by REQUIREMENTS.md constraint: "no image assets" | `DrawingBrush` tile for mesh; `LinearGradientBrush` for glass highlight |
+| Any new NuGet package for visual effects | Zero packages needed; all required effects are in the .NET 10 BCL WPF assemblies | `System.Windows.Media.Effects` namespace |
+| `OpacityMask` for Nixie ghost digit fade | Adds masking layer complexity without benefit over direct `Opacity` | Set `Opacity` property directly on each ghost TextBlock |
+| `Panel.ZIndex` for Nixie digit layering | Unnecessary when active digit is the last Canvas child — WPF Canvas paints children in order | Declare ghost elements first, active element last in XAML/code |
+
+---
+
+## Stack Patterns by Variant
+
+**If Nixie glow appears too faint at low widget opacity settings:**
+- Add a blurred `Ellipse` behind the digit with `BlurEffect` applied for a diffuse glow cloud
+- Keep the sharp digit TextBlock separate from the blur layer so numerals remain legible
+- Stack order: blurred halo Ellipse first, ghost TextBlocks next, active TextBlock last
+
+**If the DrawingBrush wire mesh tiles are too coarse or too fine:**
+- Adjust `Viewport` dimensions: `"0,0,4,4"` = denser mesh, `"0,0,12,12"` = coarser
+- Keep `ViewportUnits=Absolute` so mesh density stays constant regardless of digit slot size
+
+**If oval dial hands look visually incorrect at 12/6 o'clock positions:**
+- These positions are mathematically exact: `sin(0°) = 0`, so the x-radius term vanishes; `cos(0°) = 1`, so the y-radius term dominates. Hands point straight up/down regardless of oval ratio. No special-casing needed.
+
+**If the Rude style update (PHRASE-01) conflicts with the existing `en-rude` key:**
+- Replace the `RudePhraseProvider` class body in-place (stronger vocabulary) rather than adding a new key
+- Existing tests for `"en-rude"` continue to pass with updated expected strings
+- Update the test expected values to match the new ruder phrasing
 
 ---
 
 ## csproj Change Summary
 
-**FuzzyClock.Core.csproj:** Add `<NeutralLanguage>en</NeutralLanguage>` to the existing `<PropertyGroup>`. This is the only csproj change across the entire milestone.
-
 **FuzzyClock.App.csproj:** No changes.
+**FuzzyClock.Core.csproj:** No changes.
+**FuzzyClock.Core.Tests.csproj:** No changes.
+**FuzzyClock.App.Tests.csproj:** No changes.
 
-**FuzzyClock.Core.Tests.csproj:** No changes (new phrase style tests follow existing `[DataRow]` pattern).
-
-**FuzzyClock.App.Tests.csproj:** No changes (settings window and theme tests follow existing patterns).
-
----
-
-## Integration Points in Existing Code
-
-| Location | Change |
-|----------|--------|
-| `FuzzyClock.Core/PhraseEngine.cs` | Add `PhraseStyle` enum parameter; add Terse/Poetic/Rude bucket tables; add `ResourceManager` field for locale lookup |
-| `FuzzyClock.Core/Resources/` | New directory: `PhraseStrings.resx` + `PhraseStrings.{fr,de,es,ja}.resx` |
-| `FuzzyClock.Core.csproj` | Add `<NeutralLanguage>en</NeutralLanguage>` |
-| `FuzzyClock.App/AppSettings.cs` | Add: `ActiveThemeName`, `BatteryLowAlertPercent`, `PhraseStyle`, `LanguageOverride` init properties |
-| `FuzzyClock.App/MainWindow.xaml.cs` | Battery alert: conditional color in stats paint; theme apply: map `ThemeDefinition` to `ApplySettings`-like call |
-| `FuzzyClock.App/TrayMenuBuilder.cs` | Add "Settings..." menu item + phrase style submenu |
-| New: `FuzzyClock.App/SettingsWindow.xaml` + `.xaml.cs` | New WPF Window with TabControl — Appearance / Stats / Behavior tabs |
-| New: `FuzzyClock.App/ThemeDefinition.cs` + `BuiltInThemes.cs` | Static theme registry |
+All additions are pure C# and XAML files within the existing project structure.
 
 ---
 
-## Confidence Assessment
+## Version Compatibility
 
-| Area | Confidence | Reason |
-|------|------------|--------|
-| WPF TabControl (no packages) | HIGH | Built into PresentationFramework; established WPF pattern |
-| ResourceManager + .resx for class library | HIGH | BCL standard; verified against official .NET docs |
-| CultureInfo.CurrentUICulture for locale detection | HIGH | Official docs confirm: CurrentUICulture drives resource loading, CurrentCulture drives formatting |
-| Satellite assembly auto-build with NeutralLanguage | HIGH | Official MSBuild behavior, documented; no manual steps |
-| Phrase style dispatch (enum + bucket switch) | HIGH | Straightforward extension of existing PhraseEngine pattern |
-| Battery alert (conditional color branch) | HIGH | StatsService already reads BatteryPercent; color override is 2-line conditional |
-| IStringLocalizer NOT needed | HIGH | IStringLocalizer requires DI host; ResourceManager is the correct non-hosted alternative per official docs |
+| Component | .NET Version | Notes |
+|-----------|--------------|-------|
+| `DropShadowEffect` | .NET Framework 3.0 / .NET Core 3.0+ | Stable; hardware-accelerated on D3D9+ |
+| `DrawingBrush` with `TileMode` | .NET Framework 3.0 / .NET Core 3.0+ | `ViewportUnits=Absolute` supported since initial WPF release |
+| `RadialGradientBrush` | .NET Framework 3.0 / .NET Core 3.0+ | Stable; confirmed used in existing LCD palette system |
+| `JsonStringEnumConverter` on `ClockType.Nixie` | System.Text.Json (net10.0) | New enum value deserializes as default (`Phrase`) when absent from JSON — no migration code needed |
+| `IPhraseProvider` with 7 new implementors | FuzzyClock.Core internal | Interface unchanged; all new providers are additive; zero breaking changes |
 
 ---
 
 ## Sources
 
-- WPF Window / ShowDialog vs Show: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-window-dialog-box (official, 2024-10-24)
-- .NET Localization + IStringLocalizer: https://learn.microsoft.com/en-us/dotnet/core/extensions/localization (official, updated 2026-02-04)
-- WPF Globalization + satellite assemblies: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-globalization-and-localization-overview (official; LocBaml .NET Framework only warning confirmed)
-- CultureInfo.CurrentUICulture vs CurrentCulture: https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-globalization-cultureinfo (official, updated 2026-02-12)
-- ResourceManager class: https://learn.microsoft.com/en-us/dotnet/api/system.resources.resourcemanager (BCL inbox, no NuGet)
-- TabControl: https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.tabcontrol (WPF built-in)
+- Codebase: `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — confirmed Canvas + Polygon + SolidColorBrush layer pattern (HIGH — direct code read)
+- Codebase: `FuzzyClock.App/MainWindow.xaml` lines 49-51 — confirmed `DropShadowEffect` already used in project, pattern validated (HIGH — direct code read)
+- Codebase: `FuzzyClock.Core/RudePhraseProvider.cs`, `PhraseEngine.cs` — confirmed bucket table + `_providers` registry pattern (HIGH — direct code read)
+- Codebase: `FuzzyClock.App/AppSettings.cs` — confirmed `PhraseStyle` string field exists; `JsonStringEnumConverter` attribute on `ClockType` confirmed (HIGH — direct code read)
+- Codebase: `FuzzyClock.App/FuzzyClock.App.csproj` — confirmed `net10.0-windows`, `UseWPF=true`, no existing effects packages (HIGH — direct code read)
+- REQUIREMENTS.md: "WPF-only rendering: Nixie glow via WPF RadialGradientBrush effects, no image assets" — mandates the approach used here (HIGH — requirements document)
+- Microsoft Docs: `System.Windows.Media.Effects.DropShadowEffect` — `ShadowDepth=0` for symmetric glow is documented property behavior (HIGH confidence)
+- Microsoft Docs: `System.Windows.Media.DrawingBrush.TileMode` / `ViewportUnits` — standard tile-brush usage (HIGH confidence)
 
 ---
-*Stack research for: FuzzyClock v3.2 — Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual*
-*Researched: 2026-03-08*
+*Stack research for: FuzzyClock v3.4 — Nixie tube rendering, phrase personalities, dial shape/size*
+*Researched: 2026-03-11*
