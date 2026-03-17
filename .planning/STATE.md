@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Expanded Experience
-status: complete
-stopped_at: Milestone complete
-last_updated: "2026-03-09T00:00:00Z"
-last_activity: 2026-03-09 — v3.2 milestone archived; git tag v3.2 pending
+milestone: v3.3
+milestone_name: Polish + Installer
+status: in_progress
+stopped_at: Roadmap created — ready for Phase 48
+last_updated: "2026-03-17T00:00:00Z"
+last_activity: 2026-03-17 — v3.3 milestone roadmap created; 4 phases planned (48–51)
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 16
-  completed_plans: 16
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -20,12 +20,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 48 — Settings Window Visual Redesign
 
 ## Current Position
 
-Milestone v3.2 complete — all 7 phases (41–47), 16 plans shipped.
-224 tests passing (199 Core + 25 App).
+Milestone v3.3 in progress — 0 of 4 phases complete.
+Last completed milestone: v3.2 (phases 41–47, 224 tests passing).
+
+```
+Progress: [          ] 0/4 phases
+```
+
+Next action: `/gsd:plan-phase 48`
 
 ## Accumulated Context
 
@@ -33,17 +39,24 @@ Milestone v3.2 complete — all 7 phases (41–47), 16 plans shipped.
 
 All decisions logged in PROJECT.md Key Decisions table.
 
+Key decisions for v3.3 (from research):
+- Installer: Inno Setup (not Velopack) — no app code changes, no custom Main(), no new NuGet packages
+- Edge snap threshold: 8px (not 16-20px) — preserves intentional near-edge placements; per-monitor position memory must not be corrupted
+- Single-instance bring-to-front: named pipe IPC (NamedPipeServerStream) — running instance listens, second instance writes "ACTIVATE" and exits
+- Settings dark mode: ThemeMode="Dark" XAML attribute on SettingsWindow only — App.xaml stays empty to prevent MainWindow style leakage
+- Post-DragMove snap only — WM_MOVING hook is unreliable during DragMove() modal loop (documented in ghost mode notes)
+
 ### Pending Todos
 
-None.
+- Phase 46 carry-over: Japanese phrase naturalness is medium confidence; native-speaker review of 12 bucket phrases recommended (not blocking v3.3).
+- ResetToDefaults() phrase style/locale reset is now a v3.3 requirement (FIX-01) — addressed in Phase 49.
 
 ### Blockers/Concerns
 
-- Phase 46: Japanese phrase naturalness is medium confidence; native-speaker review of 12 bucket phrases recommended.
-- ResetToDefaults() does not reset `_currentPhraseStyle` or `_currentPhraseLocale` — minor inconsistency, not a requirement violation.
+None at roadmap stage.
 
 ## Session Continuity
 
-Last session: 2026-03-09
-Stopped at: v3.2 milestone complete
-Resume: `/gsd:new-milestone` to start next milestone
+Last session: 2026-03-17
+Stopped at: Roadmap created for v3.3
+Resume: `/gsd:plan-phase 48`

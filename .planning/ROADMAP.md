@@ -25,6 +25,7 @@
 - **v3.0 Date Display** (2026-03-07) — Date line below clock/dial, muted accent color, 4 format options, show/hide tray toggle, persisted. 1 phase, 2 plans. → [Archive](milestones/v3.0-ROADMAP.md)
 - **v3.1 Quality + Battery** (2026-03-08) — Battery stat row, DateFormatter extraction with tests, AppSettings round-trip coverage, README accuracy pass. 4 phases, 6 plans. → [Archive](milestones/v3.1-ROADMAP.md)
 - **v3.2 Expanded Experience** (2026-03-09) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 7 phases (41–47), 16 plans. → [Archive](milestones/v3.2-ROADMAP.md)
+- **v3.3 Polish + Installer** — Settings window visual redesign, bug fixes, edge snapping, per-user installer, README docs pass. 4 phases (48–51). ← CURRENT
 
 ## Phases
 
@@ -112,10 +113,64 @@
 
 </details>
 
+### v3.3 Polish + Installer (Phases 48–51) — CURRENT
+
+- [ ] **Phase 48: Settings Window Visual Redesign** — Dark-mode styling for SettingsWindow (SETR-01 to SETR-04)
+- [ ] **Phase 49: Fixes + Edge Snapping** — Bug fixes for reset defaults, single-instance bring-to-front, AbandonedMutexException; edge snap post-DragMove (FIX-01, FIX-02, FIX-03, SNAP-01, SNAP-02, SNAP-03)
+- [ ] **Phase 50: Installer + CI** — Inno Setup per-user installer script and CI artifact integration (INST-01 to INST-07)
+- [ ] **Phase 51: README Docs Pass** — Document v3.2 features in README (DOCS-04)
+
 ## Phase Details
 
 *v3.2 phase details archived to [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md)*
 
+### Phase 48: Settings Window Visual Redesign
+**Goal**: Users see a dark-mode Settings window that matches the widget's minimal aesthetic
+**Depends on**: Nothing (pure XAML, no logic changes)
+**Requirements**: SETR-01, SETR-02, SETR-03, SETR-04
+**Success Criteria** (what must be TRUE):
+  1. Opening Settings shows a dark background with light foreground text — no light gray system-default chrome
+  2. Every interactive control (CheckBox, RadioButton, ComboBox, Button, Slider) renders with a consistent dark-mode appearance
+  3. Section groups have visible breathing room; nothing feels cramped or overlapping
+  4. Opening the main widget's right-click menu or tray menu shows no visual change — MainWindow is unaffected by the new styles
+**Plans**: TBD
+
+### Phase 49: Fixes + Edge Snapping
+**Goal**: The app behaves correctly on crash-restart, second launch, and drag near screen edges
+**Depends on**: Nothing (self-contained App.xaml.cs and MainWindow.xaml.cs changes)
+**Requirements**: FIX-01, FIX-02, FIX-03, SNAP-01, SNAP-02, SNAP-03
+**Success Criteria** (what must be TRUE):
+  1. Pressing Reset to Defaults from the tray resets phrase style to Classic and phrase locale to auto, not just the visual settings
+  2. Launching the app when it is already running brings the existing window to the front instead of silently doing nothing
+  3. After killing the app via Task Manager and relaunching, the app starts normally without an unhandled exception
+  4. Dragging the widget to within 8px of any screen edge and releasing causes it to snap flush to that edge
+  5. The snapped position respects the taskbar working area — the widget does not slide under the taskbar
+  6. Dragging the widget freely in the middle of the screen and releasing does not trigger a snap
+**Plans**: TBD
+
+### Phase 50: Installer + CI
+**Goal**: Users can install, upgrade, and uninstall FuzzyClock like any normal Windows application
+**Depends on**: Phase 49 (stable, tested EXE to package)
+**Requirements**: INST-01, INST-02, INST-03, INST-04, INST-05, INST-06, INST-07
+**Success Criteria** (what must be TRUE):
+  1. Running FuzzyClockSetup.exe installs the app to %LOCALAPPDATA%\Programs\FuzzyClock\ with no UAC elevation prompt
+  2. Running the installer over an existing installation completes successfully and the app version is updated; settings.json is unchanged
+  3. After installation, FuzzyClock appears in the Start Menu and can be launched from there
+  4. FuzzyClock appears in Settings > Apps > Installed Apps (Add/Remove Programs) with a working Uninstall button
+  5. After uninstalling, FuzzyClock is removed from the Start Menu and Apps list; settings.json remains in %LOCALAPPDATA%\FuzzyClock\
+  6. If auto-launch was enabled before upgrading, the app still launches at login after the upgrade (registry entry points to the new path)
+  7. The GitHub Actions release workflow produces both FuzzyClock.exe and FuzzyClockSetup.exe as downloadable release artifacts
+**Plans**: TBD
+
+### Phase 51: README Docs Pass
+**Goal**: The README accurately describes all features available in v3.2 and v3.3
+**Depends on**: Phase 50 (installer instructions reference the Setup.exe artifact)
+**Requirements**: DOCS-04
+**Success Criteria** (what must be TRUE):
+  1. README describes the Settings window (how to open it, its three tabs) and named themes
+  2. README describes English phrase style personalities (Classic/Terse/Poetic/Rude) and language selection
+  3. README installation section references FuzzyClockSetup.exe as the primary install path and documents the SmartScreen "More info → Run anyway" workaround
+**Plans**: TBD
 
 ## Progress
 
@@ -146,6 +201,10 @@
 | 45. English Phrase Style Personalities | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
+| 48. Settings Window Visual Redesign | v3.3 | 0/TBD | Not started | - |
+| 49. Fixes + Edge Snapping | v3.3 | 0/TBD | Not started | - |
+| 50. Installer + CI | v3.3 | 0/TBD | Not started | - |
+| 51. README Docs Pass | v3.3 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-09 — v3.2 milestone complete*
+*Last updated: 2026-03-17 — v3.3 milestone roadmap added*
