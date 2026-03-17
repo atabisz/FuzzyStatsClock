@@ -5,7 +5,8 @@
         Width="480" Height="600"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        ThemeMode="Dark">
 
     <Window.Resources>
         <!-- Segmented toggle button — rail container sets Background="#FFE8E8E8" CornerRadius="4" -->
@@ -29,19 +30,19 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <!-- Selected state: white pill with subtle border -->
+                <!-- Selected state: dark pill -->
                 <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="selected">
-                    <Setter Property="Background" Value="#FFFFFFFF"/>
-                    <Setter Property="BorderBrush" Value="#FFBDBDBD"/>
+                    <Setter Property="Background" Value="#FF3C3C3C"/>
+                    <Setter Property="BorderBrush" Value="#FF666666"/>
                     <Setter Property="BorderThickness" Value="1"/>
                 </DataTrigger>
-                <!-- Hover on unselected: light gray -->
+                <!-- Hover on unselected: dark -->
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
                         <Condition Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="{x:Null}"/>
                     </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFD0D0D0"/>
+                    <Setter Property="Background" Value="#FF555555"/>
                 </MultiDataTrigger>
             </Style.Triggers>
         </Style>
@@ -58,7 +59,7 @@
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
 
                     <Border x:Name="RingThemeMidnight" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                        <Border Width="60" Height="64" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeMidnight_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -71,13 +72,13 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FF6A7FDB" Margin="0,0,0,4"/>
-                                <TextBlock Text="Midnight" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Midnight" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
 
                     <Border x:Name="RingThemeNeon" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                        <Border Width="60" Height="64" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeNeon_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -90,13 +91,13 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FF00F5D4" Margin="0,0,0,4"/>
-                                <TextBlock Text="Neon" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Neon" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
 
                     <Border x:Name="RingThemeGhost" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                        <Border Width="60" Height="64" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeGhost_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -109,13 +110,13 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FFC0C8D8" Margin="0,0,0,4"/>
-                                <TextBlock Text="Ghost" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Ghost" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
 
                     <Border x:Name="RingThemeWarm" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                        <Border Width="60" Height="64" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeWarm_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -128,13 +129,13 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FFF4A261" Margin="0,0,0,4"/>
-                                <TextBlock Text="Warm" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Warm" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
 
                     <Border x:Name="RingThemeTerminal" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,0,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                        <Border Width="60" Height="64" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeTerminal_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -147,7 +148,7 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FF39FF14" Margin="0,0,0,4"/>
-                                <TextBlock Text="Terminal" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Terminal" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
@@ -271,7 +272,7 @@
                                Text="Font Size" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <Border Grid.Row="1" Grid.Column="1"
-                            Background="#FFE8E8E8" CornerRadius="4" Padding="2"
+                            Background="#FF3A3A3A" CornerRadius="4" Padding="2"
                             HorizontalAlignment="Left" Margin="0,8,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="BtnFontS"  Content="S"  Style="{StaticResource SegmentButtonStyle}" Click="BtnFontS_Click"/>
@@ -286,7 +287,7 @@
                                Text="Clock Style" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <Border Grid.Row="2" Grid.Column="1"
-                            Background="#FFE8E8E8" CornerRadius="4" Padding="2"
+                            Background="#FF3A3A3A" CornerRadius="4" Padding="2"
                             HorizontalAlignment="Left" Margin="0,8,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="BtnPhrase" Content="Phrase" Style="{StaticResource SegmentButtonStyle}" Click="BtnPhrase_Click"/>
@@ -418,7 +419,7 @@
                 <!-- Phrase Language -->
                 <TextBlock Text="Phrase Language" FontWeight="SemiBold" Margin="0,0,0,4"/>
                 <TextBlock Text="Auto-detects from Windows display language. Override here."
-                           Foreground="#FF666666" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                           Foreground="#FF999999" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
                 <ComboBox x:Name="CmbPhraseLanguage" Width="160" HorizontalAlignment="Left"
                           Margin="0,0,0,16"
                           SelectionChanged="CmbPhraseLanguage_SelectionChanged">
@@ -446,7 +447,7 @@
                 <!-- Battery Alert threshold -->
                 <TextBlock Text="Battery Alert" FontWeight="SemiBold" Margin="0,16,0,4"/>
                 <TextBlock Text="Alert when unplugged and battery is at or below:"
-                           Foreground="#FF666666" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                           Foreground="#FF999999" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
                 <StackPanel Orientation="Horizontal">
                     <RadioButton x:Name="RbAlert10" Content="10%" GroupName="BatteryAlertThresh"
                                  Margin="0,0,14,0" Checked="RbAlert10_Checked"/>
