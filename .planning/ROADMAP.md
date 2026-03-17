@@ -133,7 +133,9 @@
   2. Every interactive control (CheckBox, RadioButton, ComboBox, Button, Slider) renders with a consistent dark-mode appearance
   3. Section groups have visible breathing room; nothing feels cramped or overlapping
   4. Opening the main widget's right-click menu or tray menu shows no visual change — MainWindow is unaffected by the new styles
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 48-01-PLAN.md — Apply ThemeMode="Dark" + replace hardcoded light colors + human visual sign-off
 
 ### Phase 49: Fixes + Edge Snapping
 **Goal**: The app behaves correctly on crash-restart, second launch, and drag near screen edges
@@ -201,10 +203,10 @@
 | 45. English Phrase Style Personalities | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
-| 48. Settings Window Visual Redesign | v3.3 | 0/TBD | Not started | - |
+| 48. Settings Window Visual Redesign | v3.3 | 0/1 | Not started | - |
 | 49. Fixes + Edge Snapping | v3.3 | 0/TBD | Not started | - |
 | 50. Installer + CI | v3.3 | 0/TBD | Not started | - |
 | 51. README Docs Pass | v3.3 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-17 — v3.3 milestone roadmap added*
+*Last updated: 2026-03-18 — Phase 48 plan created*
