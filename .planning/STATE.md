@@ -3,11 +3,26 @@ gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: Polish + Installer
 status: in_progress
+stopped_at: Completed 48-01-PLAN.md
+last_updated: "2026-03-17T23:58:17.865Z"
+progress:
+  total_phases: 4
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 80
+---
+
+---
+gsd_state_version: 1.0
+milestone: v3.3
+milestone_name: Polish + Installer
+status: in_progress
 stopped_at: Roadmap created — ready for Phase 48
 last_updated: "2026-03-17T00:00:00Z"
 last_activity: 2026-03-17 — v3.3 milestone roadmap created; 4 phases planned (48–51)
 progress:
-  total_phases: 4
+  [████████░░] 80%
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -45,6 +60,7 @@ Key decisions for v3.3 (from research):
 - Single-instance bring-to-front: named pipe IPC (NamedPipeServerStream) — running instance listens, second instance writes "ACTIVATE" and exits
 - Settings dark mode: ThemeMode="Dark" XAML attribute on SettingsWindow only — App.xaml stays empty to prevent MainWindow style leakage
 - Post-DragMove snap only — WM_MOVING hook is unreliable during DragMove() modal loop (documented in ghost mode notes)
+- [Phase 48-settings-window-visual-redesign]: ThemeMode=Dark on SettingsWindow only — App.xaml stays empty to prevent MainWindow style leakage
 
 ### Pending Todos
 
@@ -57,6 +73,6 @@ None at roadmap stage.
 
 ## Session Continuity
 
-Last session: 2026-03-17
-Stopped at: Roadmap created for v3.3
+Last session: 2026-03-17T23:58:17.861Z
+Stopped at: Completed 48-01-PLAN.md
 Resume: `/gsd:plan-phase 48`

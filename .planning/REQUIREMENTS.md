@@ -7,10 +7,10 @@
 
 ### Settings Window Redesign
 
-- [ ] **SETR-01**: Settings window uses a dark background and light foreground text matching the widget's minimal aesthetic
-- [ ] **SETR-02**: CheckBox, RadioButton, ComboBox, Button, and Slider controls have consistent dark-mode styling
-- [ ] **SETR-03**: Section groups have adequate whitespace; controls are not cramped
-- [ ] **SETR-04**: Settings window styling is scoped to SettingsWindow only — no style leakage to MainWindow
+- [x] **SETR-01**: Settings window uses a dark background and light foreground text matching the widget's minimal aesthetic
+- [x] **SETR-02**: CheckBox, RadioButton, ComboBox, Button, and Slider controls have consistent dark-mode styling
+- [x] **SETR-03**: Section groups have adequate whitespace; controls are not cramped
+- [x] **SETR-04**: Settings window styling is scoped to SettingsWindow only — no style leakage to MainWindow
 
 ### Bug Fixes
 
@@ -58,10 +58,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SETR-01 | Phase 48 | Pending |
-| SETR-02 | Phase 48 | Pending |
-| SETR-03 | Phase 48 | Pending |
-| SETR-04 | Phase 48 | Pending |
+| SETR-01 | Phase 48 | Complete |
+| SETR-02 | Phase 48 | Complete |
+| SETR-03 | Phase 48 | Complete |
+| SETR-04 | Phase 48 | Complete |
 | FIX-01 | Phase 49 | Pending |
 | FIX-02 | Phase 49 | Pending |
 | FIX-03 | Phase 49 | Pending |

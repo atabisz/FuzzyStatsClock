@@ -115,7 +115,7 @@
 
 ### v3.3 Polish + Installer (Phases 48–51) — CURRENT
 
-- [ ] **Phase 48: Settings Window Visual Redesign** — Dark-mode styling for SettingsWindow (SETR-01 to SETR-04)
+- [x] **Phase 48: Settings Window Visual Redesign** — Dark-mode styling for SettingsWindow (SETR-01 to SETR-04) (completed 2026-03-17)
 - [ ] **Phase 49: Fixes + Edge Snapping** — Bug fixes for reset defaults, single-instance bring-to-front, AbandonedMutexException; edge snap post-DragMove (FIX-01, FIX-02, FIX-03, SNAP-01, SNAP-02, SNAP-03)
 - [ ] **Phase 50: Installer + CI** — Inno Setup per-user installer script and CI artifact integration (INST-01 to INST-07)
 - [ ] **Phase 51: README Docs Pass** — Document v3.2 features in README (DOCS-04)
@@ -203,7 +203,7 @@ Plans:
 | 45. English Phrase Style Personalities | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
-| 48. Settings Window Visual Redesign | v3.3 | 0/1 | Not started | - |
+| 48. Settings Window Visual Redesign | 1/1 | Complete   | 2026-03-17 | - |
 | 49. Fixes + Edge Snapping | v3.3 | 0/TBD | Not started | - |
 | 50. Installer + CI | v3.3 | 0/TBD | Not started | - |
 | 51. README Docs Pass | v3.3 | 0/TBD | Not started | - |
