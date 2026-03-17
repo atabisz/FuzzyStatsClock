@@ -1,13 +1,13 @@
 # Pitfalls Research
 
-**Domain:** Adding Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual to an existing WPF transparent overlay widget
-**Project:** Fuzzy Clock v3.2
-**Researched:** 2026-03-08
-**Confidence:** HIGH — all pitfalls grounded in direct reading of `MainWindow.xaml.cs`, `AppSettings.cs`, `SettingsService.cs`, `PhraseEngine.cs`, test files, and `PROJECT.md` Key Decisions log.
+**Domain:** Adding per-user installer, edge snapping, and Settings visual redesign to an existing WPF .NET 10 transparent overlay widget
+**Project:** Fuzzy Clock v3.3
+**Researched:** 2026-03-17
+**Confidence:** HIGH — all pitfalls grounded in direct reading of `App.xaml.cs`, `MainWindow.xaml.cs`, `GhostModeController.cs`, `App.xaml`, `MainWindow.xaml`, `SettingsWindow.xaml`, and `PROJECT.md`.
 
 ---
 
-> **Scope note:** This document covers pitfalls specific to v3.2 additions: a settings window (SETT-01 through SETT-07), named themes (THM-01 through THM-03), phrase styles (STYLE-01 through STYLE-04), multilingual phrase engine (LANG-01 through LANG-04), and battery alert (ALERT-01 through ALERT-03). Prior milestone pitfalls (WS_EX_TRANSPARENT, ghost mode, frozen brushes, DragMove, AltGr, click-through) are covered in prior PITFALLS.md versions and are not repeated here.
+> **Scope note:** This document covers pitfalls specific to v3.3 additions: per-user installer (no-admin, `%LOCALAPPDATA%` install path, upgrade detection), single-instance guard (Mutex in App.xaml.cs — already implemented; pitfalls concern maintenance and crash scenarios), edge snapping (snap-to-screen-edge on drag release, interaction with `SizeToContent=WidthAndHeight` and ghost mode), and Settings window visual redesign (WPF styles/ResourceDictionary applied to the existing SettingsWindow without breaking MainWindow). Prior milestone pitfalls (WS_EX_TRANSPARENT, ghost mode, frozen brushes, AppSettings migration, ApplyTheme coverage) are documented in the v3.2 PITFALLS.md and are not repeated here.
 
 ---
 
@@ -17,376 +17,294 @@ Mistakes that cause incorrect behavior or require a rewrite to fix.
 
 ---
 
-### Pitfall 1: Settings Window Writes Directly to AppSettings Fields — Widget State Gets Out of Sync
+### Pitfall 1: SmartScreen Blocks Unsigned Installer — Users See "Windows protected your PC"
 
 **What goes wrong:**
-The settings window directly mutates individual fields in `AppSettings` and calls `SettingsService.Save()`. Meanwhile, `MainWindow` holds its own in-memory state in private fields (`_accentColor`, `_windowOpacity`, `_currentFontSize`, `_currentTextStyle`, `_dialMode`, etc.) that are authoritative for the live widget. `SaveSettings()` in `MainWindow` builds the record from these private fields. If the settings window bypasses these private fields and writes directly to `AppSettings`, the persisted JSON reflects the settings window's view while the live widget reflects `MainWindow`'s stale private fields. Closing and reopening the app produces the settings window's version; the live widget never applied the change.
+A per-user NSIS, Inno Setup, or WiX installer built without an Authenticode code-signing certificate triggers Windows SmartScreen on first download and run. The user sees a full-screen blue warning ("Windows protected your PC") with only an "Don't run" button visible; "Run anyway" is hidden behind "More info." Most non-technical users stop here and conclude the installer is malware. Even technical users are alarmed. The app never gets installed.
+
+SmartScreen's reputation system (Application Reputation / SmartScreen Filter) requires a threshold of downloads before "reputation" is established — a new, unsigned binary starts with zero reputation every time the binary hash changes (i.e., every release build). Self-signed certificates (generated with `New-SelfSignedCertificate`) do not suppress SmartScreen — only certificates from a trusted CA (e.g., a commercial EV code-signing certificate or a standard OV certificate) build reputation.
 
 **Why it happens:**
-The pattern is tempting: the settings window has a reference to the `AppSettings` record or `SettingsService`, writes a field, saves, and considers the job done. But `MainWindow` does not observe `SettingsService` — it only reads settings at startup via `ApplySettings()`. There is no reactive binding between the JSON file and the live widget's private fields.
+Developers build the installer, test it on their own machine (where SmartScreen doesn't block self-approved executables), and only discover the SmartScreen block after a user reports it. The "it works on my machine" failure mode hides this until release.
 
 **How to avoid:**
-Route all settings changes through `MainWindow`'s existing `Set*()` methods. The settings window must call into `MainWindow` (or a thin callback interface) for each change, not write to `AppSettings` directly. Example: changing font size must call `MainWindow.ApplyFontSize(size)`, not `settings = settings with { FontSize = size }; SettingsService.Save(settings)`. The existing `TrayMenuCallbacks` pattern (a struct of `Action` delegates) is the correct model — extend it for the settings window callbacks.
+Choose one of these prevention strategies before the installer phase begins, not after:
+
+1. **Use a trusted CA code-signing certificate.** An EV (Extended Validation) certificate suppresses SmartScreen immediately on first run for all users. Standard OV certificates build reputation over time (weeks to months of downloads). For a personal/hobby project, this is typically not cost-justified.
+
+2. **Publish via Windows Package Manager (winget) or Microsoft Store.** Both distribution channels provide implicit SmartScreen reputation. Winget community packages require a PR to the winget-pkgs repository and Microsoft validation. Store submission has its own overhead. Either path eliminates the SmartScreen problem.
+
+3. **Use ClickOnce deployment.** .NET 10 supports ClickOnce. Per-user install, no-admin, auto-update, and `%LOCALAPPDATA%` install path are all supported natively. SmartScreen treats ClickOnce manifests differently — a `.application` launch file is not a PE executable and does not trigger the same SmartScreen path. The tradeoff: ClickOnce has a different distribution model (URL-based, no offline installer).
+
+4. **Document and accept the SmartScreen friction.** For a personal or small-audience project, document the "More info → Run anyway" steps in the README. This is acceptable if the audience is technical and the distribution is informal (GitHub Releases).
+
+Prevention strategy for v3.3: Decide on distribution model before building the installer. If the installer is a `.exe`, document the SmartScreen issue in the release notes and README. Do not discover this post-release.
 
 **Warning signs:**
-- Widget does not update when a setting is changed in the settings window.
-- After app restart, the widget shows the settings window's value but the live widget showed something different.
-- `MainWindow._currentFontSize` diverges from `AppSettings.FontSize` in the debugger.
+- Building the installer without testing on a clean VM where the binary has no prior execution history.
+- Testing the installer only on the developer machine (where Windows has already seen the executable).
+- No code-signing certificate is in the build pipeline.
 
-**Phase to address:** Settings window architecture phase — establish the callback interface before building any controls.
+**Phase to address:** Installer phase — decide on signing/distribution strategy in the plan before writing the first installer script.
 
 ---
 
-### Pitfall 2: Settings Window IsChecked / Control State Out of Sync on Open
+### Pitfall 2: Installer Upgrade Path Leaves Orphaned Registry Auto-Launch Entry
 
 **What goes wrong:**
-The settings window opens and shows stale control states. A checkbox labeled "Ghost Mode" shows checked but ghost mode is actually disabled (the user toggled it via tray). A font size slider shows 32pt but the widget is displaying 16pt. The user changes a setting, clicks OK, and the "change" is a no-op because the control was already wrong and its final value matches the (stale) previous persisted state.
+v2.6 implements auto-launch via `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` with a registry value pointing to the executable path (`AutoLaunchService.cs`). The value is written using `Process.GetCurrentProcess().MainModule.FileName` as the path. If the installer changes the install path between versions (e.g., v3.2 was run from `D:\Downloads\FuzzyClock.exe` and v3.3 installs to `%LOCALAPPDATA%\FuzzyClock\FuzzyClock.exe`), the old auto-launch registry entry still points to the old (now-deleted) path. Windows silently ignores broken Run entries at boot, but the auto-launch toggle in the app will show "disabled" (because `AutoLaunchService.IsEnabled()` checks for the current path, not the old path). The user re-enables auto-launch in the app, which writes the new path. But if the user never noticed, they expect auto-launch to work from the previous session's setting and are confused when it does not.
+
+A secondary failure: the installer itself may add a separate auto-launch entry under a different name. Now two entries exist — one pointing to the old path (stale), one from the installer. The app's own toggle cannot remove the installer-managed entry because it does not know the installer's entry name.
 
 **Why it happens:**
-The existing codebase's established pattern (from `ContextMenu_Opened`) is: sync control state from authoritative sources on every open, never in click handlers. The settings window is a WPF `Window`, not a `ContextMenu`, so there is no `ContextMenu_Opened` event — but the problem is identical. If the settings window is populated once (in the constructor or at creation time) and kept alive, it goes stale.
+Auto-launch was implemented as a path-based registry value, not via a startup shortcut in `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`. The path is hardcoded at write time. When the installation path changes, the stored path is wrong.
 
 **How to avoid:**
-Populate all settings window controls from `MainWindow`'s private fields (not from saved `AppSettings`) every time the settings window becomes visible. Do this in the `Loaded` handler or by calling a `Refresh()` method from the caller before showing. Concretely: `GetCurrentTrayState()` already builds a snapshot of all current state — use or extend that snapshot to populate the settings window on open.
+The installer must remove any existing `FuzzyClock` auto-launch registry entry under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` during upgrade. Use the same registry value name that `AutoLaunchService` uses (`"FuzzyClock"` — verify against `AutoLaunchService.cs`). The installer script should:
+
+1. On upgrade: delete the old `Run` entry (regardless of whether it points to the correct path).
+2. On install completion: if `AppSettings.AutoLaunchEnabled` is `true` in the existing `settings.json`, re-write the `Run` entry with the new installation path.
+3. On uninstall: always remove the `Run` entry.
+
+Also: do not have the installer manage auto-launch independently of the app. One owner of the registry entry, one key name. The app manages auto-launch; the installer just cleans up the entry on uninstall.
 
 **Warning signs:**
-- Opening the settings window after a tray menu toggle shows the old value.
-- Making a change in the settings window, closing and reopening: control shows the new value, but the widget still shows the old one (the widget was never updated because the "change" was a no-op from stale initial state).
+- After upgrading, the auto-launch tray toggle shows "disabled" even though the user had it enabled.
+- Task Manager / Startup tab shows FuzzyClock with a broken path.
+- The old executable location still exists (not cleaned up by the installer) and runs a stale version at boot.
 
-**Phase to address:** Settings window population phase — enforce the "populate on open" invariant from the first commit.
+**Phase to address:** Installer phase — handle upgrade path in the first installer draft.
 
 ---
 
-### Pitfall 3: Settings Window Topmost / Owner Interaction Puts Widget Behind Settings Window
+### Pitfall 3: Mutex Abandonment on Crash Leaves Second Instance Blocked Until OS Cleanup
 
 **What goes wrong:**
-The widget is `Topmost="True"`. A standard WPF `Window` is not topmost by default. Opening the settings window causes it to appear behind the always-on-top widget. Alternatively: if the settings window is also set to `Topmost="True"`, it appears above all other applications' windows, which is annoying. A third failure mode: the widget and settings window fight for Z-order, causing flicker.
+`App.xaml.cs` uses a named `Mutex("FuzzyClock_SingleInstance_v1", ...)` for single-instance enforcement. This is already implemented. The pitfall is what happens when the first instance crashes without releasing the mutex: the OS marks the mutex as "abandoned." On the next launch, `new Mutex(initiallyOwned: true, name, out createdNew)` throws `AbandonedMutexException` rather than returning `createdNew = false`. The current code does not handle `AbandonedMutexException`. The unhandled exception propagates through `OnStartup`, the app crashes immediately on launch after any prior crash, and the user cannot restart the widget without a reboot (or until the OS releases the abandoned mutex, which happens when the owning process fully exits).
+
+The current implementation also disposes the mutex on `OnExit` but not in error paths. If `OnStartup` throws after the mutex is acquired but before `OnExit` can run, the mutex is held for the process lifetime but `ReleaseMutex()` is never called — same abandonment result.
 
 **Why it happens:**
-WPF `Topmost="True"` uses `HWND_TOPMOST` in `SetWindowPos`. When the settings window is opened as a non-topmost window, it lands in the normal Z-order, below the topmost widget. The user cannot interact with the settings window because the widget is covering parts of it.
+The abandonment case is not obvious during normal development testing (no crashes → no abandoned mutex → no exception). The `AbandonedMutexException` path is only hit after a crash, which is exactly when reliable restart matters most.
 
 **How to avoid:**
-Set `Owner` on the settings window to the main widget window. Setting `Owner` causes the settings window to always appear above its owner in Z-order, regardless of topmost status. The settings window should NOT be `Topmost="True"` — it should be owned by the main window. Pattern:
+Wrap the mutex creation in a try/catch for `AbandonedMutexException`. An abandoned mutex means the previous instance died; treat it as "no other instance running" and proceed:
 
 ```csharp
-var settingsWin = new SettingsWindow(callbacks);
-settingsWin.Owner = this;  // 'this' is MainWindow
-settingsWin.Show();
-```
-
-This causes the settings window to float above the overlay widget without fighting topmost Z-order. It also means the settings window appears in the Alt+Tab list (since it has a normal `WindowStyle`), which is correct — users should be able to Alt+Tab to the settings window.
-
-Do NOT set the settings window as modal (`ShowDialog`) unless the intent is to block interaction with the widget entirely. The requirements specify "non-modal" (PROJECT.md Constraints).
-
-**Warning signs:**
-- Settings window appears behind the widget (can't interact with it).
-- Settings window disappears when user clicks on another app (it fell behind other windows).
-- Widget flickers when settings window is dragged.
-
-**Phase to address:** Settings window creation phase — set `Owner` in the first iteration.
-
----
-
-### Pitfall 4: AppSettings Record Migration — New Fields Silently Revert to C# Default, Not Init Default
-
-**What goes wrong:**
-v3.2 adds new fields to `AppSettings` (e.g., `PhraseStyle`, `Language`, `BatteryAlertThreshold`, `ActiveThemeName`). When an existing user's `settings.json` is loaded, `System.Text.Json` deserializes the fields it finds and leaves new fields at their C# type defaults: `bool` → `false`, `int` → `0`, `double` → `0.0`, `string` → `null`. The init defaults (`= "English"`, `= 20`, etc.) in the record declaration are NOT applied by the deserializer — they are only applied when the `new AppSettings()` constructor is called without specifying the field.
-
-**Why it happens:**
-`AppSettings` is an init-property record. `JsonSerializer.Deserialize<AppSettings>(json)` creates an instance using the parameterless constructor, which does apply init defaults — BUT only for fields not present in the JSON. Fields present in the JSON override the init default. Fields absent from the JSON get the init default. This is the correct behavior for backward compat.
-
-The trap: a developer adds `public string PhraseStyle { get; init; } = "Classic";` to `AppSettings` and assumes `= "Classic"` will always fire. It will — for absent fields. But if `PhraseStyle` was somehow written as `null` or empty string by a bug in a prior version, the `= "Classic"` init default is bypassed and `null` enters the system.
-
-More critically: `Validate()` must be extended for every new string/enum field. Without a `Validate()` guard, an empty or invalid persisted value reaches `MainWindow` and crashes (e.g., `PhraseStyle = null` causes NullReferenceException in the phrase lookup).
-
-**How to avoid:**
-For every new string field that maps to an enum set of valid values, add a guard to `SettingsService.Validate()` matching the existing pattern:
-
-```csharp
-string[] validPhraseStyles = { "Classic", "Terse", "Poetic", "Rude" };
-if (string.IsNullOrWhiteSpace(loaded.PhraseStyle) || !validPhraseStyles.Contains(loaded.PhraseStyle))
-    loaded = loaded with { PhraseStyle = Defaults().PhraseStyle };
-```
-
-For numeric fields with valid ranges, add range guards (e.g., `BatteryAlertThreshold` must be 10, 15, or 20).
-
-Also: update `SettingsService.Defaults()` with every new field. The `Defaults()` method is the single source of truth for all default values — the test suite verifies round-trip and absent-field isolation. Add tests for each new field.
-
-**Warning signs:**
-- Widget crashes on startup after upgrading from a prior version (old `settings.json` missing new fields).
-- A new field persists correctly from the settings window, but after closing and reopening, the widget ignores the setting.
-- `Validate()` tests pass but the field was never added to `Validate()`.
-
-**Phase to address:** AppSettings extension phase — every new field must have a Validate() guard and a Defaults() entry in the same commit.
-
----
-
-### Pitfall 5: Theme Application Is Partial — New Elements Added to XAML but Not to ApplyTheme() and ApplyDisplayColor()
-
-**What goes wrong:**
-A new XAML element is added for v3.2 (e.g., a theme name label, a battery alert indicator, a settings button). `ApplyTheme()` is not updated to include the new element. The element shows the XAML default color (usually `White` or the XAML `Foreground` from inheritance) rather than the accent color. When the user changes accent color or when auto-contrast fires, the new element does not update. The bug is invisible on the default White theme but immediately visible when the user switches to Amber or Ice Blue.
-
-**Why it happens:**
-`ApplyTheme()` and `ApplyDisplayColor()` (lines 1071–1159 of `MainWindow.xaml.cs`) each contain an explicit list of every UI element that must be colored. There is no mechanism to discover new elements automatically — it is a manual list. Every new colored element must be added to BOTH methods. The two methods must cover identical element sets.
-
-The existing code already has a documented precedent: MEMORY.md notes "Stats label TextBlocks must have x:Name (CpuLabel/GpuLabel/MemLabel/PagLabel) — both `ApplyDisplayColor` and `ApplyTheme` must cover the same full element set." This exact pitfall has happened before.
-
-**How to avoid:**
-- Immediately after adding any new XAML element that should be accent-colored, add it to `ApplyTheme()` AND `ApplyDisplayColor()` in the same commit.
-- Run a visual test with Amber accent color after every UI addition — White is deceptively forgiving (XAML default `Foreground="White"` matches the White preset).
-- Consider: add a code comment block at the top of `ApplyTheme()` listing "elements that must also be in ApplyDisplayColor" as a cross-check.
-
-**Warning signs:**
-- Element shows white text when accent is Amber/Ice Blue after applying theme.
-- Element does not update when auto-contrast fires (stays accent-colored while everything else switches to black/white).
-- Element reverts to XAML default color on "Reset to Defaults."
-
-**Phase to address:** Every phase that adds new accent-colored XAML elements — verify theme coverage before marking done.
-
----
-
-### Pitfall 6: Theme Application Is Not Atomic — Partial Theme State Visible During Apply
-
-**What goes wrong:**
-Applying a named theme (THM-02: "sets accent color, opacity, font size, clock style, and stats panel visibility atomically") via multiple sequential calls produces intermediate visible states. Example: `SetAccentColor()` calls `ApplyTheme()` then `SaveSettings()`. Then `ApplyFontSize()` calls `UpdateLayout()` and `SaveSettings()` again. Each call triggers a WPF layout pass and a file write. The user sees the widget reflow mid-theme-apply (phrases resize, widget jumps) and `settings.json` is written 3-4 times.
-
-**Why it happens:**
-Each `Set*()` method is self-contained and calls `SaveSettings()` independently. This was designed for tray menu one-at-a-time changes. For theme application (multiple changes at once), this pattern produces N layout passes and N file writes.
-
-**How to avoid:**
-Implement a batch-apply path for themes. Instead of calling `SetAccentColor()` then `ApplyFontSize()` then `SetDialMode()` sequentially, apply all changes to private fields at once and call `ApplyTheme()` + `UpdateLayout()` + `SaveSettings()` once at the end:
-
-```csharp
-private void ApplyNamedTheme(NamedTheme theme)
+bool createdNew;
+try
 {
-    // Update all private fields without any layout passes or saves
-    _accentColor    = theme.AccentColor;
-    _windowOpacity  = theme.Opacity;
-    this.Opacity    = theme.Opacity;
-    _currentFontSize = theme.FontSize;
-    PhraseText.FontSize = theme.FontSize;
-    // ... etc.
-
-    // Single layout pass and save
-    ApplyTheme();
-    UpdateLayout();
-    if (_hasUserPosition) { /* clamp */ }
-    SaveSettings();
+    _instanceMutex = new Mutex(initiallyOwned: true, "FuzzyClock_SingleInstance_v1", out createdNew);
+}
+catch (AbandonedMutexException)
+{
+    // Previous instance crashed without releasing; we now own the mutex.
+    createdNew = true;
+    // _instanceMutex is still set by the constructor before the exception is thrown.
 }
 ```
 
-This avoids the multi-save and multi-layout issue.
+The mutex constructor sets the out parameter and the object before throwing `AbandonedMutexException`, so `_instanceMutex` is valid after the catch.
 
 **Warning signs:**
-- Widget visibly flickers or jumps when applying a named theme.
-- `settings.json` is written 4-5 times in rapid succession during theme apply (visible in file modification timestamps).
-- Theme application is noticeably slower than single-setting changes.
+- Widget fails to launch after a crash; requires killing `FuzzyClock.exe` in Task Manager or rebooting.
+- `AbandonedMutexException` appears in the Windows Application Event Log.
+- The app cannot be restarted immediately after an `Environment.FailFast` or unhandled exception.
 
-**Phase to address:** Theme implementation phase — design batch-apply from the start.
+**Phase to address:** Single-instance / installer phase — add the try/catch when confirming single-instance implementation.
 
 ---
 
-### Pitfall 7: Multilingual Phrase Engine — CultureInfo from Windows Locale vs. UI Language
+### Pitfall 4: Edge Snapping Conflicts with Ghost Mode Restore — Window Teleports After Ghost Exit
 
 **What goes wrong:**
-`CultureInfo.CurrentCulture` returns the user's regional format settings (date format, number format) — not the UI display language. A user whose Windows is set to display UI in French but has their regional format as English (US) will get `CurrentCulture = "en-US"` and the phrase engine falls back to English, ignoring the French UI. The correct source is `CultureInfo.CurrentUICulture`, which reflects the Windows display language.
+Edge snapping works by: on drag release (`Grid_MouseLeftButtonDown` returns from `DragMove()`), checking if `Left` or `Top` is within a snap threshold of a screen edge and adjusting `Left`/`Top` accordingly, then saving. This is straightforward.
+
+The conflict: `GhostModeController._restoreTimer` fires every 75ms and calls `GetWindowRect(_hwnd, out RECT)` to check whether the cursor has left the ghost window. It compares `GetCursorPos()` against `GetWindowRect()`. If edge snapping fires after `DragMove()` returns and moves the window — say, from `Left=1894` to `Left=1920` (snapped to right edge) — and the ghost mode restore timer fires within the next 75ms interval while the cursor is still within the *pre-snap* window bounds but not the *post-snap* bounds, the restore fires spuriously (cursor outside post-snap rect → ghost restores). Immediately after ghost restore, if the user has not moved the mouse, `Window_MouseEnter` fires again (cursor is still over the original pre-snap position) → ghost re-activates → flicker loop.
+
+In practice, this is only triggered if the user starts hover immediately after a drag that causes a snap. The 75ms timer makes the window for this race condition small but nonzero.
+
+A second, separate conflict: the existing `UpdatePhraseIfChanged()` calls `UpdateLayout()` after phrase text changes, then re-clamps the window. Edge snapping's snap-on-layout-change (if implemented as a response to `SizeChanged` or `LocationChanged`) would fire on every phrase update, unintentionally snapping a window that the user has placed near (but not at) an edge.
 
 **Why it happens:**
-`CurrentCulture` and `CurrentUICulture` are different concepts in .NET. `CurrentCulture` is for formatting; `CurrentUICulture` is for language/display. Most developers reach for `CurrentCulture` first.
+`DragMove()` is a blocking Win32 modal loop. `LocationChanged` fires during it (setting `_hasUserPosition = true`). After `DragMove()` returns, setting `Left`/`Top` for snap fires `LocationChanged` again. Ghost mode's restore timer runs independently on the DispatcherTimer thread. These three timelines can intersect.
 
 **How to avoid:**
-Use `CultureInfo.CurrentUICulture.TwoLetterISOLanguageName` to detect the Windows display language:
+1. **Apply snap only on drag end, never on `LocationChanged` or `SizeChanged`.** The snap logic must live in `Grid_MouseLeftButtonDown` immediately after `DragMove()` returns and `_isDragging` is set to `false`. It must NOT be wired to `LocationChanged` or `SizeChanged` events — those fire on every phrase resize and would cause phantom snapping.
+
+2. **Skip ghost activate for the 150ms window after a drag completes.** Add a `_justSnapped` timestamp. In `Window_MouseEnter`, if `DateTime.UtcNow - _lastDragEnd < TimeSpan.FromMilliseconds(150)`, skip ghost activation. This prevents the cursor-still-present-post-snap ghost trigger.
+
+3. **Do not snap during ghost restore.** The ghost restore path (`GhostModeController.Restored` event) sets `Opacity` and clears `ContentBorder.Background`. It does NOT move the window. Snap must not be triggered by ghost restore.
+
+**Warning signs:**
+- Widget snaps to an edge, then immediately flashes (ghost activates and immediately restores).
+- Phrase text changing at the 5-minute boundary causes the widget to snap to the nearest edge if it was placed close to the edge.
+- `LocationChanged` handler is used as the snap trigger rather than post-DragMove.
+
+**Phase to address:** Edge snapping phase — do not wire snap to LocationChanged; apply only post-DragMove.
+
+---
+
+### Pitfall 5: Edge Snapping with SizeToContent=WidthAndHeight — Snap Position Is Wrong Until After Layout
+
+**What goes wrong:**
+`MainWindow` uses `SizeToContent=WidthAndHeight`. This means `ActualWidth` and `ActualHeight` are not fixed; they change whenever the phrase text changes, the stats panel shows/hides, or the font size changes. Edge snapping to the right edge requires `Left = screenRight - ActualWidth`. If snap is computed before `UpdateLayout()` runs after a resize, `ActualWidth` is stale (reflects the pre-resize size), and the snapped position is wrong — a gap appears between the widget and the right edge, or the widget overflows the screen.
+
+The existing `UpdatePhraseIfChanged()` already handles this: it calls `UpdateLayout()` before re-clamping. Edge snapping must follow the same pattern.
+
+**Why it happens:**
+`ActualWidth` in WPF is a layout-pass output. Setting `Left` or `Top` before calling `UpdateLayout()` means the position math uses the size from the previous layout pass. This is a well-known WPF gotcha for `SizeToContent` windows that is easy to miss when prototyping snap on a fixed-size window.
+
+**How to avoid:**
+In the snap computation immediately after `DragMove()` returns:
 
 ```csharp
-string lang = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName; // "fr", "de", "es", "ja", "en"
+DragMove();
+_isDragging = false;
+// Force layout to get current ActualWidth/ActualHeight before computing snap
+UpdateLayout();
+// Now ActualWidth and ActualHeight reflect the current phrase/stats state
+ApplyEdgeSnap();  // uses ActualWidth, ActualHeight, screen bounds
+SaveSettings();
 ```
 
-Fall back to English for any language not in the supported set. The supported set (LANG-02) is: `en`, `fr`, `es`, `de`, `ja`.
+`UpdateLayout()` is synchronous and safe here — it is the same call used in `UpdatePhraseIfChanged()` for the same reason.
 
 **Warning signs:**
-- French Windows user gets English phrases.
-- User with French language but UK regional settings gets English phrases.
-- Setting Windows language to French in a test VM does not change the phrase language.
+- Widget snapped to right edge shows a small gap (1–5px) on the right.
+- Gap size varies depending on which phrase is showing (longer phrase = different `ActualWidth` = different gap).
+- Snap works correctly on phrases of fixed length but not variable-length ones.
 
-**Phase to address:** Multilingual phrase engine phase — first line of language detection code.
+**Phase to address:** Edge snapping phase — call `UpdateLayout()` before snap computation.
 
 ---
 
-### Pitfall 8: Multilingual Phrase Engine — Missing Time Bucket Coverage for Non-English Languages
+### Pitfall 6: ResourceDictionary Added to App.xaml Leaks Styles Globally — MainWindow Gets Unintended Re-Styling
 
 **What goes wrong:**
-The English phrase engine has 12 buckets per hour plus noon and midnight special cases. A partial multilingual implementation provides phrases for the most "interesting" buckets (noon, midnight, o'clock, half past, quarter past) but omits the fill-in buckets. At runtime, `GetPhrase()` throws `InvalidOperationException` ("No bucket matched") for any time that falls in an unmapped bucket. Since time advances continuously, this crash will occur within minutes of running the foreign-language widget.
+The Settings window redesign uses custom WPF styles (`Style` with `TargetType`). The developer adds a `ResourceDictionary` to `App.xaml`'s `Application.Resources` to share styles across the app. `App.xaml` currently has `<Application.Resources />` (empty). Adding a ResourceDictionary here makes all styles globally available. Any `Style` with `TargetType` and no `x:Key` becomes an **implicit style** — it applies to ALL instances of that control type in the entire application, including `MainWindow`.
+
+Example: `<Style TargetType="Button">` added to App.xaml automatically applies to every Button in the app. `MainWindow` has no `Button` elements, but `SettingsWindow` does. However, if `MainWindow` ever gets a Button (e.g., for a future feature), it will inherit the Settings-specific style unexpectedly. More critically: `<Style TargetType="TabControl">` or `<Style TargetType="TextBlock">` in App.xaml will restyle `MainWindow`'s `TextBlock` elements (PhraseText, stats labels, etc.) — changing font, foreground, or padding in ways that break the carefully tuned overlay appearance.
 
 **Why it happens:**
-The bucket table in `PhraseEngine` is walk-ordered with an exhaustive fallthrough — every minute from 0 to 59 must match a bucket. The English implementation covers all 12 buckets exhaustively (verified by the test suite). A new language implementation that covers only 6 buckets leaves minutes 33-59 unmatched for most hours.
+WPF's resource lookup walks up the logical tree: element → element.Resources → parent.Resources → ... → Application.Resources → theme dictionaries. A `Style` with `TargetType` and no `x:Key` in Application.Resources is resolved by type for any matching element anywhere in the app. Developers add resources to App.xaml for convenience without realizing the implicit-style scope.
 
 **How to avoid:**
-Every language implementation must cover all 12 buckets for every minute 0-59. The test suite must verify exhaustive coverage for each language. The existing `PhraseEngineTests` pattern (DataRow per bucket boundary) must be replicated for each supported language. A parametric test across all 1440 minutes of the day (0:00–23:59) is the simplest completeness check:
+Do NOT add implicit styles (TargetType without x:Key) to App.xaml. Keep all Settings window styles inside `SettingsWindow.xaml`'s `<Window.Resources>` block. This is the existing pattern — `SettingsWindow.xaml` already has `<Window.Resources>` with `SegmentButtonStyle` defined there.
+
+If a ResourceDictionary must be shared (e.g., a color palette), add it to App.xaml as **keyed resources only** (`x:Key` on every resource). Never add unkeyed styles to App.xaml.
+
+```xaml
+<!-- WRONG: implicit style leaks to MainWindow -->
+<Style TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="Segoe UI" />
+</Style>
+
+<!-- CORRECT: keyed style, only applied when explicitly referenced -->
+<Style x:Key="SettingsLabelStyle" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="Segoe UI" />
+</Style>
+```
+
+For the Settings redesign specifically: all new styles go in `SettingsWindow.xaml`'s `<Window.Resources>`. No new resources in `App.xaml`.
+
+**Warning signs:**
+- After adding a ResourceDictionary to App.xaml, `PhraseText` (or other MainWindow TextBlocks) changes appearance unexpectedly.
+- The widget overlay gets a white background or visible border that wasn't there before.
+- `SettingsWindow` styles look correct but MainWindow layout shifts.
+
+**Phase to address:** Settings redesign phase — enforce the "styles in Window.Resources only" rule before adding any new XAML styles.
+
+---
+
+### Pitfall 7: Per-User Installer Install Path Breaks Existing Auto-Launch Registry Entry (First Install)
+
+**What goes wrong:**
+During development and pre-installer usage, users run `FuzzyClock.exe` directly from wherever they extracted it (e.g., `C:\Users\user\Downloads\FuzzyClock.exe` or `C:\tools\FuzzyClock.exe`). Auto-launch was written to that path. The per-user installer places the executable at `%LOCALAPPDATA%\FuzzyClock\FuzzyClock.exe`. After installation, the app runs from the new path, but auto-launch still points to the old path.
+
+This is distinct from Pitfall 2 (upgrade-to-upgrade path). This is the first-install scenario where the user was running the portable EXE before any installer existed.
+
+**Why it happens:**
+`AutoLaunchService.IsEnabled()` checks whether `HKCU\...\Run\FuzzyClock` exists and points to the current executable. On first launch from the installed path, `IsEnabled()` returns `false` (old path ≠ new path). The user's saved `AppSettings.AutoLaunchEnabled = true` is applied by `ApplySettings()`, which calls `AutoLaunchService.Enable(currentPath)` — this re-writes the Run entry with the correct installed path. So the app self-heals if `ApplySettings()` always calls `AutoLaunchService.Enable/Disable` to reconcile the registry with the setting.
+
+The real failure mode: if `ApplySettings()` only calls `Enable()` when `AutoLaunchEnabled` changes (i.e., the setting was previously `true` and is still `true` after loading), it may skip re-writing the stale path. The app needs to always reconcile registry state with setting state on startup, not just on toggle.
+
+**How to avoid:**
+In `ApplySettings()` (called at startup), always call the appropriate `AutoLaunchService` method regardless of whether the value changed:
 
 ```csharp
-[TestMethod]
-public void AllMinutesProduceNonEmptyPhrase_French()
-{
-    for (int h = 0; h < 24; h++)
-        for (int m = 0; m < 60; m++)
-            Assert.IsFalse(string.IsNullOrEmpty(
-                PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, h, m, 0), "fr")));
-}
+// Always reconcile — path may have changed even if the setting did not
+if (settings.AutoLaunchEnabled)
+    AutoLaunchService.Enable(Process.GetCurrentProcess().MainModule!.FileName);
+else
+    AutoLaunchService.Disable();
 ```
 
-**Warning signs:**
-- Widget crashes within minutes of switching to a non-English language.
-- `InvalidOperationException: No bucket matched minute=X` in the event log.
-- The crash only occurs at certain times of day.
+This is idempotent and self-healing: if the path is already correct, `Enable()` just overwrites with the same value. If it was stale, it corrects it. The existing code should be verified against this pattern.
 
-**Phase to address:** Multilingual phrase engine phase — add exhaustive coverage tests before the language data is considered done.
+**Warning signs:**
+- After installation, Task Manager Startup tab shows FuzzyClock pointing to the old Downloads path.
+- Auto-launch fails silently (old path not found at boot).
+- `AutoLaunchService.IsEnabled()` returns `false` immediately after install even though the user had auto-launch enabled.
+
+**Phase to address:** Installer phase — verify `ApplySettings()` always reconciles auto-launch registry with setting on startup.
 
 ---
 
-### Pitfall 9: Multilingual Phrase Engine — Japanese Requires Character-Level Consideration, Not Template Substitution
+### Pitfall 8: Edge Snap Threshold Too Aggressive — Overwrites Per-Monitor Position Memory for Near-Edge Placements
 
 **What goes wrong:**
-The English phrase engine uses string template substitution (`{h}`, `{h1}`) for hour words. For Japanese (`ja`), this approach fails because Japanese time expressions have different grammatical structures. "3時" (san-ji) is "three o'clock" but the template `"{h} 時"` assumes the hour word comes first with a space — Japanese doesn't work that way. Time expressions in Japanese also use different forms depending on whether the time is "past" or "before": the template `"almost a quarter before {h1}"` would need to be `"{h1}時15分前ごろ"` — the hour token comes first, not last.
+The per-monitor position memory system (`MonitorPositions` dictionary in `AppSettings`, keyed by monitor identity) saves the user's exact drag-released position. If the snap threshold is set too large (e.g., 30–50px), a user who intentionally placed the widget 20px from the right edge finds it snapping to the right edge on every drag. The "intentional near-edge" placement is never achievable — any position within the threshold gets replaced by the exact-edge position. This is especially frustrating for multi-monitor users who may want slightly different insets on each monitor.
 
-This breaks the assumption that templates always end with `{h}` or `{h1}` (see `GetStructuredPhrase()` which relies on `template.EndsWith("{h}")` and `template.EndsWith("{h1}")`).
-
-**Why it happens:**
-The template system was designed for Western European languages where hour words typically appear at the end of a phrase ("quarter past THREE", "almost FOUR"). Japanese and other non-SVO languages may place the hour reference at a different position.
-
-**How to avoid:**
-For Japanese, either:
-1. Accept that `GetStructuredPhrase()` will always return the full phrase as `Emphasis` with empty `Qualifier` (degrade gracefully for split-layout modes), or
-2. Design a separate phrase table without template substitution — each of the 12 buckets × 12 hours = 144 entries hardcoded in Japanese.
-
-Option 2 is the correct approach for production quality. Option 1 is acceptable for an MVP if split-layout is documented as English-only.
-
-Document in the phase plan which approach is chosen.
-
-**Warning signs:**
-- Japanese phrases appear with odd word ordering (hour number at wrong position).
-- `GetStructuredPhrase()` splits Japanese phrases at the wrong point (returns the hour-word as qualifier, not as emphasis).
-- Template substitution produces grammatically incorrect Japanese.
-
-**Phase to address:** Multilingual phrase engine phase — evaluate Japanese phrase structure before designing the template system.
-
----
-
-### Pitfall 10: Settings Window and Tray Menu State Diverge — Both Act as Independent Sources of Truth
-
-**What goes wrong:**
-The user opens the settings window. The tray menu is also open (or opened while settings window is visible). The user changes accent color in the settings window. The tray menu is not refreshed — its color-swatch indicator (if any) shows the old color. Conversely, the user changes a setting via the tray menu while the settings window is open. The settings window does not reflect the tray change.
-
-More critically: if both the tray menu and the settings window call `Set*()` methods on MainWindow without coordination, and each does a `SaveSettings()`, rapid changes can produce a settings.json write storm.
+A secondary issue: snap fires on drag end, which calls `SaveSettings()`. If the snap logic rounds to the edge, `MonitorPositions[currentKey]` is saved with the snapped position, not the user's released position. Subsequent launches restore the snapped position. The user's intent is irretrievably overwritten.
 
 **Why it happens:**
-The tray menu uses `ContextMenu_Opened` to sync its checkmarks from `GetCurrentTrayState()` — but only on open. The settings window is a persistent (non-modal) window. Unlike a context menu that is rebuilt on open, the settings window controls can become stale while open.
+Snap thresholds in typical desktop apps (Windows Snap Assist, Magnet on macOS) are 4–8px — tight enough to activate only when the user clearly intends to snap (releases near the edge). Developers sometimes use larger thresholds (20–40px) to make snapping "easier to activate," but this causes the overwrite problem for intentional near-edge placements.
 
 **How to avoid:**
-- The settings window must subscribe to a state-changed notification from `MainWindow` (or use the same `GetCurrentTrayState()` snapshot pattern) and refresh its controls whenever a setting changes via any other path (tray, scroll wheel, etc.).
-- Alternatively, keep the settings window simple: close it whenever a tray menu change is made. This is aggressive but avoids stale state entirely.
-- The simplest defensible approach: the settings window is non-modal and shows current state at open time. State divergence between tray and settings window is documented as "settings window shows values at time of open; use tray menu for quick changes." This is acceptable for v3.2 if clearly documented.
+Use a snap threshold of 8px maximum (matching typical OS-level snap sensitivity). This is tight enough that users must intentionally release near the edge to trigger snap, and loose enough to avoid pixel-perfect precision requirements.
 
-**Warning signs:**
-- Tray menu checkmark doesn't match settings window checkbox for the same setting.
-- User changes opacity via scroll wheel; settings window still shows old opacity.
-- Rapid tray+settings changes corrupt `settings.json`.
-
-**Phase to address:** Settings window architecture phase — decide on the refresh strategy before building controls.
-
----
-
-### Pitfall 11: Battery Alert Color Conflicts with Auto-Contrast Color Override
-
-**What goes wrong:**
-The battery alert (ALERT-01) changes the battery row's accent color to red when the battery is low. `ApplyTheme()` sets `BattBar.Background = brush` and `BattText.Foreground = brush` (the accent color). The battery alert overrides these to red. Auto-contrast (`ApplyDisplayColor()`) also overrides these to black or white. The three systems conflict: auto-contrast fires 500ms after the battery alert sets red, resetting the battery row to the auto-contrast color (black/white). The red alert is never visible when auto-contrast is enabled.
-
-**Why it happens:**
-`ApplyDisplayColor()` unconditionally overrides all named elements including `BattBar` and `BattText`. The battery alert color is a transient per-element override that `ApplyDisplayColor` does not know about.
-
-**How to avoid:**
-Keep a `_batteryAlertActive` bool. In `ApplyDisplayColor()`, skip the battery row if `_batteryAlertActive` is true:
+Document the threshold as a named constant:
 
 ```csharp
-if (!_batteryAlertActive)
-{
-    BattBar.Background  = brush;
-    BattText.Foreground = brush;
-}
-// else: battery alert red is preserved
+private const double EdgeSnapThreshold = 8.0;  // pixels; matches OS snap sensitivity
 ```
 
-Symmetrically, when auto-contrast fires `Cleared` (restores accent color via `ApplyTheme()`), `ApplyTheme()` must also respect `_batteryAlertActive` for the battery row.
+Do not make the threshold configurable for v3.3 — a fixed 8px is the right default and avoids per-user-setting complexity.
 
 **Warning signs:**
-- Battery alert red color flashes briefly, then disappears every 500ms when auto-contrast is enabled.
-- Battery alert works when auto-contrast is off but not when it is on.
+- User complaint: "The widget always jumps to the edge even when I don't want it to."
+- Snap activates when releasing the widget 15–20px from an edge.
+- The threshold constant is larger than 10px.
 
-**Phase to address:** Battery alert phase — add the interaction guard at implementation time, not as a followup.
+**Phase to address:** Edge snapping phase — define threshold as a constant, set to ≤8px.
 
 ---
 
-### Pitfall 12: SaveSettings() Must Include Every New AppSettings Field — Forgetting One Field Causes Silent Data Loss
+### Pitfall 9: Settings Window Redesign Breaks SettingsSnapshot Immutable Record — New Style Controls Added Without Matching Snapshot Fields
 
 **What goes wrong:**
-A new field (`PhraseStyle`, `Language`, `BatteryAlertThreshold`, `ActiveThemeName`) is added to `AppSettings`. `ApplySettings()` reads it correctly on startup. But `SaveSettings()` in `MainWindow` builds the `AppSettings with { ... }` expression by explicitly listing every field. If the new field is not added to that expression, it silently reverts to the init default on every save. The user sets the language to French; `SaveSettings()` is called (e.g., on drag); the next startup shows English.
+`SettingsWindow` uses a `SettingsSnapshot` immutable record (established in v3.2) to capture state at open time. The Settings redesign adds new visual controls (e.g., a preview panel, a color swatch, additional toggles). If a new control's value is not captured in `SettingsSnapshot` at open time, the "revert" path (cancel button, or ESC-to-close behavior) cannot restore the value. The user opens settings, changes the new control, cancels — the value remains changed even though they cancelled.
+
+Conversely, if a new control is added to `SettingsSnapshot` but not to the populate-on-open logic, the control shows a stale value from the previous open (already documented as Pitfall 2 in v3.2 PITFALLS.md, but the new controls extend this risk surface).
 
 **Why it happens:**
-`SaveSettings()` uses `_settings with { field1 = ..., field2 = ... }` — an explicit enumeration. This pattern requires manual synchronization. The test `STEST-08` pattern (round-trip test for new fields) catches this if the test is written — but only if the test is written.
+`SettingsSnapshot` is defined once and requires manual update when new controls are added. There is no compile-time enforcement that "every control must have a corresponding snapshot field." The missing snapshot field only manifests at runtime when the user cancels a change.
 
 **How to avoid:**
-For every new `AppSettings` field, update `SaveSettings()` in the same commit that adds the field. The round-trip test (pattern from `AppSettingsTests.cs`) must cover every field. The existing test file already tests round-trip for all fields — extend it with DataRow entries for each new field.
+For every new control added during the redesign:
+1. Add its value to `SettingsSnapshot` in the same commit.
+2. Populate the control from `SettingsSnapshot` in the `Refresh()` / populate-on-open path.
+3. If cancel behavior is supported, verify the cancel path restores the snapshot value.
+
+If the Settings window does not implement explicit cancel (changes are applied immediately via callbacks), document this in the phase plan — `SettingsSnapshot` is then used only for initial display accuracy, not for revert.
 
 **Warning signs:**
-- A setting persists correctly in one session but reverts to default after any drag (which calls `SaveSettings()`).
-- The `_settings` field in the debugger shows the correct value but `settings.json` on disk shows the default.
-- Round-trip test catches this if the new field is included in the test.
+- New control in Settings window shows a stale value when the window is opened a second time.
+- Closing the Settings window (without a save/OK button) does not revert the last change made to the new control.
+- `SettingsSnapshot` record definition in code is out of date with the control set in the XAML.
 
-**Phase to address:** AppSettings extension phase — enforced by the round-trip test that must be added.
-
----
-
-### Pitfall 13: PhraseEngine Refactoring Breaks GetStructuredPhrase() — Split Layout Becomes Incorrect
-
-**What goes wrong:**
-Adding phrase styles (STYLE-01 through STYLE-04) requires changing `PhraseEngine.GetPhrase()` to return different text based on a style parameter. If `GetStructuredPhrase()` is not updated in parallel, the structured decomposition (Qualifier / Emphasis split) no longer matches the phrase text. Example: Terse style returns "half three" but `GetStructuredPhrase()` still decomposes based on the Classic "half past three" template. The `QualifierText` shows "half past" and `EmphasisText` shows "three" — but `PhraseText` would show "half three" if the views were not coordinated.
-
-**Why it happens:**
-`GetPhrase()` and `GetStructuredPhrase()` share the `Buckets` template table and `HourWords` array but are implemented independently. Adding phrase style changes the output of `GetPhrase()` but `GetStructuredPhrase()` is a separate method that may not be updated.
-
-**How to avoid:**
-`GetStructuredPhrase()` must accept the same style parameter as `GetPhrase()` and produce a decomposition consistent with the styled phrase text. Both methods must be updated atomically. The test suite must verify that `GetPhrase(dt, style)` and `GetStructuredPhrase(dt, style)` produce consistent output:
-
-```csharp
-// Invariant: Qualifier + " " + Emphasis == GetPhrase(dt, style) (modulo whitespace normalization)
-```
-
-This invariant should be a test.
-
-**Warning signs:**
-- In Split layout mode, `QualifierText` shows the Classic phrase qualifier while the phrase text shows the Terse/Poetic form.
-- Split layout text is grammatically incorrect for non-Classic styles.
-- Test suite passes because `GetStructuredPhrase` was not updated to accept a style parameter and tests only cover the Classic case.
-
-**Phase to address:** Phrase style implementation phase — update both methods together, add consistency test.
-
----
-
-### Pitfall 14: Test Coverage Gaps When Refactoring PhraseEngine — Existing Tests Are English-Only and Style-Agnostic
-
-**What goes wrong:**
-`PhraseEngineTests.cs` covers all 12 buckets and special cases (noon, midnight, hour conversion edge cases) for the Classic English style. Adding phrase styles and multilingual support changes the method signatures. The tests pass because they only test `GetPhrase(dt)` — the no-style, English-only overload. The new `GetPhrase(dt, "fr")` and `GetPhrase(dt, "Terse")` overloads have zero test coverage. Regressions in new overloads are invisible to CI.
-
-**How to avoid:**
-- Each new language must have its own exhaustive test class covering all 12 buckets × representative hours.
-- Each new phrase style must have its own test class covering the expected output for each bucket.
-- The completeness test (all 1440 minutes produce non-empty output) must run for every language and style combination.
-- Do not rely on the existing English tests to validate new code paths — they test a different code path.
-
-**Warning signs:**
-- CI passes but the widget shows empty or incorrect phrases in French.
-- A bucket mapping error in the German implementation is never caught by tests.
-- `GetPhrase(dt, "Rude")` throws for certain minute values but this is not covered by any test.
-
-**Phase to address:** Phrase style phase and multilingual phase — each must include comprehensive tests as a done-criteria, not as a followup.
+**Phase to address:** Settings redesign phase — update `SettingsSnapshot` in the same commit as each new control.
 
 ---
 
@@ -394,14 +312,13 @@ This invariant should be a test.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Settings window reads from `AppSettings` record directly instead of `MainWindow` callbacks | Simpler settings window code | Widget state and settings window diverge; live widget not updated | Never — callbacks required |
-| Apply theme by calling `SetAccentColor()` + `ApplyFontSize()` sequentially | Reuses existing code | N layout passes + N file writes; visible flicker | Acceptable for MVP if user won't notice; must be fixed before v3.2 ships |
-| Use `CultureInfo.CurrentCulture` for language detection | Familiar API | Returns regional format, not display language; French users get English | Never — must use `CurrentUICulture` |
-| Add new XAML element without updating `ApplyTheme()` + `ApplyDisplayColor()` | Saves one step | Element stays white on non-white accent; breaks auto-contrast | Never |
-| Hardcode English phrase structure assumptions in `GetStructuredPhrase()` | Less refactoring | Japanese and other non-SVO languages produce incorrect splits | Acceptable with documentation: split-layout is English-only in v3.2 |
-| Omit `Validate()` guard for new string fields | Less boilerplate | Null/invalid values from old settings.json crash the widget | Never — every new string enum field needs a guard |
-| Omit new fields from `SaveSettings()` with { ... } | Easy to miss | Silent data loss — setting reverts to default on every drag | Never — caught by round-trip test if test is written |
-| Battery alert color applied without `_batteryAlertActive` guard | Simpler code | Auto-contrast resets red alert color every 500ms | Never — interaction guard required |
+| Skip code-signing the installer | No certificate cost/setup | SmartScreen blocks users; trust barrier on every release | Acceptable if audience is technical and distribution is informal (GitHub Releases, documented workaround) |
+| Wire edge snap to `LocationChanged` instead of post-DragMove | Simpler event model | Fires on every phrase resize → phantom snapping near edges | Never — must be post-DragMove only |
+| Use large snap threshold (20–30px) | "Easier" to snap | Overwrites intentional near-edge placements; user frustration | Never — use ≤8px |
+| Add styles to App.xaml Application.Resources | Easy sharing | Implicit styles leak to MainWindow; overlay appearance corrupted | Never — use Window.Resources for SettingsWindow styles |
+| Skip `UpdateLayout()` before snap computation | Saves one call | Snapped position wrong for variable-width SizeToContent window | Never |
+| Installer manages auto-launch independently of app | Self-contained installer | Two competing Run entry owners; toggle confusion after upgrade | Never — app owns the Run entry; installer only cleans up on uninstall |
+| Omit `AbandonedMutexException` handler | Less code | App cannot restart after crash until process fully exits | Never — the crash-restart case matters most |
 
 ---
 
@@ -411,18 +328,15 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Integration Point | Common Mistake | Correct Approach |
 |-------------------|----------------|------------------|
-| Settings window → MainWindow | Settings window calls `SettingsService.Save()` directly | Route through `MainWindow.Set*()` callbacks (extend `TrayMenuCallbacks` pattern) |
-| Settings window open state | Populate controls once at creation | Populate every time the window becomes visible from `GetCurrentTrayState()` snapshot |
-| Settings window Z-order | Set `Topmost=True` on settings window | Set `Owner = mainWindow` — owned window floats above owner without needing topmost |
-| Named theme apply | Call `SetAccentColor()` then `ApplyFontSize()` sequentially | Batch all field mutations, then single `ApplyTheme()` + `UpdateLayout()` + `SaveSettings()` |
-| Battery alert + auto-contrast | `ApplyDisplayColor()` overrides battery row to black/white | Guard battery row in `ApplyDisplayColor()` with `_batteryAlertActive` bool |
-| Battery alert + `ApplyTheme()` | `ApplyTheme()` overrides red alert back to accent color | Same guard — `ApplyTheme()` skips battery row when `_batteryAlertActive` |
-| Language detection | `CultureInfo.CurrentCulture` | `CultureInfo.CurrentUICulture.TwoLetterISOLanguageName` |
-| Multilingual `GetPhrase()` signature | Add overload `GetPhrase(dt, lang)` only | Also update `GetStructuredPhrase(dt, lang)` — they must be consistent |
-| New AppSettings fields | Add to record, forget `SaveSettings()` and `Validate()` | Three-part atomic update: field in record + entry in `Defaults()` + guard in `Validate()` + row in `SaveSettings() with {}` |
-| New accent-colored XAML elements | Only add to `ApplyTheme()` | Must add to BOTH `ApplyTheme()` and `ApplyDisplayColor()` |
-| Settings window dismiss | `ShowDialog()` modal | `Show()` non-modal with `Owner = this` — PROJECT.md requires non-modal |
-| Phrase style + split layout | Ignore `GetStructuredPhrase()` for non-Classic styles | Keep `GetPhrase()` and `GetStructuredPhrase()` consistent for every style; or document split-layout as English Classic only |
+| Edge snap + DragMove() | Wire snap to `LocationChanged` event | Apply snap in `Grid_MouseLeftButtonDown` after `DragMove()` returns |
+| Edge snap + SizeToContent | Compute `Left = screen.Right - ActualWidth` before `UpdateLayout()` | Call `UpdateLayout()` first; then compute snap using current `ActualWidth` |
+| Edge snap + ghost mode restore | Snap fires on ghost restore's Opacity/position change | Snap never runs in ghost restore path; only post-DragMove |
+| Edge snap + per-monitor position memory | Save snapped position to `MonitorPositions` immediately | Same — just be aware snap overwrites the saved position; threshold ≤8px prevents unintended overwrites |
+| ResourceDictionary + App.xaml | Add shared styles to Application.Resources | Keep all SettingsWindow styles in SettingsWindow.xaml Window.Resources; no unkeyed styles in App.xaml |
+| Auto-launch + installer upgrade | Installer ignores old Run entry | Installer removes `HKCU\...\Run\FuzzyClock` on upgrade and uninstall |
+| Auto-launch + path change | `ApplySettings()` only writes auto-launch on toggle | Always reconcile registry with setting on startup (idempotent Enable/Disable call) |
+| Mutex + crash recovery | `AbandonedMutexException` propagates unhandled | Catch `AbandonedMutexException` in `OnStartup`; treat as `createdNew = true` |
+| SettingsSnapshot + new controls | Add control without updating snapshot | Update `SettingsSnapshot` in the same commit as each new control |
 
 ---
 
@@ -430,29 +344,46 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Settings window triggers `SaveSettings()` on every control change event | `settings.json` written on every slider tick; file I/O during typing | Debounce or save only on OK/close; use `PreviewMouseUp` for sliders | Any interactive slider or text field |
-| Named theme calls multiple `Set*()` methods sequentially | N layout passes; widget visibly reflows during theme apply | Batch-apply pattern — mutate fields, then single `ApplyTheme()` + `UpdateLayout()` + `SaveSettings()` | Always visible during theme apply |
-| Exhaustive multilingual test (1440 minutes × 5 languages × 4 styles) | Test suite slow | DataRow parametric tests — MSTest handles large DataRow tables efficiently; acceptable | Not a performance trap for test runtime |
-| Language detection called on every `GetPhrase()` tick | `CultureInfo.CurrentUICulture` lookup every 10s | Cache language detection at startup; only re-detect on settings change | 10-second interval — effectively no impact |
+| `UpdateLayout()` called in edge snap on every `LocationChanged` | Excessive layout passes during drag — CPU spike, lag | Only call `UpdateLayout()` once post-DragMove, never in event handlers | Any drag near an edge |
+| Snap logic calls `Screen.FromHandle` on every tick | Unnecessary Win32 call frequency | Only compute screen bounds during drag end, not in timers | Not a real concern at these intervals — future-proofing note |
+| Installer writes large `%LOCALAPPDATA%` binary (trimmed/R2R publish) | Slow first-install on HDD | Use `dotnet publish -r win-x64 --self-contained false` for per-user installer if .NET 10 runtime is already present; use self-contained if not | Installation time on slow systems |
+
+---
+
+## Security Mistakes
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Unsigned installer distributed via GitHub Releases | Users bypass SmartScreen warning; malicious actors could distribute a tampered version impersonating the app | Document the SmartScreen behavior; consider code-signing or winget distribution |
+| Auto-launch executable path written from `Process.GetCurrentProcess().MainModule.FileName` without path validation | If the app is run from a network share or temp directory, the Run entry points to a transient path | Verify the install path is under `%LOCALAPPDATA%` before writing auto-launch; warn or skip if run from portable/temp location |
+| Mutex name without version suffix allows cross-version blocking | A v3.2 instance would block a v3.3 instance from launching if the mutex name is the same | Current name is `FuzzyClock_SingleInstance_v1`; the `_v1` suffix is correct — do not remove it; only change the suffix if intentional multi-version coexistence is desired |
+
+---
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| No visual feedback when snap activates | User doesn't know snap occurred; releases near edge and widget "jumps" unexpectedly | Brief (150ms) position animation or snap-indicator flash on edge contact — or at minimum, document snap in README |
+| Snap only snaps, never un-snaps | Widget is permanently edge-stuck; user must drag far from edge to escape | Snap is a drag-end behavior only; no magnetic attraction during drag; any drag that ends >8px from edge does NOT snap |
+| Settings redesign changes existing tab layout | Users familiar with v3.2 Settings window find controls in unexpected places | Keep the three-tab structure (Appearance / Stats / Behavior) from v3.2; redesign is visual (colors, spacing, controls polish) not structural |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Settings window sync:** Open settings window, change accent color via tray menu — settings window reflects the tray change (if live-sync is implemented) or vice-versa.
-- [ ] **Settings window on open:** Toggle ghost mode via tray. Open settings window. Ghost mode checkbox shows correct current state.
-- [ ] **Settings window Z-order:** Open settings window while widget is showing. Settings window is interactive and not hidden behind widget.
-- [ ] **AppSettings round-trip for all new fields:** Add `PhraseStyle`, `Language`, `BatteryAlertThreshold`, `ActiveThemeName` to `AppSettingsTests.cs` round-trip test. All new fields appear in the serialized JSON and deserialize correctly.
-- [ ] **Absent-field isolation for each new field:** Add test: `AppSettings` with new field absent deserializes to init default, not C# type default.
-- [ ] **Validate() guards all new string enums:** `PhraseStyle = "NotAStyle"` → `Validate()` resets to `"Classic"`. Same for `Language`, `ActiveThemeName`.
-- [ ] **SaveSettings() includes all new fields:** Drag widget after setting language to French. Close and reopen app. Language is still French.
-- [ ] **Theme is atomic:** Apply a named theme. Observe widget — no intermediate flicker. `settings.json` written exactly once.
-- [ ] **Battery alert + auto-contrast:** Enable auto-contrast. Simulate low battery. Red alert color is visible (not overridden by auto-contrast to black/white).
-- [ ] **Battery alert cleared on plugin:** Plug in (or set IsPluggedIn=true). Red alert immediately disappears; accent color restored.
-- [ ] **Multilingual exhaustive coverage:** `GetPhrase(dt, "fr")` does not throw for any minute 0–59, any hour 0–23. Same for `"de"`, `"es"`, `"ja"`.
-- [ ] **Phrase style consistency:** For every style, `GetPhrase()` output is consistent with `GetStructuredPhrase()` output. Qualifier + space + Emphasis equals or is consistent with the full phrase.
-- [ ] **ApplyTheme() + ApplyDisplayColor() element parity:** List all elements in `ApplyTheme()`. Verify same list appears in `ApplyDisplayColor()`. Test with Amber accent + auto-contrast: every accent element changes to black/white.
-- [ ] **Language detection uses CurrentUICulture:** Set Windows display language to French. Widget shows French phrases. (Without this test, `CurrentCulture` bug is invisible on US-English setups.)
+- [ ] **Installer SmartScreen:** Test the installer on a clean VM with a fresh Windows account that has never run FuzzyClock. Confirm SmartScreen behavior and document it.
+- [ ] **Installer upgrade path:** Install v3.2 (simulated), enable auto-launch, then install v3.3 over it. Verify: (1) old auto-launch Run entry is removed, (2) new Run entry points to new path if auto-launch was enabled, (3) settings.json is preserved.
+- [ ] **Installer uninstall:** Verify uninstall removes the Run entry, the install directory, and the tray icon (app exits cleanly).
+- [ ] **Mutex abandonment recovery:** Kill FuzzyClock.exe via Task Manager (simulates crash). Immediately relaunch. Verify it starts without error.
+- [ ] **Edge snap threshold:** Release widget 5px from right edge → snaps. Release 10px from right edge → does NOT snap. Release 20px from right edge → does NOT snap.
+- [ ] **Edge snap + SizeToContent:** Snap to right edge while showing a long phrase. Switch to a shorter phrase (phrase changes at 5-minute boundary). Widget remains flush with right edge (no gap appears).
+- [ ] **Edge snap + ghost mode:** Snap widget to right edge. Hover over it (ghost activates, then restores). Widget position has not changed after ghost restore.
+- [ ] **Edge snap + LocationChanged:** Phrase changes while widget is near (but not at) right edge (e.g., 15px from edge). Widget does NOT snap to the edge as a result of the phrase resize.
+- [ ] **ResourceDictionary scope:** After adding Settings redesign styles, open MainWindow and verify: PhraseText font/color unchanged, stats labels unchanged, dial elements unchanged, no new background or border on the overlay.
+- [ ] **App.xaml inspection:** Confirm `<Application.Resources />` remains empty or contains only keyed resources after the redesign.
+- [ ] **Auto-launch path reconciliation:** Run the installed app. Check Task Manager Startup tab. The FuzzyClock entry points to the `%LOCALAPPDATA%` install path.
+- [ ] **SettingsSnapshot coverage:** Open Settings window, change every new redesign control, close without saving (or cancel). Reopen Settings window. All controls show the pre-change values (if revert is supported) or the changed values (if apply-immediately model — document which).
 
 ---
 
@@ -460,18 +391,15 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Widget state / settings window out of sync (P1) | HIGH — architectural | Add callback interface to `MainWindow`; route all settings changes through it; remove direct `AppSettings` writes from settings window |
-| Settings window shows stale state on open (P2) | LOW | Add `Refresh()` call using `GetCurrentTrayState()` before `Show()` |
-| Settings window behind widget (P3) | LOW | Set `settingsWin.Owner = this` — one line |
-| Missing Validate() guard for new field (P4) | LOW | Add guard + test; deploy patch settings.json with correct default |
-| Partial theme application — element not in ApplyTheme/ApplyDisplayColor (P5) | LOW | Add element to both methods; test with all accent presets |
-| Non-atomic theme apply causing flicker (P6) | MEDIUM | Refactor to batch-apply method; one layout pass |
-| Wrong CultureInfo type for language detection (P7) | LOW | Change `CurrentCulture` to `CurrentUICulture` — one-line fix |
-| Missing multilingual bucket coverage → crash (P8) | HIGH — data work | Write all missing bucket translations; add exhaustive test |
-| Japanese template substitution incorrect (P9) | HIGH — redesign | Replace template system with full phrase table for Japanese |
-| Battery alert overridden by auto-contrast (P11) | LOW | Add `_batteryAlertActive` guard in `ApplyDisplayColor()` and `ApplyTheme()` |
-| New field missing from SaveSettings() (P12) | LOW | Add field to `with {}` expression; add round-trip test |
-| GetStructuredPhrase() inconsistent after PhraseEngine refactor (P13) | MEDIUM | Update `GetStructuredPhrase()` to match `GetPhrase()` for each new style |
+| SmartScreen blocks installer (P1) | MEDIUM | Sign the binary (requires certificate procurement) or switch to winget/ClickOnce distribution; or document workaround in release notes |
+| Orphaned auto-launch entry after upgrade (P2) | LOW | Add installer script step to delete old Run entry; add `ApplySettings()` reconciliation; release patch installer |
+| Mutex abandonment crash loop (P3) | LOW | Add `AbandonedMutexException` catch — one-line fix; patch release |
+| Edge snap + ghost mode flicker (P4) | MEDIUM | Add `_lastDragEnd` timestamp; skip ghost activation 150ms post-drag; two-line fix |
+| Wrong snap position (SizeToContent) (P5) | LOW | Add `UpdateLayout()` call before snap computation — one-line fix |
+| App.xaml style leakage into MainWindow (P6) | LOW–MEDIUM | Move offending styles from App.xaml to SettingsWindow.xaml Window.Resources; test overlay appearance |
+| Auto-launch stale path (P7) | LOW | Add idempotent reconciliation call in `ApplySettings()` — one-line fix; patch release |
+| Snap threshold too aggressive (P8) | LOW | Reduce constant to ≤8px — one-line fix |
+| SettingsSnapshot stale for new controls (P9) | LOW | Add missing field to `SettingsSnapshot`; update populate-on-open path |
 
 ---
 
@@ -479,20 +407,15 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Settings window writes directly — widget not updated (P1) | Settings window architecture | Change a setting via window; verify widget updates live |
-| Settings window stale state on open (P2) | Settings window population | Toggle ghost mode via tray; open settings window; checkbox correct |
-| Settings window behind widget (P3) | Settings window creation | Open settings window; confirm it is interactive and in front of widget |
-| New AppSettings fields missing Validate() (P4) | AppSettings extension | Inject invalid string into `settings.json`; verify Validate() corrects it |
-| New XAML elements missing from ApplyTheme/ApplyDisplayColor (P5) | Any phase adding UI elements | Test with Amber and Ice Blue accent; verify all elements change color |
-| Non-atomic theme apply (P6) | Theme implementation | Apply named theme; observe widget — no intermediate reflow |
-| Wrong CultureInfo for language detection (P7) | Multilingual phase | Set Windows to French display language; verify French phrases |
-| Missing bucket coverage in non-English languages (P8) | Multilingual phase | Exhaustive 1440-minute test for each language |
-| Japanese template substitution (P9) | Multilingual phase | Review all Japanese phrase outputs manually; compare to native speaker |
-| Tray / settings window state divergence (P10) | Settings window architecture | Change setting via tray while settings window open; document behavior |
-| Battery alert + auto-contrast conflict (P11) | Battery alert phase | Enable auto-contrast; simulate low battery; red alert persists |
-| Missing field in SaveSettings() (P12) | AppSettings extension | Round-trip test in `AppSettingsTests.cs` for each new field |
-| GetStructuredPhrase() inconsistency after refactor (P13) | Phrase style phase | Add consistency invariant test |
-| Test coverage gaps for new styles/languages (P14) | Phrase style and multilingual phases | CI gate: exhaustive DataRow tests for every new overload |
+| SmartScreen unsigned installer (P1) | Installer phase — decide signing/distribution strategy in plan | Test on clean VM with fresh account |
+| Orphaned auto-launch entry on upgrade (P2) | Installer phase — write upgrade script section | Install, upgrade, check Task Manager Startup tab |
+| Mutex abandonment after crash (P3) | Single-instance / installer phase | Kill process, relaunch immediately; no crash |
+| Edge snap + ghost mode flicker (P4) | Edge snapping phase | Snap to edge, hover over widget, verify no flicker |
+| Edge snap + SizeToContent wrong position (P5) | Edge snapping phase | Snap while long phrase showing; verify flush edge |
+| ResourceDictionary App.xaml leakage (P6) | Settings redesign phase — first style addition | Open MainWindow after adding styles; verify overlay unchanged |
+| Auto-launch path stale after first install (P7) | Installer phase + ApplySettings() review | Run installed binary; check Run entry path in registry |
+| Snap threshold too aggressive (P8) | Edge snapping phase | Release at 5px, 10px, 20px from edge; only 5px snaps |
+| SettingsSnapshot incomplete for new controls (P9) | Settings redesign phase | Add new control, close Settings, reopen; state correct |
 
 ---
 
@@ -500,18 +423,19 @@ Common mistakes when connecting new features to the existing MainWindow system.
 
 | Source | Confidence |
 |--------|------------|
-| `MainWindow.xaml.cs` — `ApplyTheme()`, `ApplyDisplayColor()`, `SaveSettings()`, `ApplySettings()`, `TrayMenuCallbacks` pattern, `GetCurrentTrayState()`; read directly from source | HIGH |
-| `AppSettings.cs` — init-property record pattern; all current fields and defaults; read directly from source | HIGH |
-| `SettingsService.cs` — `Validate()` guards for each existing string enum field; `Defaults()`; read directly from source | HIGH |
-| `PhraseEngine.cs` — `GetPhrase()`, `GetStructuredPhrase()`, `Buckets` table, template substitution pattern; read directly from source | HIGH |
-| `PhraseEngineTests.cs` — existing test coverage (12 buckets, edge cases, English-only); read directly from source | HIGH |
-| `SettingsServiceTests.cs` + `AppSettingsTests.cs` — existing round-trip and Validate test patterns; read directly from source | HIGH |
-| `PROJECT.md` Key Decisions — "ApplySettings() before Show()" invariant, "SetStatsVisible() separate from ApplySettings()" invariant, "ContextMenu_Opened for IsChecked sync", "init-property record for JSON forward/backward compat", "AppSettings → init-property record" decision; read directly from source | HIGH |
-| `MEMORY.md` — "Stats label TextBlocks must have x:Name — both ApplyDisplayColor and ApplyTheme must cover the same full element set" (documented from past regression); project memory file | HIGH |
-| .NET documentation — `CultureInfo.CurrentCulture` vs `CultureInfo.CurrentUICulture`: `CurrentUICulture` reflects the OS display language; `CurrentCulture` reflects regional format. Confirmed from .NET BCL docs (learn.microsoft.com/en-us/dotnet/api/system.globalization.cultureinfo.currentuiculture) | HIGH |
-| WPF Window ownership — `Window.Owner` causes owned window to always appear above owner in Z-order; owned window follows owner when it is minimized/restored. Standard WPF pattern documented in MSDN. | HIGH |
+| `App.xaml.cs` — single-instance Mutex implementation (already present); `AbandonedMutexException` handling absent; `OnExit` releases mutex correctly; read directly from source | HIGH |
+| `GhostModeController.cs` — 75ms polling timer using `GetCursorPos` + `GetWindowRect`; `_isGhostMode` state; `Activate()` / `Restored` event; read directly from source | HIGH |
+| `MainWindow.xaml.cs` — `DragMove()` in `Grid_MouseLeftButtonDown`; `_isDragging` flag; `LocationChanged → _hasUserPosition`; `UpdateLayout()` before re-clamp in `UpdatePhraseIfChanged()`; `Left`/`Top` assignments; `SizeToContent=WidthAndHeight`; read directly from source | HIGH |
+| `App.xaml` — `<Application.Resources />` currently empty; read directly from source | HIGH |
+| `SettingsWindow.xaml` — all styles in `<Window.Resources>`; `SegmentButtonStyle` defined there; no App.xaml resources used; read directly from source | HIGH |
+| `AutoLaunchService.cs` (referenced in MainWindow.xaml.cs) — `Enable(path)` / `Disable()` / `IsEnabled()` pattern; path from `Process.GetCurrentProcess().MainModule.FileName`; confirmed from call sites | HIGH |
+| `PROJECT.md` — v2.6: `HKCU\...\CurrentVersion\Run` registry entry written by `AutoLaunchService`; per-monitor position memory with `MonitorPositions` dict; `SizeToContent=WidthAndHeight` and clamping pattern documented | HIGH |
+| `MEMORY.md` — ghost mode: `_restoreTimer` 75ms + `GetCursorPos` + `GetWindowRect`; `WS_EX_TRANSPARENT` pattern; synthetic `WM_MOUSELEAVE` note; `Mouse.GetPosition` failure under WS_EX_TRANSPARENT | HIGH |
+| Windows SmartScreen / Application Reputation — unsigned PE executables trigger SmartScreen warning on first download; EV certificates suppress immediately; OV certificates build reputation over time; self-signed certificates do not suppress SmartScreen. Confidence based on well-documented Microsoft behavior (consistent across multiple official sources). | HIGH |
+| WPF implicit style scoping — `Style` with `TargetType` and no `x:Key` in `Application.Resources` applies to all matching elements in the entire application. Standard WPF resource lookup documented in MSDN. | HIGH |
+| .NET `AbandonedMutexException` behavior — thrown by `WaitOne()` and the `Mutex` constructor when acquiring an abandoned mutex; the mutex object is still set before the exception is thrown. Standard .NET BCL behavior. | HIGH |
 
 ---
 
-*Pitfalls research for: Fuzzy Clock v3.2 — Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual*
-*Researched: 2026-03-08*
+*Pitfalls research for: Fuzzy Clock v3.3 — Per-user installer, edge snapping, Settings visual redesign*
+*Researched: 2026-03-17*

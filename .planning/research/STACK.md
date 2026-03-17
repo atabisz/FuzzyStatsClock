@@ -1,337 +1,215 @@
-# Technology Stack: v3.2 Settings Window, Themes, Alerts, Phrase Styles, Multilingual
+# Stack Research
 
-**Project:** FuzzyClock v3.2 — Settings window + 5 built-in themes + battery alert + phrase styles + multilingual
-**Researched:** 2026-03-08
-**Scope:** Additions only — existing validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, System.Diagnostics.PerformanceCounter 10.0.0) is unchanged
-**Confidence:** HIGH
+**Domain:** WPF .NET 10 desktop widget — installer, single-instance, edge-snap, Settings visual redesign
+**Researched:** 2026-03-17
+**Scope:** v3.3 additions only — existing validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, PerformanceCounter 10.0.0, UseWindowsForms=true) is unchanged
+**Confidence:** HIGH (all claims verified against official docs, NuGet, or official GitHub)
 
 ---
 
-## What Changes vs v3.1
+## What Changes vs v3.2
 
-v3.1 validated stack (not re-researched):
-- .NET 10, C# 13, WPF (`net10.0-windows`), `UseWindowsForms=true`
-- `MainWindow.xaml.cs` (~1300 lines), `FuzzyClock.Core` (pure static), `SettingsService` atomic JSON I/O
-- `AppSettings` init-property record, `System.Text.Json` for settings
-- `System.Diagnostics.PerformanceCounter` NuGet 10.0.0
-- MSTest 4.0.1, `FuzzyClock.Core.Tests` + `FuzzyClock.App.Tests`, 122 tests
+v3.2 validated stack (not re-researched): .NET 10, C# 13, WPF `net10.0-windows`, `UseWindowsForms=true`, `System.Text.Json`, `System.Diagnostics.PerformanceCounter` 10.0.0, MSTest 4.0.1, `SettingsWindow` (3-tab modeless), `BuiltInThemes`, `PhraseEngine` with multilingual providers, 224 tests passing.
 
-v3.2 additions by feature:
+v3.3 additions by feature:
 
 | Feature | Stack Change | NuGet Needed |
 |---------|-------------|--------------|
-| Settings window | New WPF `Window` + `TabControl` — pure WPF built-ins | None |
-| 5 named themes | New `ThemeDefinition` record + `AppSettings` theme name property | None |
-| Battery low alert | `SystemInformation.PowerStatus` already used; conditional color logic only | None |
-| Phrase styles | New enum + strategy dispatch in `PhraseEngine` or sibling classes | None |
-| Multilingual phrases | `.resx` files + `ResourceManager` in `FuzzyClock.Core` | None |
+| Per-user installer | Velopack 0.0.1298 + `vpk` CLI tool | **Yes — `Velopack` NuGet** |
+| Single-instance guard | `System.Threading.Mutex` + `System.IO.Pipes` (BCL) | None |
+| Edge snapping | Win32 `WM_MOVING` via `HwndSource.AddHook` (existing P-Invoke pattern) | None |
+| Settings window visual redesign | WPF `ThemeMode="Dark"` (built into .NET 9+ / .NET 10) | None |
+| ResetToDefaults fix | Pure logic fix in existing code | None |
+| README docs | Documentation only | None |
 
-**Zero new NuGet packages. Zero csproj changes.**
-
----
-
-## Recommended Stack Additions
-
-### 1. Settings Window — WPF TabControl (Built-in)
-
-**What it is:** A standard WPF `Window` with a `TabControl` containing three `TabItem` children (Appearance / Stats / Behavior).
-
-**Why no packages are needed:** `TabControl` and `TabItem` are part of `PresentationFramework.dll`, which is already referenced via `<UseWPF>true</UseWPF>`. No third-party UI toolkit is needed for a simple settings dialog in an existing WPF app.
-
-**Window pattern:**
-```csharp
-// SettingsWindow.xaml.cs
-public partial class SettingsWindow : Window
-{
-    public SettingsWindow(AppSettings current)
-    {
-        InitializeComponent();
-        // populate controls from current settings
-    }
-
-    public AppSettings? Result { get; private set; }   // null = cancelled
-}
-```
-
-**Launch from tray (modeless, single-instance guard):**
-```csharp
-private SettingsWindow? _settingsWindow;
-
-private void OpenSettings()
-{
-    if (_settingsWindow is not null) { _settingsWindow.Activate(); return; }
-    _settingsWindow = new SettingsWindow(_currentSettings);
-    _settingsWindow.Owner = this;                 // keeps it above MainWindow
-    _settingsWindow.Closed += (_, _) =>
-    {
-        if (_settingsWindow.Result is { } updated)
-            ApplyAndSaveSettings(updated);
-        _settingsWindow = null;
-    };
-    _settingsWindow.Show();                       // modeless — tray stays usable
-}
-```
-
-**Key XAML pattern:**
-```xml
-<TabControl>
-    <TabItem Header="Appearance">
-        <!-- FontSize slider, AccentColor pickers, Opacity slider, ClockStyle radio buttons -->
-    </TabItem>
-    <TabItem Header="Stats">
-        <!-- Per-row CheckBoxes: CPU/GPU/MEM/PAG/BATT/Uptime, interval selector -->
-    </TabItem>
-    <TabItem Header="Behavior">
-        <!-- Ghost mode, Auto-contrast, Auto-launch, Date display toggles -->
-    </TabItem>
-</TabControl>
-```
-
-**Why modeless (Show) not modal (ShowDialog):** The tray icon NotifyIcon context menu must remain functional while settings are open. `ShowDialog` blocks the calling thread's message pump in WPF, which would freeze the tray menu interaction.
-
-**Source:** https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-window-dialog-box (HIGH confidence — official, updated 2024-10-24)
+**One new NuGet package. One new CLI tool. Zero csproj structural changes beyond adding the package.**
 
 ---
 
-### 2. Named Themes — AppSettings Extension + ThemeDefinition Record
+## Recommended Stack
 
-**What it is:** A named bundle of existing settings properties (accent color, opacity, font size, clock style, stats visibility).
+### Core Technologies
 
-**Why no packages are needed:** Themes are pure data — a `record` bundling existing property types. The theme name is persisted as a `string` in `AppSettings`. Theme data lives in a static lookup table in code (no resource files, no external config).
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Velopack | 0.0.1298 (NuGet stable, 2025-06-07) | Per-user installer + auto-update + upgrade-in-place | Installs to `%LocalAppData%\{packId}` with no UAC prompt by default. The default `Setup.exe` detects an existing installation and upgrades it automatically via `Update.exe`. WPF integration requires a custom `static void Main` with `VelopackApp.Build().Run()` before WPF init. Replaces ClickOnce / Inno Setup / WiX for this use case. 285K downloads on NuGet; actively maintained. |
+| `System.Threading.Mutex` (BCL) | Built into .NET 10 | Single-instance guard | Named system Mutex (`new Mutex(true, "Global\\FuzzyClock-{guid}", out bool createdNew)`) is the idiomatic .NET single-instance mechanism. Atomic — no race condition. `createdNew == false` means another instance is already running: send activation signal and exit immediately. Zero dependencies. |
+| `System.IO.Pipes.NamedPipeServerStream` (BCL) | Built into .NET 10 (confirmed net-10.0 API docs) | Signal the running instance to activate | The running instance listens on a named pipe in a background `Task`. The second instance connects as `NamedPipeClientStream`, writes `"ACTIVATE"`, and exits. The server dispatches `window.Activate()` on the UI thread. No extra library. Clean shutdown via `CancellationToken`. |
+| WPF `ThemeMode="Dark"` (PresentationFramework.Fluent) | Built into .NET 9+ / .NET 10 | Dark aesthetic for SettingsWindow | WPF .NET 9 introduced a built-in Fluent dark theme via the `ThemeMode` property on `Window`. Setting `ThemeMode="Dark"` on `SettingsWindow` applies modern Windows 11-style dark styling to all standard controls (Button, TabControl, ComboBox, Slider, CheckBox, TextBox) with zero extra packages. Available in .NET 10 as a stable XAML attribute. |
+| Win32 `WM_MOVING` via `HwndSource.AddHook` | Win32 (no package) | Edge snapping during `DragMove()` | WPF's `DragMove()` bypasses WPF mouse events entirely; the only non-destructive intercept point is the Win32 `WM_MOVING` message (0x0216). The `lParam` is a pointer to a mutable `RECT` — clamping its values snaps the window to a screen edge. Uses the existing `HwndSource` + P-Invoke infrastructure already present for ghost mode. No library needed. |
 
-**Pattern:**
-```csharp
-// FuzzyClock.Core or FuzzyClock.App
-public record ThemeDefinition(
-    string  Name,
-    string  AccentColor,   // AARRGGBB hex, matches AppSettings.AccentColor format
-    double  Opacity,
-    int     FontSize,
-    string  TextStyle,     // "Classic"|"Split"|"Literary"|"Mono"
-    bool    StatsVisible
-);
+### Supporting Libraries
 
-public static class BuiltInThemes
-{
-    public static readonly ThemeDefinition[] All =
-    [
-        new("Minimal",    "#FFFFFFFF", 0.75, 28, "Classic", false),
-        new("Dashboard",  "#FF40C4FF", 1.0,  28, "Classic", true),
-        new("Cinematic",  "#FFFFAB00", 0.85, 40, "Literary", false),
-        new("Terminal",   "#FF00E676", 0.9,  28, "Mono",    true),
-        new("Soft Night", "#FFCE93D8", 0.6,  32, "Classic", false),
-    ];
-}
-```
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `Velopack.Vpk` CLI tool | Matches NuGet 0.0.1298 | Build installer artifacts (`Setup.exe`, delta packages) | Used in CI/build step: `vpk pack --packId FuzzyClock --packVersion 3.3.0 --mainExe FuzzyClock.App.exe`. Not a runtime dependency. |
+| WPF `ResourceDictionary` (built-in XAML) | Built-in | Override Fluent theme brush tokens for SettingsWindow | Layer project-specific color overrides on top of Fluent using `<Window.Resources><ResourceDictionary.MergedDictionaries>`. Lets you match the SettingsWindow background to the app's dark aesthetic (`#1E1E1E`) while keeping Fluent control chrome. |
 
-**AppSettings addition:**
-```csharp
-public string ActiveThemeName { get; init; } = "";  // "" = no theme (custom)
-```
+### Development Tools
 
-**No serialization changes required** — `string` init-property follows the established pattern. Existing settings.json without this field deserializes to `""` (no active theme).
-
----
-
-### 3. Battery Low Alert — Conditional Color Logic
-
-**What it is:** When `BatteryPercent < threshold` (e.g., 20%), the battery stat row accent color shifts to red.
-
-**Why no packages are needed:** `SystemInformation.PowerStatus` is already used in `StatsService.cs` (v3.1). This is a conditional branch in the existing `ApplyDisplayColor` / stats rendering pipeline.
-
-**Integration point:**
-```csharp
-// In the battery stat display logic (MainWindow.xaml.cs or StatsService)
-Color batteryColor = (batteryPct >= 0 && batteryPct < LowBatteryThresholdPercent)
-    ? Colors.OrangeRed     // alert color — not user accent
-    : _accentColor;        // normal accent
-```
-
-**AppSettings addition:**
-```csharp
-public int BatteryLowAlertPercent { get; init; } = 20;  // 0 = disabled
-```
-
-No new services, no new NuGet packages.
-
----
-
-### 4. Phrase Styles — Strategy Pattern in FuzzyClock.Core
-
-**What it is:** Three named personalities for the English phrase engine: Terse (shortest phrase), Poetic (lyrical), Rude (irreverent). The current engine produces "Classic" phrases.
-
-**Why no packages are needed:** This is a pure C# code addition in `FuzzyClock.Core`. Each style is a static bucket table (same data structure as `PhraseEngine.Buckets`). A `PhraseStyle` enum selects which table `GetPhrase` uses.
-
-**Pattern:**
-```csharp
-public enum PhraseStyle { Classic, Terse, Poetic, Rude }
-
-public static class PhraseEngine
-{
-    public static string GetPhrase(DateTime dt, PhraseStyle style = PhraseStyle.Classic)
-    {
-        var buckets = style switch
-        {
-            PhraseStyle.Terse  => TerseBuckets,
-            PhraseStyle.Poetic => PoeticBuckets,
-            PhraseStyle.Rude   => RudeBuckets,
-            _                  => ClassicBuckets,
-        };
-        // ... existing bucket-walk logic
-    }
-}
-```
-
-**AppSettings addition:**
-```csharp
-public string PhraseStyle { get; init; } = "Classic";  // "Classic"|"Terse"|"Poetic"|"Rude"
-```
-
-**Testability:** Each new bucket table gets its own `[DataRow]` tests in `FuzzyClock.Core.Tests` — same pattern as existing `PhraseEngineTests`.
-
----
-
-### 5. Multilingual Phrases — .resx + ResourceManager in FuzzyClock.Core
-
-**What it is:** Locale-specific phrase output in French, Spanish, German, Japanese, driven by `CultureInfo.CurrentUICulture`.
-
-**Why .resx + ResourceManager (not IStringLocalizer):** `IStringLocalizer` requires `Microsoft.Extensions.Localization` + `Microsoft.Extensions.Hosting` and a DI container. This project has no DI container and is a single-process WPF app. `System.Resources.ResourceManager` is built into the BCL, zero-dependency, and is the correct tool for a class library that needs culture-aware string lookup without a host.
-
-**Why not WPF BAML/LocBaml:** LocBaml only works with WPF .NET Framework, not .NET 10. The phrase strings are business logic strings in `FuzzyClock.Core` (a plain `net10.0` class library with no WPF reference), not XAML UI strings. `.resx` + `ResourceManager` is the right scope.
-
-**File structure:**
-```
-FuzzyClock.Core/
-  Resources/
-    PhraseStrings.resx          ← English (neutral/fallback)
-    PhraseStrings.fr.resx       ← French
-    PhraseStrings.de.resx       ← German
-    PhraseStrings.es.resx       ← Spanish
-    PhraseStrings.ja.resx       ← Japanese
-```
-
-**Resource key convention:** One key per phrase bucket slot, e.g.:
-```
-oclock         → "{h} o'clock"      (fr: "{h} heure pile")
-just_after     → "just after {h}"   (fr: "juste après {h}")
-ten_past       → "ten past {h}"     ...
-```
-
-Hour words are also localized (French: "une", "deux", "trois"...).
-
-**ResourceManager usage in PhraseEngine:**
-```csharp
-private static readonly ResourceManager _rm =
-    new ResourceManager("FuzzyClock.Core.Resources.PhraseStrings",
-                        typeof(PhraseEngine).Assembly);
-
-private static string L(string key) =>
-    _rm.GetString(key, CultureInfo.CurrentUICulture) ?? key;
-```
-
-**Locale detection — CultureInfo.CurrentUICulture:**
-```csharp
-// Read the Windows display language (set in Settings > Language)
-var culture = CultureInfo.CurrentUICulture;
-// culture.TwoLetterISOLanguageName → "fr", "de", "es", "ja", "en", ...
-// ResourceManager falls back: fr-FR → fr → neutral (.resx) automatically
-```
-
-`CultureInfo.CurrentUICulture` is the correct property. `CurrentCulture` controls formatting; `CurrentUICulture` controls which resource file the ResourceManager loads. On Windows 11 (the only supported OS), `CurrentUICulture` reflects the Windows display language.
-
-**Satellite assembly build — csproj addition to FuzzyClock.Core.csproj:**
-```xml
-<PropertyGroup>
-    <NeutralLanguage>en</NeutralLanguage>
-</PropertyGroup>
-```
-
-This sets `[assembly: NeutralResourcesLanguage("en")]` which tells the runtime the fallback is English. Satellite assemblies (`fr/FuzzyClock.Core.resources.dll`, etc.) are built automatically by MSBuild when `.resx` files with locale suffixes exist — no manual steps.
-
-**Culture fallback chain (built-in, no code needed):**
-```
-fr-FR → fr → en (neutral / main assembly)
-de-AT → de → en
-ja-JP → ja → en
-unknown culture → en (always)
-```
-
-**Manual override in AppSettings (optional):**
-```csharp
-public string LanguageOverride { get; init; } = "";  // "" = follow Windows CultureInfo
-```
-
-If non-empty, `PhraseEngine` uses `CultureInfo.GetCultureInfo(LanguageOverride)` instead of `CurrentUICulture`. Allows users to force a language independent of Windows locale.
-
-**Source:** https://learn.microsoft.com/en-us/dotnet/core/extensions/localization (HIGH confidence, updated 2026-02-04); https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-globalization-cultureinfo (HIGH confidence, updated 2026-02-12)
-
----
-
-## Core Technologies: No Changes
-
-| Technology | Version | Status |
-|------------|---------|--------|
-| .NET 10 WPF (`net10.0-windows`) | 10.0 | Unchanged |
-| `FuzzyClock.Core` (`net10.0`) | — | Gains `.resx` files |
-| `System.Text.Json` | inbox .NET 10 | Unchanged |
-| `System.Diagnostics.PerformanceCounter` | 10.0.0 | Unchanged |
-| MSTest | 4.0.1 | Unchanged |
-| `System.Resources.ResourceManager` | BCL inbox | New usage in Core |
-
----
-
-## Supporting Libraries: No Changes
-
-All additions use BCL types already in `net10.0`:
-- `System.Resources.ResourceManager` — `.resx` resource lookup (BCL inbox, no NuGet)
-- `System.Globalization.CultureInfo` — locale detection (BCL inbox)
-- `System.Windows.Controls.TabControl` — settings window tabs (WPF built-in via `UseWPF=true`)
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `vpk` (Velopack CLI) | Packages release builds into installer artifacts | Install globally: `dotnet tool install -g vpk`. Run after `dotnet publish -r win-x64 --self-contained false`. |
+| Visual Studio XAML Designer | Inspect Fluent theme resource keys for overrides | Theme XAML files at `C:\Program Files\Microsoft Visual Studio\2022\<edition>\DesignTools\SystemThemes\wpf`. Read-only reference — not used at runtime. |
 
 ---
 
 ## Installation
 
-**No new package installs.** All required types are in:
-- `PresentationFramework.dll` (WPF built-in) — `TabControl`, `TabItem`, `Window`
-- BCL (`System.Resources`, `System.Globalization`) — `ResourceManager`, `CultureInfo`
+```bash
+# Velopack NuGet runtime — add to FuzzyClock.App.csproj
+dotnet add FuzzyClock.App package Velopack --version 0.0.1298
 
----
+# Velopack CLI packaging tool — dev machine and CI
+dotnet tool install -g vpk
 
-## What NOT to Add
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `Microsoft.Extensions.Localization` NuGet | Requires DI host; over-engineered for a standalone WPF app with no service container | `System.Resources.ResourceManager` (BCL inbox) |
-| `Microsoft.Extensions.Hosting` NuGet | Brings in the entire generic host for a single-process overlay widget | None needed |
-| WPF LocBaml / BAML localization | LocBaml does not work with WPF .NET (only .NET Framework); requires complex toolchain | `.resx` + `ResourceManager` |
-| Third-party UI toolkit (MahApps.Metro, MaterialDesign, etc.) | Adds hundreds of KB, styles would conflict with the existing minimal custom UI | WPF built-in `TabControl` |
-| MVVM framework (CommunityToolkit.Mvvm, Prism) | No existing MVVM infrastructure; settings window is simple enough for code-behind | Direct code-behind in `SettingsWindow.xaml.cs` |
-| Separate settings JSON file per locale | Fragile; phrases are not user-configurable | `.resx` compiled into satellite assemblies |
-| `CultureInfo.CurrentCulture` for language detection | Controls number/date formatting, NOT UI language selection | `CultureInfo.CurrentUICulture` (resource lookup) |
+# No other new packages — Mutex, NamedPipe, ThemeMode, WM_MOVING are BCL/framework built-ins
+```
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | When Alternative Is Better |
-|----------|-------------|-------------|---------------------------|
-| Settings UI | WPF built-in `TabControl` | MahApps.Metro `MetroWindow` | If the project adopted a full design system; overkill for 3 tabs |
-| Localization | `.resx` + `ResourceManager` | `IStringLocalizer` + DI | Only when the app already uses `IHost` / generic host |
-| Theme storage | Static `ThemeDefinition[]` in code | JSON theme files | If users need to create custom themes — not in v3.2 scope |
-| Phrase styles | Static bucket tables per style | External JSON phrase files | If phrase content must be user-editable |
-| Settings window lifetime | Modeless (`Show`) | Modal (`ShowDialog`) | If the settings window must block all other interaction |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Velopack (default Setup.exe) | ClickOnce | Only if you need Visual Studio one-click publish and are on .NET Framework. ClickOnce has poor .NET 5+ support and cannot reliably target `%LocalAppData%`. |
+| Velopack (default Setup.exe) | Inno Setup | Only if you need system-wide install (Program Files), complex installer UI with license screens, or custom installation scripts. Overkill for a personal widget. |
+| Velopack (default Setup.exe) | WiX 5 | Only for enterprise MSI requirements (Group Policy, SCCM, Windows Installer features). WiX requires verbose XML authoring. |
+| Velopack (default Setup.exe) | Velopack `--msi` | The MSI variant prompts the user to choose per-user vs per-machine install. Adds unnecessary complexity for a single-user widget. Use the default exe installer. |
+| Named Mutex + NamedPipe | `Microsoft.Toolkit.Win32.UI.Controls` SingleInstance | The toolkit approach targets UWP-style apps and is heavier. Mutex + NamedPipe is ~40 lines of code with no dependency. |
+| WPF `ThemeMode="Dark"` | MahApps.Metro | MahApps is a full UI framework replacement (5-10 MB assets) that conflicts with existing `BuiltInThemes` and requires adopting MetroWindow. ThemeMode is built-in and zero-overhead. |
+| WPF `ThemeMode="Dark"` | ModernWpf | ModernWpf imposes its own control templates globally. As of 2023 it is unmaintained. ThemeMode is the official Microsoft replacement. |
+| `WM_MOVING` hook | Replace `DragMove()` with manual drag | Manual drag (MouseDown/MouseMove + `SetWindowPos`) gives more control but requires rewriting the entire existing drag system. `WM_MOVING` intercepts `DragMove()` non-invasively. |
 
 ---
 
-## csproj Change Summary
+## What NOT to Use
 
-**FuzzyClock.Core.csproj:** Add `<NeutralLanguage>en</NeutralLanguage>` to the existing `<PropertyGroup>`. This is the only csproj change across the entire milestone.
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `Microsoft.VisualBasic.ApplicationServices.WindowsFormsApplicationBase` | Legacy VB runtime single-instance API. Not idiomatic in .NET 10 C# and pulls in a Windows Forms dependency that competes with `UseWindowsForms=true`. | `Mutex` + `NamedPipeClientStream` |
+| `System.Diagnostics.Process.GetProcessesByName()` | Fragile single-instance check — matches only on exe name, fails if user has renamed the exe, and has a time-of-check/time-of-use race condition. | Named `Mutex` (atomic, OS-guaranteed uniqueness per mutex name) |
+| `Application.ThemeMode="Dark"` (app-wide) | Would apply Fluent dark to the main overlay window too, which is a transparent frameless widget — wrong aesthetic for the overlay. | `ThemeMode="Dark"` on `SettingsWindow` only (Window-scoped, not Application-scoped) |
+| MahApps.Metro / ModernWpf | Replaces all default control templates globally; conflicts with existing `BuiltInThemes` system; ModernWpf is unmaintained. | WPF built-in Fluent `ThemeMode` |
+| Velopack `--msi` flag | Generates an MSI with a per-user/per-machine choice dialog. Unnecessary complexity for a personal desktop widget. | Default Velopack `Setup.exe` (silent per-user install to `%LocalAppData%`, no choice dialog) |
+| `ThemeMode` set in C# code (experimental) | Setting `ThemeMode` from code generates compiler error `WPF0001` (experimental API, subject to change). | Set `ThemeMode="Dark"` as a XAML attribute on `SettingsWindow` — stable, no warning. |
 
-**FuzzyClock.App.csproj:** No changes.
+---
 
-**FuzzyClock.Core.Tests.csproj:** No changes (new phrase style tests follow existing `[DataRow]` pattern).
+## Stack Patterns by Feature
 
-**FuzzyClock.App.Tests.csproj:** No changes (settings window and theme tests follow existing patterns).
+**Installer (per-user, no admin, upgrade detection):**
+
+- Use Velopack default `Setup.exe` (do NOT add `--msi` flag to `vpk pack`)
+- Installs silently to `%LocalAppData%\FuzzyClock` with no elevation prompt
+- `Update.exe` in the install directory handles upgrades when a new `Setup.exe` is run
+- WPF integration: change `App.xaml` Build Action to `Page`, add `<StartupObject>FuzzyClock.App.App</StartupObject>` to csproj, add a custom `[STAThread] static void Main(string[] args)` to `App.xaml.cs`:
+
+```csharp
+[STAThread]
+private static void Main(string[] args)
+{
+    VelopackApp.Build().Run();   // must be first — handles update/install hooks
+    var app = new App();
+    app.InitializeComponent();
+    app.Run();
+}
+```
+
+**Single-instance guard (second launch brings window to front):**
+
+In `Main`, before `new App()`:
+
+```csharp
+var mutex = new Mutex(true, @"Global\FuzzyStatsClock-SingleInstance", out bool isFirstInstance);
+if (!isFirstInstance)
+{
+    // Signal running instance and exit
+    using var client = new NamedPipeClientStream(".", "FuzzyStatsClock", PipeDirection.Out);
+    try { client.Connect(500); new StreamWriter(client).WriteLine("ACTIVATE"); }
+    catch { /* already exiting */ }
+    return;
+}
+GC.KeepAlive(mutex); // prevent GC of mutex for process lifetime
+```
+
+In the running instance (`MainWindow` constructor or `ContentRendered`):
+
+```csharp
+_ = Task.Run(async () =>
+{
+    while (!_cts.IsCancellationRequested)
+    {
+        using var server = new NamedPipeServerStream("FuzzyStatsClock", PipeDirection.In);
+        await server.WaitForConnectionAsync(_cts.Token);
+        var msg = await new StreamReader(server).ReadLineAsync();
+        if (msg == "ACTIVATE")
+            Dispatcher.Invoke(() => { Show(); Activate(); WindowState = WindowState.Normal; });
+    }
+});
+```
+
+**Edge snapping (snap to screen edges when dragging):**
+
+In `MainWindow` after `HwndSource` is obtained (already done for ghost mode):
+
+```csharp
+private const int WM_MOVING = 0x0216;
+private const int SnapThreshold = 20; // pixels
+
+// In AddHook callback:
+if (msg == WM_MOVING)
+{
+    var rect = Marshal.PtrToStructure<RECT>(lParam);
+    var screen = Screen.FromHandle(_hwnd).WorkingArea;
+    int w = rect.Right - rect.Left;
+    int h = rect.Bottom - rect.Top;
+
+    if (Math.Abs(rect.Left - screen.Left)   < SnapThreshold) { rect.Left  = screen.Left;                rect.Right  = rect.Left + w; }
+    if (Math.Abs(rect.Top  - screen.Top)    < SnapThreshold) { rect.Top   = screen.Top;                 rect.Bottom = rect.Top + h; }
+    if (Math.Abs(rect.Right  - screen.Right)  < SnapThreshold) { rect.Right  = screen.Right;               rect.Left   = rect.Right - w; }
+    if (Math.Abs(rect.Bottom - screen.Bottom) < SnapThreshold) { rect.Bottom = screen.Bottom;              rect.Top    = rect.Bottom - h; }
+
+    Marshal.StructureToPtr(rect, lParam, true);
+    handled = true;
+    return (IntPtr)1;
+}
+```
+
+`Screen.FromHandle(_hwnd)` is from `System.Windows.Forms` — already available via `UseWindowsForms=true`.
+
+**Settings window visual redesign (dark aesthetic, no third-party library):**
+
+On `SettingsWindow.xaml`:
+
+```xml
+<Window ...
+        ThemeMode="Dark"
+        Background="#1E1E1E">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Optional: override Fluent brush tokens to match app accent system -->
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    ...
+</Window>
+```
+
+`ThemeMode="Dark"` applies Fluent dark to all standard controls (Button, TabControl, ComboBox, Slider, CheckBox, TextBox) in `SettingsWindow` only. The main overlay window (`MainWindow`) is unaffected because it does not set `ThemeMode`. No `ControlTemplate` rewrites needed for basic dark styling.
+
+---
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| Velopack 0.0.1298 | .NET 5+ (confirmed on NuGet page) / `net10.0-windows` | WPF custom `Main` pattern documented and works on any TFM. |
+| `ThemeMode="Dark"` | `net9.0-windows`, `net10.0-windows` | Introduced in WPF .NET 9. Stable as XAML attribute in .NET 10. Setting from code is experimental (suppress `WPF0001`). |
+| `NamedPipeServerStream` | net-10.0 (confirmed in official .NET 10 API docs) | In `System.IO.Pipes.dll`, no new dependency. |
+| `System.Threading.Mutex` | All .NET versions | No changes in .NET 10. Named system mutexes have been stable since .NET 1.0. |
+| `WM_MOVING` / `HwndSource.AddHook` | `net10.0-windows` | Win32 message; WPF `HwndSource` already used by ghost mode in this codebase. |
 
 ---
 
@@ -339,14 +217,10 @@ All additions use BCL types already in `net10.0`:
 
 | Location | Change |
 |----------|--------|
-| `FuzzyClock.Core/PhraseEngine.cs` | Add `PhraseStyle` enum parameter; add Terse/Poetic/Rude bucket tables; add `ResourceManager` field for locale lookup |
-| `FuzzyClock.Core/Resources/` | New directory: `PhraseStrings.resx` + `PhraseStrings.{fr,de,es,ja}.resx` |
-| `FuzzyClock.Core.csproj` | Add `<NeutralLanguage>en</NeutralLanguage>` |
-| `FuzzyClock.App/AppSettings.cs` | Add: `ActiveThemeName`, `BatteryLowAlertPercent`, `PhraseStyle`, `LanguageOverride` init properties |
-| `FuzzyClock.App/MainWindow.xaml.cs` | Battery alert: conditional color in stats paint; theme apply: map `ThemeDefinition` to `ApplySettings`-like call |
-| `FuzzyClock.App/TrayMenuBuilder.cs` | Add "Settings..." menu item + phrase style submenu |
-| New: `FuzzyClock.App/SettingsWindow.xaml` + `.xaml.cs` | New WPF Window with TabControl — Appearance / Stats / Behavior tabs |
-| New: `FuzzyClock.App/ThemeDefinition.cs` + `BuiltInThemes.cs` | Static theme registry |
+| `FuzzyClock.App.csproj` | Add `<PackageReference Include="Velopack" Version="0.0.1298" />`; add `<StartupObject>FuzzyClock.App.App</StartupObject>`; change `App.xaml` Build Action to `Page` |
+| `FuzzyClock.App/App.xaml.cs` | Add custom `[STAThread] static void Main(string[] args)` with `VelopackApp.Build().Run()` first; add Mutex + NamedPipe single-instance check; start pipe listener task |
+| `FuzzyClock.App/MainWindow.xaml.cs` | Add `WM_MOVING` case to existing `HwndSource.AddHook` handler for edge snapping |
+| `FuzzyClock.App/SettingsWindow.xaml` | Add `ThemeMode="Dark"` attribute and `Background="#1E1E1E"` to the Window element |
 
 ---
 
@@ -354,25 +228,29 @@ All additions use BCL types already in `net10.0`:
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| WPF TabControl (no packages) | HIGH | Built into PresentationFramework; established WPF pattern |
-| ResourceManager + .resx for class library | HIGH | BCL standard; verified against official .NET docs |
-| CultureInfo.CurrentUICulture for locale detection | HIGH | Official docs confirm: CurrentUICulture drives resource loading, CurrentCulture drives formatting |
-| Satellite assembly auto-build with NeutralLanguage | HIGH | Official MSBuild behavior, documented; no manual steps |
-| Phrase style dispatch (enum + bucket switch) | HIGH | Straightforward extension of existing PhraseEngine pattern |
-| Battery alert (conditional color branch) | HIGH | StatsService already reads BatteryPercent; color override is 2-line conditional |
-| IStringLocalizer NOT needed | HIGH | IStringLocalizer requires DI host; ResourceManager is the correct non-hosted alternative per official docs |
+| Velopack per-user install to `%LocalAppData%` | HIGH | Verified directly on docs.velopack.io/packaging/installer — states this explicitly |
+| Velopack WPF custom `Main` integration | HIGH | Verified on docs.velopack.io/getting-started/csharp — exact code pattern documented |
+| Velopack version 0.0.1298 | HIGH | Verified on nuget.org/packages/Velopack — latest stable, published 2025-06-07 |
+| `ThemeMode="Dark"` on Window scope | HIGH | Verified on learn.microsoft.com/dotnet/desktop/wpf/whats-new/net90 — official, with screenshots |
+| Fluent theme available in .NET 10 | HIGH | learn.microsoft.com docs show net10.0 moniker; introduced in .NET 9 which is a prior release |
+| `NamedPipeServerStream` in .NET 10 | HIGH | API docs explicitly list net-10.0 as a supported moniker |
+| Named Mutex for single-instance | HIGH | Official .NET threading docs; established Windows pattern |
+| `WM_MOVING` mutable RECT | HIGH | Official Win32 API docs — "application can change its position" |
+| `Screen.FromHandle` available (UseWindowsForms=true) | HIGH | Already used in existing codebase for ghost mode cursor tracking |
 
 ---
 
 ## Sources
 
-- WPF Window / ShowDialog vs Show: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-window-dialog-box (official, 2024-10-24)
-- .NET Localization + IStringLocalizer: https://learn.microsoft.com/en-us/dotnet/core/extensions/localization (official, updated 2026-02-04)
-- WPF Globalization + satellite assemblies: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-globalization-and-localization-overview (official; LocBaml .NET Framework only warning confirmed)
-- CultureInfo.CurrentUICulture vs CurrentCulture: https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-globalization-cultureinfo (official, updated 2026-02-12)
-- ResourceManager class: https://learn.microsoft.com/en-us/dotnet/api/system.resources.resourcemanager (BCL inbox, no NuGet)
-- TabControl: https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.tabcontrol (WPF built-in)
+- https://docs.velopack.io/packaging/installer — Per-user `%LocalAppData%` default, no admin, upgrade behavior (HIGH)
+- https://www.nuget.org/packages/Velopack — Version 0.0.1298, published 2025-06-07 (HIGH)
+- https://docs.velopack.io/getting-started/csharp — WPF custom `Main` integration pattern with exact code (HIGH)
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/whats-new/net90 — `ThemeMode`, Fluent dark mode, `.NET 9+`, XAML attribute stable (HIGH)
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/styles-templates-overview — `ResourceDictionary.MergedDictionaries` override pattern, `ThemeMode` on Window scope (HIGH)
+- https://learn.microsoft.com/en-us/dotnet/api/system.io.pipes.namedpipeserverstream — net-10.0 moniker confirmed (HIGH)
+- https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-moving — `lParam` is mutable `RECT*`, return TRUE to change position (HIGH)
+- https://learn.microsoft.com/en-us/dotnet/standard/threading/mutexes — Named system Mutex cross-process detection (HIGH)
 
 ---
-*Stack research for: FuzzyClock v3.2 — Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual*
-*Researched: 2026-03-08*
+*Stack research for: FuzzyStatsClock v3.3 Polish + Installer*
+*Researched: 2026-03-17*

@@ -1,7 +1,7 @@
 # Architecture Research
 
-**Domain:** WPF desktop widget — v3.2 feature integration
-**Researched:** 2026-03-08
+**Domain:** WPF desktop widget — v3.3 Polish + Installer additions
+**Researched:** 2026-03-17
 **Confidence:** HIGH (all claims derived from direct source reading of current codebase)
 
 ---
@@ -14,11 +14,14 @@
 ├──────────────────────────────────────────────────────────────────────┤
 │  ┌──────────────────────┐  ┌──────────────────┐  ┌────────────────┐  │
 │  │  MainWindow.xaml.cs  │  │  SettingsWindow  │  │ TrayMenuBuilder│  │
-│  │    (~1300 lines)     │  │  (v3.2 — new)    │  │ (WinForms tray)│  │
+│  │    (~1450 lines)     │  │  (3-tab modeless)│  │ (WinForms tray)│  │
 │  └──────────┬───────────┘  └────────┬─────────┘  └───────┬────────┘  │
-│             │  ApplySettings()      │ SettingsChanged     │           │
-│             │  SaveSettings()       │ event               │ callbacks │
+│             │  per-setting events   │ SettingsChanged     │ callbacks │
 │             └──────────────────────┴─────────────────────┘           │
+├──────────────────────────────────────────────────────────────────────┤
+│                    App.xaml.cs — Application entry point             │
+│   Mutex single-instance (ALREADY IMPLEMENTED)                        │
+│   hiddenOwner window, SettingsService.Load(), MainWindow.Show()      │
 ├──────────────────────────────────────────────────────────────────────┤
 │                       Service layer (FuzzyClock.App)                 │
 │  ┌──────────────┐ ┌──────────────┐ ┌────────────────┐ ┌───────────┐  │
@@ -29,7 +32,7 @@
 │                       FuzzyClock.Core (pure, no WPF)                 │
 │  ┌──────────────┐ ┌──────────────┐ ┌────────────────┐ ┌───────────┐  │
 │  │ PhraseEngine │ │DateFormatter │ │ ContrastService│ │DialGeo-   │  │
-│  │ (v3.2: locale│ │(static,pure) │ │(WCAG math)     │ │metry      │  │
+│  │ (locale      │ │(static,pure) │ │(WCAG math)     │ │metry      │  │
 │  │  dispatch)   │ │              │ │                │ │           │  │
 │  └──────────────┘ └──────────────┘ └────────────────┘ └───────────┘  │
 ├──────────────────────────────────────────────────────────────────────┤
@@ -38,6 +41,13 @@
 │  │  SettingsService  (Load / Save / Validate / Defaults)        │    │
 │  │  AppSettings record (flat init-property JSON record)         │    │
 │  └──────────────────────────────────────────────────────────────┘    │
+├──────────────────────────────────────────────────────────────────────┤
+│                  Build / Distribution (CI pipeline)                  │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │  .github/workflows/release.yml                               │    │
+│  │  dotnet publish → FuzzyClock.exe (self-contained, single-file)│    │
+│  │  [v3.3 adds] installer build step → FuzzyClockSetup.exe      │    │
+│  └──────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,13 +55,13 @@
 
 | Component | Responsibility | Notes |
 |-----------|----------------|-------|
-| `MainWindow` | All WPF UI state, timers, display update methods, color application | ~1300 lines; single-owner of all live state |
-| `AppSettings` | Flat init-property record; single source of persisted truth | Never positional; JSON forward-compat pattern |
+| `App.xaml.cs` | Application lifecycle, Mutex guard, hidden owner window, settings load, MainWindow construction | Single-instance Mutex already implemented; no changes needed for v3.3 |
+| `MainWindow.xaml.cs` | All WPF UI state, timers, display update, drag, position persistence, color application | ~1450 lines; sole owner of all live state |
+| `AppSettings` | Flat init-property record; single source of persisted truth | Never positional; JSON forward-compat |
 | `SettingsService` | Load/Save/Validate/Defaults; atomic JSON write via `.tmp` rename | Pure static; no WPF types |
-| `TrayMenuBuilder` | Builds WinForms `NotifyIcon` + `ContextMenuStrip`; syncs checkmarks on `Opening` | All callbacks must `Dispatcher.Invoke` before touching WPF |
-| `PhraseEngine` | Pure static phrase generation and structured decomposition | Currently English-only; v3.2 needs locale dispatch |
-| `ContrastRefreshController` | 500ms sampling timer; fires `ColorChanged`/`Cleared` events | Wired to `ApplyDisplayColor` / `ApplyTheme` in ContentRendered |
-| `SettingsWindow` | v3.2 new — WPF Window for settings UI | Must not own live state; reflects and propagates to MainWindow |
+| `TrayMenuBuilder` | Builds WinForms `NotifyIcon` + `ContextMenuStrip`; syncs checkmarks on `Opening` | Callbacks must `Dispatcher.Invoke` |
+| `SettingsWindow` | Modeless 3-tab WPF Window; populates from `SettingsSnapshot`; fires 19 per-setting events | Owner=MainWindow ensures it stays in front of Topmost overlay |
+| `release.yml` | CI pipeline: restore → test → publish single-file EXE → GitHub Release | v3.3 adds installer build step after publish |
 
 ---
 
@@ -59,412 +69,412 @@
 
 ```
 FuzzyClock.App/
-├── MainWindow.xaml(.cs)         # unchanged owner of all timers and UI state
-├── SettingsWindow.xaml(.cs)     # NEW — second WPF Window; Owner=MainWindow
-├── AppSettings.cs               # add new fields: Theme, PhraseLocale, BatteryAlertPercent, etc.
-├── SettingsService.cs           # add Validate guards and Defaults for new fields
-├── TrayMenuBuilder.cs           # add "Open Settings..." menu item + OpenSettings callback
-├── StatsService.cs              # unchanged
-├── MonitorService.cs            # unchanged
-├── ContrastRefreshController.cs # unchanged
-├── GhostModeController.cs       # unchanged
+├── App.xaml(.cs)                # NO CHANGES — Mutex already implemented
+├── MainWindow.xaml(.cs)         # modify: edge snap in Grid_MouseLeftButtonDown
+├── SettingsWindow.xaml(.cs)     # modify: visual redesign (XAML only, no CS logic changes)
+├── AppSettings.cs               # no new fields expected for polish/installer features
+├── SettingsService.cs           # no changes
+├── TrayMenuBuilder.cs           # no changes
+├── StatsService.cs              # no changes
+├── MonitorService.cs            # no changes
+├── ContrastRefreshController.cs # no changes
+├── GhostModeController.cs       # no changes
 
-FuzzyClock.Core/
-├── PhraseEngine.cs              # refactor: static dispatcher calling IPhraseProvider
-├── IPhraseProvider.cs           # NEW interface: GetPhrase + GetStructuredPhrase
-├── EnglishPhraseProvider.cs     # NEW: current bucket table moved here verbatim
-├── FrenchPhraseProvider.cs      # example of additional locale (add as needed)
-├── DateFormatter.cs             # unchanged
-├── ContrastService.cs           # unchanged
-├── DialGeometry.cs              # unchanged
-├── UptimeFormatter.cs           # unchanged
+FuzzyClock.Installer/            # NEW project (optional — only if WiX approach chosen)
+├── FuzzyClock.Installer.wixproj # WiX 4 project
+├── Package.wxs                  # product definition, feature tree, shortcut
+└── (alternatives: Inno Setup .iss script outside solution, no new csproj)
+
+.github/workflows/
+└── release.yml                  # modify: add installer build step after dotnet publish
 ```
-
-### Structure Rationale
-
-- **`SettingsWindow` in FuzzyClock.App:** WPF Window requires `net10.0-windows`; Core must stay WPF-free for test isolation.
-- **`IPhraseProvider` + `*PhraseProvider` in Core:** Keeps Core's public API stable (`PhraseEngine.GetPhrase` stays the entry point) while isolating each language as its own class. No runtime file I/O.
-- **`AppSettings.cs` additions:** The init-property record pattern (never positional, all fields optional for JSON compat) must be continued for each new setting.
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Settings Window as Owner-Child with Event Notification
+### Pattern 1: Single-Instance Mutex — ALREADY IMPLEMENTED, NO CHANGES
 
-**What:** `SettingsWindow` is opened from a tray callback. `Owner = mainWindowInstance` is set before `Show()`. SettingsWindow does not own an `AppSettings` copy — it receives the current snapshot at open time and fires `event Action<AppSettings> SettingsChanged` when the user applies a change. MainWindow subscribes and calls `ApplySettings()` + `SaveSettings()`.
+**What:** `App.xaml.cs` `OnStartup()` creates a named `Mutex("FuzzyClock_SingleInstance_v1", initiallyOwned: true, out bool createdNew)`. If `createdNew` is false, the process calls `Shutdown()` and returns before any window is created.
 
-**When to use:** Any second WPF Window that needs to modify MainWindow-owned state.
+**Status for v3.3:** Fully implemented as of the existing codebase. The second-instance behavior (silently exits) is the correct choice for a desktop widget — no "bring to front" activation is needed because the widget is always visible.
 
-**Trade-offs:**
-- Owner relationship ensures SettingsWindow renders in front of the `Topmost=True` overlay on all Windows versions. Without Owner, the settings window can fall behind the always-on-top overlay.
-- Event-based notification keeps SettingsWindow ignorant of MainWindow internals. MainWindow remains the single authoritative owner of all live state.
-- SettingsWindow must NOT call `SettingsService.Save()` directly.
-- Use `Show()` not `ShowDialog()`. `ShowDialog()` runs a nested dispatcher loop and freezes all timers — the overlay phrase, stats, and auto-contrast would all stop updating while settings are open.
+**Do not modify:** The Mutex is released in `OnExit()` and its name is version-stable. No changes required for v3.3.
 
-**Example:**
+**Integration point:** `App.xaml.cs`, method `OnStartup(StartupEventArgs e)`, lines 13–24.
+
+### Pattern 2: Edge Snapping — Post-DragMove Attraction in Grid_MouseLeftButtonDown
+
+**What:** After `DragMove()` returns, compute whether the widget's current `Left`/`Top` is within a snap threshold of any screen edge. If so, snap to that edge exactly. This is a pure position adjustment applied after the modal drag loop exits, before `SaveSettings()`.
+
+**When to use:** Always, as a complement to the existing `SettingsService.Clamp()` (which prevents off-screen placement). Edge snap is attraction toward edges; clamp is repulsion from outside-screen positions. They are independent and both must run.
+
+**Integration point:** `MainWindow.xaml.cs`, method `Grid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)`, after `_isDragging = false;` and before `SaveSettings()`.
+
+**Exact insertion location:**
 ```csharp
-// In ContentRendered, inside TrayMenuCallbacks initialization:
-OpenSettings = () => Dispatcher.Invoke(() =>
+private void Grid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
 {
-    if (_settingsWindow == null || !_settingsWindow.IsVisible)
-    {
-        _settingsWindow = new SettingsWindow(_settings);
-        _settingsWindow.Owner = this;
-        _settingsWindow.SettingsChanged += s =>
-        {
-            ApplySettings(s);
-            SaveSettings();
-        };
-        _settingsWindow.Show();
-    }
-    else
-    {
-        _settingsWindow.Activate();
-    }
-}),
-```
+    bool statsTimerWasRunning = _statsTimer?.IsEnabled ?? false;
+    if (statsTimerWasRunning) _statsTimer!.Stop();
 
-`_settingsWindow` must be a field on MainWindow, not a local variable. The null-or-not-visible guard prevents duplicate windows.
+    _isDragging = true;
+    DragMove();
+    _isDragging = false;
+    // LocationChanged fired during DragMove — _hasUserPosition is already true here.
 
-### Pattern 2: IPhraseProvider Interface for Multi-Locale PhraseEngine
+    // Cross-monitor drag cleanup (existing code — unchanged)
+    string prevKey = _currentMonitorKey;
+    string newKey  = MonitorService.GetCurrentMonitorKey(this);
+    if (!string.IsNullOrEmpty(prevKey) && prevKey != newKey)
+    { ... }
 
-**What:** Extract the English bucket table and `HourWords` array into `EnglishPhraseProvider : IPhraseProvider`. `PhraseEngine` becomes a static dispatcher with a module-level `_provider` field, a `SetLocale(string)` method, and unchanged `GetPhrase`/`GetStructuredPhrase` public methods. Call sites in MainWindow are unmodified.
+    // *** NEW: edge snap applied here, AFTER DragMove() and BEFORE SaveSettings() ***
+    ApplyEdgeSnap();
 
-**When to use:** Adding multilingual phrase generation.
-
-**Trade-offs:**
-- `PhraseEngine` becomes stateful at module level (holds `_provider`). In unit tests, any test that calls `SetLocale` must restore the default locale afterward (or set locale explicitly before each assertion) to prevent cross-test pollution. This is the tradeoff for leaving call sites unchanged.
-- All 51+ existing `PhraseEngine` unit tests continue to pass without modification — the English provider produces identical output to the current static implementation.
-- Phrase template strings for non-English locales are embedded as `private static readonly` arrays in their provider class (compiled into the assembly). No runtime file I/O. No resource loading. Keeps Core pure and test-safe.
-
-**Example:**
-```csharp
-// FuzzyClock.Core/PhraseEngine.cs
-public static class PhraseEngine
-{
-    private static IPhraseProvider _provider = new EnglishPhraseProvider();
-
-    public static void SetLocale(string locale)
-        => _provider = locale switch
-        {
-            "fr" => new FrenchPhraseProvider(),
-            _    => new EnglishPhraseProvider()
-        };
-
-    public static string GetPhrase(DateTime dt)
-        => _provider.GetPhrase(dt);
-
-    public static (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt)
-        => _provider.GetStructuredPhrase(dt);
+    if (statsTimerWasRunning) _statsTimer!.Start();
+    SaveSettings();
 }
 ```
 
-### Pattern 3: Theme as Named Preset — No ThemeService Class
+**Implementation approach for `ApplyEdgeSnap()`:**
+```csharp
+private void ApplyEdgeSnap(double threshold = 16.0)
+{
+    // Use WinForms Screen (already a project dependency via UseWindowsForms=true)
+    var screen = System.Windows.Forms.Screen.FromPoint(
+        new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+    var wa = screen.WorkingArea;
 
-**What:** A theme is a named color preset stored as a string in `AppSettings`. `ApplyTheme()` in MainWindow already applies `_accentColor` to all UI elements. Adding theme support means: (a) `SetTheme(string)` sets `_accentColor` from the preset palette, and (b) optionally sets a `ContentBorder` background tint. There is no need for a separate `ThemeService`.
+    double snapLeft = Left;
+    double snapTop  = Top;
 
-**When to use:** When theme scope is limited to color presets. A `ThemeService` would only be justified if themes involved fonts, layout variants, or animation — none of which are planned for v3.2.
+    // Snap left edge to left screen edge
+    if (Math.Abs(Left - wa.Left) <= threshold)
+        snapLeft = wa.Left;
+    // Snap right edge to right screen edge
+    else if (Math.Abs(Left + ActualWidth - (wa.Left + wa.Width)) <= threshold)
+        snapLeft = wa.Left + wa.Width - ActualWidth;
+
+    // Snap top edge to top screen edge
+    if (Math.Abs(Top - wa.Top) <= threshold)
+        snapTop = wa.Top;
+    // Snap bottom edge to bottom screen edge
+    else if (Math.Abs(Top + ActualHeight - (wa.Top + wa.Height)) <= threshold)
+        snapTop = wa.Top + wa.Height - ActualHeight;
+
+    if (snapLeft != Left || snapTop != Top)
+    {
+        Left = snapLeft;
+        Top  = snapTop;
+    }
+}
+```
 
 **Trade-offs:**
-- `ApplyTheme()` already covers all 20+ elements. Adding a background tint adds exactly one line: `ContentBorder.Background = new SolidColorBrush(themeBackground)`.
-- `ApplyDisplayColor()` (auto-contrast override path) must also respect the theme background tint — one additional line there too.
-- The `SettingsService.Validate()` guard for the `Theme` field follows the existing pattern: `string[] validThemes = { "Default", "Dark", ... }`.
+- Uses `WorkingArea` (not `Bounds`) so snap respects taskbar position — consistent with `SettingsService.Clamp()`.
+- Uses `Screen.FromPoint` with window center — consistent with `SetStatsVisible()` and `UpdatePhraseIfChanged()` re-clamp calls.
+- No new class needed. No new state field needed. Pure geometry.
+- `threshold = 16.0` in device-independent pixels (DIPs). Adjust per feel. Could become an `AppSettings` field later but is not needed for v3.3.
+- The snap only fires on drag completion, not during drag (WPF receives no intermediate positions during `DragMove()` — it is a blocking Win32 modal loop).
 
-### Pattern 4: Battery Alert as Display-Side State Flag
+**No changes needed to:**
+- `LocationChanged` handler (only sets `_hasUserPosition = true`)
+- `SettingsService.Clamp()` (still runs after snap via `SaveSettings()` path... actually `SaveSettings()` does NOT call Clamp — it just saves. Clamp is called in `SetStatsVisible`, `ApplyFontSize`, `SetTextStyle`, `UpdatePhraseIfChanged`. Edge snap is the sole post-drag adjustment.)
+- `PositionTopRight()` (only called when no user position exists)
 
-**What:** `AppSettings.BatteryAlertPercent` (int, default 20) and `AppSettings.BatteryAlertEnabled` (bool, default false). MainWindow adds `_batteryAlertActive` bool field. `UpdateStatsDisplay()` computes and sets this flag on every stats tick. `ApplyTheme()` and `ApplyDisplayColor()` check the flag and override the `BattBar`/`BattText` color if alert is active.
+### Pattern 3: Installer — Post-Publish Build Step in CI
 
-**When to use:** For a visual alert that requires no new timer, service, or event system. The stats timer already calls `UpdateStatsDisplay()` on every tick.
+**What:** The existing CI pipeline (`release.yml`) produces a self-contained `FuzzyClock.exe` via `dotnet publish`. An installer wraps this EXE, adds a Start Menu shortcut, optionally registers an uninstaller, and gives users a standard setup experience.
 
-**Trade-offs:**
-- Alert color must be hardcoded (not subject to user theme) — a warning red visible regardless of accent. Suggested: `Color.FromRgb(0xFF, 0x44, 0x00)`.
-- `ApplyTheme()` and `ApplyDisplayColor()` both need an identical battery-section guard. These methods are already parallel (one covers accent path, one covers auto-contrast path) and both must be kept in sync when new battery logic is added.
-- `BatteryAlertEnabled = false` default means no alert on first launch or upgrade — users opt in.
+**Recommended tooling:** Inno Setup (simpler, no new MSBuild project) over WiX for this project's scope.
+
+**Why Inno Setup over WiX:**
+- WiX 4 requires a separate `.wixproj` MSBuild project, NuGet package, and toolchain. Adds ~5 min to build time and a new project to maintain.
+- Inno Setup is a standalone compiler (`iscc.exe`) invoked as a post-build shell step in the CI YAML. No new project file.
+- For a single-EXE widget with a Start Menu shortcut and uninstaller, Inno Setup is sufficient.
+- WiX is justified when you need MSI format, Group Policy integration, or enterprise deployment. None apply here.
+
+**CI integration point:** `.github/workflows/release.yml`, after the `Publish` step and before `Create GitHub Release`.
+
+**New CI step (conceptual):**
+```yaml
+- name: Build Installer
+  run: |
+    choco install innosetup --no-progress -y
+    iscc /DMyAppVersion="${{ github.ref_name }}" installer/FuzzyClockSetup.iss
+    # output: installer/Output/FuzzyClockSetup.exe
+
+- name: Create GitHub Release
+  uses: softprops/action-gh-release@v2
+  with:
+    files: |
+      publish/FuzzyClock.exe
+      installer/Output/FuzzyClockSetup.exe
+    generate_release_notes: true
+```
+
+**New file: `installer/FuzzyClockSetup.iss`** (Inno Setup script, not part of the .NET solution):
+```
+[Setup]
+AppName=FuzzyClock
+AppVersion={#MyAppVersion}
+DefaultDirName={autopf}\FuzzyClock
+DefaultGroupName=FuzzyClock
+OutputBaseFilename=FuzzyClockSetup
+Compression=lzma
+SolidCompression=yes
+
+[Files]
+Source: "..\publish\FuzzyClock.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{group}\FuzzyClock"; Filename: "{app}\FuzzyClock.exe"
+Name: "{commondesktop}\FuzzyClock"; Filename: "{app}\FuzzyClock.exe"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
+
+[Run]
+Filename: "{app}\FuzzyClock.exe"; Description: "Launch FuzzyClock"; Flags: nowait postinstall skipifsilent
+```
+
+**What the installer does NOT need to handle:**
+- Registry auto-launch: `AutoLaunchService` already writes to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` when the user enables it in Settings. The installer should NOT add an auto-launch entry — the user controls this through the app.
+- Settings migration: `SettingsService.Load()` handles absent fields. Upgrade installs are safe.
+- `%LOCALAPPDATA%\FuzzyClock\settings.json`: Created by the app on first run. The installer should NOT create or pre-populate it.
+
+**Uninstall behavior:** Inno Setup generates an uninstaller automatically. It removes the EXE and Start Menu shortcut. It does NOT remove `%LOCALAPPDATA%\FuzzyClock\settings.json` (user data — correct omission).
+
+### Pattern 4: Settings Visual Redesign — XAML-Only Changes
+
+**What:** The current `SettingsWindow.xaml` defines all styles inline in `Window.Resources` using a `SegmentButtonStyle` and `DataTrigger` on the `Tag` property. A visual redesign means changing colors, spacing, control shapes, or layout within `SettingsWindow.xaml`. No architecture changes are needed.
+
+**Integration points:**
+- `SettingsWindow.xaml` — the only file to modify for visual changes
+- `SettingsWindow.xaml.cs` — no changes; all event wiring and `PopulateControls()` logic is unchanged by a visual redesign
+
+**No `ResourceDictionary` migration needed.** The inline styles in `Window.Resources` are appropriate for a single-window style scope. Moving to a shared `ResourceDictionary` would only be justified if styles were shared across multiple windows — `MainWindow` uses no WPF styles (it uses `#01000000` background and element-by-element color application). Adding a `ResourceDictionary` for SettingsWindow alone adds file overhead with no benefit.
+
+**Pattern for selection state without data binding:** The existing `Tag`-based selection state (set in code-behind via `btn.Tag = "selected"` / `btn.Tag = null`) is a well-established pattern for WPF controls where full data binding would be over-engineering. This pattern must be preserved when redesigning — the `SegmentButtonStyle.DataTrigger` watching `Tag` must remain.
+
+**If adding a new tab or section:** Mirror the existing structure — `TabItem` in the root `TabControl`, `StackPanel Margin="12"` content root, `Grid` for two-column label/control layout. The pattern is established in all three existing tabs.
 
 ---
 
 ## Data Flow
 
-### Settings Change Flow
+### Drag + Edge Snap Flow (modified for v3.3)
 
 ```
-User changes setting
-    |
-    +-- Via tray menu callback (WinForms thread)
-    |       Dispatcher.Invoke(...)
-    |
-    +-- Via SettingsWindow.SettingsChanged event (WPF thread, already correct)
+User presses left mouse button on widget
     |
     v
-MainWindow.Set*() or MainWindow.ApplySettings(AppSettings s)
+Grid_MouseLeftButtonDown fires
+    |
+    +-- statsTimerWasRunning = _statsTimer.IsEnabled
+    +-- _statsTimer.Stop() (if was running)
     |
     v
-Updates MainWindow private fields (_accentColor, _dialMode, _phraseLocale, etc.)
+_isDragging = true
+DragMove()   <-- blocking Win32 modal loop; returns when mouse released
+_isDragging = false
+    |
+    +-- LocationChanged fired during DragMove: _hasUserPosition = true
+    +-- Cross-monitor key update (existing)
     |
     v
-Calls ApplyTheme() / PhraseEngine.SetLocale() / UpdateStatsDisplay() etc.
+ApplyEdgeSnap()   <-- NEW in v3.3
+    --> Screen.FromPoint(window center)
+    --> check Left vs WorkingArea.Left and Right edges (threshold = 16 DIPs)
+    --> check Top vs WorkingArea.Top and Bottom edges
+    --> if within threshold: adjust Left/Top to exact edge position
     |
     v
+_statsTimer.Start() (if was running)
 SaveSettings()
-    --> builds new _settings record with { ... } expression
-    --> SettingsService.Save(_settings)
-    --> atomic JSON write to %LOCALAPPDATA%\FuzzyClock\settings.json
+    --> _currentMonitorKey updated
+    --> settings record built with current Left/Top
+    --> SettingsService.Save() atomic JSON write
 ```
 
-### Color Application Pipeline
+### CI Release Flow (modified for v3.3)
 
 ```
-_accentColor (field on MainWindow)
-    |
-    +-- ApplyTheme()
-    |   Applies accent brush to all 20+ UI elements.
-    |   Called when: accent color changes, auto-contrast clears (Cleared event),
-    |   SetTextStyle(), ContentRendered (after InitDialDecorations).
-    |   Battery section: checks _batteryAlertActive → alert color OR accent brush.
-    |
-    +-- ApplyDisplayColor(RgbColor)
-        Applies computed override color to same 20+ elements.
-        Called when: ContrastRefreshController.ColorChanged event fires (500ms tick).
-        Battery section: checks _batteryAlertActive → alert color OR override brush.
-```
-
-### Battery Alert State Flow
-
-```
-_statsTimer.Tick (1s/3s/10s)
+git push tag v3.3
     |
     v
-UpdateStatsDisplay()
-    --> _statsService.Refresh()
-    --> reads BatteryPercent, IsPluggedIn
-    --> computes: _batteryAlertActive =
-            _batteryAlertEnabled &&
-            _statsService.BatteryPercent >= 0f &&
-            _statsService.BatteryPercent < _batteryAlertPercent &&
-            !_statsService.IsPluggedIn
-    --> if _batteryAlertActive: applies alert brush to BattBar/BattText directly
-    --> else: applies accent brush to BattBar/BattText
-
-Next call to ApplyTheme() or ApplyDisplayColor():
-    --> battery section checks _batteryAlertActive flag
-    --> if true: skips writing accent/override color to BattBar/BattText
-    --> if false: writes accent/override color as normal
-```
-
-### Phrase Locale Flow
-
-```
-AppSettings.PhraseLocale = "fr"  (loaded from settings.json or set via SettingsWindow)
+release.yml triggers
+    |
+    +-- dotnet restore
+    +-- dotnet test (224 tests, must pass)
+    +-- dotnet publish → publish/FuzzyClock.exe
+    |
+    v   [NEW in v3.3]
+    +-- choco install innosetup
+    +-- iscc FuzzyClockSetup.iss → installer/Output/FuzzyClockSetup.exe
     |
     v
-ApplySettings(s) calls PhraseEngine.SetLocale(s.PhraseLocale)
-    |
-    v
-_timer.Tick (10s) --> UpdatePhraseIfChanged()
-    --> PhraseEngine.GetPhrase(DateTime.Now) --> FrenchPhraseProvider.GetPhrase()
-    --> PhraseText.Text = French phrase string
+softprops/action-gh-release
+    --> attaches FuzzyClock.exe (portable/xcopy)
+    --> attaches FuzzyClockSetup.exe (installer)
+    --> generates release notes from commits
 ```
+
+### Settings Visual Redesign — No Data Flow Changes
+
+The visual redesign affects only how controls look, not how they behave. Event handlers, `PopulateControls()`, `_suppressEvents` guard, and all 19 per-setting events are unchanged. The flow from user interaction to MainWindow state change is identical.
 
 ---
 
 ## Integration Points: New vs Modified Components
 
-### (a) Settings Window
+### (a) Single-Instance Mutex — NOTHING TO DO
 
-**New components:**
-- `FuzzyClock.App/SettingsWindow.xaml` — standard WPF Window; NOT AllowsTransparency; NOT Topmost
-- `FuzzyClock.App/SettingsWindow.xaml.cs` — constructor accepts `AppSettings` snapshot; exposes `event Action<AppSettings> SettingsChanged`
+**Status:** Fully implemented in `App.xaml.cs` `OnStartup()`.
+
+**Exact location:** Lines 13–24 of `App.xaml.cs`.
+- Mutex name: `"FuzzyClock_SingleInstance_v1"`
+- If `!createdNew`: `Shutdown()` is called before any window is created (no flicker).
+- Released in `OnExit()`.
+
+**v3.3 action:** Document as complete. No code changes.
+
+### (b) Edge Snapping
+
+**New components:** None.
 
 **Modified components:**
 - `MainWindow.xaml.cs`:
-  - Add `private SettingsWindow? _settingsWindow` field
-  - In ContentRendered, add `OpenSettings` to `TrayMenuCallbacks` struct
-  - Subscribe to `_settingsWindow.SettingsChanged` to call `ApplySettings()` + `SaveSettings()`
-- `TrayMenuBuilder.cs`:
-  - Add "Open Settings..." menu item (first item, before Ghost Mode separator)
-  - Add `required Action OpenSettings` to `TrayMenuCallbacks`
-- `TrayMenuCallbacks` record — add `required Action OpenSettings { get; init; }`
+  - Add `private void ApplyEdgeSnap(double threshold = 16.0)` private method
+  - In `Grid_MouseLeftButtonDown`: call `ApplyEdgeSnap()` after `_isDragging = false`, before `SaveSettings()`
 
-**Owner relationship:** `_settingsWindow.Owner = this` must be set before `_settingsWindow.Show()`. This ensures the Settings Window renders in front of the `Topmost=True` overlay. Without Owner, the settings window disappears behind the overlay on Windows 10/11.
+**No changes to:**
+- `AppSettings.cs` (threshold is not user-configurable in v3.3)
+- `SettingsService.cs`
+- `SettingsWindow.xaml.cs`
+- `TrayMenuBuilder.cs`
+- Any test files (snap is a UI-interaction method; not unit-testable in isolation)
 
-### (b) PhraseEngine Multi-Locale Refactor
+### (c) Installer
 
-**New components in FuzzyClock.Core:**
-- `IPhraseProvider.cs` — interface with `GetPhrase(DateTime)` and `GetStructuredPhrase(DateTime)` methods
-- `EnglishPhraseProvider.cs` — current static `Buckets` array, `HourWords` array, and both methods moved verbatim; implements `IPhraseProvider`
-- Additional locale classes as needed (e.g. `FrenchPhraseProvider.cs`)
+**New files:**
+- `installer/FuzzyClockSetup.iss` — Inno Setup script (not part of .NET solution, not in a .csproj)
 
-**Modified components:**
-- `FuzzyClock.Core/PhraseEngine.cs`:
-  - Becomes a static dispatcher
-  - Retains `GetPhrase(DateTime)` and `GetStructuredPhrase(DateTime)` as public static methods (call sites in MainWindow unchanged)
-  - Adds `public static void SetLocale(string locale)` static method
-  - Internal `_provider` field set to `new EnglishPhraseProvider()` by default
-- `FuzzyClock.App/MainWindow.xaml.cs`:
-  - Add `private string _phraseLocale = "en"` field
-  - `ApplySettings(AppSettings s)` calls `PhraseEngine.SetLocale(s.PhraseLocale)` and clears `PhraseText.Text` to force redraw on next tick
-  - `SaveSettings()` includes `PhraseLocale = _phraseLocale` in the settings record expression
-  - `ResetToDefaults()` resets `_phraseLocale = "en"` and calls `PhraseEngine.SetLocale("en")`
-- `FuzzyClock.App/AppSettings.cs` — add `public string PhraseLocale { get; init; } = "en"`
-- `FuzzyClock.App/SettingsService.cs` — add PhraseLocale to `Validate()` (allowed values list) and `Defaults()`
+**Modified files:**
+- `.github/workflows/release.yml`:
+  - Add `Build Installer` step after `Publish` step
+  - Add `installer/Output/FuzzyClockSetup.exe` to the `files:` list in the GitHub Release step
 
-**Test impact:** All existing PhraseEngine unit tests use `PhraseEngine.GetPhrase(DateTime)` with implicit default English provider. They remain valid and pass without modification. New locale tests require explicit `PhraseEngine.SetLocale("fr")` calls with teardown restoring `"en"`.
+**No changes to .NET projects.** The installer consumes the published EXE as an artifact; it has no MSBuild dependency and no NuGet packages.
 
-### (c) Theme Logic
+**Version injection:** Pass `github.ref_name` (e.g. `v3.3`) into the Inno Setup script via `/DMyAppVersion=` on the `iscc` command line.
 
-**No new ThemeService class.** Theme is an accent color preset applied through the existing `ApplyTheme()` method.
+### (d) Settings Visual Redesign
 
-**Modified components:**
-- `FuzzyClock.App/AppSettings.cs` — add `public string Theme { get; init; } = "Default"`
-- `FuzzyClock.App/SettingsService.cs` — add Theme guard in `Validate()`, add to `Defaults()`
-- `FuzzyClock.App/MainWindow.xaml.cs`:
-  - Add `private string _theme = "Default"` field
-  - `ApplyTheme()` — after applying accent brush to all elements, check `_theme` field; apply the theme's background tint (if any) to `ContentBorder.Background`
-  - Add `private void SetTheme(string theme)` — sets `_theme`, derives `_accentColor` from the preset palette, calls `ApplyTheme()`, calls `SaveSettings()`
-  - `ResetToDefaults()` — resets `_theme = "Default"`, calls `SetTheme("Default")`
-  - `ApplySettings(AppSettings s)` — sets `_theme = s.Theme`
-- `TrayMenuBuilder.cs` — new "Theme" submenu in tray menu; new callback `SetTheme` in `TrayMenuCallbacks`
-- `TrayMenuCallbacks` record — add `required Action<string> SetTheme { get; init; }`
+**Modified files:**
+- `SettingsWindow.xaml` — colors, spacing, layout, style updates
 
-**No changes to ContrastRefreshController or ContrastService.** Auto-contrast computes a display color from sampled background pixels, independent of theme.
+**Unchanged files:**
+- `SettingsWindow.xaml.cs` — zero logic changes
+- Any test files — `FuzzyClock.App.Tests` tests `AppSettings` round-trips and `SettingsService.Validate()`, not `SettingsWindow` visuals
 
-### (d) Battery Alert State Flow
-
-**No new service or class.** Alert state is a display flag on MainWindow.
-
-**Modified components:**
-- `FuzzyClock.App/AppSettings.cs`:
-  - Add `public int BatteryAlertPercent { get; init; } = 20`
-  - Add `public bool BatteryAlertEnabled { get; init; } = false`
-- `FuzzyClock.App/SettingsService.cs`:
-  - Add `BatteryAlertPercent` guard (clamp to 1–99 or discrete ladder) in `Validate()`
-  - Add both fields to `Defaults()`
-- `FuzzyClock.App/MainWindow.xaml.cs`:
-  - Add `private bool _batteryAlertActive = false` field
-  - Add `private bool _batteryAlertEnabled = false` field
-  - Add `private int _batteryAlertPercent = 20` field
-  - `UpdateStatsDisplay()` — after reading `BatteryPercent`, compute and set `_batteryAlertActive`; apply alert brush to `BattBar.Background` and `BattText.Foreground` when true
-  - `ApplyTheme()` — in the battery section (lines ~1097–1116 in current code), check `_batteryAlertActive`: if true, apply `Color.FromRgb(0xFF, 0x44, 0x00)` alert brush; if false, apply accent brush
-  - `ApplyDisplayColor(RgbColor)` — same check for `BattBar` and `BattText` elements (lines ~1148–1153 in current code)
-  - `ApplySettings(AppSettings s)` — sets `_batteryAlertEnabled = s.BatteryAlertEnabled`, `_batteryAlertPercent = s.BatteryAlertPercent`
-  - `SaveSettings()` — includes `BatteryAlertEnabled = _batteryAlertEnabled`, `BatteryAlertPercent = _batteryAlertPercent` in record expression
-  - `ResetToDefaults()` — resets `_batteryAlertEnabled = false`, `_batteryAlertPercent = 20`, `_batteryAlertActive = false`
+**Constraints from existing architecture:**
+1. `SegmentButtonStyle` must remain (with `DataTrigger` on `Tag = "selected"`) — code-behind sets `btn.Tag` to reflect selection state
+2. `x:Name` attributes on all controls must be preserved — code-behind references them in `PopulateControls()`, `SetFontSizeButtonStates()`, `SetClockStyleButtonStates()`, `ClearActiveThemeCard()`
+3. `Window.Resources` scope for styles is correct — no need to promote to App-level `ResourceDictionary`
 
 ---
 
-## AppSettings Migration Strategy
+## AppSettings — No New Fields for v3.3 Features
 
-All new fields are added as `{ get; init; }` init-property declarations with explicit `= defaultValue`. This is the established forward/backward JSON compat pattern. Fields absent in an older `settings.json` deserialize to the C# type default (0/false/""), so:
-1. `SettingsService.Defaults()` must use explicit `= value` for all new fields.
-2. `SettingsService.Validate()` must guard each new field against invalid values.
+Edge snap threshold is not persisted (hardcoded 16 DIPs — correct for v3.3 polish scope). If snap attraction edges were to become configurable in a future milestone, the field would follow the standard `{ get; init; } = defaultValue` pattern in `AppSettings.cs` with a guard in `SettingsService.Validate()`.
 
-Fields to add for v3.2:
-
-```csharp
-// AppSettings.cs additions
-public string PhraseLocale         { get; init; } = "en";
-public string Theme                { get; init; } = "Default";
-public int    BatteryAlertPercent  { get; init; } = 20;
-public bool   BatteryAlertEnabled  { get; init; } = false;
-```
-
-No migration code is needed (unlike the v2.6 `MonitorPositions` migration from flat `Left`/`Top`). All new fields are additive with safe defaults on absent keys.
+The installer adds no runtime settings. The visual redesign adds no settings.
 
 ---
 
 ## Build Order Recommendation
 
-Dependencies between v3.2 features determine the safe build order:
-
 | Phase | Feature | Dependencies | Rationale |
 |-------|---------|--------------|-----------|
-| 1 | `IPhraseProvider` + `EnglishPhraseProvider` extraction | None — pure Core refactor | Highest-risk change (touches Core with 51 unit tests); isolated early so failures are contained; no behavioral changes to MainWindow yet |
-| 2 | Settings Window infrastructure | None (uses existing `AppSettings`) | Establishes Owner/event pattern before features need it as a UI surface; can start as a minimal shell that just displays current settings |
-| 3 | Theme presets | Settings Window (UI surface for theme picker) | Extends `ApplyTheme()` — must be stable before battery alert adds another branch to the same method |
-| 4 | Battery alert | Theme done (`ApplyTheme()` stable); Settings Window available | Adds `_batteryAlertActive` guard to `ApplyTheme()` and `ApplyDisplayColor()` — do after theme to avoid concurrent edits to same methods |
-| 5 | Multilingual phrase support | Phase 1 (`IPhraseProvider` done); Phase 2 (Settings Window for locale picker) | Locale providers are additive; no existing code is broken until `SetLocale` is called |
+| 1 | Settings visual redesign | None — XAML-only | Lowest risk; pure visual; no logic to break; can be reviewed quickly |
+| 2 | Edge snapping | None — new private method + one call site | Self-contained; no state changes; easy to verify manually |
+| 3 | Installer script + CI step | Phase 2 done (want stable EXE before packaging) | Installer is an artifact of the build, not a code feature; ships last |
 
 **Ordering rationale:**
-- The PhraseEngine refactor is the only change that touches Core and its test suite. Isolating it first means any test regression is immediately attributable.
-- Settings Window infrastructure before specific features means the UI surface is ready by the time theme and locale controls are implemented, avoiding a situation where settings live in the tray while partially moved.
-- Theme before battery alert because both modify `ApplyTheme()`. Sequential changes to the same method are cleaner than parallel.
-- Locale last because `FrenchPhraseProvider` (or other locales) are pure additions with no risk to existing behavior.
+- Settings redesign first: zero risk of breaking functionality; gives visual confidence before the milestone is complete.
+- Edge snap second: single-method addition to a well-understood call site; manual drag-to-edge testing is fast.
+- Installer last: depends on a stable published EXE. CI step can be tested by running the release workflow on a pre-release tag.
+- Single-instance Mutex is not a phase — it is already done.
 
 ---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: SettingsWindow Owns Live State
+### Anti-Pattern 1: Implementing Edge Snap During the DragMove Loop
 
-**What people do:** Give `SettingsWindow` its own `AppSettings` copy, let it call `SettingsService.Save()` directly, have MainWindow poll settings on next tick.
+**What people do:** Hook `WM_MOUSEMOVE` via `HwndSource.AddHook` to apply snap positions while the user is dragging.
 
-**Why it's wrong:** Creates dual source of truth. MainWindow's private fields (`_accentColor`, `_dialMode`, `_currentTextStyle`, etc.) would be out of sync with what SettingsWindow wrote to disk until the next restart. All 20+ UI elements would display the old values.
+**Why it's wrong:** `DragMove()` is a blocking Win32 modal loop. WPF's dispatcher does not process messages normally during the loop. `HwndSource.AddHook` during a modal loop is unreliable; the WPF thread is blocked in the Win32 `DefWindowProc` drag handling. The project notes in the ghost mode memory section that Win32 mouse tracking is unreliable during modal loops.
 
-**Do this instead:** SettingsWindow fires `SettingsChanged` with a new `AppSettings` snapshot. MainWindow calls `ApplySettings()` then `SaveSettings()` — identical path to tray callbacks.
+**Do this instead:** Apply snap after `DragMove()` returns. The user releases the mouse button and sees the widget snap to the edge. This is the correct UX pattern (Windows' own window snap works the same way).
 
-### Anti-Pattern 2: ShowDialog() for SettingsWindow
+### Anti-Pattern 2: Adding the Installer as a New .NET Project
 
-**What people do:** `settingsWindow.ShowDialog()` for a modal settings experience.
+**What people do:** Create `FuzzyClock.Installer.wixproj` in the solution, add it to `FuzzyClock.slnx`, reference it in the build.
 
-**Why it's wrong:** `ShowDialog()` runs a nested WPF dispatcher loop on the UI thread. All `DispatcherTimer` ticks stop: phrase does not update, stats freeze, auto-contrast stops sampling. The overlay becomes a frozen screenshot while settings are open.
+**Why it's wrong:** WiX 4 requires additional NuGet packages (`WixToolset.Sdk`), a separate project file, and knowledge of WiX's component/feature/package XML model. For a single-EXE installer with a Start Menu shortcut, this is 10x the complexity of an Inno Setup script. It also means `dotnet build` or `dotnet test` commands that iterate over all projects now include a WiX project that doesn't participate in those operations.
 
-**Do this instead:** `Show()` (modeless). Guard with `if (_settingsWindow == null || !_settingsWindow.IsVisible)` to prevent duplicate windows.
+**Do this instead:** Inno Setup script in `installer/FuzzyClockSetup.iss`, invoked by a CI YAML step using `iscc.exe`. The script is a self-contained artifact — not in the .slnx file, not referenced by any .csproj.
 
-### Anti-Pattern 3: ThemeService as a Separate Stateful Class
+### Anti-Pattern 3: Making Edge Snap a Configurable Setting in v3.3
 
-**What people do:** Create a `ThemeService` with its own color dictionaries, inject it into MainWindow, have it fire events when theme changes.
+**What people do:** Add `SnapThreshold` to `AppSettings`, expose it in SettingsWindow, write unit tests for it.
 
-**Why it's wrong:** No DI container, no reactive binding framework. There would be two write paths to the same `TextBlock.Foreground` properties: `ApplyTheme()` and the new `ThemeService`. Race conditions and stale colors are inevitable.
+**Why it's wrong:** 16 DIPs is the correct snap threshold for a standard desktop widget. Making it configurable requires a new `AppSettings` field, a new Validate guard, a new Defaults entry, a new UI control, and new test coverage — all for a value that 99% of users will never change. Polish phase scope should be minimum viable changes.
 
-**Do this instead:** Extend `ApplyTheme()`. Add a `_theme` field to MainWindow alongside `_currentTextStyle`. A theme preset is just a named value for `_accentColor` plus an optional `ContentBorder` background tint.
+**Do this instead:** Hardcode `const double SnapThreshold = 16.0` as a `private const` in `MainWindow.xaml.cs`. Add it as a named constant rather than a magic number. Move to `AppSettings` only if user feedback specifically requests it.
 
-### Anti-Pattern 4: PhraseEngine Loads Phrase Tables from Files at Runtime
+### Anti-Pattern 4: Moving SettingsWindow Styles to App.xaml ResourceDictionary
 
-**What people do:** Store locale phrase templates in embedded resources or JSON files. Load them in `PhraseEngine.SetLocale()` via `Assembly.GetManifestResourceStream()`.
+**What people do:** During a visual redesign, "clean up" by moving `SettingsWindow.xaml`'s `Window.Resources` styles into `App.xaml` so they are "reusable."
 
-**Why it's wrong:** `FuzzyClock.Core` is a pure, no-I/O library. Test projects rely on this for deterministic, side-effect-free unit testing. Introducing resource loading adds a failure mode (missing resource, bad manifest path) that does not currently exist. It also forces tests to depend on build artifact layout.
+**Why it's wrong:** `MainWindow` does not use any WPF styles — it applies all colors programmatically via `ApplyTheme()` and `ApplyDisplayColor()`. The `SegmentButtonStyle` is specific to SettingsWindow's toggle-button pattern. Moving it to App.xaml pollutes the Application scope with a style no other window uses and risks accidental application of `TargetType="Button"` styles to unexpected controls.
 
-**Do this instead:** Embed phrase templates as `private static readonly` arrays inside the `*PhraseProvider` class. Compiled directly into the assembly — no runtime file I/O, no path resolution, no resource loading.
-
-### Anti-Pattern 5: Modifying BattBar/BattText Color Only in UpdateStatsDisplay
-
-**What people do:** Set the alert color for battery elements only in `UpdateStatsDisplay()`, and not add any guard in `ApplyTheme()` or `ApplyDisplayColor()`.
-
-**Why it's wrong:** `ApplyTheme()` is called when the user changes accent color or the auto-contrast contrast controller fires `Cleared`. Both of these happen independently of the stats timer. Without the `_batteryAlertActive` check in those methods, changing accent color while battery is in alert state would overwrite the alert color with the new accent color.
-
-**Do this instead:** Check `_batteryAlertActive` in both `ApplyTheme()` and `ApplyDisplayColor()` for the battery elements. `UpdateStatsDisplay()` sets the flag; color-application methods respect it.
+**Do this instead:** Keep styles in `SettingsWindow.xaml`'s `Window.Resources`. This is the correct scope.
 
 ---
 
 ## Scaling Considerations
 
-This is a single-user desktop widget. Scale means code maintainability, not user load.
+This is a single-user desktop widget. Scale means code maintainability.
 
 | Concern | Current state | Threshold | What to do |
 |---------|--------------|-----------|------------|
-| MainWindow line count | ~1300 lines | ~1800 lines | Extract display helpers to partial class or dedicated DisplayCoordinator |
-| AppSettings field count | 20 fields | 35+ fields | Consider grouping into nested records — but that is a breaking JSON change requiring migration code |
-| Tray menu item count | ~30 items | ~50 items | Settings Window takes over most settings; tray reduces to: Open Settings / Ghost Mode / Auto-Launch / Reset / Quit |
+| MainWindow line count | ~1450 lines | ~1800 lines | Extract display helpers to `MainWindow.Display.cs` partial class |
+| AppSettings field count | ~25 fields | 35+ fields | Consider nested records — but JSON format breaks without migration |
+| Installer complexity | Single EXE | Multiple files, prerequisites | Switch from Inno Setup to WiX only if distributing multiple files or requiring .NET runtime installation check |
+| CI build time | ~2 min | ~8 min | Inno Setup step adds ~30s; acceptable |
 
 ---
 
 ## Sources
 
-All findings derived directly from source code and project documentation, no external verification required.
+All findings derived directly from source code; no external verification required.
 
 | Source | What was examined |
 |--------|------------------|
-| `FuzzyClock.App/MainWindow.xaml.cs` | Full file (~1224 lines): all fields, ApplySettings, SaveSettings, ApplyTheme, ApplyDisplayColor, UpdateStatsDisplay, TrayMenuCallbacks wiring, ContentRendered |
-| `FuzzyClock.App/AppSettings.cs` | All 20 init-property fields and their defaults |
-| `FuzzyClock.App/SettingsService.cs` | Load/Validate/Save/Defaults; all existing guards |
-| `FuzzyClock.App/TrayMenuBuilder.cs` | TrayMenuState, TrayMenuCallbacks, TrayMenuBuilder class |
-| `FuzzyClock.App/ContrastRefreshController.cs` | ColorChanged/Cleared event contract; Initialize() signature |
-| `FuzzyClock.Core/PhraseEngine.cs` | Full file: static class, Buckets, HourWords, GetPhrase, GetStructuredPhrase |
-| `FuzzyClock.Core/ContrastService.cs` | RgbColor struct, ContrastState enum; module boundary |
-| `.planning/PROJECT.md` | Architecture decisions, v2.3 ghost mode patterns |
-| `.planning/MILESTONES.md` | v2.3–v3.1 implementation notes |
+| `FuzzyClock.App/App.xaml.cs` | Full file: Mutex implementation, hiddenOwner pattern, OnStartup/OnExit |
+| `FuzzyClock.App/MainWindow.xaml.cs` | `Grid_MouseLeftButtonDown` (drag flow), `PositionTopRight`, `SettingsService.Clamp` call sites, `_isDragging` field usage |
+| `FuzzyClock.App/SettingsWindow.xaml` | Full XAML: `Window.Resources`, `SegmentButtonStyle`, `DataTrigger` pattern, `x:Name` attributes |
+| `FuzzyClock.App/SettingsWindow.xaml.cs` | Constructor, `PopulateControls`, `_suppressEvents`, `SetFontSizeButtonStates`, `SetClockStyleButtonStates` |
+| `FuzzyClock.App/TrayMenuBuilder.cs` | `TrayMenuCallbacks` record (all 7 required actions), `Build()` signature |
+| `FuzzyClock.App/SettingsService.cs` | `Clamp()` method, `Save()` atomic write pattern |
+| `FuzzyClock.App/FuzzyClock.App.csproj` | `UseWindowsForms=true`, target framework, `AssemblyName` |
+| `.github/workflows/release.yml` | Full workflow: restore/test/publish/release steps |
+| `.planning/PROJECT.md` | v2.3 ghost mode patterns (Win32 modal loop behavior during DragMove) |
 
 ---
-*Architecture research for: FuzzyClock v3.2 — Settings Window, themes, battery alert, phrase styles, multilingual*
-*Researched: 2026-03-08*
+*Architecture research for: FuzzyClock v3.3 — Polish + Installer (single-instance, edge snapping, installer, Settings visual redesign)*
+*Researched: 2026-03-17*

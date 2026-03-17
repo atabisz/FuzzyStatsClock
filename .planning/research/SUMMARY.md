@@ -1,173 +1,169 @@
 # Project Research Summary
 
-**Project:** FuzzyClock v3.2 — Settings Window, Themes, Battery Alert, Phrase Styles, Multilingual
-**Domain:** WPF desktop overlay widget — feature expansion on mature codebase
-**Researched:** 2026-03-08
+**Project:** FuzzyStatsClock v3.3 — Polish + Installer
+**Domain:** WPF desktop overlay widget — distribution packaging, single-instance UX, edge snapping, settings polish
+**Researched:** 2026-03-17
 **Confidence:** HIGH
 
 ## Executive Summary
 
-FuzzyClock v3.2 is a feature expansion on a mature, tested WPF overlay widget (.NET 10, 122 tests, ~1300-line MainWindow). The milestone adds five distinct capabilities: a tabbed settings window to replace the unwieldy 40-item tray menu, five named visual themes, a battery low alert, English phrase style personalities (Terse/Poetic/Rude), and native phrase sets for French, Spanish, German, and Japanese. All additions use only built-in BCL and WPF types — zero new NuGet packages are required. The single csproj change is adding `<NeutralLanguage>en</NeutralLanguage>` to `FuzzyClock.Core.csproj` to enable satellite assembly generation for localization.
+FuzzyStatsClock v3.3 is a polish-and-distribution milestone on a mature, well-tested WPF overlay widget (.NET 10, 224 tests, ~1450-line MainWindow). The milestone has four features: a per-user installer that packages the app for normal end-user distribution, a single-instance bring-to-front fix (replacing the current silent-exit behavior), edge snapping when dragging near screen edges, and a dark visual redesign of the settings window. No new NuGet packages are required if Inno Setup is chosen for the installer (the recommendation). All four features are additive and do not touch `FuzzyClock.Core`, `AppSettings`, or `SettingsService`.
 
-The recommended approach is to build features in strict dependency order: PhraseEngine refactor first (highest-risk Core change, isolated early), then Settings Window infrastructure, then Themes (extends `ApplyTheme()` which must be stable), then Battery Alert (also modifies `ApplyTheme()`), then Multilingual phrases (pure additive once provider interface exists). Every feature routes settings changes through the existing `MainWindow.Set*()`/`ApplySettings()` pattern — the Settings Window must never write to `AppSettings` or `SettingsService` directly, and must use `Show()` (modeless) not `ShowDialog()`.
+The recommended approach prioritizes the lowest-risk visual work first (settings window redesign), then the self-contained UI improvement (edge snapping), then the distribution artifact (installer + CI step). The single-instance Mutex is already implemented; the only remaining work is adding `AbandonedMutexException` handling and a named-pipe bring-to-front signal. The key architectural decisions are: use **Inno Setup** (not Velopack) for the installer — it requires no app code changes, no custom `Main`, and no new NuGet packages, and the user requirement is simply "download Setup.exe, run it, upgrades in-place"; use **post-DragMove** edge snap (not a WM_MOVING hook) — `DragMove()` is a blocking Win32 modal loop and `HwndSource.AddHook` during it is unreliable, as documented by the project's own ghost mode notes.
 
-The dominant risks are cross-cutting: (1) the battery alert color must be guarded in both `ApplyTheme()` and `ApplyDisplayColor()` or auto-contrast will override it every 500ms; (2) every new `AppSettings` field requires a three-part atomic update (field declaration + `Defaults()` entry + `Validate()` guard + `SaveSettings() with {}` expression) or settings silently revert on every drag; (3) the multilingual `GetStructuredPhrase()` must stay consistent with `GetPhrase()` per style and language, and all four non-English languages need exhaustive 1440-minute test coverage before being considered done.
+The dominant risks are: (1) edge snap threshold must be 8px or less — a 16-20px threshold overwrites intentional near-edge placements and conflicts with per-monitor position memory; (2) `UpdateLayout()` must be called before snap computation or the snap position is wrong for variable-width `SizeToContent` windows; (3) the auto-launch registry entry must be reconciled on every startup and cleaned up by the installer on upgrade/uninstall, or users end up with broken startup entries after path changes; (4) styles added during the settings redesign must stay inside `SettingsWindow.xaml`'s `Window.Resources` — any implicit style in `App.xaml` will leak to MainWindow and corrupt the overlay appearance.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack handles all v3.2 requirements without additions. WPF's built-in `TabControl`/`TabItem` (already available via `UseWPF=true`) is the correct choice for the settings window — no third-party UI toolkit. For localization, `System.Resources.ResourceManager` (BCL inbox) with `.resx` files per locale is the right tool for a no-DI WPF app; `IStringLocalizer` requires `Microsoft.Extensions.Hosting` which this project deliberately avoids. Phrase style personalities are implemented as parallel static bucket arrays in `FuzzyClock.Core` — no runtime file I/O, no resource loading.
+All v3.3 features use only existing project dependencies or external tools invoked from CI. No new NuGet packages are needed.
 
 **Core technologies:**
-- `.NET 10 WPF` (`net10.0-windows`): unchanged; `TabControl` is built in via `UseWPF=true`
-- `System.Resources.ResourceManager` (BCL inbox): `.resx` locale lookup for multilingual phrases — no NuGet needed
-- `CultureInfo.CurrentUICulture` (BCL inbox): Windows display language detection — NOT `CurrentCulture` (that controls formatting, not UI language)
-- `MSTest 4.0.1`: existing test framework; new tests follow established `[DataRow]` patterns unchanged
-- One csproj change only: `<NeutralLanguage>en</NeutralLanguage>` in `FuzzyClock.Core.csproj`
+- **Inno Setup 6.x** (standalone `iscc.exe`, not in solution): per-user installer — installs to `{localappdata}\Programs\FuzzyClock`, registers uninstall entry, creates Start Menu shortcut, no UAC; invoked from CI YAML as a post-publish shell step with no `.wixproj` or MSBuild integration
+- **`System.Threading.Mutex` (BCL)**: single-instance guard — already implemented as `"FuzzyClock_SingleInstance_v1"`; add `AbandonedMutexException` catch so crash-restart works
+- **`System.IO.Pipes.NamedPipeServerStream` (BCL)**: bring-to-front IPC — running instance listens on a named pipe; second instance connects, writes `"ACTIVATE"`, exits; server dispatches `Activate()` on UI thread; pure managed code, no P/Invoke
+- **WPF `ThemeMode="Dark"` (PresentationFramework.Fluent, .NET 9+/10)**: dark settings window — XAML attribute on `SettingsWindow` only; applies Fluent dark to all standard controls; main overlay window is unaffected; set as XAML attribute (not from C# code, which generates WPF0001 warning)
+- **Post-DragMove edge snap** (`Screen.FromPoint` + `WorkingArea`, WinForms already available via `UseWindowsForms=true`): snap to screen edges — called in `Grid_MouseLeftButtonDown` after `DragMove()` returns, before `SaveSettings()`
+
+**What NOT to use:**
+- Velopack: requires a custom `[STAThread] static void Main` with `VelopackApp.Build().Run()`, a csproj NuGet addition, and `App.xaml` Build Action change to `Page` — disproportionate refactor for the stated requirement; Inno Setup delivers the same user experience with zero app code changes
+- WM_MOVING hook for edge snap: fires continuously during `DragMove()`'s modal loop; WPF dispatcher does not process messages normally during the loop; unreliable per the project's own ghost mode documentation
+- `Application.ThemeMode="Dark"` (app-wide): would apply Fluent dark to the transparent frameless main overlay — wrong aesthetic
+- App.xaml `ResourceDictionary` for settings styles: implicit styles leak globally to MainWindow
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Settings window (3 tabs: Appearance / Stats / Behavior) — tray menu has 40+ items; discoverability is broken for existing users
-- Battery low alert (red row when `<20%` and unplugged) — universal OS pattern; every battery indicator does this
-- Named themes (5 presets) — every mature desktop customization tool offers named presets; one-click look change
+- Per-user installer (no UAC prompt) — every distributed Windows utility ships this way; absence signals unfinished product
+- Uninstall entry in Add/Remove Programs — Windows 11 users expect this; Inno Setup registers it automatically
+- Start Menu shortcut — users expect to launch without hunting for the EXE
+- Single-instance bring-to-front — current silent-exit is wrong for distribution; users re-launch thinking the app crashed
 
 **Should have (differentiators):**
-- Phrase style personalities (Terse / Poetic / Rude) — unique differentiator; no other fuzzy clock offers vocabulary personalities
-- French, Spanish, German phrase sets — native cultural phrasing, not word-for-word translation; German "halb" convention is distinctively charming
-- Japanese phrase set — distinctly different structure (Arabic numerals + 時); medium complexity
+- Edge snapping — Rainmeter, all major desktop widgets snap to edges; free-floating widget feels unfinished; 20px threshold from FEATURES.md is overridden — use 8px per PITFALLS.md to avoid overwriting intentional near-edge positions
+- Dark settings window — current light `#F0F0F5` palette clashes severely with a dark transparent overlay; jarring for dark-mode Windows users
 
-**Defer (v3.x+):**
-- Live theme preview in settings window — two-window coupling complexity; apply on OK is acceptable
-- Theme editor / custom named themes — requires separate storage and rename UI; scope bloat
-- Additional languages (Italian, Portuguese, Dutch) — validate demand first
-- Per-locale date format defaults — too many combinations to spec now
+**Defer (v3.3.x / v4+):**
+- About section in Settings (version + GitHub URL) — low complexity; add after validation
+- Auto-update notification — requires async HTTP, version comparison, update-available UX; scope for v4+
+- MSIX/Store packaging — only if submitting to Microsoft Store
+- Code-signing certificate — worthwhile when install count grows; not cost-justified at hobby stage
+- SmartScreen guidance — README documentation, not code; add in installer phase
 
 ### Architecture Approach
 
-The architecture follows the established single-owner pattern: `MainWindow` is the authoritative owner of all live state; all settings changes route through it. The Settings Window is a modeless owner-child WPF Window that fires `event Action<AppSettings> SettingsChanged` — MainWindow subscribes and calls `ApplySettings()` + `SaveSettings()`. The PhraseEngine gains an `IPhraseProvider` interface with `EnglishPhraseProvider` as the default; `PhraseEngine.SetLocale(string)` swaps providers at runtime. No ThemeService class is needed — themes are applied via a new `ApplyNamedTheme()` batch method on MainWindow that mutates all private fields then calls `ApplyTheme()` + `UpdateLayout()` + `SaveSettings()` exactly once.
+All four v3.3 features fit within the existing component structure without new classes. `MainWindow.xaml.cs` gains one private method (`ApplyEdgeSnap()`). `App.xaml.cs` gains `AbandonedMutexException` handling and a named-pipe listener task. `SettingsWindow.xaml` gets a visual overhaul (XAML-only, no logic changes). A new `installer/FuzzyClockSetup.iss` file is added outside the .NET solution. The CI `release.yml` gains one step after publish.
 
 **Major components:**
-1. `SettingsWindow` (new in App) — modeless WPF Window; `Owner=MainWindow`; exposes `SettingsChanged` event; never calls `SettingsService.Save()` directly
-2. `IPhraseProvider` + `*PhraseProvider` classes (new in Core) — per-language bucket tables as static readonly arrays; no runtime I/O; `PhraseEngine` becomes a static dispatcher
-3. `ThemeDefinition` / `BuiltInThemes` (new in App) — static registry of 5 preset bundles applied via batch `ApplyNamedTheme()`
-4. `AppSettings` extensions — four new init-property fields: `PhraseLocale`, `Theme`, `BatteryAlertPercent`, `BatteryAlertEnabled`
-5. `MainWindow` modifications — `_batteryAlertActive` flag; battery row guard in both `ApplyTheme()` and `ApplyDisplayColor()`; `_settingsWindow` field with null/not-visible single-instance guard
+1. `App.xaml.cs` — add `AbandonedMutexException` catch; add named-pipe server task for bring-to-front; second-instance path connects as client and writes `"ACTIVATE"` before exiting
+2. `MainWindow.xaml.cs` — add `private void ApplyEdgeSnap()` called post-DragMove after `_isDragging = false` and after `UpdateLayout()`; uses `Screen.FromPoint` + `WorkingArea`; threshold constant `EdgeSnapThreshold = 8.0`
+3. `SettingsWindow.xaml` — add `ThemeMode="Dark"` XAML attribute; set `Background="#1E1E1E"`; add dark styles for CheckBox, RadioButton, ComboBox, Slider, Button, TabControl/TabItem inside `Window.Resources`; update `SegmentButtonStyle` colors; no changes to `SettingsWindow.xaml.cs`
+4. `installer/FuzzyClockSetup.iss` — Inno Setup script (outside .slnx); per-user install to `{localappdata}\Programs\FuzzyClock`; removes auto-launch Run entry on upgrade/uninstall; version injected via `/DMyAppVersion=` on `iscc` command line
+5. `.github/workflows/release.yml` — add `Build Installer` step (`choco install innosetup` + `iscc`); add `FuzzyClockSetup.exe` to GitHub Release artifacts
 
 ### Critical Pitfalls
 
-1. **Settings Window writes AppSettings directly** — widget live state and JSON diverge permanently. Route ALL changes through `MainWindow.Set*()` callbacks (extend `TrayMenuCallbacks` pattern). Architectural constraint, not optional.
+1. **Edge snap threshold too aggressive (8px hard limit)** — thresholds of 16-20px overwrite intentional near-edge placements and permanently corrupt per-monitor position memory; define as `private const double EdgeSnapThreshold = 8.0` and never exceed it; the ARCHITECTURE.md threshold of 16px is overridden by PITFALLS.md's analysis — 8px is correct
 
-2. **Battery alert overridden by auto-contrast** — `ApplyDisplayColor()` fires every 500ms and resets battery row to black/white, erasing the red alert. Guard the battery row in BOTH `ApplyTheme()` and `ApplyDisplayColor()` with `_batteryAlertActive` bool. Must be done at implementation time, not as a followup.
+2. **Edge snap without `UpdateLayout()` first gives wrong right/bottom snap position** — `SizeToContent=WidthAndHeight` means `ActualWidth`/`ActualHeight` are stale until a layout pass; call `UpdateLayout()` synchronously after `DragMove()` returns and before `ApplyEdgeSnap()` reads `ActualWidth`; same pattern already used in `UpdatePhraseIfChanged()`
 
-3. **New AppSettings fields missing from SaveSettings() or Validate()** — setting silently reverts to default on every drag (which calls `SaveSettings()`). Three-part atomic commit: field in record + `Defaults()` entry + `Validate()` guard + row in `SaveSettings() with {}`. Verified by round-trip test for each field.
+3. **Implicit WPF styles added to App.xaml leak globally to MainWindow** — any `Style` with `TargetType` and no `x:Key` in `Application.Resources` applies to every matching element in the entire app including the overlay; all settings redesign styles must stay in `SettingsWindow.xaml`'s `<Window.Resources>` block; never add unkeyed styles to `App.xaml`
 
-4. **Missing multilingual bucket coverage** — any minute not covered by a bucket causes `InvalidOperationException` at runtime within minutes of switching language. Every language needs all 12 buckets exhaustively covered and a 1440-minute completeness test.
+4. **Auto-launch registry entry not reconciled on startup or cleaned up by installer** — `AutoLaunchService` writes the Run entry with the current EXE path; if the install path changes (portable-to-installed or version upgrade), the old entry points to the wrong path; `ApplySettings()` must always call `AutoLaunchService.Enable/Disable` unconditionally (idempotent reconciliation), and the installer must delete the Run entry on upgrade and uninstall
 
-5. **GetStructuredPhrase() inconsistency after PhraseEngine refactor** — split layout shows Classic qualifier text while phrase text shows Terse/Poetic/Rude form. `GetPhrase()` and `GetStructuredPhrase()` must accept identical parameters and produce consistent output; update both atomically per style.
+5. **`AbandonedMutexException` not handled — crash leaves app unlaunchable** — if FuzzyClock crashes without releasing the Mutex, the next launch throws `AbandonedMutexException` instead of acquiring the Mutex; the app crashes immediately on every subsequent launch until a reboot; wrap Mutex construction in `try/catch (AbandonedMutexException)` and treat it as `createdNew = true`
 
 ## Implications for Roadmap
 
-Based on the combined research, the recommended build order is strictly determined by code dependencies. All four research files independently converge on the same sequencing.
+Based on combined research, the recommended build order is determined by risk profile and dependency. Architecture.md and Pitfalls.md independently converge on the same three-phase structure.
 
-### Phase 1: PhraseEngine Provider Refactor
+### Phase 1: Settings Window Visual Redesign
 
-**Rationale:** The highest-risk change in the milestone. Touches `FuzzyClock.Core` with 51 existing unit tests. Isolating it first means any test regression is immediately attributable; no behavioral changes to MainWindow yet. All subsequent phrase features (styles + multilingual) depend on `IPhraseProvider` existing.
-**Delivers:** `IPhraseProvider` interface; `EnglishPhraseProvider` with existing Classic bucket table moved verbatim; `PhraseEngine` becomes static dispatcher with `SetLocale()`; all 122 existing tests pass unchanged.
-**Addresses:** Infrastructure for phrase style and multilingual features
-**Avoids:** Pitfall 13 (GetStructuredPhrase inconsistency — interface contract established before styles are added); Pitfall 14 (test coverage gaps — baseline verified before new code paths added)
+**Rationale:** Zero risk to functionality — pure XAML changes with no logic changes to `SettingsWindow.xaml.cs`. Can be reviewed visually and rolled back instantly if anything looks wrong. No dependencies on other v3.3 features. Delivers the most user-visible polish immediately and builds confidence before more complex changes.
+**Delivers:** Dark `SettingsWindow.xaml` with `ThemeMode="Dark"`, `Background="#1E1E1E"`, dark styles for all control types inside `Window.Resources`, updated `SegmentButtonStyle` colors, no behavioral changes.
+**Addresses:** Dark settings window (differentiator feature)
+**Avoids:** Pitfall 6 (styles in `Window.Resources` only, never `App.xaml`), Pitfall 9 (if new controls are added, update `SettingsSnapshot` in the same commit)
 
-### Phase 2: Settings Window Infrastructure
+### Phase 2: Edge Snapping + Single-Instance Bring-To-Front
 
-**Rationale:** Establishes the Owner/event/callback pattern before any feature needs it as a UI surface. Starting as a minimal shell (3 tabs, populated from AppSettings snapshot, fires SettingsChanged) proves the architecture before building controls. Must be non-modal (`Show()` not `ShowDialog()`).
-**Delivers:** `SettingsWindow.xaml/.cs`; "Open Settings..." tray item; `_settingsWindow` field on MainWindow with single-instance guard; `Owner = this` before `Show()`; `SettingsChanged` event wired to `ApplySettings()` + `SaveSettings()`.
-**Addresses:** Settings window (table-stakes feature; tray menu discoverability)
-**Avoids:** Pitfall 1 (direct AppSettings writes), Pitfall 2 (stale state on open — populate from live state on every open), Pitfall 3 (Z-order — Owner set before Show), Pitfall 10 (tray/settings divergence — document populate-on-open strategy)
+**Rationale:** Both features touch `App.xaml.cs` / `MainWindow.xaml.cs` only, affect no other components, and are independently testable by manual interaction. Grouping them in one phase is efficient. Edge snap is the single-method addition (`ApplyEdgeSnap()`); bring-to-front is the Mutex + named-pipe fix. Neither has CI or installer dependencies.
+**Delivers:** `ApplyEdgeSnap()` private method in `MainWindow.xaml.cs` (post-DragMove, after `UpdateLayout()`, 8px threshold); `AbandonedMutexException` catch in `App.xaml.cs`; named-pipe server task (running instance) + client connection (second instance) for bring-to-front.
+**Addresses:** Edge snapping (differentiator), single-instance bring-to-front (table stakes)
+**Avoids:** Pitfall 3 (AbandonedMutexException crash loop), Pitfall 4 (ghost mode flicker — snap only post-DragMove, never on LocationChanged), Pitfall 5 (UpdateLayout before snap), Pitfall 8 (threshold constant 8px)
 
-### Phase 3: Named Themes
+### Phase 3: Installer + CI Integration
 
-**Rationale:** Extends `ApplyTheme()` — must be stable before battery alert adds another branch to the same method. Settings Window is the UI surface for the theme picker. The batch-apply pattern (`ApplyNamedTheme()`) must be established here before battery alert is added to the same methods.
-**Delivers:** `ThemeDefinition` record; `BuiltInThemes` static registry (5 presets: Night Owl, Desert, Tundra, Hacker, Pastel); `ApplyNamedTheme()` batch method on MainWindow; Theme section in Appearance tab; `AppSettings.Theme` field with `Validate()` guard and round-trip test.
-**Addresses:** Named themes (table-stakes feature)
-**Avoids:** Pitfall 5 (partial element coverage — run amber/ice-blue visual test after every UI addition); Pitfall 6 (non-atomic theme apply — batch method required from the start, not sequential Set* calls)
-
-### Phase 4: Battery Low Alert
-
-**Rationale:** Modifies the same `ApplyTheme()` and `ApplyDisplayColor()` methods as the theme phase. Sequential changes to these methods are cleaner than parallel. Battery alert logic is simple but must interact correctly with auto-contrast from day one.
-**Delivers:** `_batteryAlertActive` bool; `BatteryAlertEnabled`/`BatteryAlertPercent` AppSettings fields; red override (`#FFFF4444`) in `UpdateStatsDisplay()`, `ApplyTheme()`, `ApplyDisplayColor()`; battery alert section in Stats tab; round-trip tests for both new fields.
-**Addresses:** Battery low alert (table-stakes feature)
-**Avoids:** Pitfall 11 (auto-contrast conflict — `_batteryAlertActive` guard added at implementation time in both color methods); Pitfall 4 (missing Validate guard); Pitfall 12 (missing SaveSettings field)
-
-### Phase 5: English Phrase Style Personalities
-
-**Rationale:** English-only, depends only on Phase 1 (IPhraseProvider). Does not modify `ApplyTheme()` or UI layout — low interference with surrounding work. Lower risk than multilingual; validates the IPhraseProvider signature before non-English providers add grammatical complexity.
-**Delivers:** `PhraseStyle` enum (Classic/Terse/Poetic/Rude); three new bucket tables in `EnglishPhraseProvider`; `GetPhrase(dt, style)` and `GetStructuredPhrase(dt, style)` consistent overloads; Phrase Style selector in Behavior tab (disabled for non-English); `AppSettings.PhraseStyle` field; per-style bucket tests + consistency invariant test.
-**Addresses:** Phrase style personalities (signature differentiator)
-**Avoids:** Pitfall 13 (both methods updated atomically); Pitfall 14 (each style gets its own test class with per-bucket DataRow coverage)
-
-### Phase 6: Multilingual Phrases (fr / es / de / ja)
-
-**Rationale:** Purely additive to the IPhraseProvider interface from Phase 1. No existing code paths are affected until `SetLocale()` is called. Each language provider is a self-contained class. German token inversion ("halb {h1}" = :30) and Japanese GetStructuredPhrase fallback are pre-resolved by research.
-**Delivers:** `FrenchPhraseProvider`, `SpanishPhraseProvider`, `GermanPhraseProvider`, `JapanesePhraseProvider`; `CultureInfo.CurrentUICulture`-based auto-detection; `AppSettings.PhraseLocale` field; Phrase Language ComboBox in Behavior tab; exhaustive 1440-minute tests per language; `<NeutralLanguage>en</NeutralLanguage>` csproj addition.
-**Addresses:** Multilingual phrase sets (differentiator)
-**Avoids:** Pitfall 7 (must use `CurrentUICulture`, not `CurrentCulture`); Pitfall 8 (all 12 buckets covered, exhaustive test required per language); Pitfall 9 (Japanese GetStructuredPhrase returns `("", fullPhrase)` for all non-English; split layout documented as English-Classic only)
+**Rationale:** Depends on a stable, tested published EXE from the prior phases. The installer wraps the artifact — it is the last step before the release. CI changes are verified by running the release workflow on a pre-release tag. Auto-launch registry cleanup must be implemented here to avoid the orphaned-entry pitfall.
+**Delivers:** `installer/FuzzyClockSetup.iss` (Inno Setup script); per-user install to `{localappdata}\Programs\FuzzyClock`; Start Menu shortcut; uninstall entry; auto-launch Run entry cleanup on upgrade/uninstall; `ApplySettings()` idempotent auto-launch reconciliation fix; `.github/workflows/release.yml` updated with installer build step and dual-artifact release; SmartScreen documentation in README.
+**Addresses:** Per-user installer (table stakes), uninstall entry (table stakes), Start Menu shortcut (table stakes)
+**Avoids:** Pitfall 1 (SmartScreen — document workaround before release), Pitfall 2 (orphaned auto-launch entry on upgrade), Pitfall 7 (auto-launch path stale after first install from portable)
 
 ### Phase Ordering Rationale
 
-- **Phase 1 first** — only change to `FuzzyClock.Core` and its 51-test suite. Regression isolation is the priority; if anything breaks here it is immediately visible with no MainWindow noise.
-- **Phase 2 before Phases 3–6** — Settings Window is the UI surface for all subsequent features. Building infrastructure before features avoids rebuilding controls later.
-- **Phase 3 before Phase 4** — both modify `ApplyTheme()` and `ApplyDisplayColor()`; sequential edits to these methods are cleaner than parallel; `ApplyNamedTheme()` established in Phase 3 must not be broken by Phase 4.
-- **Phase 5 before Phase 6** — phrase styles are lower risk (English-only, well-understood pattern) and validate the IPhraseProvider signature before non-English providers introduce grammatical complexity.
-- **Phase 6 last** — purely additive, highest content volume (4 languages × 12 buckets each), and no other features depend on it.
+- **Settings redesign first** — zero functional risk; pure visual; gives the milestone a visual win immediately; any XAML mistake is immediately visible and easily reverted without affecting any other code path
+- **Edge snap + single-instance second** — both are self-contained `MainWindow`/`App` changes; neither requires a stable build artifact; can be verified by manual interaction within minutes of implementation; single-instance bring-to-front adds named-pipe code that is best verified before packaging
+- **Installer last** — depends on a stable EXE to wrap; auto-launch cleanup is a prerequisite that is also resolved in this phase; CI changes are the highest-ceremony changes and should happen after all code is stable
+- **Single-instance Mutex is already done** — only the crash-recovery (`AbandonedMutexException`) and bring-to-front (named pipe) increments are needed; these are small additions in Phase 2
 
 ### Research Flags
 
-Phases with well-documented patterns (standard — skip `/gsd:research-phase`):
-- **Phase 1** — IPhraseProvider pattern is standard C# strategy; existing code structure fully understood from source inspection
-- **Phase 2** — WPF Window Owner/event pattern is official-docs-documented; TrayMenuCallbacks is the existing model
-- **Phase 3** — theme-as-named-preset is well-understood; no external dependencies; all setter paths already exist
-- **Phase 4** — battery alert is a conditional color branch; StatsService already reads the data; guard pattern is directly specified
+Phases with well-documented patterns — skip `/gsd:research-phase`:
+- **Phase 1 (Settings visual redesign):** Pure XAML color changes on an existing window with an established style structure; `ThemeMode="Dark"` is officially documented; all patterns are known
+- **Phase 2 (Edge snap + single-instance):** Post-DragMove snap is a one-method addition; Mutex + NamedPipe bring-to-front is a well-documented .NET pattern (~40 lines); no external APIs
+- **Phase 3 (Installer):** Inno Setup is mature with comprehensive documentation; CI step pattern (`choco install` + `iscc`) is established; no novel integration
 
-Phases that may benefit from targeted attention during planning:
-- **Phase 5** — Terse/Poetic/Rude phrase content is fully specified in FEATURES.md; no research needed for architecture; bucket table content should be reviewed for consistency before committing
-- **Phase 6** — German "halb {h1}" token inversion (halb drei = 2:30, uses next-hour token) is a known gotcha fully documented in FEATURES.md; Japanese GetStructuredPhrase decision is pre-made (full-phrase fallback); a native-speaker review of Japanese phrase naturalness is recommended before the phase is marked done
+No phases require `/gsd:research-phase` — all patterns are fully specified in STACK.md and ARCHITECTURE.md with exact code samples.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Zero new packages; all additions use built-in WPF and BCL types; confirmed against official .NET 10 docs |
-| Features | HIGH | English phrase content (all styles + fr/es/de) is HIGH; Japanese phrasing naturalness is MEDIUM (see Gaps) |
-| Architecture | HIGH | Derived from direct source reading of current codebase; all patterns already validated in prior milestones |
-| Pitfalls | HIGH | All 14 pitfalls grounded in direct code inspection and documented prior regressions (e.g., ApplyTheme/ApplyDisplayColor parity already burned in v2.7) |
+| Stack | HIGH | All technologies are built-in BCL/WPF or standalone CLI tools; verified against official docs; Inno Setup conflict resolved to known-good approach |
+| Features | HIGH | Installer/single-instance/edge-snap are well-established patterns; settings dark theme is officially documented via ThemeMode; SmartScreen behavior is HIGH confidence |
+| Architecture | HIGH | Derived from direct codebase source reading; all integration points identified by name and line; no speculative architectural changes |
+| Pitfalls | HIGH | All 9 pitfalls grounded in direct source inspection of App.xaml.cs, MainWindow.xaml.cs, GhostModeController.cs, SettingsWindow.xaml; prior-milestone regressions documented |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Japanese phrase naturalness (MEDIUM confidence):** The Japanese bucket templates use standard casual written Japanese with Arabic numerals + 時. Technically correct and conservative, but naturalness of specific phrasings has not been reviewed by a native speaker. Recommend a native-speaker review of the 12 bucket phrases before Phase 6 is marked done. The architecture decision (full-phrase fallback for GetStructuredPhrase for all non-English) is not in question.
+- **Edge snap threshold conflict resolved:** STACK.md and ARCHITECTURE.md suggest 16-20px; PITFALLS.md analysis (per-monitor position memory corruption) requires 8px maximum. **Resolution: use 8px.** This is the correct value for intentional-snap sensitivity without overwriting near-edge placements.
 
-- **Battery alert threshold configurability:** ARCHITECTURE.md specifies `BatteryAlertPercent` as a user-configurable AppSettings field (default 20). FEATURES.md specifies 20% as always-on with no user toggle needed. Resolve in Phase 4 planning: the simpler approach (hardcoded 20%, no toggle, always enabled when battery row is visible) is defensible for v3.2. Adding a configurable threshold adds Settings Window controls that may not be worth the scope.
+- **Installer technology conflict resolved:** STACK.md recommends Velopack (requires custom `Main`, NuGet package, App.xaml Build Action change); FEATURES.md and ARCHITECTURE.md recommend Inno Setup (no app code changes). **Resolution: Inno Setup.** The user requirement is "download Setup.exe, run it, upgrades in-place" — Inno Setup delivers this without any app code changes. Velopack's Main refactor is disproportionate.
 
-- **Settings Window tray/window sync strategy:** Three defensible approaches exist for handling state divergence when the user changes settings via tray while the settings window is open: (a) live sync via MainWindow notification, (b) auto-close settings on any tray change, (c) populate-on-open only with documented "values at time of open" behavior. The research recommends (c) as the simplest approach for v3.2. The Phase 2 plan should explicitly commit to one strategy to avoid mid-implementation debates.
+- **SmartScreen — accept and document:** No code-signing certificate is planned for v3.3. The SmartScreen "Unknown Publisher" warning is accepted; README must document "More info → Run anyway" before the release. This is a documentation task in Phase 3, not a code gap.
+
+- **Named-pipe bring-to-front vs. silent exit:** ARCHITECTURE.md initially states that silent exit is correct for a widget that is "always visible." This is overridden: a widget in ghost mode (Opacity=0) or minimized to tray is not visible, and users re-launching it expect it to reactivate. The named-pipe bring-to-front is the correct v3.3 behavior.
+
+- **`SettingsSnapshot` coverage for redesign:** Phase 1 is a visual-only redesign with no new controls. If no new controls are added, `SettingsSnapshot` does not need updating. If a new control is added (e.g., About section), `SettingsSnapshot` must be updated in the same commit.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `FuzzyClock.App/MainWindow.xaml.cs` — direct source inspection; all fields, ApplyTheme, ApplyDisplayColor, UpdateStatsDisplay, SaveSettings, TrayMenuCallbacks wiring, ContentRendered
-- `FuzzyClock.App/AppSettings.cs`, `SettingsService.cs`, `TrayMenuBuilder.cs` — direct source inspection
-- `FuzzyClock.Core/PhraseEngine.cs` — direct source inspection; Buckets, HourWords, GetPhrase, GetStructuredPhrase
-- `PhraseEngineTests.cs`, `AppSettingsTests.cs`, `SettingsServiceTests.cs` — direct source inspection
-- `.planning/PROJECT.md` — architecture decisions log
-- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/windows/how-to-open-window-dialog-box — WPF Window Show vs ShowDialog (official, 2024-10-24)
-- https://learn.microsoft.com/en-us/dotnet/core/extensions/localization — .NET localization, ResourceManager vs IStringLocalizer (official, updated 2026-02-04)
-- https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-globalization-cultureinfo — CurrentUICulture vs CurrentCulture (official, updated 2026-02-12)
-- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-globalization-and-localization-overview — LocBaml .NET Framework only warning confirmed (official)
+
+- `FuzzyClock.App/App.xaml.cs` — Mutex implementation (lines 13-24); `OnExit` mutex release; `AbandonedMutexException` handling absent (confirmed gap)
+- `FuzzyClock.App/MainWindow.xaml.cs` — `Grid_MouseLeftButtonDown` drag flow; `DragMove()` call; `_isDragging` flag; `LocationChanged` handler; `UpdateLayout()` usage in `UpdatePhraseIfChanged()`; `Screen.FromPoint` usage
+- `FuzzyClock.App/SettingsWindow.xaml` — `Window.Resources` structure; `SegmentButtonStyle` with `DataTrigger` on `Tag`; all `x:Name` attributes
+- `FuzzyClock.App/GhostModeController.cs` — 75ms restore timer; `GetCursorPos` + `GetWindowRect` pattern
+- `FuzzyClock.App/App.xaml` — `<Application.Resources />` confirmed empty
+- `.planning/PROJECT.md` — v2.3 ghost mode: DragMove modal loop unreliability; `WS_EX_TRANSPARENT` patterns
+- `.github/workflows/release.yml` — existing pipeline steps (restore/test/publish/release)
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/whats-new/net90 — `ThemeMode="Dark"`, Fluent dark mode, Window-scoped XAML attribute stable in .NET 9+/10
+- https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-moving — lParam is mutable RECT*; however post-DragMove is preferred over WM_MOVING hook per architecture analysis
+- https://learn.microsoft.com/en-us/dotnet/api/system.io.pipes.namedpipeserverstream — net-10.0 moniker confirmed
+- https://learn.microsoft.com/en-us/dotnet/standard/threading/mutexes — Named system Mutex cross-process detection; AbandonedMutexException behavior
 
 ### Secondary (MEDIUM confidence)
-- Japanese temporal phrase naturalness — standard casual written Japanese; Arabic numeral + 時 approach is widely understood; naturalness of specific phrasings not independently verified by native speaker
+
+- Inno Setup 6 documentation (https://jrsoftware.org/ishelp/) — per-user install path `{localappdata}\Programs`; uninstall entry registration; upgrade behavior
+- Edge snap threshold 20px — Rainmeter community-documented default; overridden to 8px by per-monitor-position-memory analysis
+- SmartScreen reputation (~5 installs to clear) — community-documented observation; Microsoft does not publish exact threshold
+
+### Tertiary (LOW confidence)
+
+- SmartScreen clearance timing — "weeks to months" for OV certificate reputation building; no official Microsoft publication on exact timeline
 
 ---
-*Research completed: 2026-03-08*
+*Research completed: 2026-03-17*
 *Ready for roadmap: yes*
