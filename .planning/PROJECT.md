@@ -21,6 +21,18 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 224 MSTest tests (199 Core + 25 App) passing. CI gate enforced. ~1,450 LOC C# / XAML.
 
 
+## Current Milestone: v3.3 Polish + Installer
+
+**Goal:** Polish the Settings window visual aesthetic, fix known rough edges, add edge snapping, and ship a proper per-user installer with no admin rights required.
+
+**Target features:**
+- Settings window visual redesign: dark/minimal aesthetic matching the widget; better whitespace; consistent control styling
+- ResetToDefaults fix: also resets phrase style and locale
+- Single-instance bring-to-front: second launch activates existing window instead of silently exiting
+- Edge snapping: widget snaps to screen edges on drag release (8px threshold, working area)
+- Per-user installer: Inno Setup, installs to `%LOCALAPPDATA%\Programs\FuzzyClock\`, upgrades in-place, no UAC
+- README accuracy pass for v3.2 features
+
 ## Requirements
 
 ### Validated
