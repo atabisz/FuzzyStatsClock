@@ -246,13 +246,14 @@ Plans:
 
 ### Phase 53: Fix phrase update rate — only update on time segment change
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Random-candidate phrase providers (Rude, Poetic) only change the displayed phrase when the clock advances to a new time bucket, not on every 10-second timer tick; explicit user actions still trigger immediate phrase refresh
+**Requirements**: SEGKEY-01, SEGKEY-02, SEGKEY-03, POETIC-01
 **Depends on:** Phase 52
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 53 to break down)
+- [ ] 53-01-PLAN.md — Add GetSegmentKey to IPhraseProvider + all providers; rewrite PoeticPhraseProvider to minute-bucket random candidates; segment-key unit tests
+- [ ] 53-02-PLAN.md — Wire segment-key guard into MainWindow UpdatePhraseIfChanged + clear cache at manual refresh sites
 
 ### Phase 54: Backdrop enhancement — full-widget coverage and always-visible option with opacity setting
 
@@ -265,4 +266,4 @@ Plans:
 - [ ] TBD (run /gsd:plan-phase 54 to break down)
 
 ---
-*Last updated: 2026-03-18 — Phase 52 planned (2 plans in 2 waves)*
+*Last updated: 2026-03-18 — Phase 53 planned (2 plans in 2 waves)*
