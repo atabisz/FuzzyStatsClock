@@ -55,6 +55,7 @@ public partial class MainWindow : Window
     private bool   _phraseWrapEnabled = true;
     private string _phraseWrapStyle   = "midpoint";
     private string _currentRawPhrase  = "";
+    private string _lastSegmentKey    = "";
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
@@ -585,10 +586,13 @@ public partial class MainWindow : Window
 
     private void UpdatePhraseIfChanged()
     {
-        string newPhrase = PhraseEngine.GetPhrase(DateTime.Now);
-        if (newPhrase == _currentRawPhrase) return;  // No change — skip layout work
+        string segmentKey = PhraseEngine.GetSegmentKey(DateTime.Now);
+        if (segmentKey == _lastSegmentKey) return;  // same bucket — skip
 
+        _lastSegmentKey   = segmentKey;
+        string newPhrase  = PhraseEngine.GetPhrase(DateTime.Now);
         _currentRawPhrase = newPhrase;
+
         ApplyPhraseWrap(newPhrase);
 
         // Always update split TextBlocks (no cost if SplitPhrasePanel is Collapsed)
@@ -1229,6 +1233,7 @@ public partial class MainWindow : Window
         };
         PhraseEngine.SetLocale(localeKey);
         _currentRawPhrase = "";          // invalidate UpdatePhraseIfChanged guard cache
+        _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
     }
@@ -1262,6 +1267,7 @@ public partial class MainWindow : Window
 
         PhraseEngine.SetLocale(effectiveLocale);
         _currentRawPhrase = "";
+        _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
     }
@@ -1270,6 +1276,7 @@ public partial class MainWindow : Window
     {
         _phraseWrapEnabled = enabled;
         _currentRawPhrase = "";  // force re-evaluation
+        _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
     }
@@ -1278,6 +1285,7 @@ public partial class MainWindow : Window
     {
         _phraseWrapStyle = style;
         _currentRawPhrase = "";  // force re-evaluation
+        _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
     }
