@@ -33,11 +33,11 @@ shadcn gate: not applicable — this is a WPF/C# desktop application, not React/
 ## Spacing Scale
 
 This phase operates in WPF logical pixels (device-independent). The 8-point grid maps
-directly to WPF margin/padding values. All values are multiples of 4.
+directly to WPF margin/padding values. All spacing tokens are multiples of 4.
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon gaps, inner ring Padding on compact theme cards (Padding="1" = 1px, see exception below) |
+| xs | 4px | Icon gaps, inner ring outer padding (see exception below) |
 | sm | 8px | Compact inter-section gaps (theme cards bottom margin, control Grid top margin) |
 | md | 16px | Standard row spacing in Stats/Behavior tabs |
 | lg | 24px | Tab StackPanel outer margin (12px each side = 24px total) |
@@ -45,11 +45,18 @@ directly to WPF margin/padding values. All values are multiples of 4.
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions:
-- Ring outer Border Padding="1" (WPF margin value, not a spacing token — this is a 1px
-  selection-ring gap, intentionally sub-xs to minimize card footprint)
-- Row spacing inside the two-column Grid uses Margin="0,8,10,0" (8px top + 10px label
-  right-gap) — the 10px right-gap is a label-to-control alignment value, not a section gap
+Exceptions — the following two XAML values are pre-existing constants that are explicitly
+excluded from the 4px grid contract. They are not spacing tokens and must not be treated
+as grid violations:
+
+- `Padding="1"` on the ring outer Border: this is a 1px visual-effect constant that
+  creates a selection-ring gap between the outer and inner card borders. It is a rendering
+  artifact, not a layout spacing value, and is therefore not subject to the multiple-of-4
+  grid rule.
+- `Margin="0,8,10,0"` on control Grid rows: the 10px right component is a fixed
+  label-to-control alignment inset, not a section gap or layout spacing token. It is a
+  visual-alignment constant carried over from the original design and is therefore not
+  subject to the multiple-of-4 grid rule.
 
 Source: RESEARCH.md (Proposed Spacing Reductions table), SettingsWindow.xaml direct measurement.
 
