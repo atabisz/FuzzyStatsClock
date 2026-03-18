@@ -34,15 +34,15 @@
 
 ### Installer
 
-- [ ] **INST-01**: FuzzyClockSetup.exe installs per-user to %LOCALAPPDATA%\Programs\FuzzyClock\ with no UAC prompt
-- [ ] **INST-02**: Running the installer over an existing installation upgrades in-place without data loss
-- [ ] **INST-03**: Installer creates a Start Menu shortcut
-- [ ] **INST-04**: Installer registers in Add/Remove Programs with a clean uninstall path
-- [ ] **INST-05**: Uninstall removes app files but preserves settings.json
-- [ ] **INST-06**: If auto-launch was enabled, installer updates the HKCU\...\Run entry to the new install path
+- [x] **INST-01**: FuzzyClockSetup.exe installs per-user to %LOCALAPPDATA%\Programs\FuzzyClock\ with no UAC prompt
+- [x] **INST-02**: Running the installer over an existing installation upgrades in-place without data loss
+- [x] **INST-03**: Installer creates a Start Menu shortcut
+- [x] **INST-04**: Installer registers in Add/Remove Programs with a clean uninstall path
+- [x] **INST-05**: Uninstall removes app files but preserves settings.json
+- [x] **INST-06**: If auto-launch was enabled, installer updates the HKCU\...\Run entry to the new install path
 - [ ] **INST-07**: CI workflow produces `FuzzyClock-X.Y.Z.exe`, `FuzzyClockSetup-X.Y.Z.exe`, and `checksums.txt` as a draft GitHub Release when a version tag is pushed
-- [ ] **INST-08**: Installer prompts the user to close a running FuzzyClock instance before proceeding
-- [ ] **INST-09**: Installer finish page offers a "Launch FuzzyClock" checkbox; uninstaller offers optional settings.json removal
+- [x] **INST-08**: Installer prompts the user to close a running FuzzyClock instance before proceeding
+- [x] **INST-09**: Installer finish page offers a "Launch FuzzyClock" checkbox; uninstaller offers optional settings.json removal
 
 ### Docs
 
@@ -78,15 +78,15 @@
 | SNAP-01 | Phase 49 | Complete |
 | SNAP-02 | Phase 49 | Complete |
 | SNAP-03 | Phase 49 | Complete |
-| INST-01 | Phase 50 | Pending |
-| INST-02 | Phase 50 | Pending |
-| INST-03 | Phase 50 | Pending |
-| INST-04 | Phase 50 | Pending |
-| INST-05 | Phase 50 | Pending |
-| INST-06 | Phase 50 | Pending |
+| INST-01 | Phase 50 | Complete |
+| INST-02 | Phase 50 | Complete |
+| INST-03 | Phase 50 | Complete |
+| INST-04 | Phase 50 | Complete |
+| INST-05 | Phase 50 | Complete |
+| INST-06 | Phase 50 | Complete |
 | INST-07 | Phase 50 | Pending |
-| INST-08 | Phase 50 | Pending |
-| INST-09 | Phase 50 | Pending |
+| INST-08 | Phase 50 | Complete |
+| INST-09 | Phase 50 | Complete |
 | DOCS-04 | Phase 51 | Pending |
 | WRAP-01 | Phase 52 | Pending |
 | WRAP-02 | Phase 52 | Pending |

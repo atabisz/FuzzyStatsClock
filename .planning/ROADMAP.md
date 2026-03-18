@@ -241,7 +241,7 @@ Plans:
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
 | 48. Settings Window Visual Redesign | v3.4 | 1/1 | Complete | 2026-03-17 |
 | 49. Fixes + Edge Snapping | v3.4 | 2/2 | Complete | 2026-03-18 |
-| 50. Installer + CI | v3.5 | 0/2 | Not started | - |
+| 50. Installer + CI | 1/2 | In Progress|  | - |
 | 51. README Docs Pass | v3.5 | 0/TBD | Not started | - |
 | 52. Phrase Wrapping | v3.5 | 0/TBD | Not started | - |
 

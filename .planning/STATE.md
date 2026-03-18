@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: in_progress
-stopped_at: Roadmap created — ready to plan Phase 50
-last_updated: "2026-03-18T00:00:00Z"
-last_activity: 2026-03-18 — v3.5 roadmap created; 3 phases defined (50–52)
+stopped_at: Completed 50-01-PLAN.md
+last_updated: "2026-03-18T02:09:44.871Z"
+last_activity: 2026-03-18 — 50-01 complete; FuzzyClock.iss created
 progress:
-  [          ] 0%
+  [█░░░░░░░░░] 10%
   completed_phases: 0/3
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State
@@ -24,17 +24,17 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Milestone v3.5 roadmap created. No phases started yet.
+Phase 50 in progress. Plan 50-01 complete (FuzzyClock.iss).
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [          ] 0/3 phases
-Phase 50: Installer + CI           [ Not started ]
+Progress: [█░░░░░░░░░] ~10%
+Phase 50: Installer + CI           [ In progress — 50-01 done ]
 Phase 51: README Docs Pass         [ Not started ]
 Phase 52: Phrase Wrapping          [ Not started ]
 ```
 
-Next action: `/gsd:plan-phase 50`
+Next action: execute plan 50-02 (release workflow)
 
 ## Accumulated Context
 
@@ -45,6 +45,8 @@ Next action: `/gsd:plan-phase 50`
 - Installer version: from git tag, stripped + padded to X.Y.Z (e.g. v3.5 → 3.5.0); EXE stamped via /p:Version at publish time
 - Installer upgrade: prompt user if app is running; relaunch checkbox on finish page; optional "remove settings" on uninstall
 - Artifacts: `FuzzyClock-X.Y.Z.exe`, `FuzzyClockSetup-X.Y.Z.exe`, `checksums.txt`; CI creates draft GitHub Release on tag push
+- AppId GUID `B8F2E3A1-7C4D-4E5F-9A6B-1D2E3F4A5B6C` hardcoded in FuzzyClock.iss — never change; upgrade detection depends on stable GUID
+- Settings dir `{localappdata}\FuzzyClock` absent from [Dirs] in .iss — settings.json survives uninstall by default; optional Pascal checkbox for removal
 - Phrase wrap trigger: PhraseText.ActualWidth > StatsPanel.ActualWidth * 1.1 (phrase mode only)
 - Phrase wrap split styles: "Nearest Midpoint" (word break closest to string midpoint, default) and "Natural Pause" (split after first grammatical/tonal beat)
 - Phrase wrap setting exposed in Settings window (Appearance or Behavior tab)
