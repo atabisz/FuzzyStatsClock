@@ -148,7 +148,10 @@ Plans:
   4. Dragging the widget to within 8px of any screen edge and releasing causes it to snap flush to that edge
   5. The snapped position respects the taskbar working area — the widget does not slide under the taskbar
   6. Dragging the widget freely in the middle of the screen and releasing does not trigger a snap
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 49-01-PLAN.md — AbandonedMutexException handling + named pipe bring-to-front IPC
+- [ ] 49-02-PLAN.md — ResetToDefaults phrase reset + SnapToEdge post-DragMove
 
 ### Phase 50: Installer + CI
 **Goal**: Users can install, upgrade, and uninstall FuzzyClock like any normal Windows application
@@ -204,9 +207,9 @@ Plans:
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
 | 48. Settings Window Visual Redesign | 1/1 | Complete    | 2026-03-18 | - |
-| 49. Fixes + Edge Snapping | v3.3 | 0/TBD | Not started | - |
+| 49. Fixes + Edge Snapping | v3.3 | 0/2 | Not started | - |
 | 50. Installer + CI | v3.3 | 0/TBD | Not started | - |
 | 51. README Docs Pass | v3.3 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-18 — Phase 48 plan created*
+*Last updated: 2026-03-18 — Phase 49 plan created*
