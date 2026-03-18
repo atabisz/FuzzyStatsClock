@@ -240,7 +240,7 @@ Plans:
 | 49. Fixes + Edge Snapping | v3.4 | 2/2 | Complete | 2026-03-18 |
 | 50. Installer + CI | v3.5 | 2/2 | Complete | 2026-03-18 |
 | 51. README Docs Pass | v3.5 | 0/TBD | Not started | - |
-| 52. Phrase Wrapping | 2/2 | Complete   | 2026-03-18 | - |
+| 52. Phrase Wrapping | 2/2 | Complete    | 2026-03-18 | - |
 
 ---
 *Last updated: 2026-03-18 — Phase 52 planned (2 plans in 2 waves)*
