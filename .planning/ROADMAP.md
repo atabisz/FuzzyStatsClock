@@ -254,5 +254,15 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd:plan-phase 53 to break down)
 
+### Phase 54: Backdrop enhancement — full-widget coverage and always-visible option with opacity setting
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 53
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 54 to break down)
+
 ---
 *Last updated: 2026-03-18 — Phase 52 planned (2 plans in 2 waves)*

@@ -78,6 +78,7 @@ Next action: milestone v3.5 complete — run /gsd:audit-milestone or /gsd:comple
 ### Roadmap Evolution
 
 - Phase 53 added: Fix phrase update rate — only update on time segment change
+- Phase 54 added: Backdrop enhancement — full-widget coverage and always-visible option with opacity setting
 
 ### Pending Todos
 
