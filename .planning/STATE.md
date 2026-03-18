@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: unknown
-last_updated: "2026-03-18T02:40:16.918Z"
+last_updated: "2026-03-18T02:48:16.267Z"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 7
-  completed_plans: 6
-  percent: 82
+  completed_plans: 7
+  percent: 91
 ---
 
 # Project State
@@ -23,19 +23,25 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase 52 plan 01 complete. PhraseWrapService (midpoint + natural split) shipped.
+Phase 52 complete. Phrase wrapping fully integrated — PhraseWrapService wired into MainWindow with Inlines rendering, AppSettings persistence, and SettingsWindow controls.
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [████████░░] 82%
+Progress: [█████████░] 91%
 Phase 50: Installer + CI           [ Complete — 50-01 and 50-02 done ]
 Phase 51: README Docs Pass         [ Complete ]
-Phase 52: Phrase Wrapping          [ In progress — 52-01 done ]
+Phase 52: Phrase Wrapping          [ Complete — 52-01 and 52-02 done ]
 ```
 
-Next action: execute phase 52 plan 02 (MainWindow phrase wrap integration)
+Next action: milestone v3.5 complete — run /gsd:audit-milestone or /gsd:complete-milestone
 
 ## Accumulated Context
+
+### Decisions (52-02)
+
+- Inlines-based TextBlock: `_currentRawPhrase` replaces `PhraseText.Text` as UpdatePhraseIfChanged guard cache; WPF clears `.Text` when Inlines are non-empty making it unreliable as a cache key
+- ApplyPhraseWrap measures PhraseText.ActualWidth after UpdateLayout() on the single-line render before deciding to split
+- allowNatural derived from PhraseEngine.CurrentLocale.StartsWith("en-") at the call site, keeping PhraseWrapService locale-agnostic
 
 ### Decisions (52-01)
 

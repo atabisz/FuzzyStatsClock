@@ -126,7 +126,7 @@
 
 - [x] **Phase 50: Installer + CI** — Inno Setup per-user installer script and CI artifact integration (INST-01 to INST-09) (completed 2026-03-18)
 - [ ] **Phase 51: README Docs Pass** — Document v3.2–v3.4 features including installer, phrase wrapping (DOCS-04)
-- [ ] **Phase 52: Phrase Wrapping** — Auto-wrap long phrase text to two lines with configurable split style (WRAP-01, WRAP-02, WRAP-03)
+- [x] **Phase 52: Phrase Wrapping** — Auto-wrap long phrase text to two lines with configurable split style (WRAP-01, WRAP-02, WRAP-03) (completed 2026-03-18)
 
 ## Phase Details
 
@@ -240,7 +240,7 @@ Plans:
 | 49. Fixes + Edge Snapping | v3.4 | 2/2 | Complete | 2026-03-18 |
 | 50. Installer + CI | v3.5 | 2/2 | Complete | 2026-03-18 |
 | 51. README Docs Pass | v3.5 | 0/TBD | Not started | - |
-| 52. Phrase Wrapping | 1/2 | In Progress|  | - |
+| 52. Phrase Wrapping | 2/2 | Complete   | 2026-03-18 | - |
 
 ---
 *Last updated: 2026-03-18 — Phase 52 planned (2 plans in 2 waves)*
