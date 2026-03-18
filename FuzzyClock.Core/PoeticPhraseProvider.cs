@@ -47,10 +47,10 @@ public class PoeticPhraseProvider : IPhraseProvider
             "twenty minutes into {h}",
             "drifting further from {h}",
             "well past {h}",
-            "the hour of {h} leans forward",
+            "the hour leans forward from {h}",
         ]),
         (27, [  // nearly half past
-            "nearly half of {h} spent",
+            "the half-hour approaches, still {h}",
             "drifting toward the midpoint of {h}",
             "the minutes gather, still {h}",
             "approaching the halfway mark of {h}",
