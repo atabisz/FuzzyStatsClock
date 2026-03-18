@@ -8,29 +8,28 @@ namespace FuzzyClock.Core.Tests;
 [TestClass]
 public class TersePhraseProviderTests
 {
-    [TestCleanup]
-    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+    // Use provider directly — avoids race on PhraseEngine._activeProvider shared static.
+    private static readonly IPhraseProvider _provider = new TersePhraseProvider();
 
     [TestMethod]
     public void SetLocale_EnTerse_ReturnsTrue()
     {
         bool result = PhraseEngine.SetLocale("en-terse");
+        PhraseEngine.SetLocale("en-classic");
         Assert.IsTrue(result);
     }
 
     [TestMethod]
     public void Terse_OnTheHour_ReturnsJustHourWord()
     {
-        PhraseEngine.SetLocale("en-terse");
-        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
         Assert.AreEqual("three", phrase);
     }
 
     [TestMethod]
     public void Terse_QuarterPast_ReturnsQuarterPast()
     {
-        PhraseEngine.SetLocale("en-terse");
-        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 15, 0));
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 15, 0));
         Assert.AreEqual("quarter past three", phrase);
     }
 
@@ -38,16 +37,14 @@ public class TersePhraseProviderTests
     public void Terse_HalfHour_ReturnsBritishHalf()
     {
         // British "half four" means half past three (3:30)
-        PhraseEngine.SetLocale("en-terse");
-        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 30, 0));
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 30, 0));
         Assert.AreEqual("half four", phrase);
     }
 
     [TestMethod]
     public void Terse_GetStructuredPhrase_ReturnsEmptyQualifier()
     {
-        PhraseEngine.SetLocale("en-terse");
-        var (qualifier, emphasis) = PhraseEngine.GetStructuredPhrase(new DateTime(2024, 1, 1, 3, 30, 0));
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 3, 30, 0));
         Assert.AreEqual("", qualifier);
         Assert.AreEqual("half four", emphasis);
     }
@@ -59,21 +56,21 @@ public class TersePhraseProviderTests
 [TestClass]
 public class PoeticPhraseProviderTests
 {
-    [TestCleanup]
-    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+    // Use provider directly — avoids race on PhraseEngine._activeProvider shared static.
+    private static readonly IPhraseProvider _provider = new PoeticPhraseProvider();
 
     [TestMethod]
     public void SetLocale_EnPoetic_ReturnsTrue()
     {
         bool result = PhraseEngine.SetLocale("en-poetic");
+        PhraseEngine.SetLocale("en-classic");
         Assert.IsTrue(result);
     }
 
     [TestMethod]
     public void Poetic_SmallHours_ReturnsSmallHours()
     {
-        PhraseEngine.SetLocale("en-poetic");
-        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
         Assert.IsFalse(string.IsNullOrEmpty(phrase));
         StringAssert.Contains(phrase, "small hours");
     }
@@ -81,16 +78,14 @@ public class PoeticPhraseProviderTests
     [TestMethod]
     public void Poetic_Noon_ReturnsHighNoon()
     {
-        PhraseEngine.SetLocale("en-poetic");
-        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
         Assert.AreEqual("high noon", phrase);
     }
 
     [TestMethod]
     public void Poetic_GetStructuredPhrase_ReturnsEmptyQualifier()
     {
-        PhraseEngine.SetLocale("en-poetic");
-        var (qualifier, emphasis) = PhraseEngine.GetStructuredPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
         Assert.AreEqual("", qualifier);
         Assert.IsFalse(string.IsNullOrEmpty(emphasis));
     }
@@ -102,29 +97,28 @@ public class PoeticPhraseProviderTests
 [TestClass]
 public class RudePhraseProviderTests
 {
-    [TestCleanup]
-    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+    // Use provider directly — avoids race on PhraseEngine._activeProvider shared static.
+    private static readonly IPhraseProvider _provider = new RudePhraseProvider();
 
     [TestMethod]
     public void SetLocale_EnRude_ReturnsTrue()
     {
         bool result = PhraseEngine.SetLocale("en-rude");
+        PhraseEngine.SetLocale("en-classic");
         Assert.IsTrue(result);
     }
 
     [TestMethod]
     public void Rude_OnTheHour_ContainsHourWord()
     {
-        PhraseEngine.SetLocale("en-rude");
-        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
         StringAssert.Contains(phrase, "four");
     }
 
     [TestMethod]
     public void Rude_NearlyHour_ContainsCallout()
     {
-        PhraseEngine.SetLocale("en-rude");
-        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
         bool hasCallout = phrase.Contains("move it") || phrase.Contains("get on with it");
         Assert.IsTrue(hasCallout, $"Expected callout phrase but got: {phrase}");
     }
@@ -132,8 +126,7 @@ public class RudePhraseProviderTests
     [TestMethod]
     public void Rude_GetStructuredPhrase_ReturnsEmptyQualifier()
     {
-        PhraseEngine.SetLocale("en-rude");
-        var (qualifier, emphasis) = PhraseEngine.GetStructuredPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
         Assert.AreEqual("", qualifier);
         Assert.IsFalse(string.IsNullOrEmpty(emphasis));
     }
