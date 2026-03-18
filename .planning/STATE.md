@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: unknown
-stopped_at: Phase 54 UI-SPEC approved
-last_updated: "2026-03-18T05:52:09.498Z"
+stopped_at: Completed 54-01-PLAN.md
+last_updated: "2026-03-18T06:10:02.461Z"
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 10
-  completed_plans: 10
+  completed_phases: 7
+  total_plans: 11
+  completed_plans: 11
   percent: 93
 ---
 
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase 53 complete. Segment-key guard wired into MainWindow UpdatePhraseIfChanged; phrase no longer re-rolls every 10 seconds on random-candidate providers.
+Phase 54 complete. Full-widget BackdropBorder with configurable opacity (10-100%, default 35%) and always-visible option wired to SettingsWindow Appearance tab.
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
@@ -33,10 +33,10 @@ Phase 50: Installer + CI           [ Complete — 50-01 and 50-02 done ]
 Phase 51: README Docs Pass         [ Complete ]
 Phase 52: Phrase Wrapping          [ Complete — 52-01 and 52-02 done ]
 Phase 53: Fix Phrase Update Rate   [ Complete — 53-01 and 53-02 done ]
-Phase 54: Backdrop Enhancement     [ Pending ]
+Phase 54: Backdrop Enhancement     [ Complete — 54-01 done ]
 ```
 
-Stopped at: Phase 54 UI-SPEC approved
+Stopped at: Completed 54-01-PLAN.md
 
 ## Accumulated Context
 
@@ -90,6 +90,14 @@ Stopped at: Phase 54 UI-SPEC approved
 - Segment-key guard replaces phrase-string comparison guard in UpdatePhraseIfChanged — GetPhrase only called when bucket changes, eliminating 10s random re-roll on Rude/Poetic providers
 - Dual cache clear pattern: manual refresh sites clear both _currentRawPhrase and _lastSegmentKey so explicit user actions (style change, language switch, wrap toggle) still trigger fresh phrase pick
 - ResetToDefaults calls SetLanguage which handles the _lastSegmentKey clear — no separate change needed at ResetToDefaults call site
+
+### Decisions (54-01)
+
+- BackdropBorder declared as first child of outer hit-test Grid (behind inner Grid via Z-order), not wrapping ContentBorder — ContentBorder remains in Row 0 of inner Grid
+- IsHitTestVisible=False on BackdropBorder prevents phantom hover events
+- Hardcoded 0x59 ContentBorder alpha replaced by BackdropAlpha() so ContentBorder and BackdropBorder depths stay proportional when opacity is adjusted
+- AlwaysVisible guard on clear paths only (ghost cleanup, mouse leave, ghost restored); hover enter sets both unconditionally (idempotent)
+- Default 35% opacity and hover-only (AlwaysVisible=false) produce zero visual regression for existing users
 
 ### Roadmap Evolution
 

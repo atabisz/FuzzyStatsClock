@@ -13,9 +13,9 @@
 
 ### Backdrop Enhancement
 
-- [ ] **BDROP-01**: On hover, a semi-transparent black backdrop covers the full widget footprint (phrase/dial + date + stats + uptime), not just the phrase row; phrase row is intentionally darker (double-layer with ContentBorder)
-- [ ] **BDROP-02**: User can enable an always-visible backdrop via Settings > Appearance > Backdrop checkbox; when enabled the backdrop stays visible without hover
-- [ ] **BDROP-03**: Backdrop opacity is configurable via a slider (10-100%, step 5) in Settings > Appearance > Backdrop; both ContentBorder and BackdropBorder use the same computed alpha; default 35% preserves existing visual
+- [x] **BDROP-01**: On hover, a semi-transparent black backdrop covers the full widget footprint (phrase/dial + date + stats + uptime), not just the phrase row; phrase row is intentionally darker (double-layer with ContentBorder)
+- [x] **BDROP-02**: User can enable an always-visible backdrop via Settings > Appearance > Backdrop checkbox; when enabled the backdrop stays visible without hover
+- [x] **BDROP-03**: Backdrop opacity is configurable via a slider (10-100%, step 5) in Settings > Appearance > Backdrop; both ContentBorder and BackdropBorder use the same computed alpha; default 35% preserves existing visual
 
 ## Carried from v3.3 (completed in v3.4)
 
