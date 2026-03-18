@@ -44,6 +44,8 @@ public sealed partial class SettingsWindow : Window
     public event Action<string>? LanguageChanged;
     public event Action<bool>?   PhraseWrapEnabledChanged;
     public event Action<string>? PhraseWrapStyleChanged;
+    public event Action<bool>?   BackdropAlwaysVisibleChanged;
+    public event Action<int>?    BackdropOpacityPercentChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -151,6 +153,11 @@ public sealed partial class SettingsWindow : Window
         RbWrapMidpoint.IsChecked = s.PhraseWrapStyle == "midpoint";
         RbWrapNatural.IsChecked  = s.PhraseWrapStyle == "natural";
         WrapStylePanel.IsEnabled = s.PhraseWrapEnabled;
+
+        // Backdrop controls
+        BackdropOpacitySlider.Value = s.BackdropOpacityPercent;
+        BackdropOpacityLabel.Text = $"{s.BackdropOpacityPercent}%";
+        ChkBackdropAlwaysVisible.IsChecked = s.BackdropAlwaysVisible;
 
         // Accent swatch selection ring
         var ac = s.AccentColor;
@@ -551,6 +558,21 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         PhraseWrapStyleChanged?.Invoke("natural");
+    }
+
+    // ── Backdrop controls ─────────────────────────────────────────────────
+    private void ChkBackdropAlwaysVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        BackdropAlwaysVisibleChanged?.Invoke(ChkBackdropAlwaysVisible.IsChecked == true);
+    }
+
+    private void BackdropOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressEvents) return;
+        var val = (int)BackdropOpacitySlider.Value;
+        BackdropOpacityLabel.Text = $"{val}%";
+        BackdropOpacityPercentChanged?.Invoke(val);
     }
 
     // ── Win32Window adapter for WinForms dialogs ──────────────────────────
