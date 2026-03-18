@@ -89,11 +89,71 @@ public class PoeticPhraseProviderTests
     }
 
     [TestMethod]
-    public void Poetic_GetStructuredPhrase_ReturnsEmptyQualifier()
+    public void Poetic_GetStructuredPhrase_EmphasisIsHourWord()
     {
         var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
+        Assert.AreEqual("three", emphasis);
+        Assert.IsFalse(string.IsNullOrEmpty(qualifier));
+    }
+
+    [TestMethod]
+    public void Poetic_GetStructuredPhrase_ToHalf_EmphasisIsNextHourWord()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 3, 40, 0));
+        Assert.AreEqual("four", emphasis);
+        Assert.IsFalse(string.IsNullOrEmpty(qualifier));
+    }
+
+    [TestMethod]
+    public void Poetic_GetStructuredPhrase_HalfPast_EmphasisIsCurrentHourWord()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 3, 30, 0));
+        Assert.AreEqual("three", emphasis);
+        Assert.IsFalse(string.IsNullOrEmpty(qualifier));
+    }
+
+    [TestMethod]
+    public void Poetic_GetStructuredPhrase_WitchingHour_EmptyQualifier()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
         Assert.AreEqual("", qualifier);
-        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+        Assert.AreEqual("the witching hour", emphasis);
+    }
+
+    [TestMethod]
+    public void Poetic_GetStructuredPhrase_Noon_EmptyQualifier()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.AreEqual("high noon", emphasis);
+    }
+
+    [TestMethod]
+    public void Poetic_AllBuckets_PhraseContainsHourWord()
+    {
+        int[] sampleMinutes = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+        foreach (int m in sampleMinutes)
+        {
+            string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, m, 0));
+            bool containsThree = phrase.Contains("three");
+            bool containsFour  = phrase.Contains("four");
+            Assert.IsTrue(containsThree || containsFour,
+                $"Minute {m}: expected 'three' or 'four' in phrase but got: {phrase}");
+        }
+    }
+
+    [TestMethod]
+    public void Poetic_OnTheHour_ContainsHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        StringAssert.Contains(phrase, "four");
+    }
+
+    [TestMethod]
+    public void Poetic_NearlyHour_ContainsNextHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
+        StringAssert.Contains(phrase, "five", $"Expected next-hour word in phrase but got: {phrase}");
     }
 }
 
