@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using FuzzyClock.Core;
@@ -51,6 +52,9 @@ public partial class MainWindow : Window
     private ContrastRefreshController _contrast = new();
     private SettingsWindow? _settingsWindow;
     private string? _currentTheme = null;  // null = no named theme active
+    private bool   _phraseWrapEnabled = true;
+    private string _phraseWrapStyle   = "midpoint";
+    private string _currentRawPhrase  = "";
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
@@ -205,6 +209,8 @@ public partial class MainWindow : Window
         _statsIntervalSeconds = s.StatsIntervalSeconds;
         _processCountThreshold = s.ProcessCountThresholdPercent;
         _batteryAlertThreshold = s.BatteryAlertThresholdPercent;
+        _phraseWrapEnabled = s.PhraseWrapEnabled;
+        _phraseWrapStyle   = s.PhraseWrapStyle;
 
         // Apply stats visibility directly (NOT via SetStatsVisible — that calls UpdateLayout()+Clamp()
         // which are unsafe before Show(), where ActualHeight is 0).
@@ -379,6 +385,8 @@ public partial class MainWindow : Window
         AutoContrastEnabled    = _contrast.IsEnabled,
         AutoLaunchEnabled      = _autoLaunchEnabled,
         ActiveTheme            = _currentTheme,
+        PhraseWrapEnabled      = _phraseWrapEnabled,
+        PhraseWrapStyle        = _phraseWrapStyle,
     };
 
     private void OpenSettings()
@@ -398,6 +406,8 @@ public partial class MainWindow : Window
         _settingsWindow.DialModeChanged       += d => { ClearActiveTheme(); SetDialMode(d); };
         _settingsWindow.PhraseStyleChanged    += ps => SetPhraseStyle(ps);
         _settingsWindow.LanguageChanged       += locale => SetLanguage(locale);
+        _settingsWindow.PhraseWrapEnabledChanged += enabled => SetPhraseWrapEnabled(enabled);
+        _settingsWindow.PhraseWrapStyleChanged   += style   => SetPhraseWrapStyle(style);
         _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
         _settingsWindow.CpuVisibleChanged     += v => SetStatRowVisible(CpuRow, v);
         _settingsWindow.GpuVisibleChanged     += v => SetStatRowVisible(GpuRow, v);
@@ -483,6 +493,8 @@ public partial class MainWindow : Window
             ShowDate             = _showDate,
             DateFormat           = _dateFormat,
             Theme                = _currentTheme,
+            PhraseWrapEnabled    = _phraseWrapEnabled,
+            PhraseWrapStyle      = _phraseWrapStyle,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -574,9 +586,10 @@ public partial class MainWindow : Window
     private void UpdatePhraseIfChanged()
     {
         string newPhrase = PhraseEngine.GetPhrase(DateTime.Now);
-        if (newPhrase == PhraseText.Text) return;  // No change — skip layout work
+        if (newPhrase == _currentRawPhrase) return;  // No change — skip layout work
 
-        PhraseText.Text = newPhrase;
+        _currentRawPhrase = newPhrase;
+        ApplyPhraseWrap(newPhrase);
 
         // Always update split TextBlocks (no cost if SplitPhrasePanel is Collapsed)
         var (qualifier, emphasis) = PhraseEngine.GetStructuredPhrase(DateTime.Now);
@@ -603,6 +616,44 @@ public partial class MainWindow : Window
                 ActualWidth, ActualHeight, screen);
             Left = clamped.Left;
             Top  = clamped.Top;
+        }
+    }
+
+    private void SetPhraseTextSingleLine(string text)
+    {
+        PhraseText.Inlines.Clear();
+        PhraseText.Inlines.Add(new Run(text));
+    }
+
+    private void ApplyPhraseWrap(string rawPhrase)
+    {
+        // Guard: no wrap in dial mode or Split text style, or when wrap is disabled
+        if (_dialMode || _currentTextStyle == "Split" || !_phraseWrapEnabled)
+        {
+            SetPhraseTextSingleLine(rawPhrase);
+            return;
+        }
+
+        // Set single-line first to measure actual width
+        SetPhraseTextSingleLine(rawPhrase);
+        UpdateLayout();
+
+        double panelWidth = StatsPanel.Visibility == Visibility.Visible
+            ? StatsPanel.ActualWidth
+            : 184.0;
+        double threshold = panelWidth * 1.1;
+
+        if (PhraseText.ActualWidth > threshold)
+        {
+            bool allowNatural = PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal);
+            var split = PhraseWrapService.ComputeSplit(rawPhrase, _phraseWrapStyle, allowNatural);
+            if (split.HasValue)
+            {
+                PhraseText.Inlines.Clear();
+                PhraseText.Inlines.Add(new Run(split.Value.Line1));
+                PhraseText.Inlines.Add(new LineBreak());
+                PhraseText.Inlines.Add(new Run(split.Value.Line2));
+            }
         }
     }
 
@@ -1070,6 +1121,8 @@ public partial class MainWindow : Window
         // SetLanguage("auto") sets _currentPhraseLocale, recomputes PhraseEngine locale
         // from Windows culture, clears the phrase cache, and calls UpdatePhraseIfChanged.
         _currentPhraseStyle = "Classic";
+        _phraseWrapEnabled  = true;
+        _phraseWrapStyle    = "midpoint";
         SetLanguage("auto");
 
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
@@ -1175,7 +1228,7 @@ public partial class MainWindow : Window
             _        => "en-classic",
         };
         PhraseEngine.SetLocale(localeKey);
-        PhraseText.Text = "";          // invalidate UpdatePhraseIfChanged guard cache
+        _currentRawPhrase = "";          // invalidate UpdatePhraseIfChanged guard cache
         UpdatePhraseIfChanged();
         SaveSettings();
     }
@@ -1208,7 +1261,23 @@ public partial class MainWindow : Window
                   };
 
         PhraseEngine.SetLocale(effectiveLocale);
-        PhraseText.Text = "";
+        _currentRawPhrase = "";
+        UpdatePhraseIfChanged();
+        SaveSettings();
+    }
+
+    private void SetPhraseWrapEnabled(bool enabled)
+    {
+        _phraseWrapEnabled = enabled;
+        _currentRawPhrase = "";  // force re-evaluation
+        UpdatePhraseIfChanged();
+        SaveSettings();
+    }
+
+    private void SetPhraseWrapStyle(string style)
+    {
+        _phraseWrapStyle = style;
+        _currentRawPhrase = "";  // force re-evaluation
         UpdatePhraseIfChanged();
         SaveSettings();
     }
