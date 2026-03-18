@@ -15,8 +15,8 @@
 ### Bug Fixes
 
 - [ ] **FIX-01**: ResetToDefaults() also resets phrase style to Classic and phrase locale to "auto"
-- [ ] **FIX-02**: Second launch of the app brings the existing window to front instead of silently exiting
-- [ ] **FIX-03**: AbandonedMutexException is handled so the app can restart after a crash without being stuck
+- [x] **FIX-02**: Second launch of the app brings the existing window to front instead of silently exiting
+- [x] **FIX-03**: AbandonedMutexException is handled so the app can restart after a crash without being stuck
 
 ### Edge Snapping
 
@@ -63,8 +63,8 @@
 | SETR-03 | Phase 48 | Complete |
 | SETR-04 | Phase 48 | Complete |
 | FIX-01 | Phase 49 | Pending |
-| FIX-02 | Phase 49 | Pending |
-| FIX-03 | Phase 49 | Pending |
+| FIX-02 | Phase 49 | Complete |
+| FIX-03 | Phase 49 | Complete |
 | SNAP-01 | Phase 49 | Pending |
 | SNAP-02 | Phase 49 | Pending |
 | SNAP-03 | Phase 49 | Pending |

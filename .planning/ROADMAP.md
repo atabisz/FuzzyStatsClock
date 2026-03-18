@@ -207,7 +207,7 @@ Plans:
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
 | 48. Settings Window Visual Redesign | 1/1 | Complete    | 2026-03-18 | - |
-| 49. Fixes + Edge Snapping | v3.3 | 0/2 | Not started | - |
+| 49. Fixes + Edge Snapping | 1/2 | In Progress|  | - |
 | 50. Installer + CI | v3.3 | 0/TBD | Not started | - |
 | 51. README Docs Pass | v3.3 | 0/TBD | Not started | - |
 

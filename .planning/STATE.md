@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: Polish + Installer
 status: in_progress
-stopped_at: Completed 48-01-PLAN.md
-last_updated: "2026-03-17T23:58:17.865Z"
+stopped_at: Completed 49-01-PLAN.md
+last_updated: "2026-03-18T00:21:20.590Z"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 2
   percent: 80
 ---
 
@@ -61,6 +61,7 @@ Key decisions for v3.3 (from research):
 - Settings dark mode: ThemeMode="Dark" XAML attribute on SettingsWindow only — App.xaml stays empty to prevent MainWindow style leakage
 - Post-DragMove snap only — WM_MOVING hook is unreliable during DragMove() modal loop (documented in ghost mode notes)
 - [Phase 48-settings-window-visual-redesign]: ThemeMode=Dark on SettingsWindow only — App.xaml stays empty to prevent MainWindow style leakage
+- [Phase 49-fixes-edge-snapping]: Use ex.Mutex from AbandonedMutexException for crash-restart recovery; named-pipe IPC with IsBackground=true thread for bring-to-front on second launch
 
 ### Pending Todos
 
@@ -73,6 +74,6 @@ None at roadmap stage.
 
 ## Session Continuity
 
-Last session: 2026-03-17T23:58:17.861Z
-Stopped at: Completed 48-01-PLAN.md
+Last session: 2026-03-18T00:21:20.586Z
+Stopped at: Completed 49-01-PLAN.md
 Resume: `/gsd:plan-phase 48`
