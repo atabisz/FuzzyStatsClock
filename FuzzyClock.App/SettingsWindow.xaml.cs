@@ -42,6 +42,8 @@ public sealed partial class SettingsWindow : Window
     public event Action<string>? ThemeSelected;
     public event Action<int>?    BatteryAlertThresholdChanged;
     public event Action<string>? LanguageChanged;
+    public event Action<bool>?   PhraseWrapEnabledChanged;
+    public event Action<string>? PhraseWrapStyleChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -143,6 +145,12 @@ public sealed partial class SettingsWindow : Window
         RbAlert10.IsChecked = s.BatteryAlertThreshold == 10;
         RbAlert15.IsChecked = s.BatteryAlertThreshold == 15;
         RbAlert20.IsChecked = s.BatteryAlertThreshold == 20;
+
+        // Phrase wrap controls
+        ChkPhraseWrap.IsChecked  = s.PhraseWrapEnabled;
+        RbWrapMidpoint.IsChecked = s.PhraseWrapStyle == "midpoint";
+        RbWrapNatural.IsChecked  = s.PhraseWrapStyle == "natural";
+        WrapStylePanel.IsEnabled = s.PhraseWrapEnabled;
 
         // Accent swatch selection ring
         var ac = s.AccentColor;
@@ -522,6 +530,27 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         AutoLaunchChanged?.Invoke(ChkAutoLaunch.IsChecked == true);
+    }
+
+    // ── Phrase wrap controls ───────────────────────────────────────────────
+    private void ChkPhraseWrap_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        bool enabled = ChkPhraseWrap.IsChecked == true;
+        WrapStylePanel.IsEnabled = enabled;
+        PhraseWrapEnabledChanged?.Invoke(enabled);
+    }
+
+    private void RbWrapMidpoint_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        PhraseWrapStyleChanged?.Invoke("midpoint");
+    }
+
+    private void RbWrapNatural_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        PhraseWrapStyleChanged?.Invoke("natural");
     }
 
     // ── Win32Window adapter for WinForms dialogs ──────────────────────────

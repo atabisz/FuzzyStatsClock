@@ -250,6 +250,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Opacity -->
@@ -309,6 +310,22 @@
                         <ComboBoxItem Content="Poetic"/>
                         <ComboBoxItem Content="Rude"/>
                     </ComboBox>
+
+                    <!-- Phrase Wrap -->
+                    <TextBlock Grid.Row="4" Grid.Column="0"
+                               Text="Phrase Wrap" VerticalAlignment="Top"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"/>
+                    <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,8,0,0">
+                        <CheckBox x:Name="ChkPhraseWrap" Content="Wrap long phrases"
+                                  Checked="ChkPhraseWrap_Changed" Unchecked="ChkPhraseWrap_Changed"/>
+                        <StackPanel x:Name="WrapStylePanel" Orientation="Horizontal" Margin="0,6,0,0">
+                            <RadioButton x:Name="RbWrapMidpoint" Content="Nearest Midpoint"
+                                         GroupName="WrapStyle" Margin="0,0,14,0"
+                                         Checked="RbWrapMidpoint_Checked"/>
+                            <RadioButton x:Name="RbWrapNatural" Content="Natural Pause"
+                                         GroupName="WrapStyle" Checked="RbWrapNatural_Checked"/>
+                        </StackPanel>
+                    </StackPanel>
 
                 </Grid>
 

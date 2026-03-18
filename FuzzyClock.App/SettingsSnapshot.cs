@@ -29,4 +29,6 @@ internal sealed record SettingsSnapshot
     public bool    AutoLaunchEnabled                     { get; init; }
     public string? ActiveTheme                           { get; init; } = null;
     public int     BatteryAlertThreshold                 { get; init; } = 20;
+    public bool    PhraseWrapEnabled                     { get; init; } = true;
+    public string  PhraseWrapStyle                       { get; init; } = "midpoint";
 }
