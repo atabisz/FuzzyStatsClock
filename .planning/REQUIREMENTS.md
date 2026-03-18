@@ -40,7 +40,7 @@
 - [x] **INST-04**: Installer registers in Add/Remove Programs with a clean uninstall path
 - [x] **INST-05**: Uninstall removes app files but preserves settings.json
 - [x] **INST-06**: If auto-launch was enabled, installer updates the HKCU\...\Run entry to the new install path
-- [ ] **INST-07**: CI workflow produces `FuzzyClock-X.Y.Z.exe`, `FuzzyClockSetup-X.Y.Z.exe`, and `checksums.txt` as a draft GitHub Release when a version tag is pushed
+- [x] **INST-07**: CI workflow produces `FuzzyClock-X.Y.Z.exe`, `FuzzyClockSetup-X.Y.Z.exe`, and `checksums.txt` as a draft GitHub Release when a version tag is pushed
 - [x] **INST-08**: Installer prompts the user to close a running FuzzyClock instance before proceeding
 - [x] **INST-09**: Installer finish page offers a "Launch FuzzyClock" checkbox; uninstaller offers optional settings.json removal
 
@@ -84,7 +84,7 @@
 | INST-04 | Phase 50 | Complete |
 | INST-05 | Phase 50 | Complete |
 | INST-06 | Phase 50 | Complete |
-| INST-07 | Phase 50 | Pending |
+| INST-07 | Phase 50 | Complete |
 | INST-08 | Phase 50 | Complete |
 | INST-09 | Phase 50 | Complete |
 | DOCS-04 | Phase 51 | Pending |

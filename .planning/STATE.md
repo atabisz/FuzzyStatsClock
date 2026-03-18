@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: in_progress
-stopped_at: Completed 50-01-PLAN.md
-last_updated: "2026-03-18T02:09:44.871Z"
-last_activity: 2026-03-18 — 50-01 complete; FuzzyClock.iss created
+stopped_at: Completed 50-02-PLAN.md
+last_updated: "2026-03-18T02:12:37Z"
+last_activity: 2026-03-18 — 50-02 complete; release.yml updated with version injection, ISCC, checksums, draft release
 progress:
-  [█░░░░░░░░░] 10%
+  [█████████░] 89%
   completed_phases: 0/3
-  total_plans: 3
-  completed_plans: 1
+  total_plans: 9
+  completed_plans: 2
 ---
 
 # Project State
@@ -24,19 +24,25 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase 50 in progress. Plan 50-01 complete (FuzzyClock.iss).
+Phase 50 complete (both plans done). FuzzyClock.iss + release.yml shipped.
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [█░░░░░░░░░] ~10%
-Phase 50: Installer + CI           [ In progress — 50-01 done ]
+Progress: [██░░░░░░░░] ~20%
+Phase 50: Installer + CI           [ Complete — 50-01 and 50-02 done ]
 Phase 51: README Docs Pass         [ Not started ]
 Phase 52: Phrase Wrapping          [ Not started ]
 ```
 
-Next action: execute plan 50-02 (release workflow)
+Next action: execute phase 51 (README docs pass)
 
 ## Accumulated Context
+
+### Decisions (carried from v3.3/v3.4 + 50-02)
+
+- CI release.yml: compile installer (ISCC) BEFORE renaming EXE — ISCC reads `publish/FuzzyClock.exe` (plain name); rename produces `FuzzyClock-X.Y.Z.exe` after ISCC completes
+- CI release.yml: AssemblyVersion passed as X.Y.Z.0 (4-part) to satisfy .NET assembly version requirement
+- CI release.yml: three artifacts (bare EXE, installer EXE, checksums.txt) uploaded as draft GitHub Release on v* tag push
 
 ### Decisions (carried from v3.3/v3.4)
 
