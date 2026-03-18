@@ -142,7 +142,7 @@
   2. Theme preset cards use a more compact visual form — noticeably less vertical space per card than the v3.5 layout
   3. Margins and padding between sections on the Appearance tab are visibly tighter; no large blank gaps separate adjacent sections
   4. The Stats tab and Behavior tab look identical to their v3.5 state; no layout change is visible on either tab
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
@@ -158,7 +158,7 @@ Plans:
   2. Theme preset cards use a more compact visual form — noticeably less vertical space per card than the v3.5 layout
   3. Margins and padding between sections on the Appearance tab are visibly tighter; no large blank gaps separate adjacent sections
   4. The Stats tab and Behavior tab look identical to their v3.5 state; no layout change is visible on either tab
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
