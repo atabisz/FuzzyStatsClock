@@ -7,10 +7,10 @@
 
 ### Settings Window Layout
 
-- [ ] **SETT-01**: All controls on the Appearance tab are fully visible within the 480×600 window without any clipping
-- [ ] **SETT-02**: Theme preset cards use a more compact form to reclaim vertical space
-- [ ] **SETT-03**: Inter-section margins and padding are tightened to eliminate unnecessary whitespace
-- [ ] **SETT-04**: Stats and Behavior tabs remain fully visible and unaffected
+- [x] **SETT-01**: All controls on the Appearance tab are fully visible within the 480×600 window without any clipping
+- [x] **SETT-02**: Theme preset cards use a more compact form to reclaim vertical space
+- [x] **SETT-03**: Inter-section margins and padding are tightened to eliminate unnecessary whitespace
+- [x] **SETT-04**: Stats and Behavior tabs remain fully visible and unaffected
 
 ## Future Requirements
 
@@ -30,10 +30,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SETT-01 | Phase 56 | Pending |
-| SETT-02 | Phase 56 | Pending |
-| SETT-03 | Phase 56 | Pending |
-| SETT-04 | Phase 56 | Pending |
+| SETT-01 | Phase 56 | Complete |
+| SETT-02 | Phase 56 | Complete |
+| SETT-03 | Phase 56 | Complete |
+| SETT-04 | Phase 56 | Complete |
 
 **Coverage:**
 - v3.6 requirements: 4 total
