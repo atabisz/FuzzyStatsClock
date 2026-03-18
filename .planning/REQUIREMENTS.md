@@ -1,9 +1,17 @@
-# Requirements: FuzzyStatsClock v3.3
+# Requirements: FuzzyStatsClock v3.5
 
-**Defined:** 2026-03-17
+**Defined:** 2026-03-17 (v3.3), updated 2026-03-18 (v3.5)
 **Core Value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## v3.3 Requirements
+## v3.5 Requirements
+
+### Phrase Wrapping
+
+- [ ] **WRAP-01**: In phrase mode, if the rendered phrase text width exceeds the stats panel width + 10%, the text splits across two lines
+- [ ] **WRAP-02**: User can choose the split style (Nearest Midpoint / Natural Pause) in Settings; default is Nearest Midpoint
+- [ ] **WRAP-03**: Phrase wrap split style persists to settings.json and restores on launch
+
+## Carried from v3.3 (completed in v3.4)
 
 ### Settings Window Redesign
 
@@ -32,11 +40,13 @@
 - [ ] **INST-04**: Installer registers in Add/Remove Programs with a clean uninstall path
 - [ ] **INST-05**: Uninstall removes app files but preserves settings.json
 - [ ] **INST-06**: If auto-launch was enabled, installer updates the HKCU\...\Run entry to the new install path
-- [ ] **INST-07**: FuzzyClockSetup.exe is produced as a CI artifact alongside FuzzyClock.exe
+- [ ] **INST-07**: CI workflow produces `FuzzyClock-X.Y.Z.exe`, `FuzzyClockSetup-X.Y.Z.exe`, and `checksums.txt` as a draft GitHub Release when a version tag is pushed
+- [ ] **INST-08**: Installer prompts the user to close a running FuzzyClock instance before proceeding
+- [ ] **INST-09**: Installer finish page offers a "Launch FuzzyClock" checkbox; uninstaller offers optional settings.json removal
 
 ### Docs
 
-- [ ] **DOCS-04**: README documents v3.2 features: Settings window, named themes, phrase styles, and language selection
+- [ ] **DOCS-04**: README documents v3.2–v3.4 features: Settings window, named themes, phrase styles, language selection, dark mode, edge snapping, single-instance IPC, and phrase wrapping
 
 ## Future Requirements
 
@@ -75,13 +85,18 @@
 | INST-05 | Phase 50 | Pending |
 | INST-06 | Phase 50 | Pending |
 | INST-07 | Phase 50 | Pending |
+| INST-08 | Phase 50 | Pending |
+| INST-09 | Phase 50 | Pending |
+| WRAP-01 | Phase 52 | Pending |
+| WRAP-02 | Phase 52 | Pending |
+| WRAP-03 | Phase 52 | Pending |
 | DOCS-04 | Phase 51 | Pending |
 
 **Coverage:**
-- v3.3 requirements: 17 total
-- Mapped to phases: 17
+- v3.5 requirements: 22 total
+- Mapped to phases: 22
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-17 after initial definition*
+*Last updated: 2026-03-18 after v3.5 milestone start*
