@@ -4,45 +4,48 @@
 
 ---
 
-## Milestone: v3.3 — LCD Clock
+## Milestone: v3.5 — Phrase Wrap + Installer
 
-**Shipped:** 2026-03-11
-**Phases:** 7 (48–54) | **Plans:** 13 | **Sessions:** ~4
+**Shipped:** 2026-03-18
+**Phases:** 8 (48–55) | **Plans:** 12
 
 ### What Was Built
-- `SevenSegmentEncoder` static class in `FuzzyClock.Core` — 7-bit bitmask lookup for 12 characters, 13 unit tests, zero WPF dependencies
-- `SevenSegmentDigit` WPF UserControl — 7 Polygon segments, ghost effect via `GhostColor` DP (Transparent sentinel = auto-compute 15%), `SegmentStyle` DP with Classic/Bold geometry variants
-- `LcdClockView` WPF UserControl — 8 digit slots (HH:MM[:SS]), 1-second DispatcherTimer, `BgColor`/`GhostColor`/`SegmentStyle` propagation DPs
-- Full 3-way clock switching in MainWindow, SettingsWindow (collapsible LCD panel), and tray submenu
-- 17 LCD color themes via `LcdPalette.Get()` static factory; WrapPanel swatch row in Settings replaces ComboBox
-- `ClockType` enum replacing `bool DialMode` across all layers with JSON migration
+- Dark-mode Settings window via WPF ThemeMode="Dark" — zero style leakage to MainWindow
+- Named-pipe single-instance IPC + AbandonedMutexException crash recovery
+- 8px post-DragMove edge snapping + ResetToDefaults phrase/locale fix
+- Per-user Inno Setup installer (no UAC, Start Menu, upgrade-safe) + GitHub Actions CI release pipeline (version-stamped, SHA256 checksums, draft release)
+- PhraseWrapService with midpoint + natural pause split algorithms; Inlines-based WPF renderer
+- IPhraseProvider.GetSegmentKey() — stable bucket identity independent of random selection; phrase guards against spurious tick changes
+- Full-widget BackdropBorder (phrase+date+stats+uptime); BackdropAlwaysVisible; BackdropOpacityPercent slider
+- PoeticPhraseProvider rewritten: 48 templates all naming the hour via {h}/{h1}; GetStructuredPhrase splits qualifier/hour-word for typographic emphasis
 
 ### What Worked
-- **Incremental DPs**: Adding `BgColor`, `GhostColor`, `SegmentStyle` as Dependency Properties kept the architecture clean — MainWindow only sets high-level properties and the control cascade handles everything
-- **Ghost sentinel pattern**: `Colors.Transparent` as A=0 sentinel for auto-compute preserved backward compatibility for Dark mode while enabling Paper/Silver explicit ghosts
-- **Geometry cache pattern**: `_builtDigitW`, `_builtColonW`, `_builtCanvasH` fields set in `RebuildGeometry()` and consumed by `UpdateSegments()` avoided stale hardcoded values after style changes
-- **Audit-driven cleanup**: Running `gsd:audit-milestone` before completion surfaced 3 real gaps (LcdSize persistence, SettingsSnapshot, README table) that became Phase 53 — clean execution
+- Wave-based parallel execution kept each plan self-contained — the executor model worked cleanly across all 12 plans
+- ThemeMode="Dark" proved far simpler than manual style templates — one attribute replaced dozens of hardcoded colors
+- Static class pattern (PhraseWrapService, AutoLaunchService) continued to pay off: no DI wiring, easily testable
+- SUMMARY.md-as-contract pattern for subagents maintained clean handoffs with zero context bleed
+- 274 tests provided high confidence throughout — no regressions discovered post-execution
 
 ### What Was Inefficient
-- **Stale BAML/obj files**: `BG1002: File cannot be found` build errors after XAML edits required `dotnet build --no-incremental` multiple times — a known WPF incremental build fragility
-- **Multi-color brush cache miss**: Initial `UpdateSegments()` brush rebuild only tracked `LitColor` changes; adding `BgColor` and `GhostColor` required adding `_lastBgColor` and `_lastGhostColor` sentinel fields — should have been caught at design time
-- **Silver style required geometry rework**: First implementation was color-only; user feedback drove the `SegmentStyle` Bold geometry variant — the visual distinction requirement was under-specified in the research phase
+- Phases 53/54/55 were added post-planning after v3.5 was initially scoped at phases 50-52; iterative scope additions work but require discipline to avoid milestone drift
+- The ROADMAP.md became inconsistent (progress table stopped at phase 52) during execution — need to update progress table as phases complete, not just at milestone end
 
 ### Patterns Established
-- **DP propagation pattern**: Container UserControl (LcdClockView) exposes DPs that propagate to child UserControls (SevenSegmentDigit) in `PropertyChanged` callbacks — clean single-assignment pattern
-- **Geometry cache fields on UserControl**: When a UserControl rebuilds geometry in one method and uses values in another, cache the computed dimensions as fields rather than recomputing
-- **`_lastXxx` sentinel fields for brush caching**: Only rebuild `SolidColorBrush` objects when the relevant color(s) change; track all input colors to the final effective color (including computed values)
-- **LcdStyle string DP** (not enum): For 2–3 geometry variants, a string DP avoids a new enum type while remaining explicit
+- `{h}`/`{h1}` placeholder system for phrase templates: evaluated at call time from a `HourWords[hour12]` indexed array
+- Named-pipe IPC pattern for single-instance bring-to-front: `WaitForConnection` / `Connect` within 500ms timeout
+- Inno Setup `[AppMutex]` directive for detecting running instances during install
+- `GetSegmentKey()` as a required interface method on `IPhraseProvider` — decouples bucket identity from phrase randomization
 
 ### Key Lessons
-1. **Specify visual character up front**: "Silver LCD" needed fundamentally different geometry (Bold style), not just colors. Research/discussion phases should ask "is this purely a color change or a geometry change?"
-2. **WPF incremental build is fragile for XAML**: Expect `--no-incremental` to be needed after structural XAML changes. Consider adding it as a standard step in the execute-phase workflow for WPF projects.
-3. **Ghost color is a computed output, not an input**: The 15% formula was right, but making it an explicit DP with a sentinel allows themed overrides without breaking the default case.
+1. Scope creep mid-milestone is fine when phases are small and self-contained — but update the milestone/roadmap header when scope expands
+2. `ThemeMode="Dark"` is the correct WPF approach for dark-mode secondary windows — manual style overrides are fragile
+3. Phase Detail sections in ROADMAP.md become stale fast; keep them in the archive and only track summary lines in the live ROADMAP
+4. Test count as a health signal: 224 → 274 over v3.5 confirmed new functionality was properly covered
 
 ### Cost Observations
-- Model mix: ~100% sonnet (balanced profile)
-- Sessions: ~4 across 2 days
-- Notable: Phase 54 (17 themes + swatch UI + 3 tests) executed in 3 plans averaging ~3 min each — fastest phase of the milestone
+- Model mix: 100% sonnet (executor + verifier)
+- Sessions: 1 (all 8 phases executed in a single session)
+- Notable: wave-based parallel execution with fresh 200k subagent contexts kept orchestrator under 15%
 
 ---
 
@@ -52,19 +55,24 @@
 
 | Milestone | Phases | Plans | Key Change |
 |-----------|--------|-------|------------|
-| v3.2 | 7 | 16 | Introduced Settings window, modeless pattern, SettingsSnapshot |
-| v3.3 | 7 | 13 | First hardware-simulation UI (WPF-drawn segments); audit-driven tech debt phase |
+| v1.0 | 3 | 7 | Initial GSD workflow established |
+| v2.5 | 3 | 3 | CI gate + test extraction patterns |
+| v3.2 | 7 | 16 | Settings window + multilingual — largest milestone to date |
+| v3.5 | 8 | 12 | Installer + CI pipeline shipped; wave parallelism at scale |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Notes |
 |-----------|-------|-------|
-| v3.1 | 122 | DateFormatter extracted to Core |
-| v3.2 | 224 | +102 multilingual provider tests |
-| v3.3 | 248 | +24 LCD field, format, and theme tests |
+| v2.5 | 73 | Core extraction baseline |
+| v3.1 | 122 | Battery + DateFormatter coverage |
+| v3.2 | 224 | PhraseEngine + settings coverage |
+| v3.5 | 274 | Wrap, segment-key, poetic coverage |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. **Audit before completing**: `gsd:audit-milestone` consistently finds 2–5 real gaps missed during execution. Phase 53 (tech debt cleanup) pattern should be standard at every major milestone.
-2. **WPF XAML + incremental build**: `--no-incremental` resolves stale BAML errors reliably. Do not chase the error — just rebuild clean.
-3. **Core-layer pure classes pay off**: `SevenSegmentEncoder` in `FuzzyClock.Core` (like `DateFormatter`, `UptimeFormatter`, `DialGeometry`) is trivially testable and has zero WPF coupling.
+1. **Static pure helpers** (UptimeFormatter, DialGeometry, DateFormatter, PhraseWrapService) are the right extraction pattern for Core — testable, zero WPF dependency
+2. **AppSettings init-property records** provide forward/backward JSON compatibility with zero attributes
+3. **ContextMenu_Opened for IsChecked sync** is the reliable WPF pattern — never touch IsChecked in click handlers
+4. **`ApplySettings()` before `Show()`** is the safe startup invariant — any helper that calls UpdateLayout()/Clamp() must NOT be called from ApplySettings()
+5. **Subagent-per-plan** with fresh 200k context windows is more reliable than extended sessions for execution-heavy phases

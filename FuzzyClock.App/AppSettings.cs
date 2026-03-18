@@ -1,6 +1,4 @@
 // Source: official .NET 10 docs — System.Text.Json handles init-property records natively
-using System.Text.Json.Serialization;
-
 namespace FuzzyClock.App;
 
 /// <summary>Saved window position for a specific monitor.</summary>
@@ -23,12 +21,7 @@ public record AppSettings
     public bool   PagVisible           { get; init; } = true;
     public bool   BatteryVisible       { get; init; } = true;
     public bool   UptimeVisible        { get; init; } = true;
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ClockType ClockType         { get; init; } = ClockType.Phrase;
-    public bool     LcdUse24Hr         { get; init; } = false;
-    public bool     LcdShowSeconds     { get; init; } = true;
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public LcdSize  LcdSize            { get; init; } = LcdSize.Medium;
+    public bool   DialMode             { get; init; } = false;
     public bool   ShowHourTicks        { get; init; } = false;
     public bool   ShowMinuteDots       { get; init; } = false;
     public bool   ShowHourNumbers      { get; init; } = false;
@@ -44,7 +37,10 @@ public record AppSettings
     public bool   ShowDate    { get; init; } = true;
     public string DateFormat  { get; init; } = "Short";   // "Short"|"Long"|"Numeric"|"ISO"
     public string? Theme      { get; init; } = null;       // null = no named theme active; "Midnight"|"Neon"|"Ghost"|"Warm"|"Terminal"
-    public int BatteryAlertThresholdPercent { get; init; } = 20;
-    public string LcdStyle    { get; init; } = "Dark";     // "Dark" | "Paper"
+    public int    BatteryAlertThresholdPercent { get; init; } = 20;
+    public bool   PhraseWrapEnabled            { get; init; } = true;
+    public string PhraseWrapStyle              { get; init; } = "midpoint";  // "midpoint" | "natural"
+    public bool   BackdropAlwaysVisible        { get; init; } = false;
+    public int    BackdropOpacityPercent       { get; init; } = 35;
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"

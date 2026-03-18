@@ -10,10 +10,7 @@ internal sealed record SettingsSnapshot
     public System.Windows.Media.Color AccentColor        { get; init; }
     public double  Opacity                               { get; init; }
     public int     FontSize                              { get; init; }
-    public ClockType ClockType                           { get; init; }
-    public bool      LcdUse24Hr                          { get; init; } = false;
-    public bool      LcdShowSeconds                      { get; init; } = true;
-    public LcdSize   LcdSize                              { get; init; } = LcdSize.Medium;
+    public bool    DialMode                              { get; init; }
     public string  PhraseStyle                           { get; init; } = "Classic";
     public string  PhraseLocale                          { get; init; } = "auto";
     public bool    StatsVisible                          { get; init; }
@@ -32,8 +29,8 @@ internal sealed record SettingsSnapshot
     public bool    AutoLaunchEnabled                     { get; init; }
     public string? ActiveTheme                           { get; init; } = null;
     public int     BatteryAlertThreshold                 { get; init; } = 20;
-    public string  LcdStyle                              { get; init; } = "Dark";
-    public bool    ShowHourTicks                         { get; init; } = false;
-    public bool    ShowMinuteDots                        { get; init; } = false;
-    public bool    ShowHourNumbers                       { get; init; } = false;
+    public bool    PhraseWrapEnabled                     { get; init; } = true;
+    public string  PhraseWrapStyle                       { get; init; } = "midpoint";
+    public bool    BackdropAlwaysVisible                 { get; init; } = false;
+    public int     BackdropOpacityPercent                { get; init; } = 35;
 }

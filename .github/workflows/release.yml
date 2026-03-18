@@ -19,6 +19,17 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          IFS='.' read -ra PARTS <<< "$TAG"
+          MAJOR="${PARTS[0]:-0}"
+          MINOR="${PARTS[1]:-0}"
+          PATCH="${PARTS[2]:-0}"
+          echo "version=$MAJOR.$MINOR.$PATCH" >> "$GITHUB_OUTPUT"
+
       - name: Restore
         run: dotnet restore -r win-x64 -p:PublishReadyToRun=true
 
@@ -35,10 +46,40 @@ jobs:
           -p:PublishSingleFile=true
           -p:PublishReadyToRun=true
           -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:AssemblyVersion=${{ steps.version.outputs.version }}.0
+          -p:FileVersion=${{ steps.version.outputs.version }}.0
           -o publish/
 
-      - name: Create GitHub Release
+      - name: Compile installer
+        shell: cmd
+        run: >
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          /DAppVersion=${{ steps.version.outputs.version }}
+          /DSourceDir=publish
+          FuzzyClock.iss
+
+      - name: Rename EXE artifact
+        shell: bash
+        run: mv publish/FuzzyClock.exe "publish/FuzzyClock-${{ steps.version.outputs.version }}.exe"
+
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          $exe   = "publish/FuzzyClock-$ver.exe"
+          $setup = "installer/FuzzyClockSetup-$ver.exe"
+          $h1 = (Get-FileHash $exe   -Algorithm SHA256).Hash
+          $h2 = (Get-FileHash $setup -Algorithm SHA256).Hash
+          "SHA256 (FuzzyClock-$ver.exe) = $h1" | Out-File -FilePath checksums.txt -Encoding utf8
+          "SHA256 (FuzzyClockSetup-$ver.exe) = $h2" | Out-File -FilePath checksums.txt -Append -Encoding utf8
+
+      - name: Create draft GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: publish/FuzzyClock.exe
+          draft: true
           generate_release_notes: true
+          files: |
+            publish/FuzzyClock-${{ steps.version.outputs.version }}.exe
+            installer/FuzzyClockSetup-${{ steps.version.outputs.version }}.exe
+            checksums.txt

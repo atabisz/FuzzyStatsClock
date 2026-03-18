@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using FuzzyClock.Core;
@@ -25,6 +26,8 @@ public partial class MainWindow : Window
     private DateTime _prevProcSample = DateTime.MinValue;
     // StatsPanel.Width(184) - label column(35) - text column(36) = 113
     private const double StatsBarTrackWidth = 113.0;
+    // Distance from screen working-area edge that triggers post-DragMove snapping.
+    private const double EdgeSnapThresholdPx = 8.0;
     private int _currentFontSize = 32;
     private string _currentMonitorKey = "";      // monitor key for the screen currently hosting the window
     private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
@@ -52,6 +55,12 @@ public partial class MainWindow : Window
     private ContrastRefreshController _contrast = new();
     private SettingsWindow? _settingsWindow;
     private string? _currentTheme = null;  // null = no named theme active
+    private bool   _phraseWrapEnabled = true;
+    private string _phraseWrapStyle   = "midpoint";
+    private string _currentRawPhrase  = "";
+    private string _lastSegmentKey    = "";
+    private bool _backdropAlwaysVisible;
+    private int  _backdropOpacityPercent = 35;
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
@@ -149,6 +158,8 @@ public partial class MainWindow : Window
             {
                 this.Opacity = _windowOpacity;
                 ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+                if (!_backdropAlwaysVisible)
+                    BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
             };
             _ghostMode.Initialize(new System.Windows.Interop.WindowInteropHelper(this).Handle);
 
@@ -210,6 +221,11 @@ public partial class MainWindow : Window
         _statsIntervalSeconds = s.StatsIntervalSeconds;
         _processCountThreshold = s.ProcessCountThresholdPercent;
         _batteryAlertThreshold = s.BatteryAlertThresholdPercent;
+        _phraseWrapEnabled = s.PhraseWrapEnabled;
+        _phraseWrapStyle   = s.PhraseWrapStyle;
+        _backdropAlwaysVisible  = s.BackdropAlwaysVisible;
+        _backdropOpacityPercent = s.BackdropOpacityPercent;
+        ApplyBackdropState();
 
         // Apply stats visibility directly (NOT via SetStatsVisible — that calls UpdateLayout()+Clamp()
         // which are unsafe before Show(), where ActualHeight is 0).
@@ -421,6 +437,10 @@ public partial class MainWindow : Window
         AutoContrastEnabled    = _contrast.IsEnabled,
         AutoLaunchEnabled      = _autoLaunchEnabled,
         ActiveTheme            = _currentTheme,
+        PhraseWrapEnabled      = _phraseWrapEnabled,
+        PhraseWrapStyle        = _phraseWrapStyle,
+        BackdropAlwaysVisible  = _backdropAlwaysVisible,
+        BackdropOpacityPercent = _backdropOpacityPercent,
     };
 
     private void OpenSettings()
@@ -461,6 +481,8 @@ public partial class MainWindow : Window
         _settingsWindow.ShowHourNumbersChanged += v => SetShowHourNumbers(v);
         _settingsWindow.PhraseStyleChanged    += ps => SetPhraseStyle(ps);
         _settingsWindow.LanguageChanged       += locale => SetLanguage(locale);
+        _settingsWindow.PhraseWrapEnabledChanged += enabled => SetPhraseWrapEnabled(enabled);
+        _settingsWindow.PhraseWrapStyleChanged   += style   => SetPhraseWrapStyle(style);
         _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
         _settingsWindow.CpuVisibleChanged     += v => SetStatRowVisible(CpuRow, v);
         _settingsWindow.GpuVisibleChanged     += v => SetStatRowVisible(GpuRow, v);
@@ -482,6 +504,8 @@ public partial class MainWindow : Window
             SaveSettings();
         };
         _settingsWindow.BatteryAlertThresholdChanged += t => SetBatteryAlertThreshold(t);
+        _settingsWindow.BackdropAlwaysVisibleChanged += v => SetBackdropAlwaysVisible(v);
+        _settingsWindow.BackdropOpacityPercentChanged += p => SetBackdropOpacityPercent(p);
         _settingsWindow.ThemeSelected += name =>
         {
             if (BuiltInThemes.TryGet(name) is { } theme)
@@ -551,6 +575,10 @@ public partial class MainWindow : Window
             ShowDate             = _showDate,
             DateFormat           = _dateFormat,
             Theme                = _currentTheme,
+            PhraseWrapEnabled    = _phraseWrapEnabled,
+            PhraseWrapStyle      = _phraseWrapStyle,
+            BackdropAlwaysVisible  = _backdropAlwaysVisible,
+            BackdropOpacityPercent = _backdropOpacityPercent,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -586,6 +614,7 @@ public partial class MainWindow : Window
         _isDragging = true;
         DragMove();
         _isDragging = false;
+        SnapToEdge();   // snap to edge if within 8px — post-DragMove only (SNAP-03)
         // LocationChanged fires during DragMove — _hasUserPosition is already true here.
 
         // Cross-monitor drag: remove source monitor's saved position (per design decision)
@@ -603,12 +632,51 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
+    /// <summary>
+    /// If the window landed within <see cref="EdgeSnapThresholdPx"/> of any working-area edge,
+    /// nudge it flush to that edge. Uses Screen.WorkingArea (excludes taskbar) — not Screen.Bounds.
+    /// Called only post-DragMove; never from timers or phrase-resize paths (SNAP-03).
+    /// </summary>
+    private void SnapToEdge()
+    {
+        var screen = System.Windows.Forms.Screen.FromPoint(
+            new System.Drawing.Point(
+                (int)(Left + ActualWidth  / 2),
+                (int)(Top  + ActualHeight / 2)));
+        var wa = screen.WorkingArea;
+
+        double newLeft = Left;
+        double newTop  = Top;
+
+        // Horizontal: left edge, then right edge (mutually exclusive per side)
+        if (Math.Abs(Left - wa.Left) <= EdgeSnapThresholdPx)
+            newLeft = wa.Left;
+        else if (Math.Abs((Left + ActualWidth) - (wa.Left + wa.Width)) <= EdgeSnapThresholdPx)
+            newLeft = wa.Left + wa.Width - ActualWidth;
+
+        // Vertical: top edge, then bottom edge (mutually exclusive per side)
+        if (Math.Abs(Top - wa.Top) <= EdgeSnapThresholdPx)
+            newTop = wa.Top;
+        else if (Math.Abs((Top + ActualHeight) - (wa.Top + wa.Height)) <= EdgeSnapThresholdPx)
+            newTop = wa.Top + wa.Height - ActualHeight;
+
+        if (newLeft != Left || newTop != Top)
+        {
+            Left = newLeft;
+            Top  = newTop;
+        }
+    }
+
     private void UpdatePhraseIfChanged()
     {
-        string newPhrase = PhraseEngine.GetPhrase(DateTime.Now);
-        if (newPhrase == PhraseText.Text) return;  // No change — skip layout work
+        string segmentKey = PhraseEngine.GetSegmentKey(DateTime.Now);
+        if (segmentKey == _lastSegmentKey) return;  // same bucket — skip
 
-        PhraseText.Text = newPhrase;
+        _lastSegmentKey   = segmentKey;
+        string newPhrase  = PhraseEngine.GetPhrase(DateTime.Now);
+        _currentRawPhrase = newPhrase;
+
+        ApplyPhraseWrap(newPhrase);
 
         // Always update split TextBlocks (no cost if SplitPhrasePanel is Collapsed)
         var (qualifier, emphasis) = PhraseEngine.GetStructuredPhrase(DateTime.Now);
@@ -635,6 +703,44 @@ public partial class MainWindow : Window
                 ActualWidth, ActualHeight, screen);
             Left = clamped.Left;
             Top  = clamped.Top;
+        }
+    }
+
+    private void SetPhraseTextSingleLine(string text)
+    {
+        PhraseText.Inlines.Clear();
+        PhraseText.Inlines.Add(new Run(text));
+    }
+
+    private void ApplyPhraseWrap(string rawPhrase)
+    {
+        // Guard: no wrap in dial mode or Split text style, or when wrap is disabled
+        if (_dialMode || _currentTextStyle == "Split" || !_phraseWrapEnabled)
+        {
+            SetPhraseTextSingleLine(rawPhrase);
+            return;
+        }
+
+        // Set single-line first to measure actual width
+        SetPhraseTextSingleLine(rawPhrase);
+        UpdateLayout();
+
+        double panelWidth = StatsPanel.Visibility == Visibility.Visible
+            ? StatsPanel.ActualWidth
+            : 184.0;
+        double threshold = panelWidth * 1.1;
+
+        if (PhraseText.ActualWidth > threshold)
+        {
+            bool allowNatural = PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal);
+            var split = PhraseWrapService.ComputeSplit(rawPhrase, _phraseWrapStyle, allowNatural);
+            if (split.HasValue)
+            {
+                PhraseText.Inlines.Clear();
+                PhraseText.Inlines.Add(new Run(split.Value.Line1));
+                PhraseText.Inlines.Add(new LineBreak());
+                PhraseText.Inlines.Add(new Run(split.Value.Line2));
+            }
         }
     }
 
@@ -891,6 +997,39 @@ public partial class MainWindow : Window
         UpdateStatsDisplay();
     }
 
+    private byte BackdropAlpha()
+        => (byte)Math.Clamp((int)(_backdropOpacityPercent / 100.0 * 255), 25, 255);
+
+    private void ApplyBackdropState()
+    {
+        if (_backdropAlwaysVisible)
+            BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(BackdropAlpha(), 0, 0, 0));
+        else
+            BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
+    }
+
+    private void SetBackdropAlwaysVisible(bool value)
+    {
+        _backdropAlwaysVisible = value;
+        ApplyBackdropState();
+        SaveSettings();
+    }
+
+    private void SetBackdropOpacityPercent(int percent)
+    {
+        _backdropOpacityPercent = percent;
+        if (_backdropAlwaysVisible || _isHoverFastRefresh)
+        {
+            var alpha = BackdropAlpha();
+            BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
+            ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
+        }
+        SaveSettings();
+    }
+
     private void SetBatteryAlertThreshold(int threshold)
     {
         _batteryAlertThreshold = threshold;
@@ -906,7 +1045,9 @@ public partial class MainWindow : Window
             // Normal hover path (CTRLALT-01/02): show backdrop + activate fast-refresh.
             // WS_EX_TRANSPARENT is NOT applied — window stays fully interactive (drag, right-click, scroll).
             ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
+                System.Windows.Media.Color.FromArgb(BackdropAlpha(), 0, 0, 0));
+            BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(BackdropAlpha(), 0, 0, 0));
 
             if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null
                 && _statsTimer.IsEnabled)
@@ -925,6 +1066,8 @@ public partial class MainWindow : Window
         // WS_EX_TRANSPARENT stops WM_MOUSELEAVE delivery. Backdrop and timer state
         // must be clean before we disappear or they will be corrupted post-restore.
         ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+        if (!_backdropAlwaysVisible)
+            BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
         if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null)
         {
             _statsTimer.Stop();
@@ -946,6 +1089,8 @@ public partial class MainWindow : Window
 
         // Backdrop restore (Phase 14): always clear on leave regardless of stats state
         ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+        if (!_backdropAlwaysVisible)
+            BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
 
         if (StatsPanel.Visibility != Visibility.Visible) return;
         // Fast-refresh restore (Phase 12): restore configured interval
@@ -1103,6 +1248,19 @@ public partial class MainWindow : Window
         _currentTheme = null;
         _settingsWindow?.ClearActiveThemeCard();
 
+        // Reset phrase locale to auto and phrase style to Classic.
+        // Set _currentPhraseStyle directly — do NOT call SetPhraseStyle() which has a
+        // non-English locale guard that would be a no-op on fr/es/de/ja/pl systems.
+        // SetLanguage("auto") sets _currentPhraseLocale, recomputes PhraseEngine locale
+        // from Windows culture, clears the phrase cache, and calls UpdatePhraseIfChanged.
+        _currentPhraseStyle = "Classic";
+        _phraseWrapEnabled  = true;
+        _phraseWrapStyle    = "midpoint";
+        _backdropAlwaysVisible  = false;
+        _backdropOpacityPercent = 35;
+        ApplyBackdropState();
+        SetLanguage("auto");
+
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
         SaveSettings();
@@ -1237,7 +1395,8 @@ public partial class MainWindow : Window
             _             => "en-classic",
         };
         PhraseEngine.SetLocale(localeKey);
-        PhraseText.Text = "";          // invalidate UpdatePhraseIfChanged guard cache
+        _currentRawPhrase = "";          // invalidate UpdatePhraseIfChanged guard cache
+        _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
     }
@@ -1282,7 +1441,26 @@ public partial class MainWindow : Window
                   };
 
         PhraseEngine.SetLocale(effectiveLocale);
-        PhraseText.Text = "";
+        _currentRawPhrase = "";
+        _lastSegmentKey   = "";
+        UpdatePhraseIfChanged();
+        SaveSettings();
+    }
+
+    private void SetPhraseWrapEnabled(bool enabled)
+    {
+        _phraseWrapEnabled = enabled;
+        _currentRawPhrase = "";  // force re-evaluation
+        _lastSegmentKey   = "";
+        UpdatePhraseIfChanged();
+        SaveSettings();
+    }
+
+    private void SetPhraseWrapStyle(string style)
+    {
+        _phraseWrapStyle = style;
+        _currentRawPhrase = "";  // force re-evaluation
+        _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
     }

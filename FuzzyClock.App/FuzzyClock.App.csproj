@@ -11,16 +11,17 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <AssemblyName>FuzzyClock</AssemblyName>
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <NoWarn>NU1510</NoWarn>
-    <Version>3.0.0</Version>
-    <AssemblyVersion>3.0.0.0</AssemblyVersion>
-    <FileVersion>3.0.0.0</FileVersion>
-    <InformationalVersion>3.0.0</InformationalVersion>
+    <Version>3.6.0</Version>
+    <AssemblyVersion>3.6.0.0</AssemblyVersion>
+    <FileVersion>3.6.0.0</FileVersion>
+    <InformationalVersion>3.6.0</InformationalVersion>
     <Product>FuzzyClock</Product>
     <Description>Fuzzy time and system stats desktop overlay</Description>
     <Copyright>Alex Tabisz</Copyright>

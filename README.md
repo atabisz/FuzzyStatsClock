@@ -2,77 +2,66 @@
 
 A minimal WPF desktop widget that displays the current time as a fuzzy English phrase — *"just a little after 11"*, *"almost noon"*, *"quarter past 3"* — or as a minimal analog dial with hour and minute hands. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box.
 
+## Screenshots
+
+| Phrase mode | Phrase + stats |
+|:-----------:|:--------------:|
+| ![Phrase mode](docs/screenshots/phrase-only.png) | ![Phrase mode with stats](docs/screenshots/phrase-stats.png) |
+| **Dial mode** | **Dial + stats** |
+| ![Dial mode](docs/screenshots/dial-only.png) | ![Dial mode with stats](docs/screenshots/dial-stats.png) |
+
 ## Features
 
 - **Phrase mode** — time expressed as natural English, updating on 5-minute boundaries
 - **Dial mode** — hour and minute hands on a transparent background (no face, no numbers); optional hour ticks, minute marks, and hour labels
-- **LCD clock** — retro 7-segment display rendered with WPF polygon geometry (no fonts or bitmaps); ghost (inactive) segments always visible at a dimmed color; 17 color themes (10 dark phosphor/neon, 5 muted pastel, 2 inverted light-background); 12hr (space-padded) or 24hr (zero-padded); optional seconds display; three size variants (Small / Medium / Large)
 - **Stats panel** — live CPU / GPU / MEM / PAG usage as horizontal bars below the phrase or dial; per-row visibility toggles; 1s / 3s / 10s update interval
 - **Battery row** — shows battery charge percentage and `⚡` when AC-connected (e.g. `⚡ 87%`); displays `N/A` on desktops or VMs with no battery; toggleable per-row like other stat rows
 - **Uptime row** — system uptime (`up 5h 3m`), rolling 1m/5m/15m CPU load averages, and active process count (`142p`) in a single compact line
-- **Date display** — shows the current date below the clock phrase or dial in a muted accent color; toggleable via tray (Show Date); four format options selectable from the tray Date Format submenu:
+- **Date display** — shows the current date below the clock phrase or dial in a muted accent color; toggleable; four format options:
   - Short: `Sat, Mar 7`
   - Long: `Saturday, March 7`
   - Numeric: `3/7/2026`
   - ISO: `2026-03-07`
 - **Ghost mode** — hovering the mouse over the widget automatically hides it (fully transparent and click-through) so it never blocks the desktop; moving the mouse away restores it; toggleable via tray
 - **Auto-contrast** — samples the screen color under the widget every 500ms and automatically switches text to black or white (WCAG-based) when the accent color loses contrast against the background; toggleable via tray
-- **Accent colors** — choose from five presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color; applies to all text, hands, bars, and decorations
-- **Window opacity** — 25% / 50% / 75% / 100% via tray submenu, or adjust in 10% steps with the scroll wheel
+- **Accent colors** — five quick presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) via Settings, or pick any custom color; applies to all text, hands, bars, and decorations
+- **Window opacity** — 25% / 50% / 75% / 100% via Settings or scroll wheel in 10% steps
+- **Font size** — Small (16pt) / Medium (24pt) / Large (32pt) / Extra Large (40pt) via Settings (phrase mode only)
+- **Hover backdrop** — semi-transparent dark background covers the full widget footprint (phrase, date, stats) on hover; optional always-visible mode and configurable opacity (10%–100%) via Settings Appearance tab
 - **Hover fast-refresh** — stats accelerate to 0.5s while the mouse is over the widget (hold Ctrl+Alt to hover without triggering ghost mode)
 - **Auto-launch** — optionally start the widget at Windows login; toggled via the system tray
 - **Per-monitor position memory** — position is remembered per-monitor; switching monitors restores the last-used position on each display
 - **Drag anywhere** — left-click drag repositions freely; position saved immediately
-- **Font size** — Small (16pt) / Medium (24pt) / Large (32pt) via tray menu (phrase mode only)
-- **Context-aware menus** — Font Size submenu hidden in dial mode; Dial Face submenu hidden in phrase mode
 - **Persistence** — all preferences saved to `%LOCALAPPDATA%\FuzzyClock\settings.json`
-
-## LCD Clock
-
-*Screenshot placeholder — v3.3*
-
-A retro 7-segment LCD clock type, rendered entirely with WPF polygon geometry (no fonts or bitmaps).
-
-### Themes
-
-| Theme    | Lit color | Ghost color | Background |
-|----------|-----------|-------------|------------|
-| Green    | `#00FF41` | `#003310`   | `#001A00`  |
-| Amber    | `#FFAA00` | `#3D2800`   | `#1A0A00`  |
-| Blue     | `#00CFFF` | `#002A35`   | `#00001A`  |
-| Teal     | `#00B4B4` | `#002525`   | `#001010`  |
-| Red      | `#FF2200` | `#380800`   | `#1A0000`  |
-| Vfd      | `#14F0A0` | `#023A28`   | `#001A10`  |
-| Nixie    | `#FF6000` | `#3D1800`   | `#1A0800`  |
-| Magenta  | `#FF00CC` | `#3D0030`   | `#1A0015`  |
-| Purple   | `#CC00FF` | `#300040`   | `#15001A`  |
-| Cyan     | `#00FFFF` | `#003838`   | `#001A1A`  |
-| Lime     | `#CCFF00` | `#2E3800`   | `#141A00`  |
-| Cream    | `#FFEEDD` | `#3D3020`   | `#1A1208`  |
-| Ice      | `#B0D8FF` | `#1A2D3D`   | `#0A1520`  |
-| Mint     | `#66FFCC` | `#003D28`   | `#001A12`  |
-| Lavender | `#CC99FF` | `#280040`   | `#120018`  |
-| LcdGrey  | `#2A3020` | `#8A9080`   | `#C8D0C0`  |
-| Paper    | `#1A1A18` | `#9090A0`   | `#F0F0E8`  |
-
-Ghost (inactive) segments are always visible at a dimmed color — a hallmark of real LCD hardware.
-
-### Size, format, and seconds
-
-| Setting | Options |
-|---------|---------|
-| Size | Small (32px) / Medium (48px) / Large (64px) |
-| Hour format | 12hr (space-padded, no AM/PM) or 24hr (zero-padded) |
-| Show seconds | Appends `:SS` to the display |
-
-### Backlog
-
-> **Nixie-style clock** — a warm-glow Nixie tube variant is planned for a future milestone.
+- **Settings window** — open from the system tray ("Open Settings..."); three tabs organize all preferences:
+  - *Appearance* — named themes, accent color, opacity, font size, clock style, phrase style, phrase wrap
+  - *Stats* — stats panel visibility, individual row toggles, update interval, process threshold, date display
+  - *Behavior* — phrase language, ghost mode, auto-contrast, auto-launch, battery alert threshold
+- **Named themes** — five one-click theme presets in the Settings Appearance tab: Midnight, Neon, Ghost, Warm, Terminal; each sets a coordinated accent color, opacity, font size, clock style, and stats visibility
+- **Phrase styles** — four English phrase personalities: Classic (default natural), Terse (compact), Poetic (literary), Rude (irreverent); selectable in Settings Appearance tab (English locales only)
+- **Multilingual phrases** — time phrases available in English, French, Spanish, German, Japanese, and Polish; auto-detects from Windows display language or override in Settings Behavior tab
+- **Phrase wrapping** — when a phrase is more than 10% wider than the stats panel, it automatically splits across two lines; two split styles: Nearest Midpoint (word break closest to string center, default) and Natural Pause (split after first grammatical beat, English only); configurable in Settings Appearance tab
+- **Edge snapping** — dragging the widget to within 8 pixels of any screen edge snaps it flush to that edge; respects the taskbar working area
+- **Single instance** — launching the app when it is already running brings the existing window to the front instead of opening a second instance
+- **Battery low alert** — battery stat row background turns red when charge drops below a configurable threshold (10%/15%/20%) and the device is unplugged; configurable in Settings Behavior tab
+- **Dark-mode Settings** — the Settings window uses a dark background with light text matching the widget's minimal aesthetic
 
 ## Requirements
 
 - Windows 10 or 11
 - [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (or SDK for building from source)
+
+## Installation
+
+Download `FuzzyClockSetup-X.Y.Z.exe` from the latest [GitHub Release](../../releases/latest) and run it. The installer places the app in `%LOCALAPPDATA%\Programs\FuzzyClock\` with no admin elevation required.
+
+A standalone portable `FuzzyClock-X.Y.Z.exe` is also available from the same release page.
+
+> **SmartScreen warning:** The binary is not code-signed. Windows SmartScreen may show a warning on first run. Click **More info** then **Run anyway** to proceed.
+
+Upgrading: run the new installer over the existing installation. Settings are preserved. If the app is running, the installer will prompt you to close it first.
+
+Uninstalling: use **Settings > Apps > Installed Apps** or the Start Menu uninstaller. App files are removed; `settings.json` is preserved by default (an optional checkbox during uninstall lets you remove it).
 
 ## Build
 
@@ -99,7 +88,7 @@ dotnet build FuzzyClock.slnx -c Release
 dotnet test FuzzyClock.slnx
 ```
 
-248 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), seven-segment encoder, LCD time format helper, settings validation and migration, and app integration tests.
+274 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), phrase wrap service, settings validation and migration, and app integration tests.
 
 ## Usage
 
@@ -109,18 +98,12 @@ Right-click the system tray icon to access all settings:
 
 | Item | Description |
 |------|-------------|
-| **Ghost Mode** | Enable/disable hover-to-hide |
-| **Auto-Launch at Login** | Enable/disable start at Windows login |
-| **Auto-Contrast** | Enable/disable automatic text contrast adjustment |
-| **Dial Mode** | Toggle between phrase clock and analog dial display |
-| **Font Size** | Small (16pt) / Medium (24pt) / Large (32pt) — phrase mode only |
-| **Dial Face** | Toggle hour ticks, minute marks, hour numbers — dial mode only |
-| **Show Date** | Show or hide the date line below the clock phrase or dial; persisted |
-| **Date Format** | Short (Sat, Mar 7) / Long (Saturday, March 7) / Numeric (3/7/2026) / ISO (2026-03-07) |
-| **Stats** | Show/hide the stats panel; toggle individual rows (CPU/GPU/MEM/PAG/BATT/Uptime); set update interval |
-| **Theme** | Pick a color preset (White / Amber / Ice Blue / Green / Hello Kitty Pink) or open the custom color picker |
-| **Opacity** | Set window opacity (25% / 50% / 75% / 100%) |
-| **Reset to Defaults** | Restore factory settings |
+| **Open Settings...** | Open the Settings window (Appearance / Stats / Behavior tabs) |
+| **Ghost Mode** | Enable/disable hover-to-hide (checkmark = active) |
+| **Show Stats** | Show/hide the stats panel (checkmark = active) |
+| **Auto-Contrast** | Enable/disable automatic text contrast adjustment (checkmark = active) |
+| **Auto-Launch at Login** | Enable/disable start at Windows login (checkmark = active) |
+| **Reset to Defaults** | Restore factory settings (accent, opacity, font size, phrase style, locale, all toggles) |
 | **About** | Show version information |
 | **Quit** | Exit the application |
 
@@ -135,22 +118,27 @@ Right-click the system tray icon to access all settings:
 
 ### System tray
 
-The tray icon is the primary UI surface. All settings are accessible from the tray right-click menu (see above). The tray icon is always visible in the system notification area.
+The tray icon is the primary UI surface. Right-click it to access quick toggles (Ghost Mode, Show Stats, Auto-Contrast, Auto-Launch) and open the full Settings window. All detailed configuration (themes, phrase style, language, stats rows, date format, battery alert, phrase wrap) lives in the Settings window.
 
-Toggle items available at the top of the tray menu:
+### Settings Window
 
-- **Ghost Mode** — enable/disable hover-to-hide (checkmark = active)
-- **Auto-Launch at Login** — enable/disable start at Windows login (checkmark = active)
-- **Auto-Contrast** — enable/disable automatic text contrast adjustment (checkmark = active)
+Open from the tray menu ("Open Settings..."). The window has three tabs:
+
+**Appearance** — Named theme presets (Midnight / Neon / Ghost / Warm / Terminal), accent color swatches and custom picker, opacity slider, font size, clock style (Phrase / Dial), phrase style (Classic / Terse / Poetic / Rude), phrase wrap controls (enable/disable, split style), and backdrop controls (always-visible toggle, opacity slider).
+
+**Stats** — Stats panel toggle, individual row visibility (CPU / GPU / Memory / Paging / Battery / Uptime), update interval, process count threshold, date visibility, and date format.
+
+**Behavior** — Phrase language (Auto / English / French / Spanish / German / Japanese / Polish), ghost mode, auto-contrast, auto-launch at login, and battery alert threshold (10% / 15% / 20%).
 
 ## Project Structure
 
 ```
 FuzzyClock.slnx
-├── FuzzyClock.Core/          # Pure logic (PhraseEngine, DialGeometry, UptimeFormatter, DateFormatter, ContrastService)
+├── FuzzyClock.Core/          # Pure logic (PhraseEngine, DialGeometry, UptimeFormatter, DateFormatter, PhraseWrapService, ContrastService)
 ├── FuzzyClock.Core.Tests/    # MSTest unit tests for Core logic
 ├── FuzzyClock.App/           # WPF overlay window
 │   ├── MainWindow.xaml(.cs)  # Main UI and event handlers
+│   ├── SettingsWindow.xaml(.cs)     # Three-tab settings UI (Appearance / Stats / Behavior)
 │   ├── StatsService.cs       # PDH performance counters (CPU/GPU/MEM/PAG)
 │   ├── ContrastSamplerService.cs  # BitBlt screen color sampling
 │   ├── GhostModeController.cs     # Win32 click-through and restore timer

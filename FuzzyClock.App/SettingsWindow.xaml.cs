@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -24,9 +23,7 @@ public sealed partial class SettingsWindow : Window
     public event Action<Color>?  AccentColorChanged;
     public event Action<double>? OpacityChanged;
     public event Action<int>?    FontSizeChanged;
-    public event Action<ClockType>? ClockTypeChanged;
-    public event Action<bool>?     LcdUse24HrChanged;
-    public event Action<bool>?     LcdShowSecondsChanged;
+    public event Action<bool>?   DialModeChanged;
     public event Action<string>? PhraseStyleChanged;
     public event Action<bool>?   StatsVisibleChanged;
     public event Action<bool>?   CpuVisibleChanged;
@@ -45,10 +42,10 @@ public sealed partial class SettingsWindow : Window
     public event Action<string>? ThemeSelected;
     public event Action<int>?    BatteryAlertThresholdChanged;
     public event Action<string>? LanguageChanged;
-    public event Action<string>? LcdStyleChanged;
-    public event Action<bool>?   ShowHourTicksChanged;
-    public event Action<bool>?   ShowMinuteDotsChanged;
-    public event Action<bool>?   ShowHourNumbersChanged;
+    public event Action<bool>?   PhraseWrapEnabledChanged;
+    public event Action<string>? PhraseWrapStyleChanged;
+    public event Action<bool>?   BackdropAlwaysVisibleChanged;
+    public event Action<int>?    BackdropOpacityPercentChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -79,18 +76,7 @@ public sealed partial class SettingsWindow : Window
 
         // Font size / clock style toggle buttons
         SetFontSizeButtonStates(s.FontSize);
-        SetClockStyleButtonStates(s.ClockType);
-
-        // LCD options (populated inside _suppressEvents guard — already true at this point)
-        BtnLcd12hr.Tag = !s.LcdUse24Hr ? "selected" : null;
-        BtnLcd24hr.Tag = s.LcdUse24Hr  ? "selected" : null;
-        ChkLcdSeconds.IsChecked = s.LcdShowSeconds;
-        SetLcdStyleButtonStates(s.LcdStyle);
-
-        // Dial options
-        ChkShowHourTicks.IsChecked   = s.ShowHourTicks;
-        ChkShowMinuteDots.IsChecked  = s.ShowMinuteDots;
-        ChkShowHourNumbers.IsChecked = s.ShowHourNumbers;
+        SetClockStyleButtonStates(s.DialMode);
 
         // Phrase language combo
         string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
@@ -112,16 +98,10 @@ public sealed partial class SettingsWindow : Window
         CmbPhraseStyle.IsEnabled = !isNonEnglish;
         CmbPhraseStyle.SelectedIndex = s.PhraseStyle switch
         {
-            "Terse"       => 1,
-            "Poetic"      => 2,
-            "Rude"        => 3,
-            "Pirate"      => 4,
-            "Dwarf"       => 5,
-            "Jive"        => 6,
-            "ValleyGirl"  => 7,
-            "Yoda"        => 8,
-            "Shakespeare" => 9,
-            _             => 0,
+            "Terse"  => 1,
+            "Poetic" => 2,
+            "Rude"   => 3,
+            _        => 0,
         };
 
         // Stats checkboxes
@@ -168,6 +148,17 @@ public sealed partial class SettingsWindow : Window
         RbAlert15.IsChecked = s.BatteryAlertThreshold == 15;
         RbAlert20.IsChecked = s.BatteryAlertThreshold == 20;
 
+        // Phrase wrap controls
+        ChkPhraseWrap.IsChecked  = s.PhraseWrapEnabled;
+        RbWrapMidpoint.IsChecked = s.PhraseWrapStyle == "midpoint";
+        RbWrapNatural.IsChecked  = s.PhraseWrapStyle == "natural";
+        WrapStylePanel.IsEnabled = s.PhraseWrapEnabled;
+
+        // Backdrop controls
+        BackdropOpacitySlider.Value = s.BackdropOpacityPercent;
+        BackdropOpacityLabel.Text = $"{s.BackdropOpacityPercent}%";
+        ChkBackdropAlwaysVisible.IsChecked = s.BackdropAlwaysVisible;
+
         // Accent swatch selection ring
         var ac = s.AccentColor;
         Border? ring =
@@ -204,37 +195,10 @@ public sealed partial class SettingsWindow : Window
         BtnFontXL.Tag = size == 40 ? "selected" : null;
     }
 
-    private void SetClockStyleButtonStates(ClockType clockType)
+    private void SetClockStyleButtonStates(bool dialMode)
     {
-        BtnPhrase.Tag = clockType == ClockType.Phrase ? "selected" : null;
-        BtnDial.Tag   = clockType == ClockType.Dial   ? "selected" : null;
-        BtnLcd.Tag    = clockType == ClockType.Lcd    ? "selected" : null;
-        BtnNixie.Tag  = clockType == ClockType.Nixie  ? "selected" : null;
-        SetLcdRowsVisible(clockType == ClockType.Lcd);
-        var dialVis = clockType == ClockType.Dial ? Visibility.Visible : Visibility.Collapsed;
-        DialOptionsRowLabel.Visibility = dialVis;
-        DialOptionsRow.Visibility      = dialVis;
-        var phraseVis = clockType == ClockType.Phrase ? Visibility.Visible : Visibility.Collapsed;
-        PhraseStyleRowLabel.Visibility = phraseVis;
-        CmbPhraseStyle.Visibility      = phraseVis;
-    }
-
-    private void SetLcdRowsVisible(bool visible)
-    {
-        var vis = visible ? Visibility.Visible : Visibility.Collapsed;
-        LcdFormatRowLabel.Visibility     = vis;
-        LcdFormatRow.Visibility          = vis;
-        LcdSecondsRowLabel.Visibility    = vis;
-        ChkLcdSeconds.Visibility         = vis;
-        LcdStyleRowLabel.Visibility      = vis;
-        LcdStyleRow.Visibility           = vis;
-    }
-
-    private void SetLcdStyleButtonStates(string style)
-    {
-        BtnLcdDark.Tag   = style == "Dark"   ? "selected" : null;
-        BtnLcdPaper.Tag  = style == "Paper"  ? "selected" : null;
-        BtnLcdSilver.Tag = style == "Silver" ? "selected" : null;
+        BtnPhrase.Tag = !dialMode ? "selected" : null;
+        BtnDial.Tag   =  dialMode ? "selected" : null;
     }
 
     private void SetActiveSwatch(Border? activeRing)
@@ -418,81 +382,15 @@ public sealed partial class SettingsWindow : Window
     private void BtnPhrase_Click(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        SetClockStyleButtonStates(ClockType.Phrase);
-        ClockTypeChanged?.Invoke(ClockType.Phrase);
+        SetClockStyleButtonStates(false);
+        DialModeChanged?.Invoke(false);
     }
 
     private void BtnDial_Click(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        SetClockStyleButtonStates(ClockType.Dial);
-        ClockTypeChanged?.Invoke(ClockType.Dial);
-    }
-
-    private void BtnLcd_Click(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetClockStyleButtonStates(ClockType.Lcd);
-        ClockTypeChanged?.Invoke(ClockType.Lcd);
-    }
-
-    private void BtnNixie_Click(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetClockStyleButtonStates(ClockType.Nixie);
-        ClockTypeChanged?.Invoke(ClockType.Nixie);
-    }
-
-    private void BtnLcd12hr_Click(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        BtnLcd12hr.Tag = "selected";
-        BtnLcd24hr.Tag = null;
-        LcdUse24HrChanged?.Invoke(false);
-    }
-
-    private void BtnLcd24hr_Click(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        BtnLcd12hr.Tag = null;
-        BtnLcd24hr.Tag = "selected";
-        LcdUse24HrChanged?.Invoke(true);
-    }
-
-    private void ChkLcdSeconds_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        LcdShowSecondsChanged?.Invoke(ChkLcdSeconds.IsChecked == true);
-    }
-
-    private void BtnLcdDark_Click(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetLcdStyleButtonStates("Dark");
-        LcdStyleChanged?.Invoke("Dark");
-    }
-
-    private void BtnLcdPaper_Click(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetLcdStyleButtonStates("Paper");
-        LcdStyleChanged?.Invoke("Paper");
-    }
-
-    private void BtnLcdSilver_Click(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetLcdStyleButtonStates("Silver");
-        LcdStyleChanged?.Invoke("Silver");
-    }
-
-    // ── Dial options checkboxes ───────────────────────────────────────────
-    private void ChkDialOption_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        if (sender == ChkShowHourTicks)   ShowHourTicksChanged?.Invoke(ChkShowHourTicks.IsChecked == true);
-        if (sender == ChkShowMinuteDots)  ShowMinuteDotsChanged?.Invoke(ChkShowMinuteDots.IsChecked == true);
-        if (sender == ChkShowHourNumbers) ShowHourNumbersChanged?.Invoke(ChkShowHourNumbers.IsChecked == true);
+        SetClockStyleButtonStates(true);
+        DialModeChanged?.Invoke(true);
     }
 
     // ── Phrase style combo ────────────────────────────────────────────────
@@ -639,6 +537,42 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         AutoLaunchChanged?.Invoke(ChkAutoLaunch.IsChecked == true);
+    }
+
+    // ── Phrase wrap controls ───────────────────────────────────────────────
+    private void ChkPhraseWrap_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        bool enabled = ChkPhraseWrap.IsChecked == true;
+        WrapStylePanel.IsEnabled = enabled;
+        PhraseWrapEnabledChanged?.Invoke(enabled);
+    }
+
+    private void RbWrapMidpoint_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        PhraseWrapStyleChanged?.Invoke("midpoint");
+    }
+
+    private void RbWrapNatural_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        PhraseWrapStyleChanged?.Invoke("natural");
+    }
+
+    // ── Backdrop controls ─────────────────────────────────────────────────
+    private void ChkBackdropAlwaysVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        BackdropAlwaysVisibleChanged?.Invoke(ChkBackdropAlwaysVisible.IsChecked == true);
+    }
+
+    private void BackdropOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressEvents) return;
+        var val = (int)BackdropOpacitySlider.Value;
+        BackdropOpacityLabel.Text = $"{val}%";
+        BackdropOpacityPercentChanged?.Invoke(val);
     }
 
     // ── Win32Window adapter for WinForms dialogs ──────────────────────────

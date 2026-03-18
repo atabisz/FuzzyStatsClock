@@ -5,7 +5,8 @@
         Width="480" Height="600"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        ThemeMode="Dark">
 
     <Window.Resources>
         <!-- Segmented toggle button — rail container sets Background="#FFE8E8E8" CornerRadius="4" -->
@@ -29,19 +30,19 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <!-- Selected state: white pill with subtle border -->
+                <!-- Selected state: dark pill -->
                 <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="selected">
-                    <Setter Property="Background" Value="#FFFFFFFF"/>
-                    <Setter Property="BorderBrush" Value="#FFBDBDBD"/>
+                    <Setter Property="Background" Value="#FF3C3C3C"/>
+                    <Setter Property="BorderBrush" Value="#FF666666"/>
                     <Setter Property="BorderThickness" Value="1"/>
                 </DataTrigger>
-                <!-- Hover on unselected: light gray -->
+                <!-- Hover on unselected: dark -->
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
                         <Condition Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="{x:Null}"/>
                     </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFD0D0D0"/>
+                    <Setter Property="Background" Value="#FF555555"/>
                 </MultiDataTrigger>
             </Style.Triggers>
         </Style>
@@ -55,10 +56,10 @@
 
                 <!-- Named Themes — personality presets; placed above accent color -->
                 <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
 
-                    <Border x:Name="RingThemeMidnight" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                    <Border x:Name="RingThemeMidnight" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,6,0">
+                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeMidnight_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -71,13 +72,13 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FF6A7FDB" Margin="0,0,0,4"/>
-                                <TextBlock Text="Midnight" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Midnight" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
 
-                    <Border x:Name="RingThemeNeon" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                    <Border x:Name="RingThemeNeon" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,6,0">
+                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeNeon_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -90,13 +91,13 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FF00F5D4" Margin="0,0,0,4"/>
-                                <TextBlock Text="Neon" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Neon" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
 
-                    <Border x:Name="RingThemeGhost" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                    <Border x:Name="RingThemeGhost" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,6,0">
+                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeGhost_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -109,13 +110,13 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FFC0C8D8" Margin="0,0,0,4"/>
-                                <TextBlock Text="Ghost" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Ghost" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
 
-                    <Border x:Name="RingThemeWarm" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,6,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                    <Border x:Name="RingThemeWarm" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,6,0">
+                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeWarm_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -128,13 +129,13 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FFF4A261" Margin="0,0,0,4"/>
-                                <TextBlock Text="Warm" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Warm" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
 
-                    <Border x:Name="RingThemeTerminal" BorderThickness="0" CornerRadius="6" Padding="2" Margin="0,0,0,0">
-                        <Border Width="60" Height="64" Background="#FFF0F0F5" CornerRadius="4" Cursor="Hand"
+                    <Border x:Name="RingThemeTerminal" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,0,0">
+                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
                                 MouseLeftButtonDown="ThemeTerminal_Click">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -147,7 +148,7 @@
                             </Border.Style>
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Ellipse Width="20" Height="20" Fill="#FF39FF14" Margin="0,0,0,4"/>
-                                <TextBlock Text="Terminal" FontSize="10" HorizontalAlignment="Center" Foreground="#FF333333"/>
+                                <TextBlock Text="Terminal" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
                             </StackPanel>
                         </Border>
                     </Border>
@@ -239,7 +240,7 @@
                 </StackPanel>
 
                 <!-- Two-column Grid for the remaining rows -->
-                <Grid Margin="0,14,0,0">
+                <Grid Margin="0,8,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="90"/>
                         <ColumnDefinition Width="*"/>
@@ -248,11 +249,8 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>  <!-- row 3: Dial Options -->
-                        <RowDefinition Height="Auto"/>  <!-- row 4: Phrase Style -->
-                        <RowDefinition Height="Auto"/>  <!-- row 5: LCD Format -->
-                        <RowDefinition Height="Auto"/>  <!-- row 6: LCD Seconds -->
-                        <RowDefinition Height="Auto"/>  <!-- row 7: LCD Style -->
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Opacity -->
@@ -275,7 +273,7 @@
                                Text="Font Size" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <Border Grid.Row="1" Grid.Column="1"
-                            Background="#FFE8E8E8" CornerRadius="4" Padding="2"
+                            Background="#FF3A3A3A" CornerRadius="4" Padding="2"
                             HorizontalAlignment="Left" Margin="0,8,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="BtnFontS"  Content="S"  Style="{StaticResource SegmentButtonStyle}" Click="BtnFontS_Click"/>
@@ -290,96 +288,71 @@
                                Text="Clock Style" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <Border Grid.Row="2" Grid.Column="1"
-                            Background="#FFE8E8E8" CornerRadius="4" Padding="2"
+                            Background="#FF3A3A3A" CornerRadius="4" Padding="2"
                             HorizontalAlignment="Left" Margin="0,8,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="BtnPhrase" Content="Phrase" Style="{StaticResource SegmentButtonStyle}" Click="BtnPhrase_Click"/>
                             <Button x:Name="BtnDial"   Content="Dial"   Style="{StaticResource SegmentButtonStyle}" Click="BtnDial_Click"/>
-                            <Button x:Name="BtnLcd"    Content="LCD"    Style="{StaticResource SegmentButtonStyle}" Click="BtnLcd_Click"/>
-                            <Button x:Name="BtnNixie"  Content="Nixie"  Style="{StaticResource SegmentButtonStyle}" Click="BtnNixie_Click"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Dial Options — row 3 -->
-                    <TextBlock x:Name="DialOptionsRowLabel" Grid.Row="3" Grid.Column="0"
-                               Text="Options" VerticalAlignment="Top"
-                               HorizontalAlignment="Right" Margin="0,11,10,0"
-                               Visibility="Collapsed"/>
-                    <StackPanel x:Name="DialOptionsRow" Grid.Row="3" Grid.Column="1"
-                                Orientation="Vertical" Margin="0,8,0,0"
-                                Visibility="Collapsed">
-                        <CheckBox x:Name="ChkShowHourTicks"   Content="Hour ticks"   Margin="0,0,0,4"
-                                  Checked="ChkDialOption_Changed" Unchecked="ChkDialOption_Changed"/>
-                        <CheckBox x:Name="ChkShowMinuteDots"  Content="Minute dots"  Margin="0,0,0,4"
-                                  Checked="ChkDialOption_Changed" Unchecked="ChkDialOption_Changed"/>
-                        <CheckBox x:Name="ChkShowHourNumbers" Content="Hour numbers"
-                                  Checked="ChkDialOption_Changed" Unchecked="ChkDialOption_Changed"/>
-                    </StackPanel>
-
-                    <!-- Phrase Style — row 4 -->
-                    <TextBlock x:Name="PhraseStyleRowLabel" Grid.Row="4" Grid.Column="0"
+                    <!-- Phrase Style -->
+                    <TextBlock Grid.Row="3" Grid.Column="0"
                                Text="Phrase Style" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <ComboBox x:Name="CmbPhraseStyle"
-                              Grid.Row="4" Grid.Column="1"
-                              Width="140" HorizontalAlignment="Left"
+                              Grid.Row="3" Grid.Column="1"
+                              Width="120" HorizontalAlignment="Left"
                               Margin="0,8,0,0" VerticalAlignment="Center"
                               SelectionChanged="CmbPhraseStyle_SelectionChanged">
                         <ComboBoxItem Content="Classic"/>
                         <ComboBoxItem Content="Terse"/>
                         <ComboBoxItem Content="Poetic"/>
                         <ComboBoxItem Content="Rude"/>
-                        <ComboBoxItem Content="Pirate"/>
-                        <ComboBoxItem Content="Dwarf"/>
-                        <ComboBoxItem Content="Jive"/>
-                        <ComboBoxItem Content="ValleyGirl"/>
-                        <ComboBoxItem Content="Yoda"/>
-                        <ComboBoxItem Content="Shakespeare"/>
                     </ComboBox>
 
-                    <!-- LCD Format — row 5 -->
-                    <TextBlock x:Name="LcdFormatRowLabel" Grid.Row="5" Grid.Column="0"
-                               Text="Format" VerticalAlignment="Center"
-                               HorizontalAlignment="Right" Margin="0,8,10,0"
-                               Visibility="Collapsed"/>
-                    <StackPanel x:Name="LcdFormatRow" Grid.Row="5" Grid.Column="1"
-                                Orientation="Horizontal" Margin="0,8,0,0"
-                                Visibility="Collapsed">
-                        <Border Background="#FFE8E8E8" CornerRadius="4" Padding="2" HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal">
-                                <Button x:Name="BtnLcd12hr" Content="12hr" Style="{StaticResource SegmentButtonStyle}" Click="BtnLcd12hr_Click"/>
-                                <Button x:Name="BtnLcd24hr" Content="24hr" Style="{StaticResource SegmentButtonStyle}" Click="BtnLcd24hr_Click"/>
-                            </StackPanel>
-                        </Border>
+                    <!-- Phrase Wrap -->
+                    <TextBlock Grid.Row="4" Grid.Column="0"
+                               Text="Phrase Wrap" VerticalAlignment="Top"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"/>
+                    <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,8,0,0">
+                        <CheckBox x:Name="ChkPhraseWrap" Content="Wrap long phrases"
+                                  Checked="ChkPhraseWrap_Changed" Unchecked="ChkPhraseWrap_Changed"/>
+                        <StackPanel x:Name="WrapStylePanel" Orientation="Horizontal" Margin="0,6,0,0">
+                            <RadioButton x:Name="RbWrapMidpoint" Content="Nearest Midpoint"
+                                         GroupName="WrapStyle" Margin="0,0,14,0"
+                                         Checked="RbWrapMidpoint_Checked"/>
+                            <RadioButton x:Name="RbWrapNatural" Content="Natural Pause"
+                                         GroupName="WrapStyle" Checked="RbWrapNatural_Checked"/>
+                        </StackPanel>
                     </StackPanel>
 
-                    <!-- LCD Seconds — row 6 -->
-                    <TextBlock x:Name="LcdSecondsRowLabel" Grid.Row="6" Grid.Column="0"
-                               Text="Seconds" VerticalAlignment="Center"
-                               HorizontalAlignment="Right" Margin="0,8,10,0"
-                               Visibility="Collapsed"/>
-                    <CheckBox x:Name="ChkLcdSeconds" Grid.Row="6" Grid.Column="1"
-                              Content="Show seconds" Margin="0,8,0,0" VerticalAlignment="Center"
-                              Visibility="Collapsed"
-                              Checked="ChkLcdSeconds_Changed" Unchecked="ChkLcdSeconds_Changed"/>
+                </Grid>
 
-                    <!-- LCD Style — row 7 -->
-                    <TextBlock x:Name="LcdStyleRowLabel" Grid.Row="7" Grid.Column="0"
-                               Text="LCD Style" VerticalAlignment="Center"
-                               HorizontalAlignment="Right" Margin="0,8,10,0"
-                               Visibility="Collapsed"/>
-                    <StackPanel x:Name="LcdStyleRow" Grid.Row="7" Grid.Column="1"
-                                Orientation="Horizontal" Margin="0,8,0,0"
-                                Visibility="Collapsed">
-                        <Border Background="#FFE8E8E8" CornerRadius="4" Padding="2" HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal">
-                                <Button x:Name="BtnLcdDark"   Content="Dark"   Style="{StaticResource SegmentButtonStyle}" Click="BtnLcdDark_Click"/>
-                                <Button x:Name="BtnLcdPaper"  Content="Paper"  Style="{StaticResource SegmentButtonStyle}" Click="BtnLcdPaper_Click"/>
-                                <Button x:Name="BtnLcdSilver" Content="Silver" Style="{StaticResource SegmentButtonStyle}" Click="BtnLcdSilver_Click"/>
-                            </StackPanel>
-                        </Border>
+                <!-- Backdrop -->
+                <TextBlock Text="Backdrop" FontWeight="SemiBold" Margin="0,8,0,4"/>
+                <CheckBox x:Name="ChkBackdropAlwaysVisible"
+                          Content="Always visible (not just on hover)"
+                          Margin="0,0,0,6"
+                          Checked="ChkBackdropAlwaysVisible_Changed"
+                          Unchecked="ChkBackdropAlwaysVisible_Changed"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Opacity"
+                               VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Slider x:Name="BackdropOpacitySlider"
+                                Minimum="10" Maximum="100"
+                                SmallChange="5" LargeChange="10"
+                                TickFrequency="5" IsSnapToTickEnabled="True"
+                                Width="160" VerticalAlignment="Center"
+                                ValueChanged="BackdropOpacitySlider_ValueChanged"/>
+                        <TextBlock x:Name="BackdropOpacityLabel" Width="36"
+                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
                     </StackPanel>
-
                 </Grid>
 
             </StackPanel>
@@ -489,7 +462,7 @@
                 <!-- Phrase Language -->
                 <TextBlock Text="Phrase Language" FontWeight="SemiBold" Margin="0,0,0,4"/>
                 <TextBlock Text="Auto-detects from Windows display language. Override here."
-                           Foreground="#FF666666" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                           Foreground="#FF999999" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
                 <ComboBox x:Name="CmbPhraseLanguage" Width="160" HorizontalAlignment="Left"
                           Margin="0,0,0,16"
                           SelectionChanged="CmbPhraseLanguage_SelectionChanged">
@@ -517,7 +490,7 @@
                 <!-- Battery Alert threshold -->
                 <TextBlock Text="Battery Alert" FontWeight="SemiBold" Margin="0,16,0,4"/>
                 <TextBlock Text="Alert when unplugged and battery is at or below:"
-                           Foreground="#FF666666" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                           Foreground="#FF999999" FontSize="11" Margin="0,0,0,6" TextWrapping="Wrap"/>
                 <StackPanel Orientation="Horizontal">
                     <RadioButton x:Name="RbAlert10" Content="10%" GroupName="BatteryAlertThresh"
                                  Margin="0,0,14,0" Checked="RbAlert10_Checked"/>

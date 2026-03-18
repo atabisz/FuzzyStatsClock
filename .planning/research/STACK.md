@@ -1,21 +1,28 @@
 # Stack Research
 
-**Domain:** C# WPF desktop widget — v3.4 Nixie tube rendering, phrase personality styles, dial shape/size
-**Researched:** 2026-03-11
-**Scope:** Additions only — existing validated stack (net10.0-windows, WPF, MSTest 4.x, System.Text.Json, System.Diagnostics.PerformanceCounter 10.0.0) is unchanged
-**Confidence:** HIGH (all techniques verified against existing codebase; WPF APIs are stable .NET 10 BCL)
+**Domain:** WPF .NET 10 desktop widget — installer, single-instance, edge-snap, Settings visual redesign
+**Researched:** 2026-03-17
+**Scope:** v3.3 additions only — existing validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, PerformanceCounter 10.0.0, UseWindowsForms=true) is unchanged
+**Confidence:** HIGH (all claims verified against official docs, NuGet, or official GitHub)
 
 ---
 
-## No New NuGet Packages Required
+## What Changes vs v3.2
 
-All three feature areas are achievable with the existing project stack. Adding a WPF effects library (WPF-UI, HandyControl, MaterialDesignInXamlToolkit) for Nixie glow would pull 200-400 KB of dependencies for effects that WPF's built-in `System.Windows.Media.Effects` already provides.
+v3.2 validated stack (not re-researched): .NET 10, C# 13, WPF `net10.0-windows`, `UseWindowsForms=true`, `System.Text.Json`, `System.Diagnostics.PerformanceCounter` 10.0.0, MSTest 4.0.1, `SettingsWindow` (3-tab modeless), `BuiltInThemes`, `PhraseEngine` with multilingual providers, 224 tests passing.
 
-| Feature Area | Stack Change | NuGet Needed |
-|-------------|-------------|--------------|
-| Nixie tube rendering | New `NixieClockView` + `NixieDigit` UserControls; WPF built-in brush/effect types | None |
-| Phrase personalities | 7 new `IPhraseProvider` classes in `FuzzyClock.Core` | None |
-| Dial shape/size | AppSettings field addition; code-behind rx/ry math change | None |
+v3.3 additions by feature:
+
+| Feature | Stack Change | NuGet Needed |
+|---------|-------------|--------------|
+| Per-user installer | Velopack 0.0.1298 + `vpk` CLI tool | **Yes — `Velopack` NuGet** |
+| Single-instance guard | `System.Threading.Mutex` + `System.IO.Pipes` (BCL) | None |
+| Edge snapping | Win32 `WM_MOVING` via `HwndSource.AddHook` (existing P-Invoke pattern) | None |
+| Settings window visual redesign | WPF `ThemeMode="Dark"` (built into .NET 9+ / .NET 10) | None |
+| ResetToDefaults fix | Pure logic fix in existing code | None |
+| README docs | Documentation only | None |
+
+**One new NuGet package. One new CLI tool. Zero csproj structural changes beyond adding the package.**
 
 ---
 
@@ -25,229 +32,39 @@ All three feature areas are achievable with the existing project stack. Adding a
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `System.Windows.Media.Effects.DropShadowEffect` | .NET 10 BCL | Nixie warm orange outer glow/bloom | Built-in hardware-accelerated (D3D); `ShadowDepth=0` produces symmetric halo; `Color` set to Nixie orange; already used on `PhraseText` in MainWindow.xaml — pattern validated in this codebase |
-| `System.Windows.Media.RadialGradientBrush` | .NET 10 BCL | Nixie active digit inner fill — bright center fading to dim amber | Mandated by REQUIREMENTS.md constraint ("Nixie glow via WPF RadialGradientBrush effects"); already referenced throughout the LCD palette system |
-| `System.Windows.Media.LinearGradientBrush` | .NET 10 BCL | Glass tube specular highlight strip | Narrow white-to-transparent gradient on the left edge of the tube Border conveys glass refraction; no image asset needed |
-| `System.Windows.Media.DrawingBrush` | .NET 10 BCL | Wire mesh / anode grid texture overlay | Tile-brush with a `GeometryDrawing` containing a grid of thin `LineGeometry` elements; `TileMode=Tile`, `ViewportUnits=Absolute`, small Viewport (e.g. 8x8 DIP) produces repeating mesh without image assets |
-| `System.Windows.Controls.Canvas` | .NET 10 BCL | Nixie digit slot — stacked ghost cathode layers at same position | Z-order via child order (last child paints last); matches existing `SevenSegmentDigit` Canvas approach exactly |
-| `System.Windows.Shapes.Ellipse` | .NET 10 BCL | Optional: diffuse glow halo behind active digit | BlurEffect applied to a colored Ellipse behind the digit; used if DropShadowEffect alone is insufficient |
-| `IPhraseProvider` (FuzzyClock.Core) | internal | New personality phrase styles | Established registry pattern; zero new infrastructure; each style = one class with a bucket table |
+| Velopack | 0.0.1298 (NuGet stable, 2025-06-07) | Per-user installer + auto-update + upgrade-in-place | Installs to `%LocalAppData%\{packId}` with no UAC prompt by default. The default `Setup.exe` detects an existing installation and upgrades it automatically via `Update.exe`. WPF integration requires a custom `static void Main` with `VelopackApp.Build().Run()` before WPF init. Replaces ClickOnce / Inno Setup / WiX for this use case. 285K downloads on NuGet; actively maintained. |
+| `System.Threading.Mutex` (BCL) | Built into .NET 10 | Single-instance guard | Named system Mutex (`new Mutex(true, "Global\\FuzzyClock-{guid}", out bool createdNew)`) is the idiomatic .NET single-instance mechanism. Atomic — no race condition. `createdNew == false` means another instance is already running: send activation signal and exit immediately. Zero dependencies. |
+| `System.IO.Pipes.NamedPipeServerStream` (BCL) | Built into .NET 10 (confirmed net-10.0 API docs) | Signal the running instance to activate | The running instance listens on a named pipe in a background `Task`. The second instance connects as `NamedPipeClientStream`, writes `"ACTIVATE"`, and exits. The server dispatches `window.Activate()` on the UI thread. No extra library. Clean shutdown via `CancellationToken`. |
+| WPF `ThemeMode="Dark"` (PresentationFramework.Fluent) | Built into .NET 9+ / .NET 10 | Dark aesthetic for SettingsWindow | WPF .NET 9 introduced a built-in Fluent dark theme via the `ThemeMode` property on `Window`. Setting `ThemeMode="Dark"` on `SettingsWindow` applies modern Windows 11-style dark styling to all standard controls (Button, TabControl, ComboBox, Slider, CheckBox, TextBox) with zero extra packages. Available in .NET 10 as a stable XAML attribute. |
+| Win32 `WM_MOVING` via `HwndSource.AddHook` | Win32 (no package) | Edge snapping during `DragMove()` | WPF's `DragMove()` bypasses WPF mouse events entirely; the only non-destructive intercept point is the Win32 `WM_MOVING` message (0x0216). The `lParam` is a pointer to a mutable `RECT` — clamping its values snaps the window to a screen edge. Uses the existing `HwndSource` + P-Invoke infrastructure already present for ghost mode. No library needed. |
 
 ### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| `System.Windows.Media.Effects.BlurEffect` | .NET 10 BCL | Soft diffuse halo layer behind Nixie digit | Add a second element (Ellipse or Rectangle) behind the digit slot with `BlurEffect` applied; only if `DropShadowEffect` alone looks insufficient at the chosen opacity levels |
-| `System.Windows.Media.GradientStop` | .NET 10 BCL | Color stops for RadialGradientBrush on Nixie digit | Inner GradientStop: bright orange-white (#FFFFD0 at offset 0.0); outer stops fade to dim amber (#FF6600 at 0.6) then near-transparent at 1.0 |
-| `System.Windows.Threading.DispatcherTimer` | .NET 10 BCL | 1-second tick for NixieClockView time updates | Same pattern as `LcdClockView` — already used; `IsVisibleChanged` start/stop pattern carries forward unchanged |
+| `Velopack.Vpk` CLI tool | Matches NuGet 0.0.1298 | Build installer artifacts (`Setup.exe`, delta packages) | Used in CI/build step: `vpk pack --packId FuzzyClock --packVersion 3.3.0 --mainExe FuzzyClock.App.exe`. Not a runtime dependency. |
+| WPF `ResourceDictionary` (built-in XAML) | Built-in | Override Fluent theme brush tokens for SettingsWindow | Layer project-specific color overrides on top of Fluent using `<Window.Resources><ResourceDictionary.MergedDictionaries>`. Lets you match the SettingsWindow background to the app's dark aesthetic (`#1E1E1E`) while keeping Fluent control chrome. |
 
 ### Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| MSTest 4.x (already in project) | Unit tests for new phrase providers | All 7 new `IPhraseProvider` classes are pure C# in `FuzzyClock.Core`; test pattern follows established `PhraseStyleProviderTests.cs` — ≥ 2 sample assertions per provider per PHRASE-09 |
-| WPF Designer (Visual Studio) | XAML preview for NixieClockView layout | Use for sanity-checking Canvas z-order and brush assignments; runtime rendering is authoritative |
+| `vpk` (Velopack CLI) | Packages release builds into installer artifacts | Install globally: `dotnet tool install -g vpk`. Run after `dotnet publish -r win-x64 --self-contained false`. |
+| Visual Studio XAML Designer | Inspect Fluent theme resource keys for overrides | Theme XAML files at `C:\Program Files\Microsoft Visual Studio\2022\<edition>\DesignTools\SystemThemes\wpf`. Read-only reference — not used at runtime. |
 
 ---
 
-## Feature-by-Feature Technique Guide
+## Installation
 
-### 1. Nixie Tube Glow / Bloom (NIXIE-02)
+```bash
+# Velopack NuGet runtime — add to FuzzyClock.App.csproj
+dotnet add FuzzyClock.App package Velopack --version 0.0.1298
 
-**Technique:** `DropShadowEffect` on the active digit element with `ShadowDepth=0`.
+# Velopack CLI packaging tool — dev machine and CI
+dotnet tool install -g vpk
 
-```xml
-<TextBlock Text="3">
-    <TextBlock.Effect>
-        <DropShadowEffect Color="#FF8C00" BlurRadius="18" ShadowDepth="0" Opacity="0.85" />
-    </TextBlock.Effect>
-</TextBlock>
+# No other new packages — Mutex, NamedPipe, ThemeMode, WM_MOVING are BCL/framework built-ins
 ```
-
-`ShadowDepth=0` centres the effect under the element, creating a symmetric glow corona. `BlurRadius` 14-22 produces bloom-like spread. `Color` tuned to warm amber-orange. This is identical in mechanism to the existing `DropShadowEffect` on `PhraseText` (MainWindow.xaml line 50), validating the pattern is already working in this codebase.
-
-**Why not `BlurEffect` alone:** `BlurEffect` blurs the element itself; `DropShadowEffect` with `ShadowDepth=0` leaves the digit sharp while adding a coloured halo. Nixie digits should be crisp with a glowing corona.
-
-**Why not a third-party glow library:** Hardware-accelerated `DropShadowEffect` has been in WPF since .NET Framework 3.0; zero dependency cost; identical visual result to third-party glow implementations which internally compose the same D3D effect.
-
-### 2. Stacked Ghost Cathode Digits (NIXIE-03)
-
-**Technique:** Canvas with 10 ghost digit elements (digits 0-9) drawn at the same Canvas.Left/Top position, with the active digit element added last (paints on top).
-
-```
-Canvas (digit slot, e.g. 50x80 DIP)
-  ├── TextBlock "0" Foreground=GhostAmber Opacity=0.12  ← Canvas.Left=0, Top=0
-  ├── TextBlock "1" Foreground=GhostAmber Opacity=0.12
-  ├── ... (2-8)
-  ├── TextBlock "9" Foreground=GhostAmber Opacity=0.12
-  └── TextBlock "3" Foreground=BrightOrange + DropShadowEffect  ← active digit, painted last
-```
-
-All elements share the same Canvas.Left and Canvas.Top. WPF Canvas paints children in declaration order — the active element is declared last, so it paints over the ghosts. `Panel.ZIndex` is not needed.
-
-**Font choice for digit shapes:** `Courier New` or `Consolas` — both installed on all Windows systems, condensed aspect ratio approximates Nixie tube cathode proportions. Regular proportional fonts (Segoe UI) are too wide. The ghost stacking effect is the visually distinctive element; exact wire-cathode glyph shape is deferred to v5+ per requirements.
-
-**Ghost opacity calibration:** Opacity 0.10-0.15 on ghost digits is the sweet spot — visible but clearly subordinate to the active digit. This matches the 15% ghost formula used in `SevenSegmentDigit` (`LitColor.R * 15 / 100`).
-
-### 3. Glass Tube Border (NIXIE-04)
-
-**Technique:** WPF `Border` element as the outer container per digit slot, with a `LinearGradientBrush` specular strip overlaid inside it.
-
-```xml
-<Border CornerRadius="8,8,20,20"
-        BorderBrush="#40AADDFF" BorderThickness="1.5"
-        Background="#18C0E8FF">
-    <!-- digit slot Canvas here -->
-
-    <!-- specular highlight: narrow left-edge strip, absolute-positioned inside Border -->
-    <Rectangle Width="6" HorizontalAlignment="Left" VerticalAlignment="Stretch"
-               Opacity="0.35" IsHitTestVisible="False">
-        <Rectangle.Fill>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                <GradientStop Color="White" Offset="0"/>
-                <GradientStop Color="Transparent" Offset="1"/>
-            </LinearGradientBrush>
-        </Rectangle.Fill>
-    </Rectangle>
-</Border>
-```
-
-`Background="#18C0E8FF"` is ~9% opacity blue-tinted white for the faint glass tint. `BorderBrush="#40AADDFF"` at 25% opacity adds a subtle edge line. `CornerRadius="8,8,20,20"` (TL,TR,BR,BL) makes the bottom ends more rounded, approximating a tube bottom. The narrow gradient Rectangle simulates the glass specular reflection line. No image assets.
-
-**Grid wrapper required:** `Border` accepts one child; to overlay the specular strip on top of the Canvas, use a `Grid` as the Border's child with the Canvas and the Rectangle both as Grid children (Rectangle last = paints on top).
-
-### 4. Wire Mesh / Anode Grid Overlay (NIXIE-05)
-
-**Technique:** `DrawingBrush` with `TileMode=Tile` on a low-opacity Rectangle placed over the digit slot.
-
-```xml
-<Rectangle Opacity="0.18" IsHitTestVisible="False">
-    <Rectangle.Fill>
-        <DrawingBrush TileMode="Tile"
-                      Viewport="0,0,8,8"
-                      ViewportUnits="Absolute">
-            <DrawingBrush.Drawing>
-                <DrawingGroup>
-                    <GeometryDrawing>
-                        <GeometryDrawing.Pen>
-                            <Pen Brush="#FFCC88" Thickness="0.4"/>
-                        </GeometryDrawing.Pen>
-                        <GeometryDrawing.Geometry>
-                            <GeometryGroup>
-                                <LineGeometry StartPoint="0,4" EndPoint="8,4"/>
-                                <LineGeometry StartPoint="4,0" EndPoint="4,8"/>
-                            </GeometryGroup>
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                </DrawingGroup>
-            </DrawingBrush.Drawing>
-        </DrawingBrush>
-    </Rectangle.Fill>
-</Rectangle>
-```
-
-`Viewport="0,0,8,8"` with `ViewportUnits=Absolute` tiles an 8x8 DIP cell. One horizontal + one vertical `LineGeometry` per cell produces a repeating grid. `Opacity=0.18` on the Rectangle keeps it subtle. Amber line color (`#FFCC88`) blends with the Nixie orange palette. `DrawingBrush` is hardware-composited by WPF.
-
-**Mesh density tuning:** `Viewport="0,0,6,6"` for denser mesh; `"0,0,12,12"` for coarser. Keep `ViewportUnits=Absolute` so density is independent of digit slot size.
-
-### 5. NixieClockView UserControl Structure
-
-`NixieClockView` mirrors `LcdClockView` in architecture: a UserControl with a StackPanel of `NixieDigit` sub-controls, a `DispatcherTimer` for 1-second updates, and `IsVisibleChanged` timer start/stop — the same pattern `LcdClockView` uses.
-
-`NixieDigit` is a UserControl managing a single digit slot: a `Grid` containing the `Border` (glass tube), the `Canvas` (stacked ghost + active digit elements), and the mesh overlay `Rectangle`.
-
-**File placement:**
-- `FuzzyClock.App/Controls/NixieClockView.xaml` + `.xaml.cs`
-- `FuzzyClock.App/Controls/NixieDigit.xaml` + `.xaml.cs`
-
-This is consistent with `LcdClockView.xaml` + `SevenSegmentDigit.xaml` placement.
-
-**ClockType.Nixie:** Add `Nixie` as 4th value in `FuzzyClock.App/ClockType.cs`. The `[JsonConverter(typeof(JsonStringEnumConverter))]` attribute already applied to `AppSettings.ClockType` handles serialization automatically. Old settings.json files that lack a `ClockType` field deserialize to `Phrase` (the default) — no migration code needed. Files with `"ClockType": "Nixie"` deserialize correctly once the enum value exists.
-
-### 6. New IPhraseProvider Implementations (PHRASE-01 through PHRASE-07)
-
-**Technique:** One new class per style in `FuzzyClock.Core/`, implementing `IPhraseProvider` with a bucket table using the same `(int UpperBound, string Template)[]` pattern established in `RudePhraseProvider`.
-
-```csharp
-public class PiratePhraseProvider : IPhraseProvider
-{
-    private static readonly string[] HourWords =
-        ["", "one", "two", "three", ...];
-
-    private static readonly (int UpperBound, string Template)[] Buckets =
-    [
-        ( 2, "'tis {h} bells, yarr"),
-        ( 7, "just past {h} bells"),
-        (12, "ten past {h}, ye scallywag"),
-        // ... 12 buckets covering 0-59 minutes
-    ];
-
-    public string GetPhrase(DateTime dt) { /* walk Buckets */ }
-    public (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt) => ("", GetPhrase(dt));
-}
-```
-
-**PhraseEngine registration:** Add 7 new keys to the `_providers` dictionary in `PhraseEngine.cs`:
-
-```csharp
-["en-pirate"]       = new PiratePhraseProvider(),
-["en-dwarf"]        = new DwarfPhraseProvider(),
-["en-jive"]         = new JivePhraseProvider(),
-["en-valleygirl"]   = new ValleyGirlPhraseProvider(),
-["en-yoda"]         = new YodaPhraseProvider(),
-["en-shakespearean"]= new ShakespeareanPhraseProvider(),
-["en-rude"]         = new RudePhraseProvider(),   // replaces existing entry with enhanced Rude
-```
-
-Note: the existing `"en-rude"` key is updated in-place with the enhanced `RudePhraseProvider` — no key rename needed.
-
-**AppSettings.PhraseStyle:** The field already exists as `public string PhraseStyle { get; init; } = "Classic"`. Add the 7 new style names as valid values in `SettingsService.Validate()`:
-
-```csharp
-string[] validStyles = { "Classic", "Terse", "Poetic", "Rude",
-                         "Pirate", "Dwarf", "Jive", "ValleyGirl", "Yoda", "Shakespearean" };
-```
-
-**Settings window ComboBox:** Add the 7 new items to the `CmbPhraseStyle` ComboBox in `SettingsWindow.xaml`. The existing selection-changed handler maps display names to provider keys — extend the mapping table.
-
-**Why no new infrastructure:** The `IPhraseProvider` registry already supports arbitrary keys. Adding providers is purely additive: new classes + new dictionary entries + new ComboBox items. Zero interface changes, zero breaking changes to existing 248 tests.
-
-### 7. Dial Shape: Round to Oval (DIAL-01, DIAL-02)
-
-**Technique:** Change `DialCanvas` from a fixed-square `Canvas` to a Canvas with independent Width and Height, driven by an `AppSettings.DialShape` value. The existing `DialGeometry.cs` angle math is unchanged — only the endpoint calculation in code-behind gains separate rx/ry radii.
-
-**Oval hand endpoint math:**
-
-```csharp
-// Current (round): symmetric radius
-double r  = canvas.Width / 2 * handFraction;
-double cx = canvas.Width  / 2, cy = canvas.Height / 2;
-double x2 = cx + r  * Math.Sin(angleRad);
-double y2 = cy - r  * Math.Cos(angleRad);
-
-// Oval: independent x-radius and y-radius
-double rx = canvas.Width  / 2 * handFraction;
-double ry = canvas.Height / 2 * handFraction;
-double cx = canvas.Width  / 2, cy = canvas.Height / 2;
-double x2 = cx + rx * Math.Sin(angleRad);
-double y2 = cy - ry * Math.Cos(angleRad);
-```
-
-Using separate `rx`/`ry` makes hands correctly reach the oval perimeter at all angles. This is a ~3-line change to the existing hand-update method. `DialGeometry.GetHourAngleDegrees` and `GetMinuteAngleDegrees` are unchanged.
-
-**Canvas dimensions:**
-- Round: `Width = H, Height = H` (existing behavior)
-- Oval: `Width = H * 1.5, Height = H` (e.g. 120x80 for Medium font size)
-
-**AppSettings field:**
-
-```csharp
-public string DialShape { get; init; } = "Round";  // "Round" | "Oval"
-```
-
-String (not enum) is consistent with `TextStyle`, `DateFormat`, `LcdStyle` — all string fields in this codebase. Add `"Round"` and `"Oval"` to the `Validate()` guard.
-
-**Dial size (DIAL-02):** The `DialCanvas` Width/Height are already driven by `_currentFontSize` in code-behind. The scaling relation (Small/Medium/Large → pixel sizes) applies to both Width and Height dimensions — no new settings field needed. Oval just applies a fixed 1.5x width multiplier to the same size tiers.
 
 ---
 
@@ -255,12 +72,14 @@ String (not enum) is consistent with `TextStyle`, `DateFormat`, `LcdStyle` — a
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| `DropShadowEffect` with `ShadowDepth=0` for Nixie glow | Third-party WPF glow shader (WPF-UI `GlowElement`) | Only if animated glow pulsing or glow that exceeds element layout bounds is needed — not in v3.4 scope |
-| `DrawingBrush` tile for wire mesh | PNG/SVG image asset overlay | If the mesh needs photorealistic appearance or diagonal diagonal angles; DrawingBrush grid is sufficient for the faint anode grid effect and avoids image assets |
-| `TextBlock` with `Courier New` for Nixie digit glyphs | `Path`/`PathGeometry` vector numeral glyphs | If v5+ requires exact wire-cathode visual; PathGeometry is significantly more authoring effort for 10 digits per slot — deferred |
-| Separate `rx`/`ry` in code-behind for oval hands | `ScaleTransform` on the Canvas | ScaleTransform would also scale stroke thickness and any tick marks, causing visual distortion; explicit rx/ry math is cleaner |
-| String field `DialShape` in AppSettings | New `DialShape` enum | Enum requires `[JsonConverter(typeof(JsonStringEnumConverter))]` and migration if values are renamed; string is consistent with the other non-ClockType settings fields in this codebase |
-| Per-digit `NixieDigit` UserControl | Single flat Canvas in `NixieClockView` | Flat Canvas is simpler for 4 digits but makes per-digit state (ghost set, active character, glow) harder to encapsulate and test; `NixieDigit` mirrors `SevenSegmentDigit` encapsulation precedent |
+| Velopack (default Setup.exe) | ClickOnce | Only if you need Visual Studio one-click publish and are on .NET Framework. ClickOnce has poor .NET 5+ support and cannot reliably target `%LocalAppData%`. |
+| Velopack (default Setup.exe) | Inno Setup | Only if you need system-wide install (Program Files), complex installer UI with license screens, or custom installation scripts. Overkill for a personal widget. |
+| Velopack (default Setup.exe) | WiX 5 | Only for enterprise MSI requirements (Group Policy, SCCM, Windows Installer features). WiX requires verbose XML authoring. |
+| Velopack (default Setup.exe) | Velopack `--msi` | The MSI variant prompts the user to choose per-user vs per-machine install. Adds unnecessary complexity for a single-user widget. Use the default exe installer. |
+| Named Mutex + NamedPipe | `Microsoft.Toolkit.Win32.UI.Controls` SingleInstance | The toolkit approach targets UWP-style apps and is heavier. Mutex + NamedPipe is ~40 lines of code with no dependency. |
+| WPF `ThemeMode="Dark"` | MahApps.Metro | MahApps is a full UI framework replacement (5-10 MB assets) that conflicts with existing `BuiltInThemes` and requires adopting MetroWindow. ThemeMode is built-in and zero-overhead. |
+| WPF `ThemeMode="Dark"` | ModernWpf | ModernWpf imposes its own control templates globally. As of 2023 it is unmaintained. ThemeMode is the official Microsoft replacement. |
+| `WM_MOVING` hook | Replace `DragMove()` with manual drag | Manual drag (MouseDown/MouseMove + `SetWindowPos`) gives more control but requires rewriting the entire existing drag system. `WM_MOVING` intercepts `DragMove()` non-invasively. |
 
 ---
 
@@ -268,71 +87,170 @@ String (not enum) is consistent with `TextStyle`, `DateFormat`, `LcdStyle` — a
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `System.Windows.Media.Effects.BitmapEffect` | Removed in .NET 3.5+; compile error on net10.0 | `DropShadowEffect` or `BlurEffect` from `System.Windows.Media.Effects` |
-| Custom HLSL pixel shader (`PixelShaderEffect`) | Requires HLSL compilation, DX feature level negotiation, significant added complexity | `DropShadowEffect` achieves equivalent glow with zero authoring overhead |
-| `WriteableBitmap` for Nixie pixel rendering | Pixel-level rendering is inappropriate for a WPF vector UI; loses scaling, hit testing, and WPF compositing | Canvas + Brush composition as described above |
-| Image assets (PNG/SVG) for wire mesh or glass texture | Explicitly forbidden by REQUIREMENTS.md constraint: "no image assets" | `DrawingBrush` tile for mesh; `LinearGradientBrush` for glass highlight |
-| Any new NuGet package for visual effects | Zero packages needed; all required effects are in the .NET 10 BCL WPF assemblies | `System.Windows.Media.Effects` namespace |
-| `OpacityMask` for Nixie ghost digit fade | Adds masking layer complexity without benefit over direct `Opacity` | Set `Opacity` property directly on each ghost TextBlock |
-| `Panel.ZIndex` for Nixie digit layering | Unnecessary when active digit is the last Canvas child — WPF Canvas paints children in order | Declare ghost elements first, active element last in XAML/code |
+| `Microsoft.VisualBasic.ApplicationServices.WindowsFormsApplicationBase` | Legacy VB runtime single-instance API. Not idiomatic in .NET 10 C# and pulls in a Windows Forms dependency that competes with `UseWindowsForms=true`. | `Mutex` + `NamedPipeClientStream` |
+| `System.Diagnostics.Process.GetProcessesByName()` | Fragile single-instance check — matches only on exe name, fails if user has renamed the exe, and has a time-of-check/time-of-use race condition. | Named `Mutex` (atomic, OS-guaranteed uniqueness per mutex name) |
+| `Application.ThemeMode="Dark"` (app-wide) | Would apply Fluent dark to the main overlay window too, which is a transparent frameless widget — wrong aesthetic for the overlay. | `ThemeMode="Dark"` on `SettingsWindow` only (Window-scoped, not Application-scoped) |
+| MahApps.Metro / ModernWpf | Replaces all default control templates globally; conflicts with existing `BuiltInThemes` system; ModernWpf is unmaintained. | WPF built-in Fluent `ThemeMode` |
+| Velopack `--msi` flag | Generates an MSI with a per-user/per-machine choice dialog. Unnecessary complexity for a personal desktop widget. | Default Velopack `Setup.exe` (silent per-user install to `%LocalAppData%`, no choice dialog) |
+| `ThemeMode` set in C# code (experimental) | Setting `ThemeMode` from code generates compiler error `WPF0001` (experimental API, subject to change). | Set `ThemeMode="Dark"` as a XAML attribute on `SettingsWindow` — stable, no warning. |
 
 ---
 
-## Stack Patterns by Variant
+## Stack Patterns by Feature
 
-**If Nixie glow appears too faint at low widget opacity settings:**
-- Add a blurred `Ellipse` behind the digit with `BlurEffect` applied for a diffuse glow cloud
-- Keep the sharp digit TextBlock separate from the blur layer so numerals remain legible
-- Stack order: blurred halo Ellipse first, ghost TextBlocks next, active TextBlock last
+**Installer (per-user, no admin, upgrade detection):**
 
-**If the DrawingBrush wire mesh tiles are too coarse or too fine:**
-- Adjust `Viewport` dimensions: `"0,0,4,4"` = denser mesh, `"0,0,12,12"` = coarser
-- Keep `ViewportUnits=Absolute` so mesh density stays constant regardless of digit slot size
+- Use Velopack default `Setup.exe` (do NOT add `--msi` flag to `vpk pack`)
+- Installs silently to `%LocalAppData%\FuzzyClock` with no elevation prompt
+- `Update.exe` in the install directory handles upgrades when a new `Setup.exe` is run
+- WPF integration: change `App.xaml` Build Action to `Page`, add `<StartupObject>FuzzyClock.App.App</StartupObject>` to csproj, add a custom `[STAThread] static void Main(string[] args)` to `App.xaml.cs`:
 
-**If oval dial hands look visually incorrect at 12/6 o'clock positions:**
-- These positions are mathematically exact: `sin(0°) = 0`, so the x-radius term vanishes; `cos(0°) = 1`, so the y-radius term dominates. Hands point straight up/down regardless of oval ratio. No special-casing needed.
+```csharp
+[STAThread]
+private static void Main(string[] args)
+{
+    VelopackApp.Build().Run();   // must be first — handles update/install hooks
+    var app = new App();
+    app.InitializeComponent();
+    app.Run();
+}
+```
 
-**If the Rude style update (PHRASE-01) conflicts with the existing `en-rude` key:**
-- Replace the `RudePhraseProvider` class body in-place (stronger vocabulary) rather than adding a new key
-- Existing tests for `"en-rude"` continue to pass with updated expected strings
-- Update the test expected values to match the new ruder phrasing
+**Single-instance guard (second launch brings window to front):**
 
----
+In `Main`, before `new App()`:
 
-## csproj Change Summary
+```csharp
+var mutex = new Mutex(true, @"Global\FuzzyStatsClock-SingleInstance", out bool isFirstInstance);
+if (!isFirstInstance)
+{
+    // Signal running instance and exit
+    using var client = new NamedPipeClientStream(".", "FuzzyStatsClock", PipeDirection.Out);
+    try { client.Connect(500); new StreamWriter(client).WriteLine("ACTIVATE"); }
+    catch { /* already exiting */ }
+    return;
+}
+GC.KeepAlive(mutex); // prevent GC of mutex for process lifetime
+```
 
-**FuzzyClock.App.csproj:** No changes.
-**FuzzyClock.Core.csproj:** No changes.
-**FuzzyClock.Core.Tests.csproj:** No changes.
-**FuzzyClock.App.Tests.csproj:** No changes.
+In the running instance (`MainWindow` constructor or `ContentRendered`):
 
-All additions are pure C# and XAML files within the existing project structure.
+```csharp
+_ = Task.Run(async () =>
+{
+    while (!_cts.IsCancellationRequested)
+    {
+        using var server = new NamedPipeServerStream("FuzzyStatsClock", PipeDirection.In);
+        await server.WaitForConnectionAsync(_cts.Token);
+        var msg = await new StreamReader(server).ReadLineAsync();
+        if (msg == "ACTIVATE")
+            Dispatcher.Invoke(() => { Show(); Activate(); WindowState = WindowState.Normal; });
+    }
+});
+```
+
+**Edge snapping (snap to screen edges when dragging):**
+
+In `MainWindow` after `HwndSource` is obtained (already done for ghost mode):
+
+```csharp
+private const int WM_MOVING = 0x0216;
+private const int SnapThreshold = 20; // pixels
+
+// In AddHook callback:
+if (msg == WM_MOVING)
+{
+    var rect = Marshal.PtrToStructure<RECT>(lParam);
+    var screen = Screen.FromHandle(_hwnd).WorkingArea;
+    int w = rect.Right - rect.Left;
+    int h = rect.Bottom - rect.Top;
+
+    if (Math.Abs(rect.Left - screen.Left)   < SnapThreshold) { rect.Left  = screen.Left;                rect.Right  = rect.Left + w; }
+    if (Math.Abs(rect.Top  - screen.Top)    < SnapThreshold) { rect.Top   = screen.Top;                 rect.Bottom = rect.Top + h; }
+    if (Math.Abs(rect.Right  - screen.Right)  < SnapThreshold) { rect.Right  = screen.Right;               rect.Left   = rect.Right - w; }
+    if (Math.Abs(rect.Bottom - screen.Bottom) < SnapThreshold) { rect.Bottom = screen.Bottom;              rect.Top    = rect.Bottom - h; }
+
+    Marshal.StructureToPtr(rect, lParam, true);
+    handled = true;
+    return (IntPtr)1;
+}
+```
+
+`Screen.FromHandle(_hwnd)` is from `System.Windows.Forms` — already available via `UseWindowsForms=true`.
+
+**Settings window visual redesign (dark aesthetic, no third-party library):**
+
+On `SettingsWindow.xaml`:
+
+```xml
+<Window ...
+        ThemeMode="Dark"
+        Background="#1E1E1E">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Optional: override Fluent brush tokens to match app accent system -->
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    ...
+</Window>
+```
+
+`ThemeMode="Dark"` applies Fluent dark to all standard controls (Button, TabControl, ComboBox, Slider, CheckBox, TextBox) in `SettingsWindow` only. The main overlay window (`MainWindow`) is unaffected because it does not set `ThemeMode`. No `ControlTemplate` rewrites needed for basic dark styling.
 
 ---
 
 ## Version Compatibility
 
-| Component | .NET Version | Notes |
-|-----------|--------------|-------|
-| `DropShadowEffect` | .NET Framework 3.0 / .NET Core 3.0+ | Stable; hardware-accelerated on D3D9+ |
-| `DrawingBrush` with `TileMode` | .NET Framework 3.0 / .NET Core 3.0+ | `ViewportUnits=Absolute` supported since initial WPF release |
-| `RadialGradientBrush` | .NET Framework 3.0 / .NET Core 3.0+ | Stable; confirmed used in existing LCD palette system |
-| `JsonStringEnumConverter` on `ClockType.Nixie` | System.Text.Json (net10.0) | New enum value deserializes as default (`Phrase`) when absent from JSON — no migration code needed |
-| `IPhraseProvider` with 7 new implementors | FuzzyClock.Core internal | Interface unchanged; all new providers are additive; zero breaking changes |
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| Velopack 0.0.1298 | .NET 5+ (confirmed on NuGet page) / `net10.0-windows` | WPF custom `Main` pattern documented and works on any TFM. |
+| `ThemeMode="Dark"` | `net9.0-windows`, `net10.0-windows` | Introduced in WPF .NET 9. Stable as XAML attribute in .NET 10. Setting from code is experimental (suppress `WPF0001`). |
+| `NamedPipeServerStream` | net-10.0 (confirmed in official .NET 10 API docs) | In `System.IO.Pipes.dll`, no new dependency. |
+| `System.Threading.Mutex` | All .NET versions | No changes in .NET 10. Named system mutexes have been stable since .NET 1.0. |
+| `WM_MOVING` / `HwndSource.AddHook` | `net10.0-windows` | Win32 message; WPF `HwndSource` already used by ghost mode in this codebase. |
+
+---
+
+## Integration Points in Existing Code
+
+| Location | Change |
+|----------|--------|
+| `FuzzyClock.App.csproj` | Add `<PackageReference Include="Velopack" Version="0.0.1298" />`; add `<StartupObject>FuzzyClock.App.App</StartupObject>`; change `App.xaml` Build Action to `Page` |
+| `FuzzyClock.App/App.xaml.cs` | Add custom `[STAThread] static void Main(string[] args)` with `VelopackApp.Build().Run()` first; add Mutex + NamedPipe single-instance check; start pipe listener task |
+| `FuzzyClock.App/MainWindow.xaml.cs` | Add `WM_MOVING` case to existing `HwndSource.AddHook` handler for edge snapping |
+| `FuzzyClock.App/SettingsWindow.xaml` | Add `ThemeMode="Dark"` attribute and `Background="#1E1E1E"` to the Window element |
+
+---
+
+## Confidence Assessment
+
+| Area | Confidence | Reason |
+|------|------------|--------|
+| Velopack per-user install to `%LocalAppData%` | HIGH | Verified directly on docs.velopack.io/packaging/installer — states this explicitly |
+| Velopack WPF custom `Main` integration | HIGH | Verified on docs.velopack.io/getting-started/csharp — exact code pattern documented |
+| Velopack version 0.0.1298 | HIGH | Verified on nuget.org/packages/Velopack — latest stable, published 2025-06-07 |
+| `ThemeMode="Dark"` on Window scope | HIGH | Verified on learn.microsoft.com/dotnet/desktop/wpf/whats-new/net90 — official, with screenshots |
+| Fluent theme available in .NET 10 | HIGH | learn.microsoft.com docs show net10.0 moniker; introduced in .NET 9 which is a prior release |
+| `NamedPipeServerStream` in .NET 10 | HIGH | API docs explicitly list net-10.0 as a supported moniker |
+| Named Mutex for single-instance | HIGH | Official .NET threading docs; established Windows pattern |
+| `WM_MOVING` mutable RECT | HIGH | Official Win32 API docs — "application can change its position" |
+| `Screen.FromHandle` available (UseWindowsForms=true) | HIGH | Already used in existing codebase for ghost mode cursor tracking |
 
 ---
 
 ## Sources
 
-- Codebase: `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — confirmed Canvas + Polygon + SolidColorBrush layer pattern (HIGH — direct code read)
-- Codebase: `FuzzyClock.App/MainWindow.xaml` lines 49-51 — confirmed `DropShadowEffect` already used in project, pattern validated (HIGH — direct code read)
-- Codebase: `FuzzyClock.Core/RudePhraseProvider.cs`, `PhraseEngine.cs` — confirmed bucket table + `_providers` registry pattern (HIGH — direct code read)
-- Codebase: `FuzzyClock.App/AppSettings.cs` — confirmed `PhraseStyle` string field exists; `JsonStringEnumConverter` attribute on `ClockType` confirmed (HIGH — direct code read)
-- Codebase: `FuzzyClock.App/FuzzyClock.App.csproj` — confirmed `net10.0-windows`, `UseWPF=true`, no existing effects packages (HIGH — direct code read)
-- REQUIREMENTS.md: "WPF-only rendering: Nixie glow via WPF RadialGradientBrush effects, no image assets" — mandates the approach used here (HIGH — requirements document)
-- Microsoft Docs: `System.Windows.Media.Effects.DropShadowEffect` — `ShadowDepth=0` for symmetric glow is documented property behavior (HIGH confidence)
-- Microsoft Docs: `System.Windows.Media.DrawingBrush.TileMode` / `ViewportUnits` — standard tile-brush usage (HIGH confidence)
+- https://docs.velopack.io/packaging/installer — Per-user `%LocalAppData%` default, no admin, upgrade behavior (HIGH)
+- https://www.nuget.org/packages/Velopack — Version 0.0.1298, published 2025-06-07 (HIGH)
+- https://docs.velopack.io/getting-started/csharp — WPF custom `Main` integration pattern with exact code (HIGH)
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/whats-new/net90 — `ThemeMode`, Fluent dark mode, `.NET 9+`, XAML attribute stable (HIGH)
+- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/styles-templates-overview — `ResourceDictionary.MergedDictionaries` override pattern, `ThemeMode` on Window scope (HIGH)
+- https://learn.microsoft.com/en-us/dotnet/api/system.io.pipes.namedpipeserverstream — net-10.0 moniker confirmed (HIGH)
+- https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-moving — `lParam` is mutable `RECT*`, return TRUE to change position (HIGH)
+- https://learn.microsoft.com/en-us/dotnet/standard/threading/mutexes — Named system Mutex cross-process detection (HIGH)
 
 ---
-*Stack research for: FuzzyClock v3.4 — Nixie tube rendering, phrase personalities, dial shape/size*
-*Researched: 2026-03-11*
+*Stack research for: FuzzyStatsClock v3.3 Polish + Installer*
+*Researched: 2026-03-17*

@@ -2,35 +2,28 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — a minimal analog dial with hour and minute hands, or a retro 7-segment LCD clock. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. Below the clock, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). An optional date line and uptime row (with rolling 1m/5m/15m CPU load averages) also appear below the clock. Users can choose from accent color presets or pick a custom color; the LCD clock has its own 17-theme palette (Green, Amber, Blue, Teal, Red, VFD, Nixie, Magenta, Purple, Cyan, Lime, Cream, Ice, Mint, Lavender, LcdGrey, Paper) with colored swatches in the Settings window. Widget opacity is adjustable via scroll wheel or Settings. The widget features ghost mode (auto-hides on hover), auto-contrast (WCAG screen sampling), auto-launch at login, and per-monitor position memory. A system tray icon and a modeless three-tab Settings window (Appearance / Stats / Behavior) provide full configuration. Five named themes apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports Classic, Terse, Poetic, and Rude styles; phrases display automatically in French, Spanish, German, Japanese, or Polish based on Windows UI language. All preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. Five built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v3.4 Personalities & Nixie
-
-**Goal:** Expand phrase vocabulary with 7 new personality styles, add a visually distinct Nixie tube clock face, and add dial shape/size options.
-
-**Target features:**
-- Rude style rewritten with internet lingo (WTF, dafaq, etc.)
-- New phrase styles: Pirate, Dwarf, Jive, Valley Girl, Yoda, Shakespearean
-- Nixie tube clock (4th ClockType) with glow bloom, stacked digit shadows, glass tube border, wire mesh overlay
-- Dial shape option (round / oval) in Settings Appearance tab
-- Dial size scales with Font Size setting
-
 ## Current State
 
-**v3.4 started: 2026-03-11** — Personalities & Nixie milestone in progress
-
-**v3.3 shipped: 2026-03-11** — 7-segment LCD clock (3rd clock type); 17 LCD themes with swatch UI; ClockType enum migration; SevenSegmentDigit + LcdClockView WPF controls; WPF-drawn polygon segments; ghost segments; 12/24hr + seconds; 3 size variants
+**v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping (midpoint/natural pause), segment-key phrase guard, full-widget backdrop with opacity control, poetic phrase hour hints, dark-mode Settings window redesign, edge snapping, single-instance IPC, AbandonedMutex crash recovery
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
 
 **v3.1 shipped: 2026-03-08** — Battery stat row, DateFormatter extraction + tests, AppSettings round-trip tests, README accuracy pass
 
-248 MSTest tests (all passing). CI gate enforced. ~6,500 LOC C# / XAML.
+274 MSTest tests (249 Core + 25 App) passing. CI gate enforced.
 
+## Current Milestone: v3.6 Settings Layout Fix
+
+**Goal:** Condense the Settings window Appearance tab so all controls fit within the 480×600 window without scrolling or resizing.
+
+**Target features:**
+- Redesigned Appearance tab layout — compact theme cards, tighter spacing, everything visible
 
 ## Requirements
 
@@ -206,44 +199,35 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ ALERT-02: Battery row returns to normal accent color when battery rises above threshold or is plugged in — v3.2
 - ✓ ALERT-03: Battery alert threshold configurable in Settings Behavior tab (10% / 15% / 20%, default 20%) — v3.2
 
-### Validated (v3.3)
+### Validated (v3.4–v3.5)
 
-- ✓ LCD-01: User can switch to LCD clock mode (7-segment retro display) from Settings or tray Clock Type submenu; persisted to settings.json — v3.3
-- ✓ LCD-02: LCD renders time using WPF-drawn Polygon segments (no fonts, no bitmaps); inactive segments show as ghost (dimmed) — v3.3
-- ✓ LCD-03: LCD supports 17 color themes (Green/Amber/Blue/Teal/Red/VFD/Nixie/Magenta/Purple/Cyan/Lime/Cream/Ice/Mint/Lavender/LcdGrey/Paper); theme shown as colored swatch ring in Settings — v3.3
-- ✓ LCD-04: LCD supports 12hr and 24hr format toggle; optional seconds display; three size variants (Small/Medium/Large) — v3.3
-- ✓ LCD-05: LCD has its own 1-second DispatcherTimer; pauses when not visible — v3.3
-- ✓ ENUM-01: `ClockType` enum (Phrase/Dial/Lcd) replaces `bool DialMode` throughout; JSON backward-compat migration handles persisted `"DialMode": true/false` — v3.3
-- ✓ UTEST-04: `SevenSegmentEncoder` unit tests — 13 cases covering digits 0–9, colon, space, unsupported-char exception — v3.3
-- ✓ STEST-09: AppSettings round-trip tests for LcdTheme, LcdUse24Hr, LcdShowSeconds, LcdSize; absent-field defaults verified — v3.3
-
-### Active
-
-<!-- v3.4 scope — building toward these -->
-
-- [ ] PHRASE-01: Rude style uses internet-slang vocabulary (WTF, dafaq, tf, etc.)
-- [ ] PHRASE-02: User can select Pirate phrase style
-- [ ] PHRASE-03: User can select Dwarf phrase style
-- [ ] PHRASE-04: User can select Jive phrase style (1940s Harlem Jive)
-- [ ] PHRASE-05: User can select Valley Girl phrase style
-- [ ] PHRASE-06: User can select Yoda phrase style
-- [ ] PHRASE-07: User can select Shakespearean phrase style
-- [ ] PHRASE-08: All new styles appear in Settings and persist across restarts
-- [ ] PHRASE-09: Tests cover each new style (≥ 2 phrase samples per provider)
-- [ ] NIXIE-01: User can select Nixie as a fourth clock type
-- [ ] NIXIE-02: Nixie digits show warm orange glow/bloom around active digits
-- [ ] NIXIE-03: All 10 digit ghost cathodes visible behind active digit (stacked shadow)
-- [ ] NIXIE-04: Each digit slot enclosed in a glass tube border
-- [ ] NIXIE-05: Faint wire mesh / anode grid texture overlays each digit slot
-- [ ] NIXIE-06: Nixie available in Settings window and tray Clock Type submenu
-- [ ] NIXIE-07: Nixie clock type persists across restarts
-- [ ] DIAL-01: User can select round or oval dial shape in Settings Appearance tab
-- [ ] DIAL-02: Dial size scales with Font Size setting (Small/Medium/Large)
-- [ ] DIAL-03: Dial shape preference persists across restarts
-
-### Deferred (v2+)
-
-- WIN-07: Widget snaps to screen edges when dragged near them
+- ✓ SETR-01: Settings window uses dark background and light foreground text matching the widget's minimal aesthetic — v3.5
+- ✓ SETR-02: CheckBox, RadioButton, ComboBox, Button, and Slider controls have consistent dark-mode styling — v3.5
+- ✓ SETR-03: Section groups have adequate whitespace; controls are not cramped — v3.5
+- ✓ SETR-04: Settings window styling is scoped to SettingsWindow only — no style leakage to MainWindow — v3.5
+- ✓ FIX-01: ResetToDefaults() also resets phrase style to Classic and phrase locale to "auto" — v3.5
+- ✓ FIX-02: Second launch of the app brings the existing window to front instead of silently exiting — v3.5
+- ✓ FIX-03: AbandonedMutexException is handled so the app can restart after a crash without being stuck — v3.5
+- ✓ SNAP-01: Widget snaps to screen edges when drag ends within 8px of any edge — v3.5
+- ✓ SNAP-02: Edge snap respects the working area (excludes taskbar) — v3.5
+- ✓ SNAP-03: Edge snap fires post-DragMove() only — not during drag, not on phrase resize — v3.5
+- ✓ INST-01: FuzzyClockSetup.exe installs per-user to %LOCALAPPDATA%\Programs\FuzzyClock\ with no UAC prompt — v3.5
+- ✓ INST-02: Running the installer over an existing installation upgrades in-place without data loss — v3.5
+- ✓ INST-03: Installer creates a Start Menu shortcut — v3.5
+- ✓ INST-04: Installer registers in Add/Remove Programs with a clean uninstall path — v3.5
+- ✓ INST-05: Uninstall removes app files but preserves settings.json — v3.5
+- ✓ INST-06: If auto-launch was enabled, installer updates the HKCU\...\Run entry to the new install path — v3.5
+- ✓ INST-07: CI workflow produces FuzzyClock-X.Y.Z.exe, FuzzyClockSetup-X.Y.Z.exe, and checksums.txt as a draft GitHub Release when a version tag is pushed — v3.5
+- ✓ INST-08: Installer prompts the user to close a running FuzzyClock instance before proceeding — v3.5
+- ✓ INST-09: Installer finish page offers "Launch FuzzyClock" checkbox; uninstaller offers optional settings.json removal — v3.5
+- ✓ DOCS-04: README documents v3.2–v3.5 features — v3.5
+- ✓ WRAP-01: In phrase mode, if rendered phrase text width exceeds stats panel width + 10%, text splits across two lines — v3.5
+- ✓ WRAP-02: User can choose split style (Nearest Midpoint / Natural Pause) in Settings; default is Nearest Midpoint — v3.5
+- ✓ WRAP-03: Phrase wrap split style persists to settings.json and restores on launch — v3.5
+- ✓ BDROP-01: On hover, semi-transparent backdrop covers full widget footprint (phrase + date + stats + uptime) — v3.5
+- ✓ BDROP-02: User can enable always-visible backdrop via Settings > Appearance > Backdrop — v3.5
+- ✓ BDROP-03: Backdrop opacity is configurable via slider (10–100%, step 5) in Settings > Appearance — v3.5
+- ✓ POETIC-01: Every poetic phrase names the current or approaching hour naturally via {h}/{h1} templates — v3.5
 
 ### Out of Scope
 
@@ -265,7 +249,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 ## Constraints
 
 - **Tech stack**: C# / WPF — Windows only
-- **Simplicity**: Minimal footprint — settings window is non-modal and lightweight; no installer complexity
+- **Simplicity**: Minimal footprint — settings window is non-modal and lightweight
+- **Distribution**: Per-user Inno Setup installer (no UAC); CI-built artifacts on git tag push
 
 ## Key Decisions
 
@@ -388,12 +373,16 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | SetPhraseStyle guard: early return if CurrentLocale !starts-with "en-" | Prevents English style from overriding active non-English locale when style setting is restored at startup | ✓ Validated — locale restoration order in ApplySettings preserves correct provider |
 | Ghost theme FontSize=24 (not 28) | 24pt is the closest button in Settings Appearance tab; 28pt has no corresponding button, leaving ghost theme with no highlighted selection | ✓ Validated — 24pt button correctly highlighted after Phase 47 fix |
 | [DoNotParallelize] on PhraseEngineCoordinatorTests | PhraseEngine static state is shared across tests; parallel execution causes locale contamination between test methods | ✓ Validated — test isolation restored; all 224 tests pass |
-| ClockType enum replaces bool DialMode | Three-way switch (Phrase/Dial/Lcd) cannot be modelled with a bool; enum is explicit and extensible | ✓ Validated — JSON migration handles persisted DialMode:true/false cleanly; all 224 tests remain green |
-| WPF-only polygon segments (no font/bitmap) for LCD | Font-based LCD digits require a font asset file with license; bitmap-based requires a designer; Polygon math is fully code-generated, scales arbitrarily, themes via DP | ✓ Validated — SevenSegmentDigit renders at Small/Medium/Large with no external assets |
-| Ghost sentinel Transparent (A=0) on GhostColor DP | Allows auto-compute formula (15% of LitColor) as backward-compat default while letting Paper/Silver themes override with explicit ghost | ✓ Validated — Dark mode uses auto ghost; Paper and Silver set explicit ghost colors |
-| SegmentStyle "Classic" vs "Bold" as string DP (not enum) | Avoids a new enum type for two values; string is sufficient for a closed 2-way toggle; existing XAML binding patterns support string | ✓ Validated — Silver uses Bold (thick segments, minimal gaps); Classic used by all other themes |
-| LcdPalette.Get() as central color lookup (not per-control) | Single source of truth for 17 theme color triples; controls receive LitColor/GhostColor/BgColor DPs — palette is not coupled to controls | ✓ Validated — 17 themes added without modifying SevenSegmentDigit or LcdClockView |
-| WrapPanel swatch row replaces ComboBox for theme picker | 17 themes in a ComboBox is unusable (no color preview, too many items to scan); color swatches are the standard LCD theme picker pattern | ✓ Validated — swatch row visually shows all 17 themes at once in a compact 4-row wrap |
+
+| Named-pipe IPC for single-instance bring-to-front | Mutex alone only prevents second instance; named pipe allows first instance to receive activation message | ✓ Validated — WaitForConnection/Connect flow reliable; second launch activates correctly within 500ms |
+| AbandonedMutexException catch on WaitOne | Crash leaves mutex in abandoned state; AbandonedMutexException on subsequent WaitOne is the only in-process signal of prior crash | ✓ Validated — crash-restart works reliably; exception caught at startup and treated as mutex acquisition |
+| Inno Setup [AppMutex] detection in installer | ISCC AppMutex checks the exact same mutex name as App.xaml.cs; installer can detect a running instance and prompt to close before installing | ✓ Validated — running instance reliably detected during installer launch |
+| PhraseWrapService static class in FuzzyClock.Core | Wrap logic has no instance state; static class keeps it testable without WPF; MainWindow calls it in the Inlines rendering path | ✓ Validated — midpoint and natural pause algorithms tested in isolation; MainWindow integration works |
+| Inlines-based phrase rendering for wrap | Setting PhraseText.Text collapses Run/LineBreak inlines; must use PhraseText.Inlines.Clear() + Add(Run)/Add(LineBreak)/Add(Run) to inject a mid-phrase line break | ✓ Validated — both PhraseText and ShadowText rendered identically via Inlines; wrap visible correctly |
+| GetSegmentKey() added to IPhraseProvider interface | Segment identity (bucket key) must be computable without calling GetPhrase(); providers return stable keys independent of random candidate selection | ✓ Validated — phrase only changes when segment key changes; ticks within same bucket preserve displayed phrase |
+| BackdropBorder covering full StackPanel footprint | Original ContentBorder only covered the phrase/dial row; full-widget backdrop requires a Border element that wraps all rows (phrase+date+stats+uptime) | ✓ Validated — backdrop covers all rows; phrase row is intentionally double-layered for darker effect |
+| {h}/{h1} placeholder system in PoeticPhraseProvider | HourWords[hour12] indexed array for past-half phrasing; HourWords[(hour12 % 12) + 1] for to-half; templates evaluated at GetPhrase() call time | ✓ Validated — all 48 templates contain a placeholder; hour word correct at every minute of every hour |
+| GetStructuredPhrase qualifier/emphasis split for Poetic | PoeticPhraseProvider returns (qualifier: surrounding text, emphasis: hour word) so caller can apply typographic hierarchy to the time anchor | ✓ Validated — qualifier and hourWord correctly split; 8 tests cover all buckets and special cases |
 
 ---
-*Last updated: 2026-03-11 after v3.4 milestone start*
+*Last updated: 2026-03-18 after v3.6 milestone start*

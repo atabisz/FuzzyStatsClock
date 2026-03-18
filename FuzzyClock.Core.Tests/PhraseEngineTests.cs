@@ -5,6 +5,10 @@ namespace FuzzyClock.Core.Tests;
 [TestClass]
 public class PhraseEngineTests
 {
+    // Use provider directly — avoids race on PhraseEngine._activeProvider shared static.
+    // PhraseEngine dispatch is tested separately in PhraseEngineCoordinatorTests.
+    private static readonly IPhraseProvider _provider = new EnglishPhraseProvider();
+
     // Helper: build a DateTime with specific hour and minute (date is arbitrary)
     private static DateTime T(int hour, int minute) =>
         new DateTime(2024, 1, 15, hour, minute, 0);
@@ -16,7 +20,7 @@ public class PhraseEngineTests
     [DataRow(0,  0, "midnight")]
     public void SpecialCases_NoonAndMidnight(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -30,7 +34,7 @@ public class PhraseEngineTests
     [DataRow(15, 0, "three o'clock")]  // 15:00 => hour12=3
     public void Bucket00_OClockBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -42,7 +46,7 @@ public class PhraseEngineTests
     [DataRow(6,  5, "just after six")]
     public void Bucket05_JustAfterBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -54,7 +58,7 @@ public class PhraseEngineTests
     [DataRow(7,  10, "ten past seven")]
     public void Bucket10_TenPastBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -66,7 +70,7 @@ public class PhraseEngineTests
     [DataRow(8,  15, "a quarter past eight")]
     public void Bucket15_QuarterPastBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -78,7 +82,7 @@ public class PhraseEngineTests
     [DataRow(5,  20, "just after quarter past five")]
     public void Bucket20_JustAfterQuarterPastBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -90,7 +94,7 @@ public class PhraseEngineTests
     [DataRow(10, 25, "almost half past ten")]
     public void Bucket25_AlmostHalfPastBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -102,7 +106,7 @@ public class PhraseEngineTests
     [DataRow(11, 30, "half past eleven")]
     public void Bucket30_HalfPastBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -114,7 +118,7 @@ public class PhraseEngineTests
     [DataRow(9,  35, "just past half past nine")]
     public void Bucket35_JustPastHalfPastBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -126,7 +130,7 @@ public class PhraseEngineTests
     [DataRow(11, 40, "almost a quarter before twelve")]
     public void Bucket40_AlmostQuarterBeforeBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -138,7 +142,7 @@ public class PhraseEngineTests
     [DataRow(11, 45, "a quarter before twelve")]
     public void Bucket45_QuarterBeforeBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -150,7 +154,7 @@ public class PhraseEngineTests
     [DataRow(11, 50, "nearly twelve")]
     public void Bucket50_NearlyBoundaries(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -164,7 +168,7 @@ public class PhraseEngineTests
     [DataRow(11, 55, "almost twelve")]
     public void Bucket55_AlmostBoundariesIncluding58And59(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -180,7 +184,7 @@ public class PhraseEngineTests
     [DataRow(0,   1, "twelve o'clock")]         // 00:01 => hour12=12
     public void HourConversionEdgeCases(int hour, int minute, string expected)
     {
-        string result = PhraseEngine.GetPhrase(T(hour, minute));
+        string result = _provider.GetPhrase(T(hour, minute));
         Assert.AreEqual(expected, result);
     }
 
@@ -190,7 +194,7 @@ public class PhraseEngineTests
     public void NoPhraseContainsZeroAsHourValue()
     {
         // Verify midnight+5 uses "twelve" not "0"
-        string result = PhraseEngine.GetPhrase(T(0, 5));
+        string result = _provider.GetPhrase(T(0, 5));
         Assert.DoesNotContain(" 0", result);
         Assert.Contains("twelve", result);
     }
@@ -202,8 +206,8 @@ public class PhraseEngineTests
     {
         // Same input => same output, always (no DateTime.Now inside)
         DateTime dt = new DateTime(2024, 6, 15, 3, 30, 0);
-        string first  = PhraseEngine.GetPhrase(dt);
-        string second = PhraseEngine.GetPhrase(dt);
+        string first  = _provider.GetPhrase(dt);
+        string second = _provider.GetPhrase(dt);
         Assert.AreEqual(first, second);
         Assert.AreEqual("half past three", first);
     }
@@ -215,6 +219,9 @@ public class PhraseEngineTests
 [DoNotParallelize]
 public class GetStructuredPhraseTests
 {
+    // Use provider directly — avoids race on PhraseEngine._activeProvider shared static.
+    private static readonly IPhraseProvider _provider = new EnglishPhraseProvider();
+
     private static DateTime T(int hour, int minute) =>
         new DateTime(2024, 1, 15, hour, minute, 0);
 
@@ -226,7 +233,7 @@ public class GetStructuredPhraseTests
     [DataRow(0,  0, "",           "midnight")]
     public void SpecialCases_NoQualifier(int hour, int minute, string expectedQual, string expectedEmph)
     {
-        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        var (q, e) = _provider.GetStructuredPhrase(T(hour, minute));
         Assert.AreEqual(expectedQual, q);
         Assert.AreEqual(expectedEmph, e);
     }
@@ -236,7 +243,7 @@ public class GetStructuredPhraseTests
     [DataRow(9,  0, "",           "nine o'clock")]
     public void OClockBucket_WholeExpressionIsEmphasis(int hour, int minute, string expectedQual, string expectedEmph)
     {
-        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        var (q, e) = _provider.GetStructuredPhrase(T(hour, minute));
         Assert.AreEqual(expectedQual, q);
         Assert.AreEqual(expectedEmph, e);
     }
@@ -251,7 +258,7 @@ public class GetStructuredPhraseTests
     [DataRow(3, 35, "just past half past",     "three")]
     public void CurrentHourTemplates_QualifierAndEmphasis(int hour, int minute, string expectedQual, string expectedEmph)
     {
-        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        var (q, e) = _provider.GetStructuredPhrase(T(hour, minute));
         Assert.AreEqual(expectedQual, q);
         Assert.AreEqual(expectedEmph, e);
     }
@@ -263,7 +270,7 @@ public class GetStructuredPhraseTests
     [DataRow(3, 55, "almost",                  "four")]
     public void NextHourTemplates_QualifierAndEmphasis(int hour, int minute, string expectedQual, string expectedEmph)
     {
-        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        var (q, e) = _provider.GetStructuredPhrase(T(hour, minute));
         Assert.AreEqual(expectedQual, q);
         Assert.AreEqual(expectedEmph, e);
     }
@@ -273,7 +280,7 @@ public class GetStructuredPhraseTests
     [DataRow(11, 50, "nearly", "twelve")]
     public void HourWrap_QualifierAndEmphasis(int hour, int minute, string expectedQual, string expectedEmph)
     {
-        var (q, e) = PhraseEngine.GetStructuredPhrase(T(hour, minute));
+        var (q, e) = _provider.GetStructuredPhrase(T(hour, minute));
         Assert.AreEqual(expectedQual, q);
         Assert.AreEqual(expectedEmph, e);
     }

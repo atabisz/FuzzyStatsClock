@@ -1,17 +1,19 @@
 # Milestones
-## v3.3 LCD Clock (Shipped: 2026-03-11)
+## v3.5 Phrase Wrap + Installer (Shipped: 2026-03-18)
 
-**Phases completed:** 7 phases (48–54), 13 plans
-**Test suite:** 248 tests passing, 0 failures
-**Files changed:** 68 files changed, +10,150 lines
+**Phases completed:** 8 phases (48–55), 12 plans
 
 **Key accomplishments:**
-- Replaced `bool DialMode` with `ClockType` enum (Phrase/Dial/Lcd) across all layers; JSON backward-compat migration for persisted `"DialMode": true/false`
-- Built `SevenSegmentEncoder` in `FuzzyClock.Core` — pure 7-bit bitmask lookup for digits 0–9, colon, and space; 13 unit tests
-- Created `SevenSegmentDigit` and `LcdClockView` WPF UserControls — fully WPF-drawn polygon segments, ghost effect, LcdTheme palettes, 3 size variants scaling via SegmentHeight DP
-- Integrated LCD as third clock type in MainWindow, SettingsWindow (collapsible LCD options panel), and tray Clock Type submenu
-- Expanded LCD theme palette from 5 to 17 themes; replaced Settings ComboBox with a WrapPanel of colored swatches
-- Fixed tech debt from audit: LcdSize persistence in SaveSettings(), LcdSize in SettingsSnapshot, README Ghost color column, stale test count
+- Dark-mode Settings window via ThemeMode="Dark" — standard controls restyled automatically, zero style leakage to MainWindow (SETR-01–04)
+- Named-pipe single-instance IPC so second launch activates existing window; AbandonedMutexException guard for crash-restart (FIX-02, FIX-03)
+- 8px edge snapping post-DragMove; ResetToDefaults() fully resets phrase style and locale (SNAP-01–03, FIX-01)
+- Per-user Inno Setup installer: installs to %LOCALAPPDATA%\Programs\FuzzyClock\, no UAC, Start Menu shortcut, upgrade-safe, optional settings preserve on uninstall (INST-01–06, INST-08–09)
+- GitHub Actions CI release pipeline: version-stamped publish, installer compilation, SHA256 checksums, draft GitHub Release on tag push (INST-07)
+- PhraseWrapService with midpoint + natural pause (13 pause markers) split algorithms; wired into MainWindow Inlines renderer with per-style persistence (WRAP-01–03)
+- IPhraseProvider.GetSegmentKey() — phrase providers only change on bucket advance, not every 10s tick; segment-key guard in UpdatePhraseIfChanged (SEGKEY-01–03)
+- Full-widget BackdropBorder (phrase+date+stats+uptime); BackdropAlwaysVisible and BackdropOpacityPercent settings; SettingsWindow Appearance tab Backdrop section (BDROP-01–03)
+- PoeticPhraseProvider rewritten: 48 templates all naming the hour via {h}/{h1}; GetStructuredPhrase splits qualifier from hour word for typographic emphasis (POETIC-01)
+- 274 MSTest tests passing; CI gate enforced
 
 ---
 

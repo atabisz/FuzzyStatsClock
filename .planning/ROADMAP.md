@@ -1,7 +1,3 @@
----
-last_updated: 2026-03-11
----
-
 # Roadmap: Fuzzy Clock
 
 ## Milestones
@@ -29,20 +25,20 @@ last_updated: 2026-03-11
 - **v3.0 Date Display** (2026-03-07) — Date line below clock/dial, muted accent color, 4 format options, show/hide tray toggle, persisted. 1 phase, 2 plans. → [Archive](milestones/v3.0-ROADMAP.md)
 - **v3.1 Quality + Battery** (2026-03-08) — Battery stat row, DateFormatter extraction with tests, AppSettings round-trip coverage, README accuracy pass. 4 phases, 6 plans. → [Archive](milestones/v3.1-ROADMAP.md)
 - **v3.2 Expanded Experience** (2026-03-09) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 7 phases (41–47), 16 plans. → [Archive](milestones/v3.2-ROADMAP.md)
-- **v3.3 LCD Clock** (2026-03-11) — 7-segment LCD clock type; WPF-drawn segments; ghost segments; 17 retro color themes; 12/24hr toggle; show/hide seconds; three size variants. 7 phases (48–54), 13 plans. → [Archive](milestones/v3.3-ROADMAP.md)
-- **v3.4 Personalities & Nixie** (in progress) — 7 new phrase personality styles (Rude 2.0 + Pirate/Dwarf/Jive/Valley Girl/Yoda/Shakespearean), Nixie tube clock as fourth clock type, dial round/oval shape and size scaling. 3 phases (55–57).
+- ✅ **v3.5 Phrase Wrap + Installer** (2026-03-18) — Dark-mode Settings, edge snapping, IPC fixes, Inno Setup installer, CI release pipeline, phrase wrapping, backdrop enhancement, poetic hour hints. 8 phases (48–55), 12 plans. → [Archive](milestones/v3.5-ROADMAP.md)
+- 🚧 **v3.6 Settings Layout Fix** — Appearance tab fully visible within 480×600 window; compact theme cards; tighter spacing. 1 phase (56). In progress.
 
 ## Phases
 
 <details>
-<summary>✅ v2.2 System Tray (Phase 24) — SHIPPED 2026-03-02</summary>
+<summary>v2.2 System Tray (Phase 24) — SHIPPED 2026-03-02</summary>
 
-- [x] **Phase 24: System Tray Icon** — NotifyIcon with tray context menu (Reset to Defaults, Quit); Reset sets White accent + 100% opacity + 16pt font + phrase mode + centered position and saves immediately; Quit exits cleanly; analog clock face icon (16×16 dark circle, white hands at 10:10); tray icon disposed on window close (completed 2026-03-02)
+- [x] **Phase 24: System Tray Icon** — NotifyIcon with tray context menu (Reset to Defaults, Quit); Reset sets White accent + 100% opacity + 16pt font + phrase mode + centered position and saves immediately; Quit exits cleanly; analog clock face icon (16x16 dark circle, white hands at 10:10); tray icon disposed on window close (completed 2026-03-02)
 
 </details>
 
 <details>
-<summary>✅ v2.3 Ghost Mode (Phases 25–27) — SHIPPED 2026-03-02</summary>
+<summary>v2.3 Ghost Mode (Phases 25-27) — SHIPPED 2026-03-02</summary>
 
 - [x] **Phase 25: Centered Phrase Text** — TextAlignment=Center on PhraseText and ShadowText TextBlocks; phrase text is horizontally centered in the widget content area (completed 2026-03-02)
 - [x] **Phase 26: Ghost Mode Core** — Widget becomes Opacity=0 and click-through (WS_EX_TRANSPARENT) on MouseEnter with no modifier; restores on mouse exit with all hover state cleanly reset (completed 2026-03-02)
@@ -51,16 +47,16 @@ last_updated: 2026-03-11
 </details>
 
 <details>
-<summary>✅ v2.5 Unit Tests (Phases 28–30) — SHIPPED 2026-03-03</summary>
+<summary>v2.5 Unit Tests (Phases 28-30) — SHIPPED 2026-03-03</summary>
 
 - [x] **Phase 28: Core Logic Extraction + Tests** — UptimeFormatter and DialGeometry extracted into FuzzyClock.Core as pure static classes; 13 MSTest boundary-condition tests (7 + 6) all passing (completed 2026-03-02)
 - [x] **Phase 29: App Test Infrastructure + Settings Tests** — FuzzyClock.App.Tests (net10.0-windows, MSTest 4.0.1); SettingsService refactored with Validate() + pure Clamp() overload; 9 test cases passing (completed 2026-03-03)
-- [x] **Phase 30: CI Test Gate** — dotnet restore → dotnet test → dotnet publish step order in release.yml; no continue-on-error; all 73 tests gate the release artifact (completed 2026-03-03)
+- [x] **Phase 30: CI Test Gate** — dotnet restore -> dotnet test -> dotnet publish step order in release.yml; no continue-on-error; all 73 tests gate the release artifact (completed 2026-03-03)
 
 </details>
 
 <details>
-<summary>✅ v2.6 Polish (Phases 31–32) — SHIPPED 2026-03-03</summary>
+<summary>v2.6 Polish (Phases 31-32) — SHIPPED 2026-03-03</summary>
 
 - [x] **Phase 31: Auto-Launch at Login** — Tray toggle writes/removes HKCU Run registry entry; state shown as checkmark; persisted to settings.json (completed 2026-03-03)
 - [x] **Phase 32: Per-Monitor Position Memory** — Widget tracks last-used position per monitor by identity; restores to correct monitor on startup; centers on primary if monitor absent (completed 2026-03-03)
@@ -68,35 +64,35 @@ last_updated: 2026-03-11
 </details>
 
 <details>
-<summary>✅ v2.7 Auto-Contrast (Phase 33) — SHIPPED 2026-03-03</summary>
+<summary>v2.7 Auto-Contrast (Phase 33) — SHIPPED 2026-03-03</summary>
 
 - [x] **Phase 33: Auto-Contrast** — Tray toggle enables screen-color sampling under widget footprint (BitBlt/WCAG); switches text to black or white when contrast insufficient; restores accent when contrast is sufficient; pauses on ghost mode/opacity=0/drag (completed 2026-03-03)
 
 </details>
 
 <details>
-<summary>✅ v2.8 Uptime and Docs (Phase 34) — SHIPPED 2026-03-04</summary>
+<summary>v2.8 Uptime and Docs (Phase 34) — SHIPPED 2026-03-04</summary>
 
 - [x] **Phase 34: Uptime Process Count + README** — Verify process count appended to uptime line; README accurately reflects all v2.7+ features and interaction model (completed 2026-03-04)
 
 </details>
 
 <details>
-<summary>✅ v2.9 Process Threshold (Phase 35) — SHIPPED 2026-03-05</summary>
+<summary>v2.9 Process Threshold (Phase 35) — SHIPPED 2026-03-05</summary>
 
 - [x] **Phase 35: Process Count Threshold** — `ProcessCountThresholdPercent` (default 5.0) in AppSettings; three mutually-exclusive checkable tray Stats submenu items (2%/5%/10%); `UpdateUptimeDisplay()` uses persisted threshold; immediate display refresh; Reset to Defaults restores 5% (completed 2026-03-05)
 
 </details>
 
 <details>
-<summary>✅ v3.0 Date Display (Phase 36) — SHIPPED 2026-03-07</summary>
+<summary>v3.0 Date Display (Phase 36) — SHIPPED 2026-03-07</summary>
 
 - [x] **Phase 36: Date Display Under Clock** — DateText element below phrase/dial in muted accent color (55% alpha); 4 format options (Short/Long/Numeric/ISO); Show Date tray toggle + Date Format submenu; persisted to settings.json; ResetToDefaults restores defaults (completed 2026-03-07)
 
 </details>
 
 <details>
-<summary>✅ v3.1 Quality + Battery (Phases 37–40) — SHIPPED 2026-03-08</summary>
+<summary>v3.1 Quality + Battery (Phases 37-40) — SHIPPED 2026-03-08</summary>
 
 - [x] **Phase 37: Battery Stat Row** — Battery charge % stat row below PAG; horizontal bar + percentage text; `⚡ {pct}%` when AC-connected; "N/A" on desktops/VMs; tray Stats toggle; all-five-rows auto-collapse; persisted with default enabled (completed 2026-03-07)
 - [x] **Phase 38: Tests + Code Cleanup** — DateFormatter extracted from MainWindow into FuzzyClock.Core with 6 unit tests (all 4 formats); AppSettings round-trip tests for DateVisible/DateFormat; FormatDate deleted from MainWindow; 122 tests total (completed 2026-03-07)
@@ -106,7 +102,7 @@ last_updated: 2026-03-11
 </details>
 
 <details>
-<summary>✅ v3.2 Expanded Experience (Phases 41–47) — SHIPPED 2026-03-09</summary>
+<summary>v3.2 Expanded Experience (Phases 41-47) — SHIPPED 2026-03-09</summary>
 
 - [x] **Phase 41: PhraseEngine Provider Refactor** - Extract IPhraseProvider interface + EnglishPhraseProvider; PhraseEngine becomes static dispatcher; all 122 tests still pass (completed 2026-03-08)
 - [x] **Phase 42: Settings Window Infrastructure** - SettingsWindow (3 tabs), "Open Settings..." tray item, modeless Owner=MainWindow, SettingsChanged event wired to ApplySettings+SaveSettings (completed 2026-03-08)
@@ -114,81 +110,64 @@ last_updated: 2026-03-11
 - [x] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab (completed 2026-03-09)
 - [x] **Phase 45: English Phrase Style Personalities** - PhraseStyle enum (Classic/Terse/Poetic/Rude); bucket tables in EnglishPhraseProvider; AppSettings.PhraseStyle; Settings window wiring; per-style tests (completed 2026-03-09)
 - [x] **Phase 46: Multilingual Phrases** - Fr/Es/De/Ja/Pl providers; CultureInfo.CurrentUICulture detection; AppSettings.PhraseLocale; Settings window language selector; exhaustive per-language tests (completed 2026-03-09)
-- [x] **Phase 47: Tech Debt Cleanup** - Ghost theme FontSize 28→24 (Settings button alignment); remove stale AppSettings.cs comment (Phase 45 shipped); remove redundant `_suppressEvents = true` in SettingsWindow constructor (completed 2026-03-09)
+- [x] **Phase 47: Tech Debt Cleanup** - Ghost theme FontSize 28->24 (Settings button alignment); remove stale AppSettings.cs comment (Phase 45 shipped); remove redundant `_suppressEvents = true` in SettingsWindow constructor (completed 2026-03-09)
 
 </details>
 
 <details>
-<summary>✅ v3.3 LCD Clock (Phases 48–54) — SHIPPED 2026-03-11</summary>
+<summary>✅ v3.5 Phrase Wrap + Installer (Phases 48–55) — SHIPPED 2026-03-18</summary>
 
-- [x] **Phase 48: ClockType Enum Migration** — Replace `bool DialMode` with `ClockType` enum (Phrase/Dial/Lcd) across AppSettings, MainWindow, SettingsWindow, TrayMenuBuilder; JSON backward-compat migration; all 224 existing tests remain green (completed 2026-03-10)
-- [x] **Phase 49: SevenSegmentEncoder** — `SevenSegmentEncoder.Encode(char): byte` in FuzzyClock.Core; 7-bit segment masks for digits 0–9, colon, space; 13 unit tests (completed 2026-03-10)
-- [x] **Phase 50: WPF Segment Controls** — `SevenSegmentDigit` UserControl (7 Polygon segments, ghost effect, LcdTheme, scales with SegmentHeight); `LcdClockView` UserControl (full HH:MM or HH:MM:SS display, LcdSize enum, 12/24hr, 1s DispatcherTimer) (completed 2026-03-10)
-- [x] **Phase 51: App Integration** — AppSettings new fields (LcdTheme/LcdUse24Hr/LcdShowSeconds); MainWindow 3-way clock switching; SettingsWindow LCD button + LCD options panel; Tray "Clock Type" submenu; ResetToDefaults (completed 2026-03-10)
-- [x] **Phase 52: Tests + README** — AppSettings round-trip tests for new fields; LcdTimeFormat helper tests; README LCD section + Nixie backlog note; test count updated (completed 2026-03-10)
-- [x] **Phase 53: v3.3 LCD Tech Debt Cleanup** — Fix LcdSize persistence in SaveSettings(); add LcdSize to SettingsSnapshot; add Ghost color column to README LCD theme table (completed 2026-03-10)
-- [x] **Phase 54: Additional LCD Themes** — Expand LcdTheme enum from 5 to 17 values; add LcdPalette.Get() cases; replace SettingsWindow ComboBox with WrapPanel swatch row; 3 round-trip tests; README updated to 17 themes (completed 2026-03-11)
+- [x] **Phase 48: Settings Window Visual Redesign** — Dark-mode styling for SettingsWindow via ThemeMode="Dark"; zero style leakage to MainWindow (SETR-01–04) (completed 2026-03-17)
+- [x] **Phase 49: Fixes + Edge Snapping** — AbandonedMutexException crash recovery; named-pipe IPC for second-launch bring-to-front; ResetToDefaults phrase/locale reset; 8px SnapToEdge post-DragMove (FIX-01–03, SNAP-01–03) (completed 2026-03-18)
+- [x] **Phase 50: Installer + CI** — Inno Setup per-user installer (FuzzyClock.iss); GitHub Actions CI release pipeline with version injection, installer compilation, SHA256 checksums, draft GitHub Release (INST-01–09) (completed 2026-03-18)
+- [x] **Phase 51: README Docs Pass** — README updated for v3.2–v3.5 features, Settings window, themes, phrase styles, installer, edge snapping, phrase wrapping (DOCS-04) (completed 2026-03-18)
+- [x] **Phase 52: Phrase Wrapping** — PhraseWrapService (midpoint + natural pause algorithms); Inlines-based renderer; AppSettings + SettingsWindow controls (WRAP-01–03) (completed 2026-03-18)
+- [x] **Phase 53: Fix Phrase Update Rate** — IPhraseProvider.GetSegmentKey(); segment-key guard in UpdatePhraseIfChanged; phrase only changes on bucket advance (SEGKEY-01–03) (completed 2026-03-18)
+- [x] **Phase 54: Backdrop Enhancement** — BackdropBorder covering full widget footprint; BackdropAlwaysVisible; BackdropOpacityPercent slider (BDROP-01–03) (completed 2026-03-18)
+- [x] **Phase 55: Poetic Hour Hints** — PoeticPhraseProvider rewritten with 48 {h}/{h1} templates; GetStructuredPhrase qualifier/emphasis split (POETIC-01) (completed 2026-03-18)
 
 </details>
 
-### v3.4 Personalities & Nixie (Phases 55–57) — IN PROGRESS
+### 🚧 v3.6 Settings Layout Fix (In Progress)
 
-- [x] **Phase 55: Phrase Personalities** - Rude 2.0 rewrite + 6 new English personality providers (Pirate, Dwarf, Jive, Valley Girl, Yoda, Shakespearean); all registered in PhraseEngine, wired in Settings ComboBox, and test-covered (265 tests passing)
-- [ ] **Phase 56: Nixie Tube Clock** - NixieClockView + NixieDigit WPF UserControls; warm orange glow via stacked RadialGradientBrush (no UIElement.Effect); stacked ghost cathodes; glass tube border; wire mesh overlay; ClockType.Nixie as 4th enum value; full integration in Settings and tray
-- [ ] **Phase 57: Dial Enhancements** - Parametric dial geometry refactor (no more literal 40.0 center); round/oval shape toggle; dial canvas size scales with font size setting; AppSettings.DialShape persisted
+**Milestone Goal:** The Appearance tab is fully visible within the existing 480×600 Settings window without clipping; Stats and Behavior tabs are unaffected.
+
+#### Phase 56: Settings Window Layout Redesign
+
+**Goal**: All controls on the Appearance tab are visible within the 480×600 window without clipping, achieved by compacting theme cards and tightening inter-section spacing
+**Depends on**: Phase 55 (v3.5 complete)
+**Requirements**: SETT-01, SETT-02, SETT-03, SETT-04
+**Success Criteria** (what must be TRUE):
+  1. Opening the Settings window and selecting the Appearance tab shows all controls without any element clipped, cut off, or hidden below the window edge
+  2. Theme preset cards use a more compact visual form — noticeably less vertical space per card than the v3.5 layout
+  3. Margins and padding between sections on the Appearance tab are visibly tighter; no large blank gaps separate adjacent sections
+  4. The Stats tab and Behavior tab look identical to their v3.5 state; no layout change is visible on either tab
+**Plans**: 1 plan
+
+Plans:
+- [ ] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
 
 ## Phase Details
 
-*v3.2 phase details archived to [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md)*
-*v3.3 phase details archived to [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md)*
-
-### Phase 55: Phrase Personalities
-**Goal**: Users can choose from 7 personality styles for the English phrase clock, each with a distinct vocabulary that transforms how the time reads
-**Depends on**: Phase 54 (v3.3 complete)
-**Requirements**: PHRASE-01, PHRASE-02, PHRASE-03, PHRASE-04, PHRASE-05, PHRASE-06, PHRASE-07, PHRASE-08, PHRASE-09
-**Success Criteria** (what must be TRUE):
-  1. Selecting "Rude" in Settings produces visibly coarser vocabulary (WTF, dafaq, tf) instead of the v3.2 passive-aggressive British register
-  2. Each of the 6 new styles (Pirate, Dwarf, Jive, Valley Girl, Yoda, Shakespearean) appears as a selectable item in the Settings window Phrase Style ComboBox
-  3. Switching to any new style immediately updates the displayed phrase without restarting the widget
-  4. The selected style persists across a restart and is restored exactly (not falling back to Classic)
-  5. All 7 new/rewritten providers have at least 2 passing test methods each verifying distinct phrase samples
-**Plans**: 3 plans
-Plans:
-- [x] 55-01-PLAN.md — Rude 2.0 rewrite + 6 new provider classes (FuzzyClock.Core)
-- [x] 55-02-PLAN.md — PhraseEngine registration, MainWindow routing, SettingsWindow wiring, Validate() guard
-- [x] 55-03-PLAN.md — Updated Rude tests + 6 new provider test classes
-
-### Phase 56: Nixie Tube Clock
-**Goal**: Users can select a Nixie tube clock as a fourth clock type that renders a retro warm-orange digit display entirely from WPF vector primitives
+### Phase 56: Settings Window Layout Redesign
+**Goal**: All controls on the Appearance tab are visible within the 480×600 window without clipping, achieved by compacting theme cards and tightening inter-section spacing
 **Depends on**: Phase 55
-**Requirements**: NIXIE-01, NIXIE-02, NIXIE-03, NIXIE-04, NIXIE-05, NIXIE-06, NIXIE-07
+**Requirements**: SETT-01, SETT-02, SETT-03, SETT-04
 **Success Criteria** (what must be TRUE):
-  1. Selecting "Nixie" in the Settings Clock Style row or tray Clock Type submenu switches the clock face to the Nixie display and hides the phrase/dial/LCD controls
-  2. Each active digit glows with a warm orange bloom (no black rectangle artifacts at any zoom or DPI — glow uses stacked RadialGradientBrush, not UIElement.Effect)
-  3. All 10 ghost cathode digits are visible behind the active digit as faint stacked shadows
-  4. Each digit slot is enclosed in a rounded glass tube border with a faint wire mesh overlay
-  5. Selecting Nixie type, closing and reopening the widget restores Nixie — the ClockType.Nixie value round-trips through settings.json
-**Plans**: 3 plans
-Plans:
-- [ ] 56-01-PLAN.md — NixieDigit + NixieClockView UserControls + NixieSizeMap helper (WPF render core)
-- [ ] 56-02-PLAN.md — ClockType.Nixie enum + full integration (MainWindow 5 sites, SettingsWindow, TrayMenuBuilder)
-- [ ] 56-03-PLAN.md — NixieSizeMap unit tests + visual review checkpoint
+  1. Opening the Settings window and selecting the Appearance tab shows all controls without any element clipped, cut off, or hidden below the window edge
+  2. Theme preset cards use a more compact visual form — noticeably less vertical space per card than the v3.5 layout
+  3. Margins and padding between sections on the Appearance tab are visibly tighter; no large blank gaps separate adjacent sections
+  4. The Stats tab and Behavior tab look identical to their v3.5 state; no layout change is visible on either tab
+**Plans**: 1 plan
 
-### Phase 57: Dial Enhancements
-**Goal**: Users can choose between round and oval dial shapes, and the dial canvas scales automatically with the font size setting
-**Depends on**: Phase 56
-**Requirements**: DIAL-01, DIAL-02, DIAL-03
-**Success Criteria** (what must be TRUE):
-  1. The Appearance tab of the Settings window shows round/oval shape radio buttons that immediately change the dial shape when clicked
-  2. Switching font size to Small, Medium, or Large while in dial mode changes the dial canvas to the corresponding size (80px / 110px / 150px)
-  3. The selected dial shape persists across a restart (AppSettings.DialShape round-trips through settings.json)
-**Plans**: TBD
+Plans:
+- [ ] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
 
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1–23 | v1.0–v2.1 | All | Complete | See archives |
+| 1-23 | v1.0-v2.1 | All | Complete | See archives |
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
 | 25. Centered Phrase Text | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | 1/1 | Complete | 2026-03-02 |
@@ -213,16 +192,15 @@ Plans:
 | 45. English Phrase Style Personalities | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
-| 48. ClockType Enum Migration | v3.3 | 1/1 | Complete | 2026-03-10 |
-| 49. SevenSegmentEncoder | v3.3 | 1/1 | Complete | 2026-03-10 |
-| 50. WPF Segment Controls | v3.3 | 2/2 | Complete | 2026-03-10 |
-| 51. App Integration | v3.3 | 2/2 | Complete | 2026-03-10 |
-| 52. Tests + README | v3.3 | 3/3 | Complete | 2026-03-10 |
-| 53. v3.3 LCD Tech Debt Cleanup | v3.3 | 1/1 | Complete | 2026-03-10 |
-| 54. Additional LCD Themes | v3.3 | 3/3 | Complete | 2026-03-11 |
-| 55. Phrase Personalities | v3.4 | Complete    | 2026-03-11 | 2026-03-11 |
-| 56. Nixie Tube Clock | 2/3 | In Progress|  | - |
-| 57. Dial Enhancements | v3.4 | 0/? | Not started | - |
+| 48. Settings Window Visual Redesign | v3.5 | 1/1 | Complete | 2026-03-17 |
+| 49. Fixes + Edge Snapping | v3.5 | 2/2 | Complete | 2026-03-18 |
+| 50. Installer + CI | v3.5 | 2/2 | Complete | 2026-03-18 |
+| 51. README Docs Pass | v3.5 | 1/1 | Complete | 2026-03-18 |
+| 52. Phrase Wrapping | v3.5 | 2/2 | Complete | 2026-03-18 |
+| 53. Fix Phrase Update Rate | v3.5 | 2/2 | Complete | 2026-03-18 |
+| 54. Backdrop Enhancement | v3.5 | 1/1 | Complete | 2026-03-18 |
+| 55. Poetic Hour Hints | v3.5 | 1/1 | Complete | 2026-03-18 |
+| 56. Settings Window Layout Redesign | 1/1 | Complete    | 2026-03-18 | - |
 
 ---
-*Last updated: 2026-03-11 — Phase 56 planned (3 plans)*
+*Last updated: 2026-03-18 — v3.6 roadmap created*
