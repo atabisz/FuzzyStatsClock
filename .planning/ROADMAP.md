@@ -174,7 +174,10 @@ Plans:
   6. When the installer detects a running FuzzyClock instance, it prompts the user to close it before proceeding
   7. The installer finish page shows a "Launch FuzzyClock" checkbox; leaving it checked launches the app when the installer closes
   8. Pushing a version tag (e.g. v3.5) to GitHub triggers CI: tests run, then both FuzzyClock-3.5.0.exe and FuzzyClockSetup-3.5.0.exe plus checksums.txt appear as a draft GitHub Release
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 50-01-PLAN.md — Inno Setup installer script (FuzzyClock.iss)
+- [ ] 50-02-PLAN.md — CI release workflow update (version injection, installer compilation, checksums, draft release)
 
 ### Phase 51: README Docs Pass
 **Goal**: The README accurately describes all features available in v3.2 through v3.5
@@ -186,7 +189,10 @@ Plans:
   3. README installation section references FuzzyClockSetup.exe as the primary install path and documents the SmartScreen "More info → Run anyway" workaround
   4. README describes edge snapping, single-instance behavior, and dark-mode Settings window styling
   5. README describes phrase wrapping: when it triggers, the two split styles, and how to configure it
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 50-01-PLAN.md — Inno Setup installer script (FuzzyClock.iss)
+- [ ] 50-02-PLAN.md — CI release workflow update (version injection, installer compilation, checksums, draft release)
 
 ### Phase 52: Phrase Wrapping
 **Goal**: Long phrase text wraps to two lines instead of overflowing or truncating, with a user-configurable split style
@@ -199,7 +205,10 @@ Plans:
   4. Both PhraseText and ShadowText wrap identically — shadow text does not shift or misalign relative to the main text
   5. The selected split style and wrap-enabled state persist to settings.json and restore correctly on relaunch
   6. In dial mode, no wrap logic runs — the phrase text path is inactive and wrap state has no visible effect
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 50-01-PLAN.md — Inno Setup installer script (FuzzyClock.iss)
+- [ ] 50-02-PLAN.md — CI release workflow update (version injection, installer compilation, checksums, draft release)
 
 ## Progress
 
@@ -232,9 +241,9 @@ Plans:
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
 | 48. Settings Window Visual Redesign | v3.4 | 1/1 | Complete | 2026-03-17 |
 | 49. Fixes + Edge Snapping | v3.4 | 2/2 | Complete | 2026-03-18 |
-| 50. Installer + CI | v3.5 | 0/TBD | Not started | - |
+| 50. Installer + CI | v3.5 | 0/2 | Not started | - |
 | 51. README Docs Pass | v3.5 | 0/TBD | Not started | - |
 | 52. Phrase Wrapping | v3.5 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-18 — v3.5 roadmap created (phases 50–52)*
+*Last updated: 2026-03-18 — Phase 50 planned (2 plans in 2 waves)*
