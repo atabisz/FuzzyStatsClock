@@ -10,23 +10,13 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v3.4 shipped: 2026-03-18** — Settings window dark-mode redesign, edge snapping post-drag, single-instance IPC bring-to-front, ResetToDefaults phrase style/locale reset, .claude tooling removed from public repo
+**v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping (midpoint/natural pause), segment-key phrase guard, full-widget backdrop with opacity control, poetic phrase hour hints, dark-mode Settings window redesign, edge snapping, single-instance IPC, AbandonedMutex crash recovery
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
 
 **v3.1 shipped: 2026-03-08** — Battery stat row, DateFormatter extraction + tests, AppSettings round-trip tests, README accuracy pass
 
-224 MSTest tests (199 Core + 25 App) passing. CI gate enforced.
-
-
-## Current Milestone: v3.5 Phrase Wrap + Installer
-
-**Goal:** Auto-wrap long phrases to two lines when wider than the stats panel, ship a proper per-user installer with CI artifact pipeline, and bring the README up to date.
-
-**Target features:**
-- Phrase text auto-wraps to two lines when phrase width > stats panel width + 10%; split point configurable (nearest midpoint / natural pause); setting persisted
-- Per-user installer: Inno Setup, installs to `%LOCALAPPDATA%\Programs\FuzzyClock\`, upgrades in-place, no UAC; GitHub Actions produces versioned artifacts on git tag push
-- README accuracy pass for v3.2–v3.4 features
+274 MSTest tests (249 Core + 25 App) passing. CI gate enforced.
 
 ## Requirements
 
@@ -202,9 +192,35 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ ALERT-02: Battery row returns to normal accent color when battery rises above threshold or is plugged in — v3.2
 - ✓ ALERT-03: Battery alert threshold configurable in Settings Behavior tab (10% / 15% / 20%, default 20%) — v3.2
 
-### Deferred (v2+)
+### Validated (v3.4–v3.5)
 
-- WIN-07: Widget snaps to screen edges when dragged near them
+- ✓ SETR-01: Settings window uses dark background and light foreground text matching the widget's minimal aesthetic — v3.5
+- ✓ SETR-02: CheckBox, RadioButton, ComboBox, Button, and Slider controls have consistent dark-mode styling — v3.5
+- ✓ SETR-03: Section groups have adequate whitespace; controls are not cramped — v3.5
+- ✓ SETR-04: Settings window styling is scoped to SettingsWindow only — no style leakage to MainWindow — v3.5
+- ✓ FIX-01: ResetToDefaults() also resets phrase style to Classic and phrase locale to "auto" — v3.5
+- ✓ FIX-02: Second launch of the app brings the existing window to front instead of silently exiting — v3.5
+- ✓ FIX-03: AbandonedMutexException is handled so the app can restart after a crash without being stuck — v3.5
+- ✓ SNAP-01: Widget snaps to screen edges when drag ends within 8px of any edge — v3.5
+- ✓ SNAP-02: Edge snap respects the working area (excludes taskbar) — v3.5
+- ✓ SNAP-03: Edge snap fires post-DragMove() only — not during drag, not on phrase resize — v3.5
+- ✓ INST-01: FuzzyClockSetup.exe installs per-user to %LOCALAPPDATA%\Programs\FuzzyClock\ with no UAC prompt — v3.5
+- ✓ INST-02: Running the installer over an existing installation upgrades in-place without data loss — v3.5
+- ✓ INST-03: Installer creates a Start Menu shortcut — v3.5
+- ✓ INST-04: Installer registers in Add/Remove Programs with a clean uninstall path — v3.5
+- ✓ INST-05: Uninstall removes app files but preserves settings.json — v3.5
+- ✓ INST-06: If auto-launch was enabled, installer updates the HKCU\...\Run entry to the new install path — v3.5
+- ✓ INST-07: CI workflow produces FuzzyClock-X.Y.Z.exe, FuzzyClockSetup-X.Y.Z.exe, and checksums.txt as a draft GitHub Release when a version tag is pushed — v3.5
+- ✓ INST-08: Installer prompts the user to close a running FuzzyClock instance before proceeding — v3.5
+- ✓ INST-09: Installer finish page offers "Launch FuzzyClock" checkbox; uninstaller offers optional settings.json removal — v3.5
+- ✓ DOCS-04: README documents v3.2–v3.5 features — v3.5
+- ✓ WRAP-01: In phrase mode, if rendered phrase text width exceeds stats panel width + 10%, text splits across two lines — v3.5
+- ✓ WRAP-02: User can choose split style (Nearest Midpoint / Natural Pause) in Settings; default is Nearest Midpoint — v3.5
+- ✓ WRAP-03: Phrase wrap split style persists to settings.json and restores on launch — v3.5
+- ✓ BDROP-01: On hover, semi-transparent backdrop covers full widget footprint (phrase + date + stats + uptime) — v3.5
+- ✓ BDROP-02: User can enable always-visible backdrop via Settings > Appearance > Backdrop — v3.5
+- ✓ BDROP-03: Backdrop opacity is configurable via slider (10–100%, step 5) in Settings > Appearance — v3.5
+- ✓ POETIC-01: Every poetic phrase names the current or approaching hour naturally via {h}/{h1} templates — v3.5
 
 ### Out of Scope
 
@@ -226,7 +242,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 ## Constraints
 
 - **Tech stack**: C# / WPF — Windows only
-- **Simplicity**: Minimal footprint — settings window is non-modal and lightweight; no installer complexity
+- **Simplicity**: Minimal footprint — settings window is non-modal and lightweight
+- **Distribution**: Per-user Inno Setup installer (no UAC); CI-built artifacts on git tag push
 
 ## Key Decisions
 
@@ -350,5 +367,15 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | Ghost theme FontSize=24 (not 28) | 24pt is the closest button in Settings Appearance tab; 28pt has no corresponding button, leaving ghost theme with no highlighted selection | ✓ Validated — 24pt button correctly highlighted after Phase 47 fix |
 | [DoNotParallelize] on PhraseEngineCoordinatorTests | PhraseEngine static state is shared across tests; parallel execution causes locale contamination between test methods | ✓ Validated — test isolation restored; all 224 tests pass |
 
+| Named-pipe IPC for single-instance bring-to-front | Mutex alone only prevents second instance; named pipe allows first instance to receive activation message | ✓ Validated — WaitForConnection/Connect flow reliable; second launch activates correctly within 500ms |
+| AbandonedMutexException catch on WaitOne | Crash leaves mutex in abandoned state; AbandonedMutexException on subsequent WaitOne is the only in-process signal of prior crash | ✓ Validated — crash-restart works reliably; exception caught at startup and treated as mutex acquisition |
+| Inno Setup [AppMutex] detection in installer | ISCC AppMutex checks the exact same mutex name as App.xaml.cs; installer can detect a running instance and prompt to close before installing | ✓ Validated — running instance reliably detected during installer launch |
+| PhraseWrapService static class in FuzzyClock.Core | Wrap logic has no instance state; static class keeps it testable without WPF; MainWindow calls it in the Inlines rendering path | ✓ Validated — midpoint and natural pause algorithms tested in isolation; MainWindow integration works |
+| Inlines-based phrase rendering for wrap | Setting PhraseText.Text collapses Run/LineBreak inlines; must use PhraseText.Inlines.Clear() + Add(Run)/Add(LineBreak)/Add(Run) to inject a mid-phrase line break | ✓ Validated — both PhraseText and ShadowText rendered identically via Inlines; wrap visible correctly |
+| GetSegmentKey() added to IPhraseProvider interface | Segment identity (bucket key) must be computable without calling GetPhrase(); providers return stable keys independent of random candidate selection | ✓ Validated — phrase only changes when segment key changes; ticks within same bucket preserve displayed phrase |
+| BackdropBorder covering full StackPanel footprint | Original ContentBorder only covered the phrase/dial row; full-widget backdrop requires a Border element that wraps all rows (phrase+date+stats+uptime) | ✓ Validated — backdrop covers all rows; phrase row is intentionally double-layered for darker effect |
+| {h}/{h1} placeholder system in PoeticPhraseProvider | HourWords[hour12] indexed array for past-half phrasing; HourWords[(hour12 % 12) + 1] for to-half; templates evaluated at GetPhrase() call time | ✓ Validated — all 48 templates contain a placeholder; hour word correct at every minute of every hour |
+| GetStructuredPhrase qualifier/emphasis split for Poetic | PoeticPhraseProvider returns (qualifier: surrounding text, emphasis: hour word) so caller can apply typographic hierarchy to the time anchor | ✓ Validated — qualifier and hourWord correctly split; 8 tests cover all buckets and special cases |
+
 ---
-*Last updated: 2026-03-09 after v3.2 milestone*
+*Last updated: 2026-03-18 after v3.5 milestone*
