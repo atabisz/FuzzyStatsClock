@@ -189,7 +189,9 @@ Plans:
   3. README installation section references FuzzyClockSetup.exe as the primary install path and documents the SmartScreen "More info → Run anyway" workaround
   4. README describes edge snapping, single-instance behavior, and dark-mode Settings window styling
   5. README describes phrase wrapping: when it triggers, the two split styles, and how to configure it
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 51-01-PLAN.md — Update README with v3.2-v3.5 features (Settings window, themes, phrase styles, installer, edge snapping, phrase wrapping)
 
 ### Phase 52: Phrase Wrapping
 **Goal**: Long phrase text wraps to two lines instead of overflowing or truncating, with a user-configurable split style
