@@ -31,14 +31,14 @@
 ## Phases
 
 <details>
-<summary>✅ v2.2 System Tray (Phase 24) — SHIPPED 2026-03-02</summary>
+<summary>v2.2 System Tray (Phase 24) — SHIPPED 2026-03-02</summary>
 
-- [x] **Phase 24: System Tray Icon** — NotifyIcon with tray context menu (Reset to Defaults, Quit); Reset sets White accent + 100% opacity + 16pt font + phrase mode + centered position and saves immediately; Quit exits cleanly; analog clock face icon (16×16 dark circle, white hands at 10:10); tray icon disposed on window close (completed 2026-03-02)
+- [x] **Phase 24: System Tray Icon** — NotifyIcon with tray context menu (Reset to Defaults, Quit); Reset sets White accent + 100% opacity + 16pt font + phrase mode + centered position and saves immediately; Quit exits cleanly; analog clock face icon (16x16 dark circle, white hands at 10:10); tray icon disposed on window close (completed 2026-03-02)
 
 </details>
 
 <details>
-<summary>✅ v2.3 Ghost Mode (Phases 25–27) — SHIPPED 2026-03-02</summary>
+<summary>v2.3 Ghost Mode (Phases 25-27) — SHIPPED 2026-03-02</summary>
 
 - [x] **Phase 25: Centered Phrase Text** — TextAlignment=Center on PhraseText and ShadowText TextBlocks; phrase text is horizontally centered in the widget content area (completed 2026-03-02)
 - [x] **Phase 26: Ghost Mode Core** — Widget becomes Opacity=0 and click-through (WS_EX_TRANSPARENT) on MouseEnter with no modifier; restores on mouse exit with all hover state cleanly reset (completed 2026-03-02)
@@ -47,16 +47,16 @@
 </details>
 
 <details>
-<summary>✅ v2.5 Unit Tests (Phases 28–30) — SHIPPED 2026-03-03</summary>
+<summary>v2.5 Unit Tests (Phases 28-30) — SHIPPED 2026-03-03</summary>
 
 - [x] **Phase 28: Core Logic Extraction + Tests** — UptimeFormatter and DialGeometry extracted into FuzzyClock.Core as pure static classes; 13 MSTest boundary-condition tests (7 + 6) all passing (completed 2026-03-02)
 - [x] **Phase 29: App Test Infrastructure + Settings Tests** — FuzzyClock.App.Tests (net10.0-windows, MSTest 4.0.1); SettingsService refactored with Validate() + pure Clamp() overload; 9 test cases passing (completed 2026-03-03)
-- [x] **Phase 30: CI Test Gate** — dotnet restore → dotnet test → dotnet publish step order in release.yml; no continue-on-error; all 73 tests gate the release artifact (completed 2026-03-03)
+- [x] **Phase 30: CI Test Gate** — dotnet restore -> dotnet test -> dotnet publish step order in release.yml; no continue-on-error; all 73 tests gate the release artifact (completed 2026-03-03)
 
 </details>
 
 <details>
-<summary>✅ v2.6 Polish (Phases 31–32) — SHIPPED 2026-03-03</summary>
+<summary>v2.6 Polish (Phases 31-32) — SHIPPED 2026-03-03</summary>
 
 - [x] **Phase 31: Auto-Launch at Login** — Tray toggle writes/removes HKCU Run registry entry; state shown as checkmark; persisted to settings.json (completed 2026-03-03)
 - [x] **Phase 32: Per-Monitor Position Memory** — Widget tracks last-used position per monitor by identity; restores to correct monitor on startup; centers on primary if monitor absent (completed 2026-03-03)
@@ -64,35 +64,35 @@
 </details>
 
 <details>
-<summary>✅ v2.7 Auto-Contrast (Phase 33) — SHIPPED 2026-03-03</summary>
+<summary>v2.7 Auto-Contrast (Phase 33) — SHIPPED 2026-03-03</summary>
 
 - [x] **Phase 33: Auto-Contrast** — Tray toggle enables screen-color sampling under widget footprint (BitBlt/WCAG); switches text to black or white when contrast insufficient; restores accent when contrast is sufficient; pauses on ghost mode/opacity=0/drag (completed 2026-03-03)
 
 </details>
 
 <details>
-<summary>✅ v2.8 Uptime and Docs (Phase 34) — SHIPPED 2026-03-04</summary>
+<summary>v2.8 Uptime and Docs (Phase 34) — SHIPPED 2026-03-04</summary>
 
 - [x] **Phase 34: Uptime Process Count + README** — Verify process count appended to uptime line; README accurately reflects all v2.7+ features and interaction model (completed 2026-03-04)
 
 </details>
 
 <details>
-<summary>✅ v2.9 Process Threshold (Phase 35) — SHIPPED 2026-03-05</summary>
+<summary>v2.9 Process Threshold (Phase 35) — SHIPPED 2026-03-05</summary>
 
 - [x] **Phase 35: Process Count Threshold** — `ProcessCountThresholdPercent` (default 5.0) in AppSettings; three mutually-exclusive checkable tray Stats submenu items (2%/5%/10%); `UpdateUptimeDisplay()` uses persisted threshold; immediate display refresh; Reset to Defaults restores 5% (completed 2026-03-05)
 
 </details>
 
 <details>
-<summary>✅ v3.0 Date Display (Phase 36) — SHIPPED 2026-03-07</summary>
+<summary>v3.0 Date Display (Phase 36) — SHIPPED 2026-03-07</summary>
 
 - [x] **Phase 36: Date Display Under Clock** — DateText element below phrase/dial in muted accent color (55% alpha); 4 format options (Short/Long/Numeric/ISO); Show Date tray toggle + Date Format submenu; persisted to settings.json; ResetToDefaults restores defaults (completed 2026-03-07)
 
 </details>
 
 <details>
-<summary>✅ v3.1 Quality + Battery (Phases 37–40) — SHIPPED 2026-03-08</summary>
+<summary>v3.1 Quality + Battery (Phases 37-40) — SHIPPED 2026-03-08</summary>
 
 - [x] **Phase 37: Battery Stat Row** — Battery charge % stat row below PAG; horizontal bar + percentage text; `⚡ {pct}%` when AC-connected; "N/A" on desktops/VMs; tray Stats toggle; all-five-rows auto-collapse; persisted with default enabled (completed 2026-03-07)
 - [x] **Phase 38: Tests + Code Cleanup** — DateFormatter extracted from MainWindow into FuzzyClock.Core with 6 unit tests (all 4 formats); AppSettings round-trip tests for DateVisible/DateFormat; FormatDate deleted from MainWindow; 122 tests total (completed 2026-03-07)
@@ -102,7 +102,7 @@
 </details>
 
 <details>
-<summary>✅ v3.2 Expanded Experience (Phases 41–47) — SHIPPED 2026-03-09</summary>
+<summary>v3.2 Expanded Experience (Phases 41-47) — SHIPPED 2026-03-09</summary>
 
 - [x] **Phase 41: PhraseEngine Provider Refactor** - Extract IPhraseProvider interface + EnglishPhraseProvider; PhraseEngine becomes static dispatcher; all 122 tests still pass (completed 2026-03-08)
 - [x] **Phase 42: Settings Window Infrastructure** - SettingsWindow (3 tabs), "Open Settings..." tray item, modeless Owner=MainWindow, SettingsChanged event wired to ApplySettings+SaveSettings (completed 2026-03-08)
@@ -110,22 +110,22 @@
 - [x] **Phase 44: Battery Low Alert** - Red override on battery row when below threshold and unplugged; BatteryAlertEnabled/BatteryAlertPercent in AppSettings; configurable in Settings window Behavior tab (completed 2026-03-09)
 - [x] **Phase 45: English Phrase Style Personalities** - PhraseStyle enum (Classic/Terse/Poetic/Rude); bucket tables in EnglishPhraseProvider; AppSettings.PhraseStyle; Settings window wiring; per-style tests (completed 2026-03-09)
 - [x] **Phase 46: Multilingual Phrases** - Fr/Es/De/Ja/Pl providers; CultureInfo.CurrentUICulture detection; AppSettings.PhraseLocale; Settings window language selector; exhaustive per-language tests (completed 2026-03-09)
-- [x] **Phase 47: Tech Debt Cleanup** - Ghost theme FontSize 28→24 (Settings button alignment); remove stale AppSettings.cs comment (Phase 45 shipped); remove redundant `_suppressEvents = true` in SettingsWindow constructor (completed 2026-03-09)
+- [x] **Phase 47: Tech Debt Cleanup** - Ghost theme FontSize 28->24 (Settings button alignment); remove stale AppSettings.cs comment (Phase 45 shipped); remove redundant `_suppressEvents = true` in SettingsWindow constructor (completed 2026-03-09)
 
 </details>
 
 <details>
-<summary>✅ v3.4 Polish + Fixes (Phases 48–49) — SHIPPED 2026-03-18</summary>
+<summary>v3.4 Polish + Fixes (Phases 48-49) — SHIPPED 2026-03-18</summary>
 
 - [x] **Phase 48: Settings Window Visual Redesign** — Dark-mode styling for SettingsWindow (SETR-01 to SETR-04) (completed 2026-03-17)
 - [x] **Phase 49: Fixes + Edge Snapping** — Bug fixes for reset defaults, single-instance bring-to-front, AbandonedMutexException; edge snap post-DragMove (FIX-01, FIX-02, FIX-03, SNAP-01, SNAP-02, SNAP-03) (completed 2026-03-18)
 
 </details>
 
-### v3.5 Phrase Wrap + Installer (Phases 50–52) — CURRENT
+### v3.5 Phrase Wrap + Installer (Phases 50-52) — CURRENT
 
 - [x] **Phase 50: Installer + CI** — Inno Setup per-user installer script and CI artifact integration (INST-01 to INST-09) (completed 2026-03-18)
-- [x] **Phase 51: README Docs Pass** — Document v3.2–v3.4 features including installer, phrase wrapping (DOCS-04) (completed 2026-03-18)
+- [x] **Phase 51: README Docs Pass** — Document v3.2-v3.4 features including installer, phrase wrapping (DOCS-04) (completed 2026-03-18)
 - [x] **Phase 52: Phrase Wrapping** — Auto-wrap long phrase text to two lines with configurable split style (WRAP-01, WRAP-02, WRAP-03) (completed 2026-03-18)
 
 ## Phase Details
@@ -186,7 +186,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. README describes the Settings window (how to open it, its three tabs) and named themes
   2. README describes English phrase style personalities (Classic/Terse/Poetic/Rude) and language selection
-  3. README installation section references FuzzyClockSetup.exe as the primary install path and documents the SmartScreen "More info → Run anyway" workaround
+  3. README installation section references FuzzyClockSetup.exe as the primary install path and documents the SmartScreen "More info -> Run anyway" workaround
   4. README describes edge snapping, single-instance behavior, and dark-mode Settings window styling
   5. README describes phrase wrapping: when it triggers, the two split styles, and how to configure it
 **Plans**: 1 plan
@@ -213,7 +213,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1–23 | v1.0–v2.1 | All | Complete | See archives |
+| 1-23 | v1.0-v2.1 | All | Complete | See archives |
 | 24. System Tray Icon | v2.2 | 2/2 | Complete | 2026-03-02 |
 | 25. Centered Phrase Text | v2.3 | 1/1 | Complete | 2026-03-02 |
 | 26. Ghost Mode Core | v2.3 | 1/1 | Complete | 2026-03-02 |
@@ -241,8 +241,8 @@ Plans:
 | 48. Settings Window Visual Redesign | v3.4 | 1/1 | Complete | 2026-03-17 |
 | 49. Fixes + Edge Snapping | v3.4 | 2/2 | Complete | 2026-03-18 |
 | 50. Installer + CI | v3.5 | 2/2 | Complete | 2026-03-18 |
-| 51. README Docs Pass | 1/1 | Complete    | 2026-03-18 | - |
-| 52. Phrase Wrapping | 2/2 | Complete    | 2026-03-18 | - |
+| 51. README Docs Pass | v3.5 | 1/1 | Complete | 2026-03-18 |
+| 52. Phrase Wrapping | v3.5 | 2/2 | Complete | 2026-03-18 |
 
 ### Phase 53: Fix phrase update rate — only update on time segment change
 
@@ -252,18 +252,25 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 53-01-PLAN.md — Add GetSegmentKey to IPhraseProvider + all providers; rewrite PoeticPhraseProvider to minute-bucket random candidates; segment-key unit tests
-- [ ] 53-02-PLAN.md — Wire segment-key guard into MainWindow UpdatePhraseIfChanged + clear cache at manual refresh sites
+- [x] 53-01-PLAN.md — Add GetSegmentKey to IPhraseProvider + all providers; rewrite PoeticPhraseProvider to minute-bucket random candidates; segment-key unit tests
+- [x] 53-02-PLAN.md — Wire segment-key guard into MainWindow UpdatePhraseIfChanged + clear cache at manual refresh sites
 
 ### Phase 54: Backdrop enhancement — full-widget coverage and always-visible option with opacity setting
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** The hover backdrop covers the entire widget footprint with configurable opacity, and users can optionally keep the backdrop permanently visible without hovering
+**Requirements**: BDROP-01, BDROP-02, BDROP-03
 **Depends on:** Phase 53
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. On hover, a semi-transparent black backdrop covers the full widget (phrase + date + stats + uptime), not just the phrase row
+  2. The phrase/dial row is intentionally darker than the stats/date area (double-layer effect: ContentBorder + BackdropBorder)
+  3. When BackdropAlwaysVisible is enabled in Settings, the backdrop stays visible even without hovering
+  4. The backdrop opacity slider (10-100%, step 5) in Settings updates the backdrop darkness in real time
+  5. Ghost mode fully hides the widget including the backdrop; AlwaysVisible restores correctly after ghost
+  6. Default settings (35% opacity, hover-only) produce zero visual regression for existing users
+**Plans**: 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 54 to break down)
+- [ ] 54-01-PLAN.md — BackdropBorder XAML + AppSettings + MainWindow code-behind + SettingsWindow Backdrop section
 
 ---
-*Last updated: 2026-03-18 — Phase 53 planned (2 plans in 2 waves)*
+*Last updated: 2026-03-18 — Phase 54 planned (1 plan in 1 wave)*

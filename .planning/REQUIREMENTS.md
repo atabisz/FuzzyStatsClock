@@ -11,6 +11,12 @@
 - [x] **WRAP-02**: User can choose the split style (Nearest Midpoint / Natural Pause) in Settings; default is Nearest Midpoint
 - [x] **WRAP-03**: Phrase wrap split style persists to settings.json and restores on launch
 
+### Backdrop Enhancement
+
+- [ ] **BDROP-01**: On hover, a semi-transparent black backdrop covers the full widget footprint (phrase/dial + date + stats + uptime), not just the phrase row; phrase row is intentionally darker (double-layer with ContentBorder)
+- [ ] **BDROP-02**: User can enable an always-visible backdrop via Settings > Appearance > Backdrop checkbox; when enabled the backdrop stays visible without hover
+- [ ] **BDROP-03**: Backdrop opacity is configurable via a slider (10-100%, step 5) in Settings > Appearance > Backdrop; both ContentBorder and BackdropBorder use the same computed alpha; default 35% preserves existing visual
+
 ## Carried from v3.3 (completed in v3.4)
 
 ### Settings Window Redesign
@@ -91,12 +97,15 @@
 | WRAP-01 | Phase 52 | Complete |
 | WRAP-02 | Phase 52 | Complete |
 | WRAP-03 | Phase 52 | Complete |
+| BDROP-01 | Phase 54 | Planned |
+| BDROP-02 | Phase 54 | Planned |
+| BDROP-03 | Phase 54 | Planned |
 
 **Coverage:**
-- v3.5 requirements: 13 total (INST-01–09, DOCS-04, WRAP-01–03)
-- Mapped to phases: 13
-- Unmapped: 0 ✓
+- v3.5 requirements: 16 total (INST-01-09, DOCS-04, WRAP-01-03, BDROP-01-03)
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-18 — traceability updated for v3.5 roadmap (phases 50–52)*
+*Last updated: 2026-03-18 — added BDROP-01/02/03 for phase 54 backdrop enhancement*
