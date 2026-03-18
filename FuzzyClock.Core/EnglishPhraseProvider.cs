@@ -99,4 +99,6 @@ public class EnglishPhraseProvider : IPhraseProvider
 
         throw new InvalidOperationException($"No bucket matched minute={minute}");
     }
+
+    public string GetSegmentKey(DateTime dt) => GetPhrase(dt);
 }

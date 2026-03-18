@@ -121,4 +121,15 @@ public class RudePhraseProvider : IPhraseProvider
 
     public (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt) =>
         ("", GetPhrase(dt));
+
+    public string GetSegmentKey(DateTime dt)
+    {
+        int totalMinutes = dt.Hour * 60 + dt.Minute;
+        if (totalMinutes == 720) return "en-rude:noon";
+        if (totalMinutes == 0)   return "en-rude:midnight";
+        int minute = dt.Minute;
+        for (int i = 0; i < Buckets.Length; i++)
+            if (minute <= Buckets[i].UpperBound) return $"en-rude:{i}";
+        throw new InvalidOperationException($"No bucket matched minute={minute}");
+    }
 }

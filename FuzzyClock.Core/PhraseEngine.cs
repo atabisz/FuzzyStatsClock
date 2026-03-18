@@ -38,4 +38,7 @@ public static class PhraseEngine
 
     public static (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt) =>
         _activeProvider.GetStructuredPhrase(dt);
+
+    public static string GetSegmentKey(DateTime dt) =>
+        _activeProvider.GetSegmentKey(dt);
 }

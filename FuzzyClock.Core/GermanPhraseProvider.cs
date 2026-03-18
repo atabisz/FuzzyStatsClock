@@ -56,4 +56,6 @@ public class GermanPhraseProvider : IPhraseProvider
 
     public (string Qualifier, string Emphasis) GetStructuredPhrase(DateTime dt) =>
         ("", GetPhrase(dt));
+
+    public string GetSegmentKey(DateTime dt) => GetPhrase(dt);
 }
