@@ -11,5 +11,10 @@ obj/
 *.nupkg
 packages/
 
+# Test results
+TestResults/
+*.trx
+*.coverage
+
 # Claude tooling (GSD workflow, agents, commands)
 .claude/
