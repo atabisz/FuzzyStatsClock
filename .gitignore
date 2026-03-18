@@ -11,5 +11,5 @@ obj/
 *.nupkg
 packages/
 
-# Claude local settings
-.claude/settings.local.json
+# Claude tooling (GSD workflow, agents, commands)
+.claude/
