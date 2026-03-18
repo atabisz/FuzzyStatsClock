@@ -2,6 +2,14 @@
 
 A minimal WPF desktop widget that displays the current time as a fuzzy English phrase — *"just a little after 11"*, *"almost noon"*, *"quarter past 3"* — or as a minimal analog dial with hour and minute hands. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box.
 
+## Screenshots
+
+| Phrase mode | Phrase + stats |
+|:-----------:|:--------------:|
+| ![Phrase mode](docs/screenshots/phrase-only.png) | ![Phrase mode with stats](docs/screenshots/phrase-stats.png) |
+| **Dial mode** | **Dial + stats** |
+| ![Dial mode](docs/screenshots/dial-only.png) | ![Dial mode with stats](docs/screenshots/dial-stats.png) |
+
 ## Features
 
 - **Phrase mode** — time expressed as natural English, updating on 5-minute boundaries
