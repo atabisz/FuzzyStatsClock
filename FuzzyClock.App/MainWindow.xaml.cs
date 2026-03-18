@@ -1026,6 +1026,14 @@ public partial class MainWindow : Window
         _currentTheme = null;
         _settingsWindow?.ClearActiveThemeCard();
 
+        // Reset phrase locale to auto and phrase style to Classic.
+        // Set _currentPhraseStyle directly — do NOT call SetPhraseStyle() which has a
+        // non-English locale guard that would be a no-op on fr/es/de/ja/pl systems.
+        // SetLanguage("auto") sets _currentPhraseLocale, recomputes PhraseEngine locale
+        // from Windows culture, clears the phrase cache, and calls UpdatePhraseIfChanged.
+        _currentPhraseStyle = "Classic";
+        SetLanguage("auto");
+
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
         SaveSettings();
