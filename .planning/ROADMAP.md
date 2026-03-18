@@ -274,13 +274,19 @@ Plans:
 
 ### Phase 55: Update the Poetic phrase clock to be poetic, but provide more hints to the actual time
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Every poetic phrase names the current or approaching hour naturally, giving users a real time anchor while preserving atmospheric, lyrical character
+**Requirements**: POETIC-01
 **Depends on:** Phase 54
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. Every poetic phrase at any minute contains the current hour word (past-half) or approaching hour word (to-half)
+  2. GetStructuredPhrase returns the hour word as emphasis and the surrounding text as qualifier for regular times
+  3. Midnight ("the witching hour") and noon ("high noon") special cases are unchanged
+  4. GetSegmentKey behavior is unchanged (same bucket keys)
+  5. All existing safe tests pass; new tests cover hour-word presence across all 12 buckets
+**Plans**: 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 55 to break down)
+- [ ] 55-01-PLAN.md — Rewrite PoeticPhraseProvider candidate arrays with {h}/{h1} templates, implement GetStructuredPhrase split, update tests
 
 ---
-*Last updated: 2026-03-18 — Phase 54 planned (1 plan in 1 wave)*
+*Last updated: 2026-03-18 — Phase 55 planned (1 plan in 1 wave)*
