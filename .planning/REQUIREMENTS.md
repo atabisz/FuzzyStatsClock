@@ -1,45 +1,39 @@
 # Requirements: Fuzzy Clock
 
-**Defined:** 2026-03-18
+**Defined:** 2026-03-19
 **Core Value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## v3.6 Requirements
+## v3.6.1 Requirements
 
-### Settings Window Layout
+### Contrast Flicker
 
-- [x] **SETT-01**: All controls on the Appearance tab are fully visible within the 480×600 window without any clipping
-- [x] **SETT-02**: Theme preset cards use a more compact form to reclaim vertical space
-- [x] **SETT-03**: Inter-section margins and padding are tightened to eliminate unnecessary whitespace
-- [x] **SETT-04**: Stats and Behavior tabs remain fully visible and unaffected
+- [ ] **FIX-01**: When AutoContrast is enabled and the widget sits over an empty desktop (no application window beneath), displayed colors remain stable — no oscillation or flicker
+- [ ] **FIX-02**: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker
+- [ ] **FIX-03**: AutoContrast continues to correctly switch text to black/white when the widget is over an application window (no regression)
 
 ## Future Requirements
 
-### Settings Window
-
-- Resizable settings window (if compact layout still insufficient on low-DPI or small screens)
+(None identified)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| ScrollViewer on tabs | User preference: redesign layout instead |
-| Resizable window | Not needed if layout condensed correctly |
-| Moving controls between tabs | Only condense; don't reorganize tab structure |
+| Refactoring ContrastSamplerService architecture | Scope limited to fixing the flicker; no structural changes beyond what is needed |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SETT-01 | Phase 56 | Complete |
-| SETT-02 | Phase 56 | Complete |
-| SETT-03 | Phase 56 | Complete |
-| SETT-04 | Phase 56 | Complete |
+| FIX-01 | Phase 57 | Pending |
+| FIX-02 | Phase 57 | Pending |
+| FIX-03 | Phase 57 | Pending |
 
 **Coverage:**
-- v3.6 requirements: 4 total
-- Mapped to phases: 4
+- v3.6.1 requirements: 3 total
+- Mapped to phases: 3
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-18*
-*Last updated: 2026-03-18 after initial definition*
+*Requirements defined: 2026-03-19*
+*Last updated: 2026-03-19 after initial definition*
