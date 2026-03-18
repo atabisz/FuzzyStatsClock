@@ -75,6 +75,10 @@ Next action: milestone v3.5 complete — run /gsd:audit-milestone or /gsd:comple
 - AppSettings: PhraseWrapEnabled (bool, default true), PhraseWrapStyle ("midpoint"/"natural", default "midpoint")
 - Shadow text (ShadowText) must wrap identically to PhraseText — both are layered in the same Grid cell
 
+### Roadmap Evolution
+
+- Phase 53 added: Fix phrase update rate — only update on time segment change
+
 ### Pending Todos
 
 - Japanese phrase naturalness is medium confidence; native-speaker review of 12 bucket phrases recommended (not blocking).

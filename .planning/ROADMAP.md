@@ -244,5 +244,15 @@ Plans:
 | 51. README Docs Pass | 1/1 | Complete    | 2026-03-18 | - |
 | 52. Phrase Wrapping | 2/2 | Complete    | 2026-03-18 | - |
 
+### Phase 53: Fix phrase update rate — only update on time segment change
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 52
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 53 to break down)
+
 ---
 *Last updated: 2026-03-18 — Phase 52 planned (2 plans in 2 waves)*
