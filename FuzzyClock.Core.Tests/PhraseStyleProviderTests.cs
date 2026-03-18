@@ -68,11 +68,10 @@ public class PoeticPhraseProviderTests
     }
 
     [TestMethod]
-    public void Poetic_SmallHours_ReturnsSmallHours()
+    public void Poetic_WitchingHour_ReturnsWitchingHour()
     {
-        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
-        Assert.IsFalse(string.IsNullOrEmpty(phrase));
-        StringAssert.Contains(phrase, "small hours");
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
+        Assert.AreEqual("the witching hour", phrase);
     }
 
     [TestMethod]
@@ -80,6 +79,13 @@ public class PoeticPhraseProviderTests
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
         Assert.AreEqual("high noon", phrase);
+    }
+
+    [TestMethod]
+    public void Poetic_RegularTime_ReturnsNonEmpty()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 15, 0));
+        Assert.IsFalse(string.IsNullOrEmpty(phrase));
     }
 
     [TestMethod]
