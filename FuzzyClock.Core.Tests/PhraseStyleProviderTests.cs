@@ -116,11 +116,11 @@ public class RudePhraseProviderTests
     }
 
     [TestMethod]
-    public void Rude_NearlyHour_ContainsCallout()
+    public void Rude_NearlyHour_ContainsNextHourWord()
     {
+        // All :55 bucket candidates reference {h1}, so at 4:55 every possible phrase contains "five".
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
-        bool hasCallout = phrase.Contains("move it") || phrase.Contains("get on with it");
-        Assert.IsTrue(hasCallout, $"Expected callout phrase but got: {phrase}");
+        StringAssert.Contains(phrase, "five", $"Expected next-hour word in phrase but got: {phrase}");
     }
 
     [TestMethod]
