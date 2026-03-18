@@ -29,20 +29,19 @@ This is a WPF desktop application. No web design system applies. All design toke
 
 ## Spacing Scale
 
-All spacing expressed as WPF Margin/Padding values. Declared values are multiples of 4:
+All spacing expressed as WPF Margin/Padding values. Declared tokens are values this phase introduces as new spacing — multiples of 4 only:
 
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding within stats rows |
 | sm | 8px | Compact row margin within SettingsWindow sections (e.g. `Margin="0,8,10,0"`) |
-| md | 12px | StackPanel outer margin in Settings tab (`Margin="12"`) |
 | lg | 16px | Gap between Settings sections (e.g. `Margin="0,16,0,4"` before Battery Alert) |
-| xl | 14px | Inter-section gap used in Appearance tab (`Margin="0,14,0,6"` before two-column Grid) |
 
 Source: direct measurement from `SettingsWindow.xaml` existing section spacing.
 
-Exceptions:
-- Backdrop section heading margin: `Margin="0,14,0,6"` — matches the exact top-gap used before the two-column Grid in the Appearance tab, ensuring visual consistency.
+Exceptions (pre-existing XAML values inherited unchanged — not new tokens introduced by this phase):
+- Backdrop section heading top margin: `0,14,0,6` — matches the exact top-gap used before the two-column Grid in the Appearance tab, ensuring visual consistency. Value `14` is a pre-existing codebase constant, not a token this phase declares.
+- StackPanel outer margin: `Margin="12"` on some Appearance tab StackPanels — pre-existing; not redeclared by this phase.
 - BackdropBorder corner radius: `CornerRadius="5"` — matches `ContentBorder` CornerRadius. Source: CONTEXT.md (Claude's Discretion), resolved to harmonize with existing border.
 - BackdropBorder padding: `Padding="0"` — BackdropBorder is a full-widget background layer, not a content container; no padding.
 
@@ -54,15 +53,15 @@ All typography is defined in existing XAML and extended (not redefined) in this 
 
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
-| Widget phrase | 32px | Light (300) | 1.2 | PhraseText — existing, unchanged |
-| Widget stats label | 12px | Light (300) | 1.0 | CpuLabel/GpuLabel etc. — existing, unchanged |
-| Settings section heading | system default (~14px) | SemiBold (600) | 1.2 | `TextBlock FontWeight="SemiBold"` — matches "Theme", "Accent Color", "Battery Alert" headings |
-| Settings body / control label | system default (~14px) | Regular (400) | 1.5 | All other Settings TextBlocks, CheckBox Content, Slider labels |
+| Widget phrase / stats label | 32px / 12px | Light (300) | 1.2 / 1.0 | PhraseText + CpuLabel/GpuLabel etc. — existing, unchanged |
+| Settings controls | system default (~14px) | Regular (400) | 1.5 | All Settings TextBlocks, CheckBox Content, Slider labels, section headings |
+
+**Weight note:** Settings section headings (e.g. "Theme", "Battery Alert", "Backdrop") use `FontWeight="SemiBold"` in XAML. This rendering is inherited from WPF ThemeMode="Dark" conventions and the existing pattern in `SettingsWindow.xaml` — it is not a separately declared project token. The project declares two weights: Light (300) for widget elements and Regular (400) as the Settings baseline. SemiBold on section headings is a ThemeMode-inherited rendering that the executor applies by following the existing `FontWeight="SemiBold"` XAML pattern, not a new token.
 
 Source: `MainWindow.xaml` for widget sizes, `SettingsWindow.xaml` for Settings typography patterns.
 
 New text introduced in this phase:
-- Section heading: `"Backdrop"` — FontWeight="SemiBold", same style as "Theme", "Battery Alert"
+- Section heading: `"Backdrop"` — FontWeight="SemiBold", matching "Theme", "Battery Alert" headings (follow existing XAML pattern)
 - CheckBox label: `"Always visible (not just on hover)"` — Regular weight, system default size
 - Slider row label: `"Opacity"` — Regular weight, 90px column label (matches "Opacity" label in two-column Grid above)
 - Slider value label: `"{N}%"` — Regular weight, Width="36", updates live on slider drag (matches `OpacityLabel` pattern)
