@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: unknown
-last_updated: "2026-03-18T02:54:09.883Z"
+last_updated: "2026-03-18T03:47:54.759Z"
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
-  percent: 91
+  completed_phases: 5
+  total_plans: 8
+  completed_plans: 8
+  percent: 92
 ---
 
 # Project State
@@ -27,7 +27,7 @@ Phase 52 complete. Phrase wrapping fully integrated — PhraseWrapService wired 
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [█████████░] 91%
+Progress: [█████████░] 92%
 Phase 50: Installer + CI           [ Complete — 50-01 and 50-02 done ]
 Phase 51: README Docs Pass         [ Complete ]
 Phase 52: Phrase Wrapping          [ Complete — 52-01 and 52-02 done ]
@@ -36,6 +36,11 @@ Phase 52: Phrase Wrapping          [ Complete — 52-01 and 52-02 done ]
 Next action: milestone v3.5 complete — run /gsd:audit-milestone or /gsd:complete-milestone
 
 ## Accumulated Context
+
+### Decisions (51-01)
+
+- README test count updated to 247 (222 Core + 25 App) confirmed via dotnet test output
+- Tray table pruned to 8 items matching TrayMenuBuilder.cs; removed Font Size, Dial Face, Theme, Opacity, Date Format submenus that moved to Settings window
 
 ### Decisions (52-02)
 

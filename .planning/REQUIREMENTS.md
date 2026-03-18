@@ -46,7 +46,7 @@
 
 ### Docs
 
-- [ ] **DOCS-04**: README documents v3.2–v3.4 features: Settings window, named themes, phrase styles, language selection, dark mode, edge snapping, single-instance IPC, and phrase wrapping
+- [x] **DOCS-04**: README documents v3.2–v3.4 features: Settings window, named themes, phrase styles, language selection, dark mode, edge snapping, single-instance IPC, and phrase wrapping
 
 ## Future Requirements
 
@@ -87,7 +87,7 @@
 | INST-07 | Phase 50 | Complete |
 | INST-08 | Phase 50 | Complete |
 | INST-09 | Phase 50 | Complete |
-| DOCS-04 | Phase 51 | Pending |
+| DOCS-04 | Phase 51 | Complete |
 | WRAP-01 | Phase 52 | Complete |
 | WRAP-02 | Phase 52 | Complete |
 | WRAP-03 | Phase 52 | Complete |
