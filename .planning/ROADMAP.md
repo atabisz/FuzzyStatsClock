@@ -200,7 +200,7 @@ Plans:
 | 53. Fix Phrase Update Rate | v3.5 | 2/2 | Complete | 2026-03-18 |
 | 54. Backdrop Enhancement | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 55. Poetic Hour Hints | v3.5 | 1/1 | Complete | 2026-03-18 |
-| 56. Settings Window Layout Redesign | 1/1 | Complete   | 2026-03-18 | - |
+| 56. Settings Window Layout Redesign | 1/1 | Complete    | 2026-03-18 | - |
 
 ---
 *Last updated: 2026-03-18 — v3.6 roadmap created*

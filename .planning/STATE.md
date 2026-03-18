@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Settings Layout Fix
-status: planning
+status: completed
 stopped_at: Completed 56-01-PLAN.md
-last_updated: "2026-03-18T09:29:18.707Z"
-last_activity: 2026-03-18 — Roadmap created for v3.6
+last_updated: "2026-03-18T09:35:14.633Z"
+last_activity: 2026-03-18 — Completed 56-01-PLAN.md (Appearance tab compacted)
 progress:
   total_phases: 1
   completed_phases: 1
   total_plans: 1
   completed_plans: 1
-  percent: 0
+  percent: 100
 ---
 
 # Project State
