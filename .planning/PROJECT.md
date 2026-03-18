@@ -10,28 +10,23 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v3.4 shipped: 2026-03-18** — Settings window dark-mode redesign, edge snapping post-drag, single-instance IPC bring-to-front, ResetToDefaults phrase style/locale reset, .claude tooling removed from public repo
+
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
 
 **v3.1 shipped: 2026-03-08** — Battery stat row, DateFormatter extraction + tests, AppSettings round-trip tests, README accuracy pass
 
-**v3.0 shipped: 2026-03-07** — Date display under clock (Show Date toggle, 4 format options, persisted)
-
-**v2.9 shipped: 2026-03-05** — Configurable process count threshold (2%/5%/10%)
-
-224 MSTest tests (199 Core + 25 App) passing. CI gate enforced. ~1,450 LOC C# / XAML.
+224 MSTest tests (199 Core + 25 App) passing. CI gate enforced.
 
 
-## Current Milestone: v3.3 Polish + Installer
+## Current Milestone: v3.5 Phrase Wrap + Installer
 
-**Goal:** Polish the Settings window visual aesthetic, fix known rough edges, add edge snapping, and ship a proper per-user installer with no admin rights required.
+**Goal:** Auto-wrap long phrases to two lines when wider than the stats panel, ship a proper per-user installer with CI artifact pipeline, and bring the README up to date.
 
 **Target features:**
-- Settings window visual redesign: dark/minimal aesthetic matching the widget; better whitespace; consistent control styling
-- ResetToDefaults fix: also resets phrase style and locale
-- Single-instance bring-to-front: second launch activates existing window instead of silently exiting
-- Edge snapping: widget snaps to screen edges on drag release (8px threshold, working area)
-- Per-user installer: Inno Setup, installs to `%LOCALAPPDATA%\Programs\FuzzyClock\`, upgrades in-place, no UAC
-- README accuracy pass for v3.2 features
+- Phrase text auto-wraps to two lines when phrase width > stats panel width + 10%; split point configurable (nearest midpoint / natural pause); setting persisted
+- Per-user installer: Inno Setup, installs to `%LOCALAPPDATA%\Programs\FuzzyClock\`, upgrades in-place, no UAC; GitHub Actions produces versioned artifacts on git tag push
+- README accuracy pass for v3.2–v3.4 features
 
 ## Requirements
 

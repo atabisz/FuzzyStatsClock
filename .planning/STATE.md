@@ -1,28 +1,28 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.3
-milestone_name: Polish + Installer
+milestone: v3.5
+milestone_name: Phrase Wrap + Installer
 status: in_progress
-stopped_at: Completed 49-02-PLAN.md
-last_updated: "2026-03-18T00:21:53.549Z"
+stopped_at: Defining requirements
+last_updated: "2026-03-18T00:00:00Z"
 progress:
-  total_phases: 4
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 80
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 ---
 gsd_state_version: 1.0
-milestone: v3.3
-milestone_name: Polish + Installer
+milestone: v3.5
+milestone_name: Phrase Wrap + Installer
 status: in_progress
-stopped_at: Roadmap created — ready for Phase 48
-last_updated: "2026-03-17T00:00:00Z"
-last_activity: 2026-03-17 — v3.3 milestone roadmap created; 4 phases planned (48–51)
+stopped_at: Defining requirements for v3.5
+last_updated: "2026-03-18T00:00:00Z"
+last_activity: 2026-03-18 — v3.5 milestone started; defining requirements
 progress:
-  [████████░░] 80%
+  [          ] 0%
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -32,50 +32,36 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-09)
+See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 48 — Settings Window Visual Redesign
+**Current focus:** Milestone v3.5 — Phrase Wrap + Installer
 
 ## Current Position
 
-Milestone v3.3 in progress — 0 of 4 phases complete.
-Last completed milestone: v3.2 (phases 41–47, 224 tests passing).
+Milestone v3.5 starting — defining requirements.
+Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [          ] 0/4 phases
+Progress: [          ] 0/TBD phases
 ```
-
-Next action: `/gsd:plan-phase 48`
 
 ## Accumulated Context
 
-### Decisions
+### Decisions (carried from v3.3/v3.4)
 
-All decisions logged in PROJECT.md Key Decisions table.
-
-Key decisions for v3.3 (from research):
 - Installer: Inno Setup (not Velopack) — no app code changes, no custom Main(), no new NuGet packages
-- Edge snap threshold: 8px (not 16-20px) — preserves intentional near-edge placements; per-monitor position memory must not be corrupted
-- Single-instance bring-to-front: named pipe IPC (NamedPipeServerStream) — running instance listens, second instance writes "ACTIVATE" and exits
-- Settings dark mode: ThemeMode="Dark" XAML attribute on SettingsWindow only — App.xaml stays empty to prevent MainWindow style leakage
-- Post-DragMove snap only — WM_MOVING hook is unreliable during DragMove() modal loop (documented in ghost mode notes)
-- [Phase 48-settings-window-visual-redesign]: ThemeMode=Dark on SettingsWindow only — App.xaml stays empty to prevent MainWindow style leakage
-- [Phase 49-fixes-edge-snapping]: Use ex.Mutex from AbandonedMutexException for crash-restart recovery; named-pipe IPC with IsBackground=true thread for bring-to-front on second launch
-- [Phase 49-fixes-edge-snapping]: Set _currentPhraseStyle directly in ResetToDefaults — SetPhraseStyle() guard blocks non-English locales
-- [Phase 49-fixes-edge-snapping]: SnapToEdge() post-DragMove only using Screen.WorkingArea with 8px threshold
+- Installer: per-user install to `%LOCALAPPDATA%\Programs\FuzzyClock\`, no UAC
+- Installer version: from git tag, stripped + padded to X.Y.Z; EXE stamped via /p:Version at publish time
+- Installer upgrade: prompt user if app is running; relaunch checkbox on finish page; optional "remove settings" on uninstall
+- Artifacts: `FuzzyClock-X.Y.Z.exe`, `FuzzyClockSetup-X.Y.Z.exe`, `checksums.txt`; release as draft on tag push
+- Phrase wrap split style: "nearest midpoint" (default) and "natural pause" as user-selectable setting in Settings window
+- Phrase wrap trigger: phrase text measured width > stats panel width + 10%
 
 ### Pending Todos
 
-- Phase 46 carry-over: Japanese phrase naturalness is medium confidence; native-speaker review of 12 bucket phrases recommended (not blocking v3.3).
-- ResetToDefaults() phrase style/locale reset is now a v3.3 requirement (FIX-01) — addressed in Phase 49.
+- Japanese phrase naturalness is medium confidence; native-speaker review of 12 bucket phrases recommended (not blocking).
 
 ### Blockers/Concerns
 
-None at roadmap stage.
-
-## Session Continuity
-
-Last session: 2026-03-18T00:21:48.516Z
-Stopped at: Completed 49-02-PLAN.md
-Resume: `/gsd:plan-phase 48`
+None.
