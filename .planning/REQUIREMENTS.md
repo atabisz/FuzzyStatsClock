@@ -87,16 +87,16 @@
 | INST-07 | Phase 50 | Pending |
 | INST-08 | Phase 50 | Pending |
 | INST-09 | Phase 50 | Pending |
+| DOCS-04 | Phase 51 | Pending |
 | WRAP-01 | Phase 52 | Pending |
 | WRAP-02 | Phase 52 | Pending |
 | WRAP-03 | Phase 52 | Pending |
-| DOCS-04 | Phase 51 | Pending |
 
 **Coverage:**
-- v3.5 requirements: 22 total
-- Mapped to phases: 22
+- v3.5 requirements: 13 total (INST-01–09, DOCS-04, WRAP-01–03)
+- Mapped to phases: 13
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-18 after v3.5 milestone start*
+*Last updated: 2026-03-18 — traceability updated for v3.5 roadmap (phases 50–52)*

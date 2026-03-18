@@ -3,27 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: in_progress
-stopped_at: Defining requirements
+stopped_at: Roadmap created — ready to plan Phase 50
 last_updated: "2026-03-18T00:00:00Z"
-progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
----
-
----
-gsd_state_version: 1.0
-milestone: v3.5
-milestone_name: Phrase Wrap + Installer
-status: in_progress
-stopped_at: Defining requirements for v3.5
-last_updated: "2026-03-18T00:00:00Z"
-last_activity: 2026-03-18 — v3.5 milestone started; defining requirements
+last_activity: 2026-03-18 — v3.5 roadmap created; 3 phases defined (50–52)
 progress:
   [          ] 0%
-  completed_phases: 0
+  completed_phases: 0/3
   total_plans: 0
   completed_plans: 0
 ---
@@ -39,12 +24,17 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Milestone v3.5 starting — defining requirements.
+Milestone v3.5 roadmap created. No phases started yet.
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [          ] 0/TBD phases
+Progress: [          ] 0/3 phases
+Phase 50: Installer + CI           [ Not started ]
+Phase 51: README Docs Pass         [ Not started ]
+Phase 52: Phrase Wrapping          [ Not started ]
 ```
+
+Next action: `/gsd:plan-phase 50`
 
 ## Accumulated Context
 
@@ -52,11 +42,14 @@ Progress: [          ] 0/TBD phases
 
 - Installer: Inno Setup (not Velopack) — no app code changes, no custom Main(), no new NuGet packages
 - Installer: per-user install to `%LOCALAPPDATA%\Programs\FuzzyClock\`, no UAC
-- Installer version: from git tag, stripped + padded to X.Y.Z; EXE stamped via /p:Version at publish time
+- Installer version: from git tag, stripped + padded to X.Y.Z (e.g. v3.5 → 3.5.0); EXE stamped via /p:Version at publish time
 - Installer upgrade: prompt user if app is running; relaunch checkbox on finish page; optional "remove settings" on uninstall
-- Artifacts: `FuzzyClock-X.Y.Z.exe`, `FuzzyClockSetup-X.Y.Z.exe`, `checksums.txt`; release as draft on tag push
-- Phrase wrap split style: "nearest midpoint" (default) and "natural pause" as user-selectable setting in Settings window
-- Phrase wrap trigger: phrase text measured width > stats panel width + 10%
+- Artifacts: `FuzzyClock-X.Y.Z.exe`, `FuzzyClockSetup-X.Y.Z.exe`, `checksums.txt`; CI creates draft GitHub Release on tag push
+- Phrase wrap trigger: PhraseText.ActualWidth > StatsPanel.ActualWidth * 1.1 (phrase mode only)
+- Phrase wrap split styles: "Nearest Midpoint" (word break closest to string midpoint, default) and "Natural Pause" (split after first grammatical/tonal beat)
+- Phrase wrap setting exposed in Settings window (Appearance or Behavior tab)
+- AppSettings: PhraseWrapEnabled (bool, default true), PhraseWrapStyle ("midpoint"/"natural", default "midpoint")
+- Shadow text (ShadowText) must wrap identically to PhraseText — both are layered in the same Grid cell
 
 ### Pending Todos
 

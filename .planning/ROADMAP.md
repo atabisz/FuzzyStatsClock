@@ -25,7 +25,8 @@
 - **v3.0 Date Display** (2026-03-07) — Date line below clock/dial, muted accent color, 4 format options, show/hide tray toggle, persisted. 1 phase, 2 plans. → [Archive](milestones/v3.0-ROADMAP.md)
 - **v3.1 Quality + Battery** (2026-03-08) — Battery stat row, DateFormatter extraction with tests, AppSettings round-trip coverage, README accuracy pass. 4 phases, 6 plans. → [Archive](milestones/v3.1-ROADMAP.md)
 - **v3.2 Expanded Experience** (2026-03-09) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 7 phases (41–47), 16 plans. → [Archive](milestones/v3.2-ROADMAP.md)
-- **v3.3 Polish + Installer** — Settings window visual redesign, bug fixes, edge snapping, per-user installer, README docs pass. 4 phases (48–51). ← CURRENT
+- **v3.4 Polish + Fixes** (2026-03-18) — Settings window visual redesign, bug fixes (reset defaults, single-instance IPC, AbandonedMutex), edge snapping. 2 phases (48–49). ← SHIPPED
+- **v3.5 Phrase Wrap + Installer** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping for long phrases, README docs pass. 3 phases (50–52). ← CURRENT
 
 ## Phases
 
@@ -113,12 +114,19 @@
 
 </details>
 
-### v3.3 Polish + Installer (Phases 48–51) — CURRENT
+<details>
+<summary>✅ v3.4 Polish + Fixes (Phases 48–49) — SHIPPED 2026-03-18</summary>
 
 - [x] **Phase 48: Settings Window Visual Redesign** — Dark-mode styling for SettingsWindow (SETR-01 to SETR-04) (completed 2026-03-17)
 - [x] **Phase 49: Fixes + Edge Snapping** — Bug fixes for reset defaults, single-instance bring-to-front, AbandonedMutexException; edge snap post-DragMove (FIX-01, FIX-02, FIX-03, SNAP-01, SNAP-02, SNAP-03) (completed 2026-03-18)
-- [ ] **Phase 50: Installer + CI** — Inno Setup per-user installer script and CI artifact integration (INST-01 to INST-07)
-- [ ] **Phase 51: README Docs Pass** — Document v3.2 features in README (DOCS-04)
+
+</details>
+
+### v3.5 Phrase Wrap + Installer (Phases 50–52) — CURRENT
+
+- [ ] **Phase 50: Installer + CI** — Inno Setup per-user installer script and CI artifact integration (INST-01 to INST-09)
+- [ ] **Phase 51: README Docs Pass** — Document v3.2–v3.4 features including installer, phrase wrapping (DOCS-04)
+- [ ] **Phase 52: Phrase Wrapping** — Auto-wrap long phrase text to two lines with configurable split style (WRAP-01, WRAP-02, WRAP-03)
 
 ## Phase Details
 
@@ -135,7 +143,7 @@
   4. Opening the main widget's right-click menu or tray menu shows no visual change — MainWindow is unaffected by the new styles
 **Plans**: 1 plan
 Plans:
-- [ ] 48-01-PLAN.md — Apply ThemeMode="Dark" + replace hardcoded light colors + human visual sign-off
+- [x] 48-01-PLAN.md — Apply ThemeMode="Dark" + replace hardcoded light colors + human visual sign-off
 
 ### Phase 49: Fixes + Edge Snapping
 **Goal**: The app behaves correctly on crash-restart, second launch, and drag near screen edges
@@ -150,31 +158,47 @@ Plans:
   6. Dragging the widget freely in the middle of the screen and releasing does not trigger a snap
 **Plans**: 2 plans
 Plans:
-- [ ] 49-01-PLAN.md — AbandonedMutexException handling + named pipe bring-to-front IPC
-- [ ] 49-02-PLAN.md — ResetToDefaults phrase reset + SnapToEdge post-DragMove
+- [x] 49-01-PLAN.md — AbandonedMutexException handling + named pipe bring-to-front IPC
+- [x] 49-02-PLAN.md — ResetToDefaults phrase reset + SnapToEdge post-DragMove
 
 ### Phase 50: Installer + CI
-**Goal**: Users can install, upgrade, and uninstall FuzzyClock like any normal Windows application
+**Goal**: Users can download a setup file, install FuzzyClock like any normal Windows app, and CI automatically produces versioned release artifacts on every git tag push
 **Depends on**: Phase 49 (stable, tested EXE to package)
-**Requirements**: INST-01, INST-02, INST-03, INST-04, INST-05, INST-06, INST-07
+**Requirements**: INST-01, INST-02, INST-03, INST-04, INST-05, INST-06, INST-07, INST-08, INST-09
 **Success Criteria** (what must be TRUE):
   1. Running FuzzyClockSetup.exe installs the app to %LOCALAPPDATA%\Programs\FuzzyClock\ with no UAC elevation prompt
   2. Running the installer over an existing installation completes successfully and the app version is updated; settings.json is unchanged
-  3. After installation, FuzzyClock appears in the Start Menu and can be launched from there
-  4. FuzzyClock appears in Settings > Apps > Installed Apps (Add/Remove Programs) with a working Uninstall button
-  5. After uninstalling, FuzzyClock is removed from the Start Menu and Apps list; settings.json remains in %LOCALAPPDATA%\FuzzyClock\
-  6. If auto-launch was enabled before upgrading, the app still launches at login after the upgrade (registry entry points to the new path)
-  7. The GitHub Actions release workflow produces both FuzzyClock.exe and FuzzyClockSetup.exe as downloadable release artifacts
+  3. After installation, FuzzyClock appears in the Start Menu and can be launched from there; it also appears in Settings > Apps > Installed Apps with a working Uninstall button
+  4. After uninstalling, the app is removed from the Start Menu and Apps list; settings.json remains in %LOCALAPPDATA%\FuzzyClock\ by default; an optional checkbox during uninstall lets the user remove it
+  5. If auto-launch was enabled before upgrading, the app still launches at login after the upgrade (HKCU Run entry points to the new install path)
+  6. When the installer detects a running FuzzyClock instance, it prompts the user to close it before proceeding
+  7. The installer finish page shows a "Launch FuzzyClock" checkbox; leaving it checked launches the app when the installer closes
+  8. Pushing a version tag (e.g. v3.5) to GitHub triggers CI: tests run, then both FuzzyClock-3.5.0.exe and FuzzyClockSetup-3.5.0.exe plus checksums.txt appear as a draft GitHub Release
 **Plans**: TBD
 
 ### Phase 51: README Docs Pass
-**Goal**: The README accurately describes all features available in v3.2 and v3.3
-**Depends on**: Phase 50 (installer instructions reference the Setup.exe artifact)
+**Goal**: The README accurately describes all features available in v3.2 through v3.5
+**Depends on**: Phase 50 (installer instructions reference the Setup.exe artifact), Phase 52 (phrase wrapping documented)
 **Requirements**: DOCS-04
 **Success Criteria** (what must be TRUE):
   1. README describes the Settings window (how to open it, its three tabs) and named themes
   2. README describes English phrase style personalities (Classic/Terse/Poetic/Rude) and language selection
   3. README installation section references FuzzyClockSetup.exe as the primary install path and documents the SmartScreen "More info → Run anyway" workaround
+  4. README describes edge snapping, single-instance behavior, and dark-mode Settings window styling
+  5. README describes phrase wrapping: when it triggers, the two split styles, and how to configure it
+**Plans**: TBD
+
+### Phase 52: Phrase Wrapping
+**Goal**: Long phrase text wraps to two lines instead of overflowing or truncating, with a user-configurable split style
+**Depends on**: Phase 49 (stable phrase rendering baseline post-fixes)
+**Requirements**: WRAP-01, WRAP-02, WRAP-03
+**Success Criteria** (what must be TRUE):
+  1. When the rendered phrase text is wider than the stats panel width plus 10%, it splits across two lines automatically; no split occurs when the phrase fits within that bound
+  2. With the "Nearest Midpoint" split style, the break occurs at the word boundary closest to the middle of the phrase string (e.g. "just a little after / eleven")
+  3. With the "Natural Pause" split style, the break occurs after the first grammatical or tonal beat (e.g. "almost a quarter past / three")
+  4. Both PhraseText and ShadowText wrap identically — shadow text does not shift or misalign relative to the main text
+  5. The selected split style and wrap-enabled state persist to settings.json and restore correctly on relaunch
+  6. In dial mode, no wrap logic runs — the phrase text path is inactive and wrap state has no visible effect
 **Plans**: TBD
 
 ## Progress
@@ -206,10 +230,11 @@ Plans:
 | 45. English Phrase Style Personalities | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
-| 48. Settings Window Visual Redesign | 1/1 | Complete    | 2026-03-18 | - |
-| 49. Fixes + Edge Snapping | 2/2 | Complete    | 2026-03-18 | - |
-| 50. Installer + CI | v3.3 | 0/TBD | Not started | - |
-| 51. README Docs Pass | v3.3 | 0/TBD | Not started | - |
+| 48. Settings Window Visual Redesign | v3.4 | 1/1 | Complete | 2026-03-17 |
+| 49. Fixes + Edge Snapping | v3.4 | 2/2 | Complete | 2026-03-18 |
+| 50. Installer + CI | v3.5 | 0/TBD | Not started | - |
+| 51. README Docs Pass | v3.5 | 0/TBD | Not started | - |
+| 52. Phrase Wrapping | v3.5 | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-03-18 — Phase 49 plan created*
+*Last updated: 2026-03-18 — v3.5 roadmap created (phases 50–52)*
