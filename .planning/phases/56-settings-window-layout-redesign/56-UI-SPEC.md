@@ -167,7 +167,7 @@ Source: RESEARCH.md (Proposed Spacing Reductions), SettingsWindow.xaml line 243.
 <TextBlock Text="Backdrop" FontWeight="SemiBold" Margin="0,14,0,6"/>
 
 <!-- After -->
-<TextBlock Text="Backdrop" FontWeight="SemiBold" Margin="0,10,0,4"/>
+<TextBlock Text="Backdrop" FontWeight="SemiBold" Margin="0,8,0,4"/>
 ```
 
 Source: RESEARCH.md (Proposed Spacing Reductions), SettingsWindow.xaml line 333.
@@ -200,14 +200,14 @@ SettingsWindow.xaml lines 362–456 (Stats) and 459–504 (Behavior) are read-on
 | [3] Accent Color heading | 26px | 26px | 0px |
 | [4] Swatches row | 36px | 36px | 0px |
 | [5] Control Grid (top margin 14→8 + 5 rows ~190px) | 204px | 198px | 6px |
-| [6] Backdrop heading (top margin 14→10, bottom margin 6→4) | 40px | 34px | 6px |
+| [6] Backdrop heading (top margin 14→8, bottom margin 6→4) | 40px | 32px | 8px |
 | [7] Backdrop checkbox (bottom margin 8→6) | 30px | 28px | 2px |
 | [8] Backdrop opacity grid | 30px | 30px | 0px |
-| **Total** | **474px** | **428px** | **46px** |
+| **Total** | **474px** | **426px** | **48px** |
 
 Available tab body height: ~518px (100% DPI), ~414px (125% DPI).
 Target: ≤430px (clears 125% DPI budget by ~16px).
-After changes: 428px — passes both budgets.
+After changes: 426px — passes both budgets.
 
 Source: RESEARCH.md (Appearance Tab Layout Inventory + Proposed Spacing Reductions).
 
