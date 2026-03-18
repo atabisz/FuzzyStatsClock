@@ -26,6 +26,7 @@
 - **v3.1 Quality + Battery** (2026-03-08) — Battery stat row, DateFormatter extraction with tests, AppSettings round-trip coverage, README accuracy pass. 4 phases, 6 plans. → [Archive](milestones/v3.1-ROADMAP.md)
 - **v3.2 Expanded Experience** (2026-03-09) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 7 phases (41–47), 16 plans. → [Archive](milestones/v3.2-ROADMAP.md)
 - ✅ **v3.5 Phrase Wrap + Installer** (2026-03-18) — Dark-mode Settings, edge snapping, IPC fixes, Inno Setup installer, CI release pipeline, phrase wrapping, backdrop enhancement, poetic hour hints. 8 phases (48–55), 12 plans. → [Archive](milestones/v3.5-ROADMAP.md)
+- 🚧 **v3.6 Settings Layout Fix** — Appearance tab fully visible within 480×600 window; compact theme cards; tighter spacing. 1 phase (56). In progress.
 
 ## Phases
 
@@ -127,53 +128,40 @@
 
 </details>
 
-### Phase 50: Installer + CI
-**Goal**: Users can download a setup file, install FuzzyClock like any normal Windows app, and CI automatically produces versioned release artifacts on every git tag push
-**Depends on**: Phase 49 (stable, tested EXE to package)
-**Requirements**: INST-01, INST-02, INST-03, INST-04, INST-05, INST-06, INST-07, INST-08, INST-09
-**Success Criteria** (what must be TRUE):
-  1. Running FuzzyClockSetup.exe installs the app to %LOCALAPPDATA%\Programs\FuzzyClock\ with no UAC elevation prompt
-  2. Running the installer over an existing installation completes successfully and the app version is updated; settings.json is unchanged
-  3. After installation, FuzzyClock appears in the Start Menu and can be launched from there; it also appears in Settings > Apps > Installed Apps with a working Uninstall button
-  4. After uninstalling, the app is removed from the Start Menu and Apps list; settings.json remains in %LOCALAPPDATA%\FuzzyClock\ by default; an optional checkbox during uninstall lets the user remove it
-  5. If auto-launch was enabled before upgrading, the app still launches at login after the upgrade (HKCU Run entry points to the new install path)
-  6. When the installer detects a running FuzzyClock instance, it prompts the user to close it before proceeding
-  7. The installer finish page shows a "Launch FuzzyClock" checkbox; leaving it checked launches the app when the installer closes
-  8. Pushing a version tag (e.g. v3.5) to GitHub triggers CI: tests run, then both FuzzyClock-3.5.0.exe and FuzzyClockSetup-3.5.0.exe plus checksums.txt appear as a draft GitHub Release
-**Plans**: 2 plans
-Plans:
-- [x] 50-01-PLAN.md — Inno Setup installer script (FuzzyClock.iss)
-- [x] 50-02-PLAN.md — CI release workflow update (version injection, installer compilation, checksums, draft release)
+### 🚧 v3.6 Settings Layout Fix (In Progress)
 
-### Phase 51: README Docs Pass
-**Goal**: The README accurately describes all features available in v3.2 through v3.5
-**Depends on**: Phase 50 (installer instructions reference the Setup.exe artifact), Phase 52 (phrase wrapping documented)
-**Requirements**: DOCS-04
-**Success Criteria** (what must be TRUE):
-  1. README describes the Settings window (how to open it, its three tabs) and named themes
-  2. README describes English phrase style personalities (Classic/Terse/Poetic/Rude) and language selection
-  3. README installation section references FuzzyClockSetup.exe as the primary install path and documents the SmartScreen "More info -> Run anyway" workaround
-  4. README describes edge snapping, single-instance behavior, and dark-mode Settings window styling
-  5. README describes phrase wrapping: when it triggers, the two split styles, and how to configure it
-**Plans**: 1 plan
-Plans:
-- [ ] 51-01-PLAN.md — Update README with v3.2-v3.5 features (Settings window, themes, phrase styles, installer, edge snapping, phrase wrapping)
+**Milestone Goal:** The Appearance tab is fully visible within the existing 480×600 Settings window without clipping; Stats and Behavior tabs are unaffected.
 
-### Phase 52: Phrase Wrapping
-**Goal**: Long phrase text wraps to two lines instead of overflowing or truncating, with a user-configurable split style
-**Depends on**: Phase 49 (stable phrase rendering baseline post-fixes)
-**Requirements**: WRAP-01, WRAP-02, WRAP-03
+#### Phase 56: Settings Window Layout Redesign
+
+**Goal**: All controls on the Appearance tab are visible within the 480×600 window without clipping, achieved by compacting theme cards and tightening inter-section spacing
+**Depends on**: Phase 55 (v3.5 complete)
+**Requirements**: SETT-01, SETT-02, SETT-03, SETT-04
 **Success Criteria** (what must be TRUE):
-  1. When the rendered phrase text is wider than the stats panel width plus 10%, it splits across two lines automatically; no split occurs when the phrase fits within that bound
-  2. With the "Nearest Midpoint" split style, the break occurs at the word boundary closest to the middle of the phrase string (e.g. "just a little after / eleven")
-  3. With the "Natural Pause" split style, the break occurs after the first grammatical or tonal beat (e.g. "almost a quarter past / three")
-  4. Both PhraseText and ShadowText wrap identically — shadow text does not shift or misalign relative to the main text
-  5. The selected split style and wrap-enabled state persist to settings.json and restore correctly on relaunch
-  6. In dial mode, no wrap logic runs — the phrase text path is inactive and wrap state has no visible effect
-**Plans**: 2 plans
+  1. Opening the Settings window and selecting the Appearance tab shows all controls without any element clipped, cut off, or hidden below the window edge
+  2. Theme preset cards use a more compact visual form — noticeably less vertical space per card than the v3.5 layout
+  3. Margins and padding between sections on the Appearance tab are visibly tighter; no large blank gaps separate adjacent sections
+  4. The Stats tab and Behavior tab look identical to their v3.5 state; no layout change is visible on either tab
+**Plans**: TBD
+
 Plans:
-- [ ] 52-01-PLAN.md — PhraseWrapService static class with midpoint + natural split algorithms and unit tests
-- [ ] 52-02-PLAN.md — MainWindow Inlines integration, AppSettings persistence, SettingsWindow wrap controls
+- [ ] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
+
+## Phase Details
+
+### Phase 56: Settings Window Layout Redesign
+**Goal**: All controls on the Appearance tab are visible within the 480×600 window without clipping, achieved by compacting theme cards and tightening inter-section spacing
+**Depends on**: Phase 55
+**Requirements**: SETT-01, SETT-02, SETT-03, SETT-04
+**Success Criteria** (what must be TRUE):
+  1. Opening the Settings window and selecting the Appearance tab shows all controls without any element clipped, cut off, or hidden below the window edge
+  2. Theme preset cards use a more compact visual form — noticeably less vertical space per card than the v3.5 layout
+  3. Margins and padding between sections on the Appearance tab are visibly tighter; no large blank gaps separate adjacent sections
+  4. The Stats tab and Behavior tab look identical to their v3.5 state; no layout change is visible on either tab
+**Plans**: TBD
+
+Plans:
+- [ ] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
 
 ## Progress
 
@@ -204,14 +192,15 @@ Plans:
 | 45. English Phrase Style Personalities | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 46. Multilingual Phrases | v3.2 | 2/2 | Complete | 2026-03-09 |
 | 47. Tech Debt Cleanup | v3.2 | 1/1 | Complete | 2026-03-09 |
-| 48. Settings Window Visual Redesign | v3.4 | 1/1 | Complete | 2026-03-17 |
-| 49. Fixes + Edge Snapping | v3.4 | 2/2 | Complete | 2026-03-18 |
+| 48. Settings Window Visual Redesign | v3.5 | 1/1 | Complete | 2026-03-17 |
+| 49. Fixes + Edge Snapping | v3.5 | 2/2 | Complete | 2026-03-18 |
 | 50. Installer + CI | v3.5 | 2/2 | Complete | 2026-03-18 |
 | 51. README Docs Pass | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 52. Phrase Wrapping | v3.5 | 2/2 | Complete | 2026-03-18 |
 | 53. Fix Phrase Update Rate | v3.5 | 2/2 | Complete | 2026-03-18 |
 | 54. Backdrop Enhancement | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 55. Poetic Hour Hints | v3.5 | 1/1 | Complete | 2026-03-18 |
+| 56. Settings Window Layout Redesign | v3.6 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-03-18 — v3.5 milestone complete*
+*Last updated: 2026-03-18 — v3.6 roadmap created*
