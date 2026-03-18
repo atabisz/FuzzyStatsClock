@@ -16,9 +16,10 @@ A minimal WPF desktop widget that displays the current time as a fuzzy English p
   - ISO: `2026-03-07`
 - **Ghost mode** — hovering the mouse over the widget automatically hides it (fully transparent and click-through) so it never blocks the desktop; moving the mouse away restores it; toggleable via tray
 - **Auto-contrast** — samples the screen color under the widget every 500ms and automatically switches text to black or white (WCAG-based) when the accent color loses contrast against the background; toggleable via tray
-- **Accent colors** — five quick presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) via tray or Settings, or pick any custom color; applies to all text, hands, bars, and decorations
+- **Accent colors** — five quick presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) via Settings, or pick any custom color; applies to all text, hands, bars, and decorations
 - **Window opacity** — 25% / 50% / 75% / 100% via Settings or scroll wheel in 10% steps
 - **Font size** — Small (16pt) / Medium (24pt) / Large (32pt) / Extra Large (40pt) via Settings (phrase mode only)
+- **Hover backdrop** — semi-transparent dark background covers the full widget footprint (phrase, date, stats) on hover; optional always-visible mode and configurable opacity (10%–100%) via Settings Appearance tab
 - **Hover fast-refresh** — stats accelerate to 0.5s while the mouse is over the widget (hold Ctrl+Alt to hover without triggering ghost mode)
 - **Auto-launch** — optionally start the widget at Windows login; toggled via the system tray
 - **Per-monitor position memory** — position is remembered per-monitor; switching monitors restores the last-used position on each display
@@ -28,7 +29,7 @@ A minimal WPF desktop widget that displays the current time as a fuzzy English p
   - *Appearance* — named themes, accent color, opacity, font size, clock style, phrase style, phrase wrap
   - *Stats* — stats panel visibility, individual row toggles, update interval, process threshold, date display
   - *Behavior* — phrase language, ghost mode, auto-contrast, auto-launch, battery alert threshold
-- **Named themes** — five one-click theme presets in the Settings Appearance tab: Midnight, Neon, Ghost, Warm, Terminal; each sets a coordinated accent color
+- **Named themes** — five one-click theme presets in the Settings Appearance tab: Midnight, Neon, Ghost, Warm, Terminal; each sets a coordinated accent color, opacity, font size, clock style, and stats visibility
 - **Phrase styles** — four English phrase personalities: Classic (default natural), Terse (compact), Poetic (literary), Rude (irreverent); selectable in Settings Appearance tab (English locales only)
 - **Multilingual phrases** — time phrases available in English, French, Spanish, German, Japanese, and Polish; auto-detects from Windows display language or override in Settings Behavior tab
 - **Phrase wrapping** — when a phrase is more than 10% wider than the stats panel, it automatically splits across two lines; two split styles: Nearest Midpoint (word break closest to string center, default) and Natural Pause (split after first grammatical beat, English only); configurable in Settings Appearance tab
@@ -79,7 +80,7 @@ dotnet build FuzzyClock.slnx -c Release
 dotnet test FuzzyClock.slnx
 ```
 
-247 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), phrase wrap service, settings validation and migration, and app integration tests.
+274 unit tests: phrase engine (all 5-minute buckets, noon/midnight, edge cases), dial geometry, uptime formatter, date formatter (all 4 formats), phrase wrap service, settings validation and migration, and app integration tests.
 
 ## Usage
 
@@ -115,7 +116,7 @@ The tray icon is the primary UI surface. Right-click it to access quick toggles 
 
 Open from the tray menu ("Open Settings..."). The window has three tabs:
 
-**Appearance** — Named theme presets (Midnight / Neon / Ghost / Warm / Terminal), accent color swatches and custom picker, opacity slider, font size, clock style (Phrase / Dial), phrase style (Classic / Terse / Poetic / Rude), and phrase wrap controls (enable/disable, split style).
+**Appearance** — Named theme presets (Midnight / Neon / Ghost / Warm / Terminal), accent color swatches and custom picker, opacity slider, font size, clock style (Phrase / Dial), phrase style (Classic / Terse / Poetic / Rude), phrase wrap controls (enable/disable, split style), and backdrop controls (always-visible toggle, opacity slider).
 
 **Stats** — Stats panel toggle, individual row visibility (CPU / GPU / Memory / Paging / Battery / Uptime), update interval, process count threshold, date visibility, and date format.
 
