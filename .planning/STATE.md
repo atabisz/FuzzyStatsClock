@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: unknown
-stopped_at: Phase 55 context gathered
-last_updated: "2026-03-18T07:27:21.775Z"
+stopped_at: Completed 55-01-PLAN.md
+last_updated: "2026-03-18T07:53:12.419Z"
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 11
-  completed_plans: 11
-  percent: 93
+  completed_phases: 8
+  total_plans: 12
+  completed_plans: 12
+  percent: 94
 ---
 
 # Project State
@@ -24,19 +24,20 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase 54 complete. Full-widget BackdropBorder with configurable opacity (10-100%, default 35%) and always-visible option wired to SettingsWindow Appearance tab.
+Phase 55 complete. PoeticPhraseProvider rewritten with 48 {h}/{h1} templates; GetStructuredPhrase splits qualifier/emphasis on the hour word. 274 tests all passing.
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [█████████░] 93%
+Progress: [█████████░] 94%
 Phase 50: Installer + CI           [ Complete — 50-01 and 50-02 done ]
 Phase 51: README Docs Pass         [ Complete ]
 Phase 52: Phrase Wrapping          [ Complete — 52-01 and 52-02 done ]
 Phase 53: Fix Phrase Update Rate   [ Complete — 53-01 and 53-02 done ]
 Phase 54: Backdrop Enhancement     [ Complete — 54-01 done ]
+Phase 55: Poetic Hour Hints        [ Complete — 55-01 done ]
 ```
 
-Stopped at: Phase 55 context gathered
+Stopped at: Completed 55-01-PLAN.md
 
 ## Accumulated Context
 
@@ -98,6 +99,13 @@ Stopped at: Phase 55 context gathered
 - Hardcoded 0x59 ContentBorder alpha replaced by BackdropAlpha() so ContentBorder and BackdropBorder depths stay proportional when opacity is adjusted
 - AlwaysVisible guard on clear paths only (ghost cleanup, mouse leave, ghost restored); hover enter sets both unconditionally (idempotent)
 - Default 35% opacity and hover-only (AlwaysVisible=false) produce zero visual regression for existing users
+
+### Decisions (55-01)
+
+- All 48 poetic candidate templates end with {h} or {h1} — no text after placeholder; GetStructuredPhrase split logic relies on this constraint
+- Buckets 0-7 use {h} (past-half, naming current hour); buckets 8-11 use {h1} (to-half, naming approaching next hour)
+- GetStructuredPhrase now returns (qualifier, hourWord) for regular times and ("", special-phrase) for witching hour and high noon
+- GetSegmentKey body unchanged — keys en-poetic:witching, en-poetic:noon, en-poetic:{i} are stable
 
 ### Roadmap Evolution
 
