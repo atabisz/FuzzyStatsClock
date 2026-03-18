@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: unknown
-last_updated: "2026-03-18T02:17:45.569Z"
+last_updated: "2026-03-18T02:40:16.918Z"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 20
+  total_plans: 7
+  completed_plans: 6
+  percent: 82
 ---
 
 # Project State
@@ -23,19 +23,25 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase 50 complete (both plans done). FuzzyClock.iss + release.yml shipped.
+Phase 52 plan 01 complete. PhraseWrapService (midpoint + natural split) shipped.
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [██░░░░░░░░] ~20%
+Progress: [████████░░] 82%
 Phase 50: Installer + CI           [ Complete — 50-01 and 50-02 done ]
-Phase 51: README Docs Pass         [ Not started ]
-Phase 52: Phrase Wrapping          [ Not started ]
+Phase 51: README Docs Pass         [ Complete ]
+Phase 52: Phrase Wrapping          [ In progress — 52-01 done ]
 ```
 
-Next action: execute phase 51 (README docs pass)
+Next action: execute phase 52 plan 02 (MainWindow phrase wrap integration)
 
 ## Accumulated Context
+
+### Decisions (52-01)
+
+- PhraseWrapService: NaturalPauseMarkers ordered longest-first to prevent shorter prefixes from shadowing longer template matches (e.g. "just after" must not consume "just after quarter past")
+- PhraseWrapService: `allowNatural` bool parameter keeps service locale-agnostic; MainWindow caller evaluates `PhraseEngine.CurrentLocale.StartsWith("en-")` to pass the flag
+- PhraseWrapService: SplitMidpoint compares start-of-next-word position to midpoint (not end-of-current-word); consistent with research algorithm
 
 ### Decisions (carried from v3.3/v3.4 + 50-02)
 

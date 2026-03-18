@@ -7,7 +7,7 @@
 
 ### Phrase Wrapping
 
-- [ ] **WRAP-01**: In phrase mode, if the rendered phrase text width exceeds the stats panel width + 10%, the text splits across two lines
+- [x] **WRAP-01**: In phrase mode, if the rendered phrase text width exceeds the stats panel width + 10%, the text splits across two lines
 - [ ] **WRAP-02**: User can choose the split style (Nearest Midpoint / Natural Pause) in Settings; default is Nearest Midpoint
 - [ ] **WRAP-03**: Phrase wrap split style persists to settings.json and restores on launch
 
@@ -88,7 +88,7 @@
 | INST-08 | Phase 50 | Complete |
 | INST-09 | Phase 50 | Complete |
 | DOCS-04 | Phase 51 | Pending |
-| WRAP-01 | Phase 52 | Pending |
+| WRAP-01 | Phase 52 | Complete |
 | WRAP-02 | Phase 52 | Pending |
 | WRAP-03 | Phase 52 | Pending |
 
