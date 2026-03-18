@@ -56,6 +56,8 @@ public partial class MainWindow : Window
     private string _phraseWrapStyle   = "midpoint";
     private string _currentRawPhrase  = "";
     private string _lastSegmentKey    = "";
+    private bool _backdropAlwaysVisible;
+    private int  _backdropOpacityPercent = 35;
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
@@ -150,6 +152,8 @@ public partial class MainWindow : Window
             {
                 this.Opacity = _windowOpacity;
                 ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+                if (!_backdropAlwaysVisible)
+                    BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
             };
             _ghostMode.Initialize(new System.Windows.Interop.WindowInteropHelper(this).Handle);
 
@@ -212,6 +216,9 @@ public partial class MainWindow : Window
         _batteryAlertThreshold = s.BatteryAlertThresholdPercent;
         _phraseWrapEnabled = s.PhraseWrapEnabled;
         _phraseWrapStyle   = s.PhraseWrapStyle;
+        _backdropAlwaysVisible  = s.BackdropAlwaysVisible;
+        _backdropOpacityPercent = s.BackdropOpacityPercent;
+        ApplyBackdropState();
 
         // Apply stats visibility directly (NOT via SetStatsVisible — that calls UpdateLayout()+Clamp()
         // which are unsafe before Show(), where ActualHeight is 0).
@@ -388,6 +395,8 @@ public partial class MainWindow : Window
         ActiveTheme            = _currentTheme,
         PhraseWrapEnabled      = _phraseWrapEnabled,
         PhraseWrapStyle        = _phraseWrapStyle,
+        BackdropAlwaysVisible  = _backdropAlwaysVisible,
+        BackdropOpacityPercent = _backdropOpacityPercent,
     };
 
     private void OpenSettings()
@@ -430,6 +439,8 @@ public partial class MainWindow : Window
             SaveSettings();
         };
         _settingsWindow.BatteryAlertThresholdChanged += t => SetBatteryAlertThreshold(t);
+        _settingsWindow.BackdropAlwaysVisibleChanged += v => SetBackdropAlwaysVisible(v);
+        _settingsWindow.BackdropOpacityPercentChanged += p => SetBackdropOpacityPercent(p);
         _settingsWindow.ThemeSelected += name =>
         {
             if (BuiltInThemes.TryGet(name) is { } theme)
@@ -496,6 +507,8 @@ public partial class MainWindow : Window
             Theme                = _currentTheme,
             PhraseWrapEnabled    = _phraseWrapEnabled,
             PhraseWrapStyle      = _phraseWrapStyle,
+            BackdropAlwaysVisible  = _backdropAlwaysVisible,
+            BackdropOpacityPercent = _backdropOpacityPercent,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -914,6 +927,39 @@ public partial class MainWindow : Window
         UpdateStatsDisplay();
     }
 
+    private byte BackdropAlpha()
+        => (byte)Math.Clamp((int)(_backdropOpacityPercent / 100.0 * 255), 25, 255);
+
+    private void ApplyBackdropState()
+    {
+        if (_backdropAlwaysVisible)
+            BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(BackdropAlpha(), 0, 0, 0));
+        else
+            BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
+    }
+
+    private void SetBackdropAlwaysVisible(bool value)
+    {
+        _backdropAlwaysVisible = value;
+        ApplyBackdropState();
+        SaveSettings();
+    }
+
+    private void SetBackdropOpacityPercent(int percent)
+    {
+        _backdropOpacityPercent = percent;
+        if (_backdropAlwaysVisible || _isHoverFastRefresh)
+        {
+            var alpha = BackdropAlpha();
+            BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
+            ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
+        }
+        SaveSettings();
+    }
+
     private void SetBatteryAlertThreshold(int threshold)
     {
         _batteryAlertThreshold = threshold;
@@ -929,7 +975,9 @@ public partial class MainWindow : Window
             // Normal hover path (CTRLALT-01/02): show backdrop + activate fast-refresh.
             // WS_EX_TRANSPARENT is NOT applied — window stays fully interactive (drag, right-click, scroll).
             ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromArgb(0x59, 0, 0, 0));
+                System.Windows.Media.Color.FromArgb(BackdropAlpha(), 0, 0, 0));
+            BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromArgb(BackdropAlpha(), 0, 0, 0));
 
             if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null
                 && _statsTimer.IsEnabled)
@@ -948,6 +996,8 @@ public partial class MainWindow : Window
         // WS_EX_TRANSPARENT stops WM_MOUSELEAVE delivery. Backdrop and timer state
         // must be clean before we disappear or they will be corrupted post-restore.
         ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+        if (!_backdropAlwaysVisible)
+            BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
         if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null)
         {
             _statsTimer.Stop();
@@ -969,6 +1019,8 @@ public partial class MainWindow : Window
 
         // Backdrop restore (Phase 14): always clear on leave regardless of stats state
         ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
+        if (!_backdropAlwaysVisible)
+            BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
 
         if (StatsPanel.Visibility != Visibility.Visible) return;
         // Fast-refresh restore (Phase 12): restore configured interval
@@ -1127,6 +1179,9 @@ public partial class MainWindow : Window
         _currentPhraseStyle = "Classic";
         _phraseWrapEnabled  = true;
         _phraseWrapStyle    = "midpoint";
+        _backdropAlwaysVisible  = false;
+        _backdropOpacityPercent = 35;
+        ApplyBackdropState();
         SetLanguage("auto");
 
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),

@@ -40,5 +40,7 @@ public record AppSettings
     public int    BatteryAlertThresholdPercent { get; init; } = 20;
     public bool   PhraseWrapEnabled            { get; init; } = true;
     public string PhraseWrapStyle              { get; init; } = "midpoint";  // "midpoint" | "natural"
+    public bool   BackdropAlwaysVisible        { get; init; } = false;
+    public int    BackdropOpacityPercent       { get; init; } = 35;
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"

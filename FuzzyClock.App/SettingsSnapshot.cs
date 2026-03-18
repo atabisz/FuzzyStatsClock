@@ -31,4 +31,6 @@ internal sealed record SettingsSnapshot
     public int     BatteryAlertThreshold                 { get; init; } = 20;
     public bool    PhraseWrapEnabled                     { get; init; } = true;
     public string  PhraseWrapStyle                       { get; init; } = "midpoint";
+    public bool    BackdropAlwaysVisible                 { get; init; } = false;
+    public int     BackdropOpacityPercent                { get; init; } = 35;
 }

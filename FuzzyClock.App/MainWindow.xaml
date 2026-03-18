@@ -21,6 +21,14 @@
     <Grid Background="#01000000"
           MouseLeftButtonDown="Grid_MouseLeftButtonDown">
 
+        <!-- Full-widget backdrop — sits behind the inner Grid in Z-order (declared first = behind).
+             Background is set from code-behind (backdrop color or Transparent).
+             IsHitTestVisible="False" prevents intercepting mouse events meant for inner Grid children. -->
+        <Border x:Name="BackdropBorder"
+                Background="Transparent"
+                CornerRadius="5"
+                IsHitTestVisible="False"/>
+
         <!-- Three-row inner Grid: Row 0 = phrase display, Row 1 = date text, Row 2 = stats panel -->
         <Grid>
             <Grid.RowDefinitions>
