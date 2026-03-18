@@ -249,7 +249,7 @@ Plans:
 **Goal:** Random-candidate phrase providers (Rude, Poetic) only change the displayed phrase when the clock advances to a new time bucket, not on every 10-second timer tick; explicit user actions still trigger immediate phrase refresh
 **Requirements**: SEGKEY-01, SEGKEY-02, SEGKEY-03, POETIC-01
 **Depends on:** Phase 52
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 53-01-PLAN.md — Add GetSegmentKey to IPhraseProvider + all providers; rewrite PoeticPhraseProvider to minute-bucket random candidates; segment-key unit tests

@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
-status: unknown
-last_updated: "2026-03-18T16:10:00.000Z"
+status: in-progress
+stopped_at: "Completed 53-02-PLAN.md — next: phase 54 backdrop enhancement"
+last_updated: "2026-03-18T16:20:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 14
-  completed_plans: 10
-  percent: 86
+  completed_plans: 13
+  percent: 93
 ---
 
 # Project State
@@ -23,18 +24,19 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase 53 plan 01 complete. GetSegmentKey added to IPhraseProvider and all 9 providers; PoeticPhraseProvider rewritten with minute-bucket random candidates.
+Phase 53 complete. Segment-key guard wired into MainWindow UpdatePhraseIfChanged; phrase no longer re-rolls every 10 seconds on random-candidate providers.
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [█████████░] 86%
+Progress: [█████████░] 93%
 Phase 50: Installer + CI           [ Complete — 50-01 and 50-02 done ]
 Phase 51: README Docs Pass         [ Complete ]
 Phase 52: Phrase Wrapping          [ Complete — 52-01 and 52-02 done ]
-Phase 53: Fix Phrase Update Rate   [ In Progress — 53-01 done, 53-02 pending ]
+Phase 53: Fix Phrase Update Rate   [ Complete — 53-01 and 53-02 done ]
+Phase 54: Backdrop Enhancement     [ Pending ]
 ```
 
-Stopped at: Completed 53-01-PLAN.md — next: execute 53-02 (wire GetSegmentKey into MainWindow)
+Stopped at: Completed 53-02-PLAN.md — next: phase 54 backdrop enhancement
 
 ## Accumulated Context
 
@@ -82,6 +84,12 @@ Stopped at: Completed 53-01-PLAN.md — next: execute 53-02 (wire GetSegmentKey 
 - Deterministic providers return GetPhrase as GetSegmentKey — phrase text is stable within a bucket
 - PoeticPhraseProvider rewritten from hour-range single-phrase to 12 minute-buckets with 3-4 random atmospheric candidates, mirroring RudePhraseProvider structure
 - PoeticPhraseProvider witching hour (00:00) and high noon (12:00) get named keys en-poetic:witching and en-poetic:noon
+
+### Decisions (53-02)
+
+- Segment-key guard replaces phrase-string comparison guard in UpdatePhraseIfChanged — GetPhrase only called when bucket changes, eliminating 10s random re-roll on Rude/Poetic providers
+- Dual cache clear pattern: manual refresh sites clear both _currentRawPhrase and _lastSegmentKey so explicit user actions (style change, language switch, wrap toggle) still trigger fresh phrase pick
+- ResetToDefaults calls SetLanguage which handles the _lastSegmentKey clear — no separate change needed at ResetToDefaults call site
 
 ### Roadmap Evolution
 
