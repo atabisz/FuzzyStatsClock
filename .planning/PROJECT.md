@@ -18,12 +18,14 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 274 MSTest tests (249 Core + 25 App) passing. CI gate enforced.
 
-## Current Milestone: v3.6 Settings Layout Fix
+## Current Milestone: v3.6.1 Contrast Flicker Fix
 
-**Goal:** Condense the Settings window Appearance tab so all controls fit within the 480×600 window without scrolling or resizing.
+**Goal:** Eliminate the color-flicker feedback loop that causes the widget to oscillate between two colors every second when BackdropAlwaysVisible or AutoContrast is enabled and the widget sits over an empty desktop.
 
 **Target features:**
-- Redesigned Appearance tab layout — compact theme cards, tighter spacing, everything visible
+- Fix flicker when AutoContrast is enabled over empty desktop
+- Fix flicker when BackdropAlwaysVisible is enabled over empty desktop
+- No regression to AutoContrast behavior over application windows
 
 ## Requirements
 
@@ -385,4 +387,4 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | GetStructuredPhrase qualifier/emphasis split for Poetic | PoeticPhraseProvider returns (qualifier: surrounding text, emphasis: hour word) so caller can apply typographic hierarchy to the time anchor | ✓ Validated — qualifier and hourWord correctly split; 8 tests cover all buckets and special cases |
 
 ---
-*Last updated: 2026-03-18 after v3.6 milestone start*
+*Last updated: 2026-03-19 after v3.6.1 milestone start*
