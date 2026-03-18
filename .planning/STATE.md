@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Phrase Wrap + Installer
 status: unknown
-last_updated: "2026-03-18T03:51:47.890Z"
+last_updated: "2026-03-18T16:10:00.000Z"
 progress:
-  total_phases: 5
+  total_phases: 7
   completed_phases: 5
-  total_plans: 8
-  completed_plans: 8
-  percent: 92
+  total_plans: 14
+  completed_plans: 10
+  percent: 86
 ---
 
 # Project State
@@ -23,17 +23,18 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase 52 complete. Phrase wrapping fully integrated — PhraseWrapService wired into MainWindow with Inlines rendering, AppSettings persistence, and SettingsWindow controls.
+Phase 53 plan 01 complete. GetSegmentKey added to IPhraseProvider and all 9 providers; PoeticPhraseProvider rewritten with minute-bucket random candidates.
 Last completed milestone: v3.4 (phases 48–49, shipped 2026-03-18).
 
 ```
-Progress: [█████████░] 92%
+Progress: [█████████░] 86%
 Phase 50: Installer + CI           [ Complete — 50-01 and 50-02 done ]
 Phase 51: README Docs Pass         [ Complete ]
 Phase 52: Phrase Wrapping          [ Complete — 52-01 and 52-02 done ]
+Phase 53: Fix Phrase Update Rate   [ In Progress — 53-01 done, 53-02 pending ]
 ```
 
-Next action: milestone v3.5 complete — run /gsd:audit-milestone or /gsd:complete-milestone
+Stopped at: Completed 53-01-PLAN.md — next: execute 53-02 (wire GetSegmentKey into MainWindow)
 
 ## Accumulated Context
 
@@ -74,6 +75,13 @@ Next action: milestone v3.5 complete — run /gsd:audit-milestone or /gsd:comple
 - Phrase wrap setting exposed in Settings window (Appearance or Behavior tab)
 - AppSettings: PhraseWrapEnabled (bool, default true), PhraseWrapStyle ("midpoint"/"natural", default "midpoint")
 - Shadow text (ShadowText) must wrap identically to PhraseText — both are layered in the same Grid cell
+
+### Decisions (53-01)
+
+- GetSegmentKey uses locale-prefixed bucket-index keys (en-rude:N, en-poetic:N) preventing cross-provider key collisions
+- Deterministic providers return GetPhrase as GetSegmentKey — phrase text is stable within a bucket
+- PoeticPhraseProvider rewritten from hour-range single-phrase to 12 minute-buckets with 3-4 random atmospheric candidates, mirroring RudePhraseProvider structure
+- PoeticPhraseProvider witching hour (00:00) and high noon (12:00) get named keys en-poetic:witching and en-poetic:noon
 
 ### Roadmap Evolution
 
