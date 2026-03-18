@@ -25,6 +25,8 @@ public partial class MainWindow : Window
     private DateTime _prevProcSample = DateTime.MinValue;
     // StatsPanel.Width(184) - label column(35) - text column(36) = 113
     private const double StatsBarTrackWidth = 113.0;
+    // Distance from screen working-area edge that triggers post-DragMove snapping.
+    private const double EdgeSnapThresholdPx = 8.0;
     private int _currentFontSize = 32;
     private string _currentMonitorKey = "";      // monitor key for the screen currently hosting the window
     private AppSettings _settings = new();        // cached settings — updated on every SaveSettings call
@@ -516,6 +518,7 @@ public partial class MainWindow : Window
         _isDragging = true;
         DragMove();
         _isDragging = false;
+        SnapToEdge();   // snap to edge if within 8px — post-DragMove only (SNAP-03)
         // LocationChanged fires during DragMove — _hasUserPosition is already true here.
 
         // Cross-monitor drag: remove source monitor's saved position (per design decision)
@@ -531,6 +534,41 @@ public partial class MainWindow : Window
 
         if (statsTimerWasRunning) _statsTimer!.Start();
         SaveSettings();
+    }
+
+    /// <summary>
+    /// If the window landed within <see cref="EdgeSnapThresholdPx"/> of any working-area edge,
+    /// nudge it flush to that edge. Uses Screen.WorkingArea (excludes taskbar) — not Screen.Bounds.
+    /// Called only post-DragMove; never from timers or phrase-resize paths (SNAP-03).
+    /// </summary>
+    private void SnapToEdge()
+    {
+        var screen = System.Windows.Forms.Screen.FromPoint(
+            new System.Drawing.Point(
+                (int)(Left + ActualWidth  / 2),
+                (int)(Top  + ActualHeight / 2)));
+        var wa = screen.WorkingArea;
+
+        double newLeft = Left;
+        double newTop  = Top;
+
+        // Horizontal: left edge, then right edge (mutually exclusive per side)
+        if (Math.Abs(Left - wa.Left) <= EdgeSnapThresholdPx)
+            newLeft = wa.Left;
+        else if (Math.Abs((Left + ActualWidth) - (wa.Left + wa.Width)) <= EdgeSnapThresholdPx)
+            newLeft = wa.Left + wa.Width - ActualWidth;
+
+        // Vertical: top edge, then bottom edge (mutually exclusive per side)
+        if (Math.Abs(Top - wa.Top) <= EdgeSnapThresholdPx)
+            newTop = wa.Top;
+        else if (Math.Abs((Top + ActualHeight) - (wa.Top + wa.Height)) <= EdgeSnapThresholdPx)
+            newTop = wa.Top + wa.Height - ActualHeight;
+
+        if (newLeft != Left || newTop != Top)
+        {
+            Left = newLeft;
+            Top  = newTop;
+        }
     }
 
     private void UpdatePhraseIfChanged()
