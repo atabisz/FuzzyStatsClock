@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: between_milestones
-stopped_at: Milestone v3.6.1 archived — ready for next milestone
-last_updated: "2026-03-19T00:39:06.428Z"
-last_activity: 2026-03-19 — Plan 57-01 complete (FIX-01, FIX-02, FIX-03 verified)
+milestone: v3.6.2
+milestone_name: Contrast Flicker Regression Fix
+status: defining_requirements
+stopped_at: Milestone v3.6.2 started — defining requirements
+last_updated: "2026-03-19T00:00:00.000Z"
+last_activity: 2026-03-19 — Milestone v3.6.2 started
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,50 +21,29 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** Planning phase 58 (contrast flicker regression fix)
 
 ## Current Position
 
-Phase: 57 of 57 (Contrast Flicker Fix)
-Plan: 1 of 1 in current phase — COMPLETE
-Status: All tasks complete; human-verify checkpoint approved
-Last activity: 2026-03-19 — Plan 57-01 complete (FIX-01, FIX-02, FIX-03 verified)
-
-Progress: [██████████] 100%
-
-## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 1 (this milestone)
-- Average duration: ~8 min
-- Total execution time: ~8 min
-
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 57-contrast-flicker-fix | 01 | 8min | 2 | 1 |
-
-*Updated after each plan completion*
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-19 — Milestone v3.6.2 started
 
 ## Accumulated Context
 
-### Carried from v3.6
+### Carried from v3.6.1
 
-- SettingsWindow uses ThemeMode="Dark"; zero style leakage to MainWindow
+- `HasAppWindowBeneath` Z-order walk guard in `ContrastRefreshController.Tick`: seeds from `GetWindow(widgetHwnd, GW_HWNDNEXT)`, checks `IsWindowVisible` + rect overlap + class name; skips BitBlt sampling when only shell windows (Progman/WorkerW/SysListView32) beneath widget
+- Guard holds `_contrastState` stable (no mutation on skip) — preserves hysteresis state from prior valid samples
+- `_hwnd` field set in `Initialize` via `WindowInteropHelper`
 - 274 MSTest tests (249 Core + 25 App), 0 failures
-- Settings window is 480×600; Appearance tab compacted (theme cards 40px, 4px grid spacing)
 
-### Known Context for Phase 57
+### Known Context for Phase 58
 
-- `ContrastSamplerService` uses BitBlt to sample the screen under the widget footprint every 500ms
-- Over empty desktop, the sampled color may alternate between the desktop background color and the widget's own rendered color, causing the contrast threshold to flip back and forth
-- `BackdropAlwaysVisible` renders a semi-transparent backdrop; when AutoContrast samples this backdrop it may see its own dark color and flip to white, then sample white text and flip back — the loop causes the flicker
-- The fix must not alter the public interface of `ContrastService` or `ContrastSamplerService` in ways that break existing tests
-
-### Phase 57 Decisions (Plan 01)
-
-- Z-order walk guard: skip ContrastSamplerService.Sample entirely when only Progman/WorkerW/SysListView32 beneath widget; hold _contrastState stable (no mutation on skip)
-- _hwnd stored in ContrastRefreshController.Initialize via WindowInteropHelper; stable for widget lifetime
-- Manual RECT overlap (4 inequalities) preferred over IntersectRect to minimize P/Invoke surface
+- The v3.6.1 fix was human-verified and passed FIX-01/FIX-02/FIX-03 at the time of shipping
+- User reports the flashing is back — regression either from an edge case not covered or a code path that bypasses the guard
+- Investigation must identify why the guard is not effective in the current scenario before fixing
 
 ### Pending Todos
 
@@ -73,8 +52,3 @@ Progress: [██████████] 100%
 ### Blockers/Concerns
 
 None.
-
-## Session Continuity
-
-Last session: 2026-03-19
-Stopped at: Completed 57-01-PLAN.md — all 3 tasks done; milestone v3.6.1 complete

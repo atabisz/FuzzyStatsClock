@@ -20,6 +20,15 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 274 MSTest tests (249 Core + 25 App) passing. CI gate enforced.
 
+## Current Milestone: v3.6.2 Contrast Flicker Regression Fix
+
+**Goal:** Re-investigate and permanently fix the contrast/backdrop flicker that regressed after v3.6.1.
+
+**Target features:**
+- FIX-04: AutoContrast stable over empty desktop (no oscillation/flicker)
+- FIX-05: BackdropAlwaysVisible stable over empty desktop (no oscillation/flicker)
+- FIX-06: AutoContrast still correctly switches over application windows (no regression)
+
 ## Requirements
 
 ### Validated
