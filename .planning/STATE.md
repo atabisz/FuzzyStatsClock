@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Nixie Clock
 status: unknown
-stopped_at: Completed 57-02-PLAN.md
-last_updated: "2026-03-19T02:09:31.530Z"
+stopped_at: Completed 58-01-PLAN.md
+last_updated: "2026-03-19T02:31:08.137Z"
 progress:
   total_phases: 2
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 57 — COMPLETE
+**Current focus:** Phase 59 — next phase
 
 ## Current Position
 
-Phase: 57 (re-introduce-nixie-into-the-new-architecture) — COMPLETE
-Plan: 2 of 2
+Phase: 58 (data-model-foundation) — COMPLETE
+Plan: 1 of 1 (all complete)
 
 ## Accumulated Context
 
@@ -55,6 +55,11 @@ Plan: 2 of 2
 - 6 LCD/dial-decoration events declared as stubs in SettingsWindow to satisfy MainWindow subscriptions; full LCD UI wired in future plan
 - _dialMode fix in MainWindow was already committed in Plan 01; Task 2 of Plan 02 was verification only
 
+### Decisions from 58-01
+
+- No STEST ID assigned to ClockType absent-field test — follows pattern of TextStyle test which also has no STEST ID
+- Phase 58 complete: all 4 ROADMAP success criteria verified (Core build clean, ClockType enum replaces DialMode, SettingsSnapshot has 7 required fields, absent-field test confirms ClockType defaults to Phrase)
+
 ### Pending Todos
 
 - Japanese phrase naturalness is medium confidence; native-speaker review recommended (not blocking).
@@ -66,6 +71,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19
-Stopped at: Completed 57-02-PLAN.md
+Last session: 2026-03-19T02:31:08.133Z
+Stopped at: Completed 58-01-PLAN.md
 Resume file: None

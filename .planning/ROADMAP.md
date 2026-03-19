@@ -41,7 +41,7 @@ Phases 1-57 are complete. See `.planning/MILESTONES.md` for per-milestone summar
 
 **Milestone Goal:** Re-introduce the Nixie tube clock face as a selectable clock style in Settings alongside Phrase and Dial.
 
-- [ ] **Phase 58: Data Model Foundation** - Migrate AppSettings/SettingsSnapshot from DialMode bool to ClockType enum; resolve novelty provider build errors
+- [x] **Phase 58: Data Model Foundation** - Migrate AppSettings/SettingsSnapshot from DialMode bool to ClockType enum; resolve novelty provider build errors (completed 2026-03-19)
 - [ ] **Phase 59: UI Wiring and Build Clean** - Add Nixie button to Settings Clock Style rail; wire Nixie clock face; resolve remaining build errors; remove ContentBorder duplicate backdrop
 
 ## Phase Details
@@ -55,7 +55,7 @@ Phases 1-57 are complete. See `.planning/MILESTONES.md` for per-milestone summar
   2. AppSettings has ClockType field (not DialMode); existing settings.json with dialMode:true upgrades to ClockType.Dial without data loss
   3. SettingsSnapshot has ClockType, LcdUse24Hr, LcdShowSeconds, LcdStyle, ShowHourTicks, ShowMinuteDots, ShowHourNumbers fields
   4. STEST-01 round-trip test passes with new AppSettings fields; absent-field test confirms ClockType defaults to Phrase
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 58-01-PLAN.md — Add ClockType absent-field test and verify all success criteria
@@ -78,5 +78,5 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 58. Data Model Foundation | v3.7 | 0/1 | Not started | - |
+| 58. Data Model Foundation | 1/1 | Complete   | 2026-03-19 | - |
 | 59. UI Wiring and Build Clean | v3.7 | 0/TBD | Not started | - |
