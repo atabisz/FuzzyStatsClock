@@ -38,4 +38,4 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 58. Contrast Flicker Regression Fix | 1/1 | Complete   | 2026-03-19 | - |
+| 58. Contrast Flicker Regression Fix | 1/1 | Complete    | 2026-03-19 | - |

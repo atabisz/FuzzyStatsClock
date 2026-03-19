@@ -4,7 +4,7 @@ milestone: v3.6
 milestone_name: milestone
 status: planning
 stopped_at: Completed 58-01-PLAN.md — all tasks done, FIX-04/FIX-05/FIX-06 human-verified
-last_updated: "2026-03-19T04:00:38.711Z"
+last_updated: "2026-03-19T04:04:21.067Z"
 last_activity: 2026-03-19 — Roadmap written for v3.6.2
 progress:
   total_phases: 1
