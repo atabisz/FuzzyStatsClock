@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.6.2
-milestone_name: Contrast Flicker Regression Fix
-status: roadmap_ready
-stopped_at: Roadmap created — ready to plan Phase 58
-last_updated: "2026-03-19T00:00:00.000Z"
-last_activity: 2026-03-19 — Roadmap written for v3.6.2 (1 phase, 3 requirements)
+milestone: v3.6
+milestone_name: milestone
+status: planning
+stopped_at: Task 1 complete (4adf3ba), awaiting human verify checkpoint for 58-01
+last_updated: "2026-03-19T03:33:09.097Z"
+last_activity: 2026-03-19 — Roadmap written for v3.6.2
 progress:
   total_phases: 1
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
   percent: 0
 ---
 
@@ -46,6 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 ## Accumulated Context
+| Phase 58-contrast-flicker-regression-fix P01 | 2 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -54,6 +55,7 @@ Recent decisions affecting current work:
 
 - Phase 57: `HasAppWindowBeneath` Z-order walk guard seeds from `GetWindow(widgetHwnd, GW_HWNDNEXT)`, skips BitBlt when only Progman/WorkerW/SysListView32 beneath widget — verified at ship time, now regressed
 - Phase 57: Guard holds `_contrastState` stable on skip (no mutation) to preserve hysteresis state
+- [Phase 58-contrast-flicker-regression-fix]: Added SHELLDLL_DefView to HasAppWindowBeneath exclusion list alongside Progman/WorkerW/SysListView32 to fix flicker on desktops with visible icons
 
 ### Known Context for Phase 58
 
@@ -72,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19
-Stopped at: Roadmap created — run `/gsd:plan-phase 58` to begin
+Last session: 2026-03-19T03:33:09.092Z
+Stopped at: Task 1 complete (4adf3ba), awaiting human verify checkpoint for 58-01
 Resume file: None

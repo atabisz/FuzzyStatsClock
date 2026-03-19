@@ -7,9 +7,9 @@
 
 ### Bug Fix
 
-- [ ] **FIX-04**: When AutoContrast is enabled and the widget sits over an empty desktop, text color remains stable — no oscillation or flicker (regression from v3.6.1)
-- [ ] **FIX-05**: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker (regression from v3.6.1)
-- [ ] **FIX-06**: AutoContrast correctly switches text to black/white when the widget is over an application window — no regression from the fix
+- [x] **FIX-04**: When AutoContrast is enabled and the widget sits over an empty desktop, text color remains stable — no oscillation or flicker (regression from v3.6.1)
+- [x] **FIX-05**: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker (regression from v3.6.1)
+- [x] **FIX-06**: AutoContrast correctly switches text to black/white when the widget is over an application window — no regression from the fix
 
 ## v2 Requirements
 
@@ -26,9 +26,9 @@ None deferred.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FIX-04 | Phase 58 | Pending |
-| FIX-05 | Phase 58 | Pending |
-| FIX-06 | Phase 58 | Pending |
+| FIX-04 | Phase 58 | Complete |
+| FIX-05 | Phase 58 | Complete |
+| FIX-06 | Phase 58 | Complete |
 
 **Coverage:**
 - v1 requirements: 3 total
