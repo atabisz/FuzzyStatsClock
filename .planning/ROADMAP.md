@@ -55,7 +55,10 @@ Phases 1-57 are complete. See `.planning/MILESTONES.md` for per-milestone summar
   2. AppSettings has ClockType field (not DialMode); existing settings.json with dialMode:true upgrades to ClockType.Dial without data loss
   3. SettingsSnapshot has ClockType, LcdUse24Hr, LcdShowSeconds, LcdStyle, ShowHourTicks, ShowMinuteDots, ShowHourNumbers fields
   4. STEST-01 round-trip test passes with new AppSettings fields; absent-field test confirms ClockType defaults to Phrase
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 58-01-PLAN.md — Add ClockType absent-field test and verify all success criteria
 
 ### Phase 59: UI Wiring and Build Clean
 **Goal**: Nixie is selectable in Settings, activates the tube clock face on the widget, and the full solution builds with 0 errors
@@ -75,5 +78,5 @@ Phases 1-57 are complete. See `.planning/MILESTONES.md` for per-milestone summar
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 58. Data Model Foundation | v3.7 | 0/TBD | Not started | - |
+| 58. Data Model Foundation | v3.7 | 0/1 | Not started | - |
 | 59. UI Wiring and Build Clean | v3.7 | 0/TBD | Not started | - |
