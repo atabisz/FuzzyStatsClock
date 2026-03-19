@@ -136,7 +136,7 @@
 
 </details>
 
-### 🚧 v3.6.1 Contrast Flicker Fix (In Progress)
+### v3.6.1 Contrast Flicker Fix (In Progress)
 
 **Milestone Goal:** AutoContrast and BackdropAlwaysVisible are stable when the widget sits over an empty desktop — no color oscillation — while correct contrast switching over application windows is preserved.
 
@@ -150,10 +150,10 @@
   2. With BackdropAlwaysVisible enabled and the widget positioned over an empty desktop, backdrop opacity and text color do not oscillate or flicker — they hold steady
   3. With AutoContrast enabled and the widget positioned over a light application window, text switches to black (high-contrast override active)
   4. With AutoContrast enabled and the widget positioned over a dark application window, text displays in the accent color (override released)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 57-01: Fix ContrastSamplerService to produce stable output over empty desktop without regressing application-window detection
+- [ ] 57-01-PLAN.md — Add Z-order walk guard to ContrastRefreshController to skip sampling over empty desktop
 
 ## Phase Details
 
@@ -166,10 +166,10 @@ Plans:
   2. With BackdropAlwaysVisible enabled and the widget positioned over an empty desktop, backdrop opacity and text color do not oscillate or flicker — they hold steady
   3. With AutoContrast enabled and the widget positioned over a light application window, text switches to black (high-contrast override active)
   4. With AutoContrast enabled and the widget positioned over a dark application window, text displays in the accent color (override released)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 57-01: Fix ContrastSamplerService to produce stable output over empty desktop without regressing application-window detection
+- [ ] 57-01-PLAN.md — Add Z-order walk guard to ContrastRefreshController to skip sampling over empty desktop
 
 ## Progress
 
@@ -212,4 +212,4 @@ Plans:
 | 57. Contrast Flicker Fix | v3.6.1 | 0/1 | Not started | - |
 
 ---
-*Last updated: 2026-03-19 — v3.6.1 roadmap created*
+*Last updated: 2026-03-19 — Phase 57 planned*
