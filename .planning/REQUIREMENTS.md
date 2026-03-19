@@ -39,16 +39,17 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | NIX-01 | Phase 58 | Pending |
-| NIX-02 | Phase 58 | Pending |
-| NIX-03 | Phase 58 | Pending |
-| NIX-04 | Phase 58 | Pending |
-| BACK-05 | Phase 58 | Pending |
+| NIX-04 (GetSegmentKey errors) | Phase 58 | Pending |
+| NIX-02 | Phase 59 | Pending |
+| NIX-03 | Phase 59 | Pending |
+| NIX-04 (stale _dialMode reference) | Phase 59 | Pending |
+| BACK-05 | Phase 59 | Pending |
 
 **Coverage:**
 - v3.7 requirements: 5 total
-- Mapped to phases: 5
+- Mapped to phases: 5 (NIX-04 spans both phases; all requirements covered)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after v3.7 milestone start*
+*Last updated: 2026-03-19 — traceability updated for v3.7 roadmap (phases 58-59)*

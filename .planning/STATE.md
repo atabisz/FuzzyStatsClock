@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Nixie Clock
 status: in_progress
-stopped_at: Milestone v3.7 started — plans ready for Phase 57
+stopped_at: Roadmap created for v3.7 — Phase 58 ready to plan
 last_updated: "2026-03-19T00:00:00.000Z"
-last_activity: 2026-03-19 — Milestone v3.7 started; Phase 57 plans created
+last_activity: 2026-03-19 — v3.7 roadmap created; Phase 58 ready for /gsd:plan-phase 58
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 0
-  total_plans: 2
+  total_plans: 0
   completed_plans: 0
   percent: 0
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 57 — Re-introduce Nixie into the new architecture
+**Current focus:** Phase 58 — Data Model Foundation
 
 ## Current Position
 
-Phase: 57 of 57 (Re-introduce Nixie into the new architecture)
-Plan: 0 of 2 — ready to execute
-Status: Plans created; ready for /gsd:execute-phase 57
-Last activity: 2026-03-19 — Milestone v3.7 started; Phase 57 plans created
+Phase: 58 of 59 (Data Model Foundation)
+Plan: 0 of TBD — ready to plan
+Status: Roadmap created; ready for /gsd:plan-phase 58
+Last activity: 2026-03-19 — Roadmap created for v3.7 Nixie Clock milestone
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -41,15 +41,15 @@ Progress: [░░░░░░░░░░] 0%
 - Settings window is 480×600; Appearance tab compacted (theme cards 40px, 4px grid spacing)
 - ContrastRefreshController has HasAppWindowBeneath Z-order walk guard
 
-### Known Context for Phase 57 (Nixie)
+### Known Context for v3.7 (Nixie)
 
 - NixieClockView and NixieDigit controls are already complete in the codebase
 - MainWindow.xaml already references NixieClockView; ApplySettings(), SetClockType(), SaveSettings() already handle ClockType.Nixie
-- Tray menu already wires a Nixie item
-- This phase is settings plumbing migration, NOT rendering implementation
+- Tray menu already wires a Nixie item via _nixieClockItem → SetClockType(ClockType.Nixie)
 - SettingsService.Load() already performs the JSON dialMode:true → ClockType.Dial migration (lines 53–61)
-- Stale _dialMode reference in MainWindow.xaml.cs ApplyPhraseWrap() (line ~718) must be replaced with _clockType != ClockType.Phrase
-- 6 novelty phrase providers are missing GetSegmentKey() — pre-existing build errors
+- Phase 57 plans at .planning/phases/57-re-introduce-nixie-into-the-new-architecture/ are prior art for Phase 58-59
+- Phase 58 covers Wave 1 (NIX-01 + NIX-04 partial); Phase 59 covers Wave 2 (NIX-02, NIX-03, NIX-04 remaining, BACK-05)
+- Hard dependency: Phase 58 must complete before Phase 59 can compile
 
 ### Pending Todos
 
@@ -62,5 +62,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-19
-Stopped at: Phase 57 plans created and verified — ready to execute
-Resume file: .planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-01-PLAN.md
+Stopped at: Roadmap created and files written — ready to plan Phase 58
+Resume file: None
