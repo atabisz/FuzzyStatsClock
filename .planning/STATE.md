@@ -52,6 +52,10 @@ Progress: [██████████] 100%
 - 274 MSTest tests (249 Core + 25 App), 0 failures
 - Settings window is 480×600; Appearance tab has theme preset cards that consume excessive vertical space
 
+### Roadmap Evolution
+
+- Phase 57 added: re-introduce Nixie into the new architecture
+
 ### Pending Todos
 
 - Japanese phrase naturalness is medium confidence; native-speaker review recommended (not blocking).

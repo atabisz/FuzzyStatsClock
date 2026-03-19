@@ -202,5 +202,15 @@ Plans:
 | 55. Poetic Hour Hints | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 56. Settings Window Layout Redesign | 1/1 | Complete    | 2026-03-18 | - |
 
+### Phase 57: re-introduce Nixie into the new architecture
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 56
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 57 to break down)
+
 ---
 *Last updated: 2026-03-18 — v3.6 roadmap created*
