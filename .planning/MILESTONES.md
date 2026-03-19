@@ -1,10 +1,26 @@
 # Milestones
-## v3.6.1 Contrast Flicker Fix (Shipped: 2026-03-19)
+## v3.6.2 Contrast Flicker Regression Fix (Shipped: 2026-03-19)
 
-**Phases completed:** 1 phases, 1 plans, 0 tasks
+**Phases completed:** 1 phase (58), 1 plan
+**Test suite:** 274 MSTest tests (249 Core + 25 App), 0 failures
+**Files changed:** 1 code file (`ContrastRefreshController.cs`)
 
 **Key accomplishments:**
-- (none recorded)
+- Added `SHELLDLL_DefView` to shell class exclusion list in `HasAppWindowBeneath` — fixes AutoContrast flicker on desktops with visible icons (FIX-04/FIX-05)
+- Added `DwmGetWindowAttribute(DWMWA_CLOAKED)` check to skip Windows 11 shell panels (`ApplicationFrameWindow` — Start menu, Search, Widgets) that remain in Z-order when dismissed but are hidden by DWM — root cause discovered during human verification after first fix
+- AutoContrast still correctly switches text color to black/white when a real app window is beneath the widget; no regression (FIX-06); all 274 tests pass
+
+---
+
+## v3.6.1 Contrast Flicker Fix (Shipped: 2026-03-19)
+
+**Phases completed:** 1 phase (57), 1 plan
+**Test suite:** 274 MSTest tests (249 Core + 25 App), 0 failures
+
+**Key accomplishments:**
+- Added `HasAppWindowBeneath` Z-order walk guard in `ContrastRefreshController.Tick`: seeds from `GetWindow(widgetHwnd, GW_HWNDNEXT)`, checks `IsWindowVisible` + rect overlap + class name exclusion (Progman, WorkerW, SysListView32)
+- Guard holds `_contrastState` stable on skip — preserves hysteresis from prior valid samples; eliminates contrast oscillation feedback loop over empty desktop
+- `_hwnd` cached in `Initialize()` via `WindowInteropHelper`; `Overlaps` uses four-inequality RECT check (no extra P/Invoke)
 
 ---
 

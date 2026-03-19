@@ -24,6 +24,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 **Phase 57 complete: 2026-03-19** — Nixie clock re-introduced: `ClockType` enum replaces `DialMode bool` across `AppSettings`/`SettingsSnapshot`; SettingsWindow has 3-button Clock Style rail (Phrase/Dial/Nixie); `ClockTypeChanged` event wired to `SetClockType`; all 6 novelty phrase providers implement `GetSegmentKey`; solution builds with 0 errors, 298 tests pass
 
+**v3.6.2 shipped: 2026-03-19** — `HasAppWindowBeneath` extended with `SHELLDLL_DefView` shell exclusion and `DwmGetWindowAttribute(DWMWA_CLOAKED)` check; AutoContrast and BackdropAlwaysVisible stable over desktops with icons and Windows 11 shell panels; 274 tests pass
+
 **v3.6.1 shipped: 2026-03-19** — AutoContrast and BackdropAlwaysVisible stable over empty desktop; `HasAppWindowBeneath` Z-order walk guard in `ContrastRefreshController.Tick` skips sampling when only shell windows (Progman/WorkerW/SysListView32) are beneath the widget, eliminating contrast oscillation feedback loop
 
 **v3.6 shipped: 2026-03-18** — Settings Appearance tab fully visible within 480×600 window; compact theme cards; tighter inter-section spacing
@@ -33,6 +35,10 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
 
 274 MSTest tests (249 Core + 25 App) passing. CI gate enforced.
+
+## Next Milestone
+
+Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 
 ## Requirements
 
@@ -244,6 +250,12 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ FIX-02: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker — v3.6.1
 - ✓ FIX-03: AutoContrast correctly switches text to black/white when the widget is over an application window — no regression — v3.6.1
 
+### Validated (v3.6.2)
+
+- ✓ FIX-04: When AutoContrast is enabled and the widget sits over an empty desktop with visible icons, text color remains stable — no oscillation or flicker (regression fix) — v3.6.2
+- ✓ FIX-05: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker (regression fix) — v3.6.2
+- ✓ FIX-06: AutoContrast correctly switches text to black/white when the widget is over an application window — no regression from the fix — v3.6.2
+
 ### Validated (v3.7)
 
 - ✓ NIX-01: AppSettings and SettingsSnapshot use ClockType enum instead of DialMode bool; LCD fields added — Phase 57–58
@@ -413,6 +425,9 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | Seed Z-order walk with GetWindow(widgetHwnd, GW_HWNDNEXT) | Skipping the widget's own HWND avoids self-comparison; walking downward from next Z-peer is correct for "what's below me" semantics | ✓ Validated — `HasAppWindowBeneath` correctly returns false over empty desktop, true over app windows |
 | Manual RECT overlap (4 inequalities) over IntersectRect P/Invoke | Avoids adding extra P/Invoke import; four-inequality check is logically equivalent | ✓ Validated — correct overlap detection; no extra P/Invoke surface |
 | _hwnd field set in Initialize via WindowInteropHelper | Window HWND is stable post-Show; caching avoids per-tick allocation and matches GhostModeController pattern | ✓ Validated — HWND stable across sampling ticks; no allocation overhead |
+| SHELLDLL_DefView added as 4th shell exclusion class | Desktop icon host window present when icons visible; omitting it caused guard to return true over empty desktop with icons, reintroducing feedback loop | ✓ Validated — flicker eliminated on desktops with visible icons |
+| DwmGetWindowAttribute(DWMWA_CLOAKED) for ApplicationFrameWindow | Windows 11 UWP shell panels (Start, Search, Widgets) stay in Z-order when dismissed with IsWindowVisible=true; DWM cloaked attribute (non-zero = hidden) reliably distinguishes them from real app windows; class cannot be added to exclusion list | ✓ Validated — flicker eliminated on Windows 11 with shell panels present |
+| Cloaked check after non-shell-class filter | Running cloaked P/Invoke only on windows that passed the class filter keeps the hot path lean; avoids per-tick DwmGetWindowAttribute overhead for known shell classes | ✓ Validated — no UI stutter at 500ms tick rate |
 
 ---
 *Last updated: 2026-03-19 after Phase 58 complete*
