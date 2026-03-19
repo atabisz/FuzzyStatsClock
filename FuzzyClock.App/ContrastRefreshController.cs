@@ -36,10 +36,14 @@ internal sealed class ContrastRefreshController : IDisposable
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(IntPtr hwnd, uint dwAttribute, out int pvAttribute, int cbAttribute);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 
-    private const uint GW_HWNDNEXT = 2;
+    private const uint GW_HWNDNEXT  = 2;
+    private const uint DWMWA_CLOAKED = 14;
 
     /// <summary>
     /// Whether auto-contrast is enabled. Safe to set before Initialize() is called.
@@ -113,7 +117,8 @@ internal sealed class ContrastRefreshController : IDisposable
         int ph = (int)Math.Round(_window!.ActualHeight * t.M22);
 
         // Skip sampling over empty desktop to prevent feedback-loop flicker.
-        // When only desktop-shell windows (Progman, WorkerW, SysListView32, SHELLDLL_DefView) are beneath
+        // When only desktop-shell windows (Progman, WorkerW, SysListView32, SHELLDLL_DefView)
+        // or DWM-cloaked shell panels (e.g. closed Start menu, Search, Widgets) are beneath
         // the widget, the BitBlt would capture the widget's own rendered colors and cause
         // ContrastService to oscillate across the WCAG threshold each tick.
         var widgetRect = new RECT
@@ -134,7 +139,10 @@ internal sealed class ContrastRefreshController : IDisposable
 
     /// <summary>
     /// Walks the Z-order downward from the widget's HWND and returns true if any visible,
-    /// overlapping window is NOT a desktop-shell class (Progman, WorkerW, SysListView32, SHELLDLL_DefView).
+    /// non-cloaked, overlapping window is NOT a desktop-shell class
+    /// (Progman, WorkerW, SysListView32, SHELLDLL_DefView).
+    /// DWM-cloaked windows (e.g. shell panels like Start menu or Search that are closed but
+    /// remain in Z-order) are skipped — they are hidden to the user despite IsWindowVisible=true.
     /// Returns false when only the shell (empty desktop) is beneath the widget.
     /// </summary>
     private static bool HasAppWindowBeneath(IntPtr widgetHwnd, RECT widgetRect)
@@ -151,7 +159,15 @@ internal sealed class ContrastRefreshController : IDisposable
                 string cls = className.ToString();
                 if (cls != "Progman" && cls != "WorkerW" &&
                     cls != "SysListView32" && cls != "SHELLDLL_DefView")
+                {
+                    // Skip DWM-cloaked windows: shell panels (Start menu, Search, Widgets)
+                    // stay in the Z-order when closed but are hidden by DWM. They report
+                    // IsWindowVisible=true but have no visible content on screen.
+                    DwmGetWindowAttribute(candidate, DWMWA_CLOAKED, out int cloaked, 4);
+                    if (cloaked != 0) { className.Clear(); candidate = GetWindow(candidate, GW_HWNDNEXT); continue; }
+
                     return true;
+                }
                 className.Clear();
             }
             candidate = GetWindow(candidate, GW_HWNDNEXT);
