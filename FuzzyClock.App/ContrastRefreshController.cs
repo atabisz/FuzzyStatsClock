@@ -1,4 +1,7 @@
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using FuzzyClock.Core;
 
@@ -18,6 +21,25 @@ internal sealed class ContrastRefreshController : IDisposable
     private Window? _window;
     private Func<bool>? _shouldSkip;
     private Func<RgbColor>? _getAccent;
+    private IntPtr _hwnd;
+
+    // P/Invoke for Z-order walk guard
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+
+    private const uint GW_HWNDNEXT = 2;
 
     /// <summary>
     /// Whether auto-contrast is enabled. Safe to set before Initialize() is called.
@@ -49,6 +71,7 @@ internal sealed class ContrastRefreshController : IDisposable
         _window    = window;
         _shouldSkip = shouldSkip;
         _getAccent  = getAccent;
+        _hwnd = new WindowInteropHelper(window).Handle;
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _timer.Tick += Tick;
@@ -89,12 +112,55 @@ internal sealed class ContrastRefreshController : IDisposable
         int pw = (int)Math.Round(_window!.ActualWidth  * t.M11);
         int ph = (int)Math.Round(_window!.ActualHeight * t.M22);
 
+        // Skip sampling over empty desktop to prevent feedback-loop flicker.
+        // When only desktop-shell windows (Progman, WorkerW, SysListView32) are beneath
+        // the widget, the BitBlt would capture the widget's own rendered colors and cause
+        // ContrastService to oscillate across the WCAG threshold each tick.
+        var widgetRect = new RECT
+        {
+            Left   = px,
+            Top    = py,
+            Right  = px + pw,
+            Bottom = py + ph
+        };
+        if (!HasAppWindowBeneath(_hwnd, widgetRect)) return;
+
         var bgSample = ContrastSamplerService.Sample(px, py, pw, ph);
         var accent   = _getAccent!();
         var (displayColor, newState) = ContrastService.ComputeDisplayColor(bgSample, accent, _contrastState);
         _contrastState = newState;
         ColorChanged?.Invoke(displayColor);
     }
+
+    /// <summary>
+    /// Walks the Z-order downward from the widget's HWND and returns true if any visible,
+    /// overlapping window is NOT a desktop-shell class (Progman, WorkerW, SysListView32).
+    /// Returns false when only the shell (empty desktop) is beneath the widget.
+    /// </summary>
+    private static bool HasAppWindowBeneath(IntPtr widgetHwnd, RECT widgetRect)
+    {
+        var className = new StringBuilder(256);
+        IntPtr candidate = GetWindow(widgetHwnd, GW_HWNDNEXT);
+        while (candidate != IntPtr.Zero)
+        {
+            if (IsWindowVisible(candidate) &&
+                GetWindowRect(candidate, out RECT r) &&
+                Overlaps(widgetRect, r))
+            {
+                GetClassName(candidate, className, 256);
+                string cls = className.ToString();
+                if (cls != "Progman" && cls != "WorkerW" && cls != "SysListView32")
+                    return true;
+                className.Clear();
+            }
+            candidate = GetWindow(candidate, GW_HWNDNEXT);
+        }
+        return false;
+    }
+
+    private static bool Overlaps(RECT a, RECT b) =>
+        a.Left < b.Right && a.Right > b.Left &&
+        a.Top < b.Bottom && a.Bottom > b.Top;
 
     public void Dispose() => _timer?.Stop();
 }
