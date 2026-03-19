@@ -50,7 +50,7 @@ completed: 2026-03-19
 - **Duration:** ~8 min
 - **Started:** 2026-03-19T00:00:00Z
 - **Completed:** 2026-03-19
-- **Tasks:** 2 automated + 1 pending human-verify checkpoint
+- **Tasks:** 3 (2 automated + 1 human-verify checkpoint — approved)
 - **Files modified:** 1
 
 ## Accomplishments
@@ -67,7 +67,7 @@ Each task was committed atomically:
 
 1. **Task 1: Add Z-order walk guard to ContrastRefreshController** - `9c786c1` (fix)
 2. **Task 2: Run full test suite to confirm no regression** - `aa1b79b` (test)
-3. **Task 3: Manual verification of contrast stability** - Pending human-verify checkpoint
+3. **Task 3: Manual verification of contrast stability** - Human-verify checkpoint approved (FIX-01, FIX-02, FIX-03 all confirmed)
 
 ## Files Created/Modified
 - `FuzzyClock.App/ContrastRefreshController.cs` - Added HasAppWindowBeneath Z-order guard, Overlaps helper, 4 P/Invoke declarations, RECT struct, _hwnd field, HWND storage in Initialize
@@ -92,8 +92,8 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- Automated implementation complete; awaiting manual verification (Task 3 checkpoint)
-- Once user confirms FIX-01, FIX-02, FIX-03 pass, milestone v3.6.1 is complete
+- All three requirements verified by user: FIX-01 (stable over empty desktop), FIX-02 (stable with backdrop), FIX-03 (correct switching over app windows)
+- Milestone v3.6.1 Contrast Flicker Fix is complete
 - No blockers
 
 ---

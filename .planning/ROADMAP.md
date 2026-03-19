@@ -27,7 +27,7 @@
 - **v3.2 Expanded Experience** (2026-03-09) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 7 phases (41–47), 16 plans. → [Archive](milestones/v3.2-ROADMAP.md)
 - ✅ **v3.5 Phrase Wrap + Installer** (2026-03-18) — Dark-mode Settings, edge snapping, IPC fixes, Inno Setup installer, CI release pipeline, phrase wrapping, backdrop enhancement, poetic hour hints. 8 phases (48–55), 12 plans. → [Archive](milestones/v3.5-ROADMAP.md)
 - ✅ **v3.6 Settings Layout Fix** (2026-03-18) — Appearance tab fully visible within 480×600 window; compact theme cards; tighter spacing. 1 phase (56). → [Archive](milestones/v3.6-ROADMAP.md)
-- 🚧 **v3.6.1 Contrast Flicker Fix** — AutoContrast and BackdropAlwaysVisible are stable over empty desktop; no regression over application windows. 1 phase (57).
+- ✅ **v3.6.1 Contrast Flicker Fix** (2026-03-19) — AutoContrast and BackdropAlwaysVisible are stable over empty desktop; no regression over application windows. 1 phase (57).
 
 ## Phases
 
@@ -136,7 +136,7 @@
 
 </details>
 
-### v3.6.1 Contrast Flicker Fix (In Progress)
+### ✅ v3.6.1 Contrast Flicker Fix (Shipped 2026-03-19)
 
 **Milestone Goal:** AutoContrast and BackdropAlwaysVisible are stable when the widget sits over an empty desktop — no color oscillation — while correct contrast switching over application windows is preserved.
 
@@ -153,7 +153,7 @@
 **Plans**: 1 plan
 
 Plans:
-- [ ] 57-01-PLAN.md — Add Z-order walk guard to ContrastRefreshController to skip sampling over empty desktop
+- [x] 57-01-PLAN.md — Add Z-order walk guard to ContrastRefreshController to skip sampling over empty desktop
 
 ## Phase Details
 
@@ -169,7 +169,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 57-01-PLAN.md — Add Z-order walk guard to ContrastRefreshController to skip sampling over empty desktop
+- [x] 57-01-PLAN.md — Add Z-order walk guard to ContrastRefreshController to skip sampling over empty desktop
 
 ## Progress
 
@@ -209,7 +209,7 @@ Plans:
 | 54. Backdrop Enhancement | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 55. Poetic Hour Hints | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 56. Settings Window Layout Redesign | v3.6 | 1/1 | Complete | 2026-03-18 |
-| 57. Contrast Flicker Fix | 1/1 | Complete   | 2026-03-19 | - |
+| 57. Contrast Flicker Fix | v3.6.1 | 1/1 | Complete | 2026-03-19 |
 
 ---
-*Last updated: 2026-03-19 — Phase 57 planned*
+*Last updated: 2026-03-19 — Phase 57 complete; milestone v3.6.1 shipped*
