@@ -29,10 +29,13 @@ See MILESTONES.md for full history.
   2. With BackdropAlwaysVisible enabled and the widget over an empty desktop, the backdrop color and text color do not flicker or oscillate
   3. With AutoContrast enabled and the widget dragged over an application window, the text color correctly switches to black or white within one sampling tick
   4. The fix does not regress any of the 274 existing MSTest tests (all pass, 0 failures)
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 58-01-PLAN.md — Add SHELLDLL_DefView to shell exclusion list + human verify flicker-free
 
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 58. Contrast Flicker Regression Fix | v3.6.2 | 0/TBD | Not started | - |
+| 58. Contrast Flicker Regression Fix | v3.6.2 | 0/1 | Not started | - |
