@@ -10,7 +10,14 @@ internal sealed record SettingsSnapshot
     public System.Windows.Media.Color AccentColor        { get; init; }
     public double  Opacity                               { get; init; }
     public int     FontSize                              { get; init; }
-    public bool    DialMode                              { get; init; }
+    public ClockType ClockType                           { get; init; } = ClockType.Phrase;
+    public bool   LcdUse24Hr                             { get; init; } = false;
+    public bool   LcdShowSeconds                         { get; init; } = true;
+    public string LcdStyle                               { get; init; } = "Dark";
+    public LcdSize LcdSize                               { get; init; } = LcdSize.Medium;
+    public bool   ShowHourTicks                          { get; init; } = false;
+    public bool   ShowMinuteDots                         { get; init; } = false;
+    public bool   ShowHourNumbers                        { get; init; } = false;
     public string  PhraseStyle                           { get; init; } = "Classic";
     public string  PhraseLocale                          { get; init; } = "auto";
     public bool    StatsVisible                          { get; init; }

@@ -715,7 +715,7 @@ public partial class MainWindow : Window
     private void ApplyPhraseWrap(string rawPhrase)
     {
         // Guard: no wrap in dial mode or Split text style, or when wrap is disabled
-        if (_dialMode || _currentTextStyle == "Split" || !_phraseWrapEnabled)
+        if (_clockType != ClockType.Phrase || _currentTextStyle == "Split" || !_phraseWrapEnabled)
         {
             SetPhraseTextSingleLine(rawPhrase);
             return;

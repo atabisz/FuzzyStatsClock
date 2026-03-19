@@ -76,7 +76,7 @@ public sealed partial class SettingsWindow : Window
 
         // Font size / clock style toggle buttons
         SetFontSizeButtonStates(s.FontSize);
-        SetClockStyleButtonStates(s.DialMode);
+        SetClockStyleButtonStates(s.ClockType == ClockType.Dial);
 
         // Phrase language combo
         string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;

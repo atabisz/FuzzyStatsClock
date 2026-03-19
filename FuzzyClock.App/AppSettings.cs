@@ -21,10 +21,14 @@ public record AppSettings
     public bool   PagVisible           { get; init; } = true;
     public bool   BatteryVisible       { get; init; } = true;
     public bool   UptimeVisible        { get; init; } = true;
-    public bool   DialMode             { get; init; } = false;
     public bool   ShowHourTicks        { get; init; } = false;
     public bool   ShowMinuteDots       { get; init; } = false;
     public bool   ShowHourNumbers      { get; init; } = false;
+    public ClockType ClockType         { get; init; } = ClockType.Phrase;
+    public bool   LcdUse24Hr           { get; init; } = false;
+    public bool   LcdShowSeconds       { get; init; } = true;
+    public string LcdStyle             { get; init; } = "Dark";
+    public LcdSize LcdSize             { get; init; } = LcdSize.Medium;
     public string AccentColor          { get; init; } = "#FFFFFFFF";  // AARRGGBB hex; default = White (matches existing Foreground="White" in XAML)
     public double Opacity              { get; init; } = 1.0;          // 0.0–1.0; default = fully opaque
     public bool   GhostModeEnabled     { get; init; } = true;
