@@ -195,4 +195,13 @@ public class AppSettingsTests
             "LcdSize should default to Medium when absent from JSON");
     }
 
+    [TestMethod]
+    public void Deserialize_MissingClockType_DefaultsToPhrase()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(ClockType.Phrase, result.ClockType,
+            "ClockType should default to Phrase when absent from JSON (init default)");
+    }
+
 }
