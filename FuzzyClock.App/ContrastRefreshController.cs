@@ -113,7 +113,7 @@ internal sealed class ContrastRefreshController : IDisposable
         int ph = (int)Math.Round(_window!.ActualHeight * t.M22);
 
         // Skip sampling over empty desktop to prevent feedback-loop flicker.
-        // When only desktop-shell windows (Progman, WorkerW, SysListView32) are beneath
+        // When only desktop-shell windows (Progman, WorkerW, SysListView32, SHELLDLL_DefView) are beneath
         // the widget, the BitBlt would capture the widget's own rendered colors and cause
         // ContrastService to oscillate across the WCAG threshold each tick.
         var widgetRect = new RECT
@@ -134,7 +134,7 @@ internal sealed class ContrastRefreshController : IDisposable
 
     /// <summary>
     /// Walks the Z-order downward from the widget's HWND and returns true if any visible,
-    /// overlapping window is NOT a desktop-shell class (Progman, WorkerW, SysListView32).
+    /// overlapping window is NOT a desktop-shell class (Progman, WorkerW, SysListView32, SHELLDLL_DefView).
     /// Returns false when only the shell (empty desktop) is beneath the widget.
     /// </summary>
     private static bool HasAppWindowBeneath(IntPtr widgetHwnd, RECT widgetRect)
@@ -149,7 +149,8 @@ internal sealed class ContrastRefreshController : IDisposable
             {
                 GetClassName(candidate, className, 256);
                 string cls = className.ToString();
-                if (cls != "Progman" && cls != "WorkerW" && cls != "SysListView32")
+                if (cls != "Progman" && cls != "WorkerW" &&
+                    cls != "SysListView32" && cls != "SHELLDLL_DefView")
                     return true;
                 className.Clear();
             }
