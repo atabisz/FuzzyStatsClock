@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: between_milestones
-stopped_at: Milestone v3.6.1 archived — ready for next milestone
-last_updated: "2026-03-19T00:39:06.428Z"
-last_activity: 2026-03-19 — Plan 57-01 complete (FIX-01, FIX-02, FIX-03 verified)
+milestone: v3.7
+milestone_name: Nixie Clock
+status: in_progress
+stopped_at: Milestone v3.7 started — plans ready for Phase 57
+last_updated: "2026-03-19T00:00:00.000Z"
+last_activity: 2026-03-19 — Milestone v3.7 started; Phase 57 plans created
 progress:
   total_phases: 1
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 100
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,50 +21,35 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 57 — Re-introduce Nixie into the new architecture
 
 ## Current Position
 
-Phase: 57 of 57 (Contrast Flicker Fix)
-Plan: 1 of 1 in current phase — COMPLETE
-Status: All tasks complete; human-verify checkpoint approved
-Last activity: 2026-03-19 — Plan 57-01 complete (FIX-01, FIX-02, FIX-03 verified)
+Phase: 57 of 57 (Re-introduce Nixie into the new architecture)
+Plan: 0 of 2 — ready to execute
+Status: Plans created; ready for /gsd:execute-phase 57
+Last activity: 2026-03-19 — Milestone v3.7 started; Phase 57 plans created
 
-Progress: [██████████] 100%
-
-## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 1 (this milestone)
-- Average duration: ~8 min
-- Total execution time: ~8 min
-
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 57-contrast-flicker-fix | 01 | 8min | 2 | 1 |
-
-*Updated after each plan completion*
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
-### Carried from v3.6
+### Carried from v3.6.1
 
 - SettingsWindow uses ThemeMode="Dark"; zero style leakage to MainWindow
 - 274 MSTest tests (249 Core + 25 App), 0 failures
 - Settings window is 480×600; Appearance tab compacted (theme cards 40px, 4px grid spacing)
+- ContrastRefreshController has HasAppWindowBeneath Z-order walk guard
 
-### Known Context for Phase 57
+### Known Context for Phase 57 (Nixie)
 
-- `ContrastSamplerService` uses BitBlt to sample the screen under the widget footprint every 500ms
-- Over empty desktop, the sampled color may alternate between the desktop background color and the widget's own rendered color, causing the contrast threshold to flip back and forth
-- `BackdropAlwaysVisible` renders a semi-transparent backdrop; when AutoContrast samples this backdrop it may see its own dark color and flip to white, then sample white text and flip back — the loop causes the flicker
-- The fix must not alter the public interface of `ContrastService` or `ContrastSamplerService` in ways that break existing tests
-
-### Phase 57 Decisions (Plan 01)
-
-- Z-order walk guard: skip ContrastSamplerService.Sample entirely when only Progman/WorkerW/SysListView32 beneath widget; hold _contrastState stable (no mutation on skip)
-- _hwnd stored in ContrastRefreshController.Initialize via WindowInteropHelper; stable for widget lifetime
-- Manual RECT overlap (4 inequalities) preferred over IntersectRect to minimize P/Invoke surface
+- NixieClockView and NixieDigit controls are already complete in the codebase
+- MainWindow.xaml already references NixieClockView; ApplySettings(), SetClockType(), SaveSettings() already handle ClockType.Nixie
+- Tray menu already wires a Nixie item
+- This phase is settings plumbing migration, NOT rendering implementation
+- SettingsService.Load() already performs the JSON dialMode:true → ClockType.Dial migration (lines 53–61)
+- Stale _dialMode reference in MainWindow.xaml.cs ApplyPhraseWrap() (line ~718) must be replaced with _clockType != ClockType.Phrase
+- 6 novelty phrase providers are missing GetSegmentKey() — pre-existing build errors
 
 ### Pending Todos
 
@@ -77,4 +62,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-19
-Stopped at: Completed 57-01-PLAN.md — all 3 tasks done; milestone v3.6.1 complete
+Stopped at: Phase 57 plans created and verified — ready to execute
+Resume file: .planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-01-PLAN.md

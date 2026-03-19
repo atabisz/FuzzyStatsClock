@@ -8,6 +8,16 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v3.7 Nixie Clock
+
+**Goal:** Re-introduce the Nixie tube clock face as a selectable clock style in Settings alongside Phrase and Dial.
+
+**Target features:**
+- AppSettings/SettingsSnapshot migrated from `DialMode bool` to `ClockType` enum with LCD fields
+- SettingsWindow 3-button Clock Style rail (Phrase / Dial / Nixie) with `ClockTypeChanged` event
+- Selecting Nixie activates the Nixie tube clock face on the widget
+- Pre-existing build errors resolved (GetSegmentKey on novelty providers, stale `_dialMode` reference)
+
 ## Current State
 
 **v3.6.1 shipped: 2026-03-19** — AutoContrast and BackdropAlwaysVisible stable over empty desktop; `HasAppWindowBeneath` Z-order walk guard in `ContrastRefreshController.Tick` skips sampling when only shell windows (Progman/WorkerW/SysListView32) are beneath the widget, eliminating contrast oscillation feedback loop
@@ -230,6 +240,13 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ FIX-02: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker — v3.6.1
 - ✓ FIX-03: AutoContrast correctly switches text to black/white when the widget is over an application window — no regression — v3.6.1
 
+### Active
+
+- [ ] NIX-01: AppSettings and SettingsSnapshot use ClockType enum instead of DialMode bool; LCD fields added
+- [ ] NIX-02: SettingsWindow exposes a 3-button Clock Style rail (Phrase/Dial/Nixie) with ClockTypeChanged event
+- [ ] NIX-03: Selecting Nixie in Settings activates the Nixie tube clock face on the widget
+- [ ] NIX-04: Pre-existing build errors resolved (GetSegmentKey on novelty providers, stale _dialMode reference); project compiles clean
+
 ### Out of Scope
 
 - User-created/saved themes — only built-in named presets; custom theme authoring is out of scope
@@ -391,4 +408,4 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | _hwnd field set in Initialize via WindowInteropHelper | Window HWND is stable post-Show; caching avoids per-tick allocation and matches GhostModeController pattern | ✓ Validated — HWND stable across sampling ticks; no allocation overhead |
 
 ---
-*Last updated: 2026-03-19 after v3.6.1 milestone*
+*Last updated: 2026-03-19 after v3.7 milestone start*
