@@ -1,226 +1,161 @@
-# Stack Research
+# Technology Stack
 
-**Domain:** WPF .NET 10 desktop widget — installer, single-instance, edge-snap, Settings visual redesign
-**Researched:** 2026-03-17
-**Scope:** v3.3 additions only — existing validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, PerformanceCounter 10.0.0, UseWindowsForms=true) is unchanged
-**Confidence:** HIGH (all claims verified against official docs, NuGet, or official GitHub)
+**Project:** FuzzyStatsClock v3.7 — Nixie Clock Re-introduction
+**Researched:** 2026-03-19
+**Scope:** Settings plumbing migration only — existing validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, PerformanceCounter, UseWindowsForms=true, Velopack 0.0.1298) is unchanged
+**Confidence:** HIGH — all claims verified by direct source audit of the current codebase
 
 ---
 
-## What Changes vs v3.2
+## What Changes vs v3.6.1
 
-v3.2 validated stack (not re-researched): .NET 10, C# 13, WPF `net10.0-windows`, `UseWindowsForms=true`, `System.Text.Json`, `System.Diagnostics.PerformanceCounter` 10.0.0, MSTest 4.0.1, `SettingsWindow` (3-tab modeless), `BuiltInThemes`, `PhraseEngine` with multilingual providers, 224 tests passing.
-
-v3.3 additions by feature:
+v3.6.1 validated stack is not re-researched. This document covers only the delta for v3.7.
 
 | Feature | Stack Change | NuGet Needed |
 |---------|-------------|--------------|
-| Per-user installer | Velopack 0.0.1298 + `vpk` CLI tool | **Yes — `Velopack` NuGet** |
-| Single-instance guard | `System.Threading.Mutex` + `System.IO.Pipes` (BCL) | None |
-| Edge snapping | Win32 `WM_MOVING` via `HwndSource.AddHook` (existing P-Invoke pattern) | None |
-| Settings window visual redesign | WPF `ThemeMode="Dark"` (built into .NET 9+ / .NET 10) | None |
-| ResetToDefaults fix | Pure logic fix in existing code | None |
-| README docs | Documentation only | None |
+| `AppSettings` migration (`DialMode bool` → `ClockType enum` + LCD fields) | Pure C# record property change — no new types, no new packages | None |
+| `SettingsSnapshot` migration | Same — add `ClockType` + LCD fields, remove `DialMode` | None |
+| `SettingsWindow` 3-button Clock Style rail | XAML `<Button>` addition + `Action<ClockType>` event — built-in WPF | None |
+| `SettingsWindow` missing event declarations | Declare `Action<T>` events — built-in C# | None |
+| `_dialMode` stale reference fix in `MainWindow` | One-line C# fix | None |
+| Build error resolution (`GetSegmentKey` on novelty providers) | C# interface implementation fix | None |
 
-**One new NuGet package. One new CLI tool. Zero csproj structural changes beyond adding the package.**
+**Zero new NuGet packages. Zero csproj changes. All work is in existing C# and XAML files.**
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies
+### Core Technologies (unchanged)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Velopack | 0.0.1298 (NuGet stable, 2025-06-07) | Per-user installer + auto-update + upgrade-in-place | Installs to `%LocalAppData%\{packId}` with no UAC prompt by default. The default `Setup.exe` detects an existing installation and upgrades it automatically via `Update.exe`. WPF integration requires a custom `static void Main` with `VelopackApp.Build().Run()` before WPF init. Replaces ClickOnce / Inno Setup / WiX for this use case. 285K downloads on NuGet; actively maintained. |
-| `System.Threading.Mutex` (BCL) | Built into .NET 10 | Single-instance guard | Named system Mutex (`new Mutex(true, "Global\\FuzzyClock-{guid}", out bool createdNew)`) is the idiomatic .NET single-instance mechanism. Atomic — no race condition. `createdNew == false` means another instance is already running: send activation signal and exit immediately. Zero dependencies. |
-| `System.IO.Pipes.NamedPipeServerStream` (BCL) | Built into .NET 10 (confirmed net-10.0 API docs) | Signal the running instance to activate | The running instance listens on a named pipe in a background `Task`. The second instance connects as `NamedPipeClientStream`, writes `"ACTIVATE"`, and exits. The server dispatches `window.Activate()` on the UI thread. No extra library. Clean shutdown via `CancellationToken`. |
-| WPF `ThemeMode="Dark"` (PresentationFramework.Fluent) | Built into .NET 9+ / .NET 10 | Dark aesthetic for SettingsWindow | WPF .NET 9 introduced a built-in Fluent dark theme via the `ThemeMode` property on `Window`. Setting `ThemeMode="Dark"` on `SettingsWindow` applies modern Windows 11-style dark styling to all standard controls (Button, TabControl, ComboBox, Slider, CheckBox, TextBox) with zero extra packages. Available in .NET 10 as a stable XAML attribute. |
-| Win32 `WM_MOVING` via `HwndSource.AddHook` | Win32 (no package) | Edge snapping during `DragMove()` | WPF's `DragMove()` bypasses WPF mouse events entirely; the only non-destructive intercept point is the Win32 `WM_MOVING` message (0x0216). The `lParam` is a pointer to a mutable `RECT` — clamping its values snaps the window to a screen edge. Uses the existing `HwndSource` + P-Invoke infrastructure already present for ghost mode. No library needed. |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| .NET 10 WPF | net10.0-windows | UI framework — all controls, XAML, DispatcherTimer | Already validated; transparent overlay, SettingsWindow, dialogs |
+| C# 13 | .NET 10 SDK | Language | `init`-property records, pattern matching on enums |
+| System.Text.Json | .NET 10 BCL | Settings serialization to `%LOCALAPPDATA%\FuzzyClock\settings.json` | Already validated; handles `AppSettings` record natively, no attributes needed |
+| MSTest | 4.0.1 (existing) | Test framework — 274 tests currently passing | Already validated; CI gate enforced |
 
-### Supporting Libraries
+### Types Reused (no new packages needed)
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `Velopack.Vpk` CLI tool | Matches NuGet 0.0.1298 | Build installer artifacts (`Setup.exe`, delta packages) | Used in CI/build step: `vpk pack --packId FuzzyClock --packVersion 3.3.0 --mainExe FuzzyClock.App.exe`. Not a runtime dependency. |
-| WPF `ResourceDictionary` (built-in XAML) | Built-in | Override Fluent theme brush tokens for SettingsWindow | Layer project-specific color overrides on top of Fluent using `<Window.Resources><ResourceDictionary.MergedDictionaries>`. Lets you match the SettingsWindow background to the app's dark aesthetic (`#1E1E1E`) while keeping Fluent control chrome. |
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| `vpk` (Velopack CLI) | Packages release builds into installer artifacts | Install globally: `dotnet tool install -g vpk`. Run after `dotnet publish -r win-x64 --self-contained false`. |
-| Visual Studio XAML Designer | Inspect Fluent theme resource keys for overrides | Theme XAML files at `C:\Program Files\Microsoft Visual Studio\2022\<edition>\DesignTools\SystemThemes\wpf`. Read-only reference — not used at runtime. |
+| Type | Assembly | Purpose in This Phase |
+|------|----------|-----------------------|
+| `ClockType` enum (`Phrase / Dial / Lcd / Nixie`) | `FuzzyClock.App/ClockType.cs` | Already complete — the migration target for `DialMode bool` |
+| `NixieClockView` UserControl | `FuzzyClock.App/Controls/NixieClockView.xaml(.cs)` | Already complete — manages its own 1s `DispatcherTimer` via `IsVisibleChanged` |
+| `NixieDigit` UserControl | `FuzzyClock.App/Controls/NixieDigit.xaml(.cs)` | Already complete — pixel-exact Canvas geometry |
+| `NixieSizeMap.ToDigitHeight(LcdSize)` | `FuzzyClock.App/NixieSize.cs` | Already complete — `Small=40, Medium=56, Large=72` |
+| `SegmentButtonStyle` | `SettingsWindow.xaml` resources | Already defined — apply to `BtnNixie` without modification |
+| `Action<T>` delegate | .NET BCL | Event type for all `SettingsWindow` change events |
 
 ---
 
-## Installation
+## Files to Change
 
-```bash
-# Velopack NuGet runtime — add to FuzzyClock.App.csproj
-dotnet add FuzzyClock.App package Velopack --version 0.0.1298
+All changes are in `FuzzyClock.App/`. No new files are created.
 
-# Velopack CLI packaging tool — dev machine and CI
-dotnet tool install -g vpk
-
-# No other new packages — Mutex, NamedPipe, ThemeMode, WM_MOVING are BCL/framework built-ins
-```
-
----
-
-## Alternatives Considered
-
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| Velopack (default Setup.exe) | ClickOnce | Only if you need Visual Studio one-click publish and are on .NET Framework. ClickOnce has poor .NET 5+ support and cannot reliably target `%LocalAppData%`. |
-| Velopack (default Setup.exe) | Inno Setup | Only if you need system-wide install (Program Files), complex installer UI with license screens, or custom installation scripts. Overkill for a personal widget. |
-| Velopack (default Setup.exe) | WiX 5 | Only for enterprise MSI requirements (Group Policy, SCCM, Windows Installer features). WiX requires verbose XML authoring. |
-| Velopack (default Setup.exe) | Velopack `--msi` | The MSI variant prompts the user to choose per-user vs per-machine install. Adds unnecessary complexity for a single-user widget. Use the default exe installer. |
-| Named Mutex + NamedPipe | `Microsoft.Toolkit.Win32.UI.Controls` SingleInstance | The toolkit approach targets UWP-style apps and is heavier. Mutex + NamedPipe is ~40 lines of code with no dependency. |
-| WPF `ThemeMode="Dark"` | MahApps.Metro | MahApps is a full UI framework replacement (5-10 MB assets) that conflicts with existing `BuiltInThemes` and requires adopting MetroWindow. ThemeMode is built-in and zero-overhead. |
-| WPF `ThemeMode="Dark"` | ModernWpf | ModernWpf imposes its own control templates globally. As of 2023 it is unmaintained. ThemeMode is the official Microsoft replacement. |
-| `WM_MOVING` hook | Replace `DragMove()` with manual drag | Manual drag (MouseDown/MouseMove + `SetWindowPos`) gives more control but requires rewriting the entire existing drag system. `WM_MOVING` intercepts `DragMove()` non-invasively. |
+| File | Change Type | What Changes |
+|------|-------------|--------------|
+| `AppSettings.cs` | Property modification | Remove `DialMode bool`; add `ClockType ClockType`, `LcdUse24Hr bool`, `LcdShowSeconds bool`, `LcdStyle string` |
+| `SettingsSnapshot.cs` | Property modification | Remove `DialMode bool`; add `ClockType ClockType`, `LcdUse24Hr bool`, `LcdShowSeconds bool`, `LcdStyle string`, `LcdSize LcdSize` |
+| `SettingsWindow.xaml` | XAML addition | Add `BtnNixie` button to the Clock Style rail `StackPanel` |
+| `SettingsWindow.xaml.cs` | Event + handler additions | Replace `DialModeChanged: Action<bool>` with `ClockTypeChanged: Action<ClockType>`; add missing event declarations; update `SetClockStyleButtonStates`, `PopulateControls`, button click handlers |
+| `MainWindow.xaml.cs` | One-line fix | Replace `_dialMode` with `_clockType != ClockType.Phrase` in `ApplyPhraseWrap()` |
+| `(build error file TBD)` | Interface fix | Implement `GetSegmentKey()` on novelty providers that are missing it |
+| `SettingsService.cs` | No change | Migration code (lines 53–61) already reads `DialMode` from raw `JsonDocument` — not from the record property — so removing the property does not break it |
 
 ---
 
-## What NOT to Use
+## Key Integration Points
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `Microsoft.VisualBasic.ApplicationServices.WindowsFormsApplicationBase` | Legacy VB runtime single-instance API. Not idiomatic in .NET 10 C# and pulls in a Windows Forms dependency that competes with `UseWindowsForms=true`. | `Mutex` + `NamedPipeClientStream` |
-| `System.Diagnostics.Process.GetProcessesByName()` | Fragile single-instance check — matches only on exe name, fails if user has renamed the exe, and has a time-of-check/time-of-use race condition. | Named `Mutex` (atomic, OS-guaranteed uniqueness per mutex name) |
-| `Application.ThemeMode="Dark"` (app-wide) | Would apply Fluent dark to the main overlay window too, which is a transparent frameless widget — wrong aesthetic for the overlay. | `ThemeMode="Dark"` on `SettingsWindow` only (Window-scoped, not Application-scoped) |
-| MahApps.Metro / ModernWpf | Replaces all default control templates globally; conflicts with existing `BuiltInThemes` system; ModernWpf is unmaintained. | WPF built-in Fluent `ThemeMode` |
-| Velopack `--msi` flag | Generates an MSI with a per-user/per-machine choice dialog. Unnecessary complexity for a personal desktop widget. | Default Velopack `Setup.exe` (silent per-user install to `%LocalAppData%`, no choice dialog) |
-| `ThemeMode` set in C# code (experimental) | Setting `ThemeMode` from code generates compiler error `WPF0001` (experimental API, subject to change). | Set `ThemeMode="Dark"` as a XAML attribute on `SettingsWindow` — stable, no warning. |
+### AppSettings Record
 
----
-
-## Stack Patterns by Feature
-
-**Installer (per-user, no admin, upgrade detection):**
-
-- Use Velopack default `Setup.exe` (do NOT add `--msi` flag to `vpk pack`)
-- Installs silently to `%LocalAppData%\FuzzyClock` with no elevation prompt
-- `Update.exe` in the install directory handles upgrades when a new `Setup.exe` is run
-- WPF integration: change `App.xaml` Build Action to `Page`, add `<StartupObject>FuzzyClock.App.App</StartupObject>` to csproj, add a custom `[STAThread] static void Main(string[] args)` to `App.xaml.cs`:
+`AppSettings` uses `{ get; init; }` properties. System.Text.Json deserializes the record natively. The migration safety guarantee: `SettingsService.Load()` reads `DialMode` from `JsonDocument.RootElement.TryGetProperty(...)`, not from the deserialized record object. Removing `public bool DialMode` from the record does not break backward-compat JSON migration.
 
 ```csharp
-[STAThread]
-private static void Main(string[] args)
-{
-    VelopackApp.Build().Run();   // must be first — handles update/install hooks
-    var app = new App();
-    app.InitializeComponent();
-    app.Run();
-}
+// Fields to remove from AppSettings.cs:
+public bool DialMode { get; init; } = false;
+
+// Fields to add to AppSettings.cs:
+public ClockType ClockType   { get; init; } = ClockType.Phrase;
+public bool   LcdUse24Hr     { get; init; } = false;
+public bool   LcdShowSeconds { get; init; } = true;
+public string LcdStyle       { get; init; } = "Dark";
+// LcdSize is NOT persisted — it is derived from FontSize via FontSizeToLcdSize()
 ```
 
-**Single-instance guard (second launch brings window to front):**
+### SettingsSnapshot Record
 
-In `Main`, before `new App()`:
+`SettingsSnapshot` is populated on `SettingsWindow` open; changes flow out via events, never back in.
 
 ```csharp
-var mutex = new Mutex(true, @"Global\FuzzyStatsClock-SingleInstance", out bool isFirstInstance);
-if (!isFirstInstance)
-{
-    // Signal running instance and exit
-    using var client = new NamedPipeClientStream(".", "FuzzyStatsClock", PipeDirection.Out);
-    try { client.Connect(500); new StreamWriter(client).WriteLine("ACTIVATE"); }
-    catch { /* already exiting */ }
-    return;
-}
-GC.KeepAlive(mutex); // prevent GC of mutex for process lifetime
+// Remove from SettingsSnapshot.cs:
+public bool DialMode { get; init; }
+
+// Add to SettingsSnapshot.cs:
+public ClockType ClockType   { get; init; } = ClockType.Phrase;
+public bool   LcdUse24Hr     { get; init; } = false;
+public bool   LcdShowSeconds { get; init; } = true;
+public string LcdStyle       { get; init; } = "Dark";
+public LcdSize LcdSize       { get; init; } = LcdSize.Medium;
 ```
 
-In the running instance (`MainWindow` constructor or `ContentRendered`):
+### SettingsWindow Event Contract
+
+The `SettingsWindow` per-property event model uses `Action<T>?`. The clock style event becomes:
 
 ```csharp
-_ = Task.Run(async () =>
-{
-    while (!_cts.IsCancellationRequested)
-    {
-        using var server = new NamedPipeServerStream("FuzzyStatsClock", PipeDirection.In);
-        await server.WaitForConnectionAsync(_cts.Token);
-        var msg = await new StreamReader(server).ReadLineAsync();
-        if (msg == "ACTIVATE")
-            Dispatcher.Invoke(() => { Show(); Activate(); WindowState = WindowState.Normal; });
-    }
-});
+// Replace:
+public event Action<bool>? DialModeChanged;
+
+// With:
+public event Action<ClockType>? ClockTypeChanged;
+
+// Also add (these are subscribed in MainWindow.OpenSettings() but not yet declared):
+public event Action<bool>?   LcdUse24HrChanged;
+public event Action<bool>?   LcdShowSecondsChanged;
+public event Action<string>? LcdStyleChanged;
+public event Action<bool>?   ShowHourTicksChanged;
+public event Action<bool>?   ShowMinuteDotsChanged;
+public event Action<bool>?   ShowHourNumbersChanged;
 ```
 
-**Edge snapping (snap to screen edges when dragging):**
+`MainWindow.xaml.cs` `OpenSettings()` already contains `_settingsWindow.ClockTypeChanged += ct => { ClearActiveTheme(); SetClockType(ct); };`. This line compiles once `ClockTypeChanged` is declared on `SettingsWindow`.
 
-In `MainWindow` after `HwndSource` is obtained (already done for ghost mode):
+### XAML — BtnNixie Addition
 
-```csharp
-private const int WM_MOVING = 0x0216;
-private const int SnapThreshold = 20; // pixels
-
-// In AddHook callback:
-if (msg == WM_MOVING)
-{
-    var rect = Marshal.PtrToStructure<RECT>(lParam);
-    var screen = Screen.FromHandle(_hwnd).WorkingArea;
-    int w = rect.Right - rect.Left;
-    int h = rect.Bottom - rect.Top;
-
-    if (Math.Abs(rect.Left - screen.Left)   < SnapThreshold) { rect.Left  = screen.Left;                rect.Right  = rect.Left + w; }
-    if (Math.Abs(rect.Top  - screen.Top)    < SnapThreshold) { rect.Top   = screen.Top;                 rect.Bottom = rect.Top + h; }
-    if (Math.Abs(rect.Right  - screen.Right)  < SnapThreshold) { rect.Right  = screen.Right;               rect.Left   = rect.Right - w; }
-    if (Math.Abs(rect.Bottom - screen.Bottom) < SnapThreshold) { rect.Bottom = screen.Bottom;              rect.Top    = rect.Bottom - h; }
-
-    Marshal.StructureToPtr(rect, lParam, true);
-    handled = true;
-    return (IntPtr)1;
-}
-```
-
-`Screen.FromHandle(_hwnd)` is from `System.Windows.Forms` — already available via `UseWindowsForms=true`.
-
-**Settings window visual redesign (dark aesthetic, no third-party library):**
-
-On `SettingsWindow.xaml`:
+The existing Clock Style rail is a `StackPanel` with `BtnPhrase` and `BtnDial`. Add `BtnNixie` as a third button using the same `SegmentButtonStyle`:
 
 ```xml
-<Window ...
-        ThemeMode="Dark"
-        Background="#1E1E1E">
-    <Window.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <!-- Optional: override Fluent brush tokens to match app accent system -->
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
-    </Window.Resources>
-    ...
-</Window>
+<Button x:Name="BtnNixie" Content="Nixie"
+        Style="{StaticResource SegmentButtonStyle}"
+        Click="BtnNixie_Click"/>
 ```
 
-`ThemeMode="Dark"` applies Fluent dark to all standard controls (Button, TabControl, ComboBox, Slider, CheckBox, TextBox) in `SettingsWindow` only. The main overlay window (`MainWindow`) is unaffected because it does not set `ThemeMode`. No `ControlTemplate` rewrites needed for basic dark styling.
+"Nixie" is 5 characters. `SegmentButtonStyle` uses `Padding="12,4"`. The rail width increase fits within the 480px `SettingsWindow` constraint.
+
+### _dialMode Stale Reference Fix
+
+`MainWindow.xaml.cs` line 718 references `_dialMode` which is not a declared field. The semantically correct replacement:
+
+```csharp
+// Current (does not compile):
+if (_dialMode || _currentTextStyle == "Split" || !_phraseWrapEnabled)
+
+// Correct:
+if (_clockType != ClockType.Phrase || _currentTextStyle == "Split" || !_phraseWrapEnabled)
+```
 
 ---
 
-## Version Compatibility
+## What NOT to Add
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| Velopack 0.0.1298 | .NET 5+ (confirmed on NuGet page) / `net10.0-windows` | WPF custom `Main` pattern documented and works on any TFM. |
-| `ThemeMode="Dark"` | `net9.0-windows`, `net10.0-windows` | Introduced in WPF .NET 9. Stable as XAML attribute in .NET 10. Setting from code is experimental (suppress `WPF0001`). |
-| `NamedPipeServerStream` | net-10.0 (confirmed in official .NET 10 API docs) | In `System.IO.Pipes.dll`, no new dependency. |
-| `System.Threading.Mutex` | All .NET versions | No changes in .NET 10. Named system mutexes have been stable since .NET 1.0. |
-| `WM_MOVING` / `HwndSource.AddHook` | `net10.0-windows` | Win32 message; WPF `HwndSource` already used by ghost mode in this codebase. |
-
----
-
-## Integration Points in Existing Code
-
-| Location | Change |
-|----------|--------|
-| `FuzzyClock.App.csproj` | Add `<PackageReference Include="Velopack" Version="0.0.1298" />`; add `<StartupObject>FuzzyClock.App.App</StartupObject>`; change `App.xaml` Build Action to `Page` |
-| `FuzzyClock.App/App.xaml.cs` | Add custom `[STAThread] static void Main(string[] args)` with `VelopackApp.Build().Run()` first; add Mutex + NamedPipe single-instance check; start pipe listener task |
-| `FuzzyClock.App/MainWindow.xaml.cs` | Add `WM_MOVING` case to existing `HwndSource.AddHook` handler for edge snapping |
-| `FuzzyClock.App/SettingsWindow.xaml` | Add `ThemeMode="Dark"` attribute and `Background="#1E1E1E"` to the Window element |
+| Do Not Add | Why | What to Use Instead |
+|------------|-----|---------------------|
+| Any NuGet package | Zero new packages needed for this milestone | Existing BCL + WPF types |
+| New `DialMode`-based migration code in `SettingsService` | Migration already implemented at lines 53–61 | Keep existing code unchanged |
+| New rendering code for Nixie | `NixieClockView` and `NixieDigit` are already complete | Wire existing controls via `SetClockType(ClockType.Nixie)` (already implemented in `MainWindow`) |
+| New timer for Nixie in `MainWindow` | `NixieClockView` manages its own 1s `DispatcherTimer` via `IsVisibleChanged` | Use `Visibility` toggle only |
+| New `ClockType` enum members | Enum already contains `Phrase / Dial / Lcd / Nixie` | Use existing members |
+| `LcdSize` in `AppSettings` | Derived from `FontSize` via `FontSizeToLcdSize()` at runtime | Do not persist; include in `SettingsSnapshot` only |
 
 ---
 
@@ -228,29 +163,29 @@ On `SettingsWindow.xaml`:
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| Velopack per-user install to `%LocalAppData%` | HIGH | Verified directly on docs.velopack.io/packaging/installer — states this explicitly |
-| Velopack WPF custom `Main` integration | HIGH | Verified on docs.velopack.io/getting-started/csharp — exact code pattern documented |
-| Velopack version 0.0.1298 | HIGH | Verified on nuget.org/packages/Velopack — latest stable, published 2025-06-07 |
-| `ThemeMode="Dark"` on Window scope | HIGH | Verified on learn.microsoft.com/dotnet/desktop/wpf/whats-new/net90 — official, with screenshots |
-| Fluent theme available in .NET 10 | HIGH | learn.microsoft.com docs show net10.0 moniker; introduced in .NET 9 which is a prior release |
-| `NamedPipeServerStream` in .NET 10 | HIGH | API docs explicitly list net-10.0 as a supported moniker |
-| Named Mutex for single-instance | HIGH | Official .NET threading docs; established Windows pattern |
-| `WM_MOVING` mutable RECT | HIGH | Official Win32 API docs — "application can change its position" |
-| `Screen.FromHandle` available (UseWindowsForms=true) | HIGH | Already used in existing codebase for ghost mode cursor tracking |
+| No new packages needed | HIGH | All required types exist in BCL, WPF, or existing project files — verified by direct source audit |
+| `SettingsService` migration safety | HIGH | Migration reads `DialMode` from `JsonDocument`, not from deserialized record — verified in `SettingsService.cs` lines 53–61 |
+| `ClockTypeChanged` subscription pre-wired | HIGH | `MainWindow.OpenSettings()` already contains the subscription — verified in source |
+| `NixieClockView` / `NixieDigit` complete | HIGH | Both UserControls exist, are referenced in `MainWindow.xaml`, and handle their own timer lifecycle — verified in source |
+| Missing `SettingsWindow` event declarations | HIGH | `MainWindow.OpenSettings()` subscribes to 6 events not declared on `SettingsWindow` — verified by cross-referencing both files |
+| `_dialMode` is a stale reference / compile error | HIGH | No `_dialMode` field declared in `MainWindow.xaml.cs` field block (lines 15–63) — verified in source |
 
 ---
 
 ## Sources
 
-- https://docs.velopack.io/packaging/installer — Per-user `%LocalAppData%` default, no admin, upgrade behavior (HIGH)
-- https://www.nuget.org/packages/Velopack — Version 0.0.1298, published 2025-06-07 (HIGH)
-- https://docs.velopack.io/getting-started/csharp — WPF custom `Main` integration pattern with exact code (HIGH)
-- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/whats-new/net90 — `ThemeMode`, Fluent dark mode, `.NET 9+`, XAML attribute stable (HIGH)
-- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/styles-templates-overview — `ResourceDictionary.MergedDictionaries` override pattern, `ThemeMode` on Window scope (HIGH)
-- https://learn.microsoft.com/en-us/dotnet/api/system.io.pipes.namedpipeserverstream — net-10.0 moniker confirmed (HIGH)
-- https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-moving — `lParam` is mutable `RECT*`, return TRUE to change position (HIGH)
-- https://learn.microsoft.com/en-us/dotnet/standard/threading/mutexes — Named system Mutex cross-process detection (HIGH)
+All sources are the current codebase — HIGH confidence, verified by direct file inspection.
+
+- `FuzzyClock.App/AppSettings.cs` — `DialMode` field confirmed present; `ClockType` field absent
+- `FuzzyClock.App/SettingsSnapshot.cs` — `DialMode` present; `ClockType` absent
+- `FuzzyClock.App/SettingsWindow.xaml.cs` — `DialModeChanged` event confirmed; `ClockTypeChanged` absent; LCD/dial decoration events absent
+- `FuzzyClock.App/SettingsWindow.xaml` — 2-button Clock Style rail confirmed; `BtnNixie` absent
+- `FuzzyClock.App/MainWindow.xaml.cs` — `_clockType` field present; `ClockTypeChanged` subscription present; `_dialMode` reference at line 718 confirmed stale
+- `FuzzyClock.App/SettingsService.cs` — `DialMode → ClockType` migration at lines 53–61 confirmed; reads from `JsonDocument`, not deserialized record
+- `FuzzyClock.App/ClockType.cs` — `Phrase / Dial / Lcd / Nixie` enum confirmed complete
+- `FuzzyClock.App/Controls/NixieClockView.xaml(.cs)` — UserControl confirmed complete with self-managed `DispatcherTimer`
+- `.planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-RESEARCH.md` — Phase research (HIGH confidence)
 
 ---
-*Stack research for: FuzzyStatsClock v3.3 Polish + Installer*
-*Researched: 2026-03-17*
+*Stack research for: FuzzyStatsClock v3.7 — Nixie Clock Re-introduction*
+*Researched: 2026-03-19*

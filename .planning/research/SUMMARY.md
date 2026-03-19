@@ -1,169 +1,180 @@
 # Project Research Summary
 
-**Project:** FuzzyStatsClock v3.3 — Polish + Installer
-**Domain:** WPF desktop overlay widget — distribution packaging, single-instance UX, edge snapping, settings polish
-**Researched:** 2026-03-17
+**Project:** FuzzyStatsClock v3.7 — Nixie Clock Re-introduction (Phase 57)
+**Domain:** WPF C# desktop overlay widget — settings plumbing migration + Nixie clock type wiring
+**Researched:** 2026-03-19
 **Confidence:** HIGH
 
 ## Executive Summary
 
-FuzzyStatsClock v3.3 is a polish-and-distribution milestone on a mature, well-tested WPF overlay widget (.NET 10, 224 tests, ~1450-line MainWindow). The milestone has four features: a per-user installer that packages the app for normal end-user distribution, a single-instance bring-to-front fix (replacing the current silent-exit behavior), edge snapping when dragging near screen edges, and a dark visual redesign of the settings window. No new NuGet packages are required if Inno Setup is chosen for the installer (the recommendation). All four features are additive and do not touch `FuzzyClock.Core`, `AppSettings`, or `SettingsService`.
+This is a low-complexity, high-confidence settings plumbing milestone. The Nixie rendering layer (`NixieClockView`, `NixieDigit`), the `ClockType` enum, tray menu wiring, and the `SetClockType(ClockType.Nixie)` branch in `MainWindow` are all pre-existing and verified complete. The exclusive work of v3.7 is migrating two data-model records (`AppSettings`, `SettingsSnapshot`) from a `DialMode: bool` representation to a `ClockType: enum` representation, exposing a third "Nixie" button in `SettingsWindow`, and resolving pre-existing compile errors that block the build. Zero new NuGet packages are required. The entire solution delta is confined to eight files across two project assemblies (`FuzzyClock.Core` and `FuzzyClock.App`).
 
-The recommended approach prioritizes the lowest-risk visual work first (settings window redesign), then the self-contained UI improvement (edge snapping), then the distribution artifact (installer + CI step). The single-instance Mutex is already implemented; the only remaining work is adding `AbandonedMutexException` handling and a named-pipe bring-to-front signal. The key architectural decisions are: use **Inno Setup** (not Velopack) for the installer — it requires no app code changes, no custom `Main`, and no new NuGet packages, and the user requirement is simply "download Setup.exe, run it, upgrades in-place"; use **post-DragMove** edge snap (not a WM_MOVING hook) — `DragMove()` is a blocking Win32 modal loop and `HwndSource.AddHook` during it is unreliable, as documented by the project's own ghost mode notes.
+The recommended execution sequence is two sequential waves. Wave 1 establishes the data model: add `GetSegmentKey` to six novelty phrase providers (currently blocking `FuzzyClock.Core` from compiling), remove `AppSettings.DialMode` / `SettingsSnapshot.DialMode`, and add `ClockType` + LCD + dial decoration fields with safe `init` defaults. Wave 2 depends on Wave 1 and delivers the UI: replace `DialModeChanged` with `ClockTypeChanged` on `SettingsWindow`, add the `BtnNixie` button to the Clock Style rail, declare six additional missing events, and fix the stale `_dialMode` reference in `ApplyPhraseWrap`. The project cannot be built or tested in any intermediate state between Wave 1 start and Wave 1 completion — all compile errors must be resolved as a unit.
 
-The dominant risks are: (1) edge snap threshold must be 8px or less — a 16-20px threshold overwrites intentional near-edge placements and conflicts with per-monitor position memory; (2) `UpdateLayout()` must be called before snap computation or the snap position is wrong for variable-width `SizeToContent` windows; (3) the auto-launch registry entry must be reconciled on every startup and cleaned up by the installer on upgrade/uninstall, or users end up with broken startup entries after path changes; (4) styles added during the settings redesign must stay inside `SettingsWindow.xaml`'s `Window.Resources` — any implicit style in `App.xaml` will leak to MainWindow and corrupt the overlay appearance.
+The key risk is cascade breakage when removing `AppSettings.DialMode`: every caller site must be found and updated in the same commit. The pre-existing `SettingsService.Load()` migration is safe because it reads `DialMode` from the raw `JsonDocument` (not the deserialized record), but test code (`STEST-01`) and `ResetToDefaults()` must be audited before deletion. The second risk is declaring only `ClockTypeChanged` and missing the six other events that `MainWindow.OpenSettings()` already subscribes to — these must all be added in a single edit or the project will not compile.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-All v3.3 features use only existing project dependencies or external tools invoked from CI. No new NuGet packages are needed.
+The validated v3.6.1 stack is unchanged: .NET 10 WPF, C# 13, System.Text.Json (BCL), MSTest 4.0.1, Velopack 0.0.1298. No csproj changes and no new NuGet packages are required for this milestone. All required types (`ClockType` enum, `NixieClockView`, `NixieDigit`, `NixieSizeMap`, `SegmentButtonStyle`, `Action<T>`) already exist in the project or the BCL.
 
 **Core technologies:**
-- **Inno Setup 6.x** (standalone `iscc.exe`, not in solution): per-user installer — installs to `{localappdata}\Programs\FuzzyClock`, registers uninstall entry, creates Start Menu shortcut, no UAC; invoked from CI YAML as a post-publish shell step with no `.wixproj` or MSBuild integration
-- **`System.Threading.Mutex` (BCL)**: single-instance guard — already implemented as `"FuzzyClock_SingleInstance_v1"`; add `AbandonedMutexException` catch so crash-restart works
-- **`System.IO.Pipes.NamedPipeServerStream` (BCL)**: bring-to-front IPC — running instance listens on a named pipe; second instance connects, writes `"ACTIVATE"`, exits; server dispatches `Activate()` on UI thread; pure managed code, no P/Invoke
-- **WPF `ThemeMode="Dark"` (PresentationFramework.Fluent, .NET 9+/10)**: dark settings window — XAML attribute on `SettingsWindow` only; applies Fluent dark to all standard controls; main overlay window is unaffected; set as XAML attribute (not from C# code, which generates WPF0001 warning)
-- **Post-DragMove edge snap** (`Screen.FromPoint` + `WorkingArea`, WinForms already available via `UseWindowsForms=true`): snap to screen edges — called in `Grid_MouseLeftButtonDown` after `DragMove()` returns, before `SaveSettings()`
+- **.NET 10 WPF**: UI framework, XAML controls, DispatcherTimer — already validated; no change
+- **C# 13 `init`-property records**: `AppSettings` and `SettingsSnapshot` use `{ get; init; }` — enables safe JSON absent-field defaults on schema upgrade
+- **System.Text.Json (BCL)**: Settings serialization — `SettingsService.Load()` reads raw `JsonDocument` for migration then deserializes the record natively; removing `DialMode` from the record does not break the `TryGetProperty` migration path
+- **MSTest 4.0.1**: 274 tests currently passing; round-trip test `STEST-01` must be updated as part of Wave 1
 
-**What NOT to use:**
-- Velopack: requires a custom `[STAThread] static void Main` with `VelopackApp.Build().Run()`, a csproj NuGet addition, and `App.xaml` Build Action change to `Page` — disproportionate refactor for the stated requirement; Inno Setup delivers the same user experience with zero app code changes
-- WM_MOVING hook for edge snap: fires continuously during `DragMove()`'s modal loop; WPF dispatcher does not process messages normally during the loop; unreliable per the project's own ghost mode documentation
-- `Application.ThemeMode="Dark"` (app-wide): would apply Fluent dark to the transparent frameless main overlay — wrong aesthetic
-- App.xaml `ResourceDictionary` for settings styles: implicit styles leak globally to MainWindow
+**Critical version note:** `LcdSize` must NOT be persisted in `AppSettings` — it is derived at runtime from `FontSize` via `FontSizeToLcdSize()`. It belongs in `SettingsSnapshot` only.
 
 ### Expected Features
 
-**Must have (table stakes):**
-- Per-user installer (no UAC prompt) — every distributed Windows utility ships this way; absence signals unfinished product
-- Uninstall entry in Add/Remove Programs — Windows 11 users expect this; Inno Setup registers it automatically
-- Start Menu shortcut — users expect to launch without hunting for the EXE
-- Single-instance bring-to-front — current silent-exit is wrong for distribution; users re-launch thinking the app crashed
+**Must have (table stakes — all pre-existing, wiring is the work):**
+- Nixie digit display for HH:MM with amber glow — `NixieClockView` + `NixieDigit` already complete
+- Real-time 1s update — `NixieClockView` self-manages its `DispatcherTimer` via `IsVisibleChanged`; no `MainWindow` timer involvement
+- Nixie selectable alongside Phrase and Dial — requires 3-button Settings rail (NIX-02)
+- Selection persists across restarts — requires `AppSettings.ClockType` field (NIX-01)
+- Ghost cathode effect (all 10 digits faintly visible) — already implemented in `NixieDigit.xaml.cs` with four-level opacity system
+- Correct amber-orange palette — hardcoded `#FF8C00` in `NixieDigit.xaml.cs`; must not be overridden by user accent color
+- Stats panel visible below Nixie face — `NixieClockView` occupies Grid Row 0 only; stats rows are unchanged
 
-**Should have (differentiators):**
-- Edge snapping — Rainmeter, all major desktop widgets snap to edges; free-floating widget feels unfinished; 20px threshold from FEATURES.md is overridden — use 8px per PITFALLS.md to avoid overwriting intentional near-edge positions
-- Dark settings window — current light `#F0F0F5` palette clashes severely with a dark transparent overlay; jarring for dark-mode Windows users
+**Should have (differentiators — all pre-existing, no new work required):**
+- Wire mesh texture simulation inside tube — already rendered at 9.4% alpha
+- Glass reflection highlight — already implemented
+- Dark tube fill for depth — `#1A0800 CC` already in `NixieDigit.xaml.cs`
+- Accent color isolation — Nixie face must NOT receive accent color from `ApplyTheme()` / `ApplyDisplayColor()`; requires an explicit audit during NIX-03
 
-**Defer (v3.3.x / v4+):**
-- About section in Settings (version + GitHub URL) — low complexity; add after validation
-- Auto-update notification — requires async HTTP, version comparison, update-available UX; scope for v4+
-- MSIX/Store packaging — only if submitting to Microsoft Store
-- Code-signing certificate — worthwhile when install count grows; not cost-justified at hobby stage
-- SmartScreen guidance — README documentation, not code; add in installer phase
+**Defer (not this phase):**
+- Nixie digit crossfade animation — significant complexity for a widget
+- Nixie 24hr display option — belongs to a future Nixie settings panel
+- LCD clock type surfaced in SettingsWindow — separate future phase
+- Custom Nixie color — explicitly an anti-feature; fixed amber palette is the design contract
 
 ### Architecture Approach
 
-All four v3.3 features fit within the existing component structure without new classes. `MainWindow.xaml.cs` gains one private method (`ApplyEdgeSnap()`). `App.xaml.cs` gains `AbandonedMutexException` handling and a named-pipe listener task. `SettingsWindow.xaml` gets a visual overhaul (XAML-only, no logic changes). A new `installer/FuzzyClockSetup.iss` file is added outside the .NET solution. The CI `release.yml` gains one step after publish.
+The existing architecture is a single-orchestrator pattern: `MainWindow` is the sole source of truth for all runtime state. `SettingsWindow` fires typed `Action<T>?` events per setting change; it never reads back from `MainWindow`. `SettingsSnapshot` is a populate-on-open immutable record that flows in one direction only (out via events). `NixieClockView` is self-contained and activated purely via `Visibility` toggle — `MainWindow` does not manage its timer. This pattern is established and all new work must follow it without deviation.
 
 **Major components:**
-1. `App.xaml.cs` — add `AbandonedMutexException` catch; add named-pipe server task for bring-to-front; second-instance path connects as client and writes `"ACTIVATE"` before exiting
-2. `MainWindow.xaml.cs` — add `private void ApplyEdgeSnap()` called post-DragMove after `_isDragging = false` and after `UpdateLayout()`; uses `Screen.FromPoint` + `WorkingArea`; threshold constant `EdgeSnapThreshold = 8.0`
-3. `SettingsWindow.xaml` — add `ThemeMode="Dark"` XAML attribute; set `Background="#1E1E1E"`; add dark styles for CheckBox, RadioButton, ComboBox, Slider, Button, TabControl/TabItem inside `Window.Resources`; update `SegmentButtonStyle` colors; no changes to `SettingsWindow.xaml.cs`
-4. `installer/FuzzyClockSetup.iss` — Inno Setup script (outside .slnx); per-user install to `{localappdata}\Programs\FuzzyClock`; removes auto-launch Run entry on upgrade/uninstall; version injected via `/DMyAppVersion=` on `iscc` command line
-5. `.github/workflows/release.yml` — add `Build Installer` step (`choco install innosetup` + `iscc`); add `FuzzyClockSetup.exe` to GitHub Release artifacts
+1. `AppSettings` (record) — persistent JSON settings; `DialMode: bool` replaced by `ClockType: ClockType` + LCD fields; `LcdSize` excluded (derived)
+2. `SettingsSnapshot` (record) — populate-on-open snapshot; same field migration as `AppSettings` plus `LcdSize` and dial decoration fields (`ShowHourTicks`, `ShowMinuteDots`, `ShowHourNumbers`)
+3. `SettingsWindow` — fires `ClockTypeChanged` + six previously-missing events; gains `BtnNixie` in Clock Style rail; `SetClockStyleButtonStates` signature changes from `bool` to `ClockType`
+4. `MainWindow` — orchestrator; `OpenSettings()` subscription block and `ApplyPhraseWrap()` are the only two touch points for this phase
+5. `NixieClockView` / `NixieDigit` — pre-existing and complete; activated by `Visibility` toggle; not to be modified
+6. Six novelty providers (`Yoda`, `Jive`, `Pirate`, `Shakespeare`, `Dwarf`, `ValleyGirl`) — missing `GetSegmentKey` implementation; must be added to unblock `FuzzyClock.Core` compilation
+7. `SettingsService` — `DialMode → ClockType` JSON migration already implemented at lines 53–61; no changes needed
 
 ### Critical Pitfalls
 
-1. **Edge snap threshold too aggressive (8px hard limit)** — thresholds of 16-20px overwrite intentional near-edge placements and permanently corrupt per-monitor position memory; define as `private const double EdgeSnapThreshold = 8.0` and never exceed it; the ARCHITECTURE.md threshold of 16px is overridden by PITFALLS.md's analysis — 8px is correct
+1. **Seven events subscribed in `MainWindow.OpenSettings()` but not declared in `SettingsWindow`** — adds all seven (`ClockTypeChanged`, `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged`, `ShowHourTicksChanged`, `ShowMinuteDotsChanged`, `ShowHourNumbersChanged`) in a single pass before any other Wave 2 work; the project cannot compile in any intermediate state with partial declarations.
 
-2. **Edge snap without `UpdateLayout()` first gives wrong right/bottom snap position** — `SizeToContent=WidthAndHeight` means `ActualWidth`/`ActualHeight` are stale until a layout pass; call `UpdateLayout()` synchronously after `DragMove()` returns and before `ApplyEdgeSnap()` reads `ActualWidth`; same pattern already used in `UpdatePhraseIfChanged()`
+2. **`DialMode` removal cascades to undiscovered callers** — grep `\.DialMode` and `DialMode\s*=` across the entire solution before deleting the field; explicitly audit `ResetToDefaults()` and `STEST-01`; fix all sites in one commit; the `SettingsService.Load()` migration at lines 53–61 is safe (reads from `JsonDocument`, not the deserialized record).
 
-3. **Implicit WPF styles added to App.xaml leak globally to MainWindow** — any `Style` with `TargetType` and no `x:Key` in `Application.Resources` applies to every matching element in the entire app including the overlay; all settings redesign styles must stay in `SettingsWindow.xaml`'s `<Window.Resources>` block; never add unkeyed styles to `App.xaml`
+3. **`DialModeChanged` → `ClockTypeChanged` rename requires three atomic changes** — remove the old event declaration, update `BtnPhrase_Click` and `BtnDial_Click` to fire `ClockTypeChanged`, add `BtnNixie_Click`; partial changes produce silent dead code (Phrase/Dial buttons no longer fire anything) or compile errors.
 
-4. **Auto-launch registry entry not reconciled on startup or cleaned up by installer** — `AutoLaunchService` writes the Run entry with the current EXE path; if the install path changes (portable-to-installed or version upgrade), the old entry points to the wrong path; `ApplySettings()` must always call `AutoLaunchService.Enable/Disable` unconditionally (idempotent reconciliation), and the installer must delete the Run entry on upgrade and uninstall
+4. **`GetCurrentSettingsSnapshot()` omitting new fields causes silent UI bug** — `init` defaults silently fill omitted record fields; a snapshot that omits `ClockType` causes the Settings window to show the Phrase button selected even when Nixie is active; verify `ClockType = _clockType` is explicit in the snapshot constructor.
 
-5. **`AbandonedMutexException` not handled — crash leaves app unlaunchable** — if FuzzyClock crashes without releasing the Mutex, the next launch throws `AbandonedMutexException` instead of acquiring the Mutex; the app crashes immediately on every subsequent launch until a reboot; wrap Mutex construction in `try/catch (AbandonedMutexException)` and treat it as `createdNew = true`
+5. **`BtnNixie` XAML element and code-behind handler must be added in the same commit** — WPF does not produce a compile error for a missing named element referenced only in code-behind; the omission produces a `NullReferenceException` at `BtnNixie.Tag` the first time Settings opens.
+
+---
 
 ## Implications for Roadmap
 
-Based on combined research, the recommended build order is determined by risk profile and dependency. Architecture.md and Pitfalls.md independently converge on the same three-phase structure.
+The architecture research has already divided this phase into two sequential waves with a hard dependency between them. Those waves map directly to the recommended roadmap structure. No additional phase decomposition is needed.
 
-### Phase 1: Settings Window Visual Redesign
+### Wave 1 (57-01): Data Model Foundation
 
-**Rationale:** Zero risk to functionality — pure XAML changes with no logic changes to `SettingsWindow.xaml.cs`. Can be reviewed visually and rolled back instantly if anything looks wrong. No dependencies on other v3.3 features. Delivers the most user-visible polish immediately and builds confidence before more complex changes.
-**Delivers:** Dark `SettingsWindow.xaml` with `ThemeMode="Dark"`, `Background="#1E1E1E"`, dark styles for all control types inside `Window.Resources`, updated `SegmentButtonStyle` colors, no behavioral changes.
-**Addresses:** Dark settings window (differentiator feature)
-**Avoids:** Pitfall 6 (styles in `Window.Resources` only, never `App.xaml`), Pitfall 9 (if new controls are added, update `SettingsSnapshot` in the same commit)
+**Rationale:** `FuzzyClock.Core` currently does not compile — the six novelty providers are missing `GetSegmentKey`, blocking the entire build. Additionally, `SettingsWindow` code-behind calls `SetClockStyleButtonStates(s.ClockType)` and `PopulateControls` both read from `SettingsSnapshot` — neither compiles until the record has `ClockType`. Both blockers must be resolved before Wave 2 can compile or be tested in any form.
 
-### Phase 2: Edge Snapping + Single-Instance Bring-To-Front
+**Delivers:** A clean-building solution with the correct data model: `ClockType` + LCD + dial decoration fields in both `AppSettings` and `SettingsSnapshot`; `DialMode` removed from both; `FuzzyClock.Core` compiling; `STEST-01` updated to cover new fields; absent-field test added.
 
-**Rationale:** Both features touch `App.xaml.cs` / `MainWindow.xaml.cs` only, affect no other components, and are independently testable by manual interaction. Grouping them in one phase is efficient. Edge snap is the single-method addition (`ApplyEdgeSnap()`); bring-to-front is the Mutex + named-pipe fix. Neither has CI or installer dependencies.
-**Delivers:** `ApplyEdgeSnap()` private method in `MainWindow.xaml.cs` (post-DragMove, after `UpdateLayout()`, 8px threshold); `AbandonedMutexException` catch in `App.xaml.cs`; named-pipe server task (running instance) + client connection (second instance) for bring-to-front.
-**Addresses:** Edge snapping (differentiator), single-instance bring-to-front (table stakes)
-**Avoids:** Pitfall 3 (AbandonedMutexException crash loop), Pitfall 4 (ghost mode flicker — snap only post-DragMove, never on LocationChanged), Pitfall 5 (UpdateLayout before snap), Pitfall 8 (threshold constant 8px)
+**Addresses:** NIX-01 (AppSettings/SettingsSnapshot migration); NIX-04 partial (novelty provider `GetSegmentKey` build errors)
 
-### Phase 3: Installer + CI Integration
+**Avoids:** Cascade compile errors from `DialMode` removal; `ResetToDefaults()` silent bug; round-trip test gaps
 
-**Rationale:** Depends on a stable, tested published EXE from the prior phases. The installer wraps the artifact — it is the last step before the release. CI changes are verified by running the release workflow on a pre-release tag. Auto-launch registry cleanup must be implemented here to avoid the orphaned-entry pitfall.
-**Delivers:** `installer/FuzzyClockSetup.iss` (Inno Setup script); per-user install to `{localappdata}\Programs\FuzzyClock`; Start Menu shortcut; uninstall entry; auto-launch Run entry cleanup on upgrade/uninstall; `ApplySettings()` idempotent auto-launch reconciliation fix; `.github/workflows/release.yml` updated with installer build step and dual-artifact release; SmartScreen documentation in README.
-**Addresses:** Per-user installer (table stakes), uninstall entry (table stakes), Start Menu shortcut (table stakes)
-**Avoids:** Pitfall 1 (SmartScreen — document workaround before release), Pitfall 2 (orphaned auto-launch entry on upgrade), Pitfall 7 (auto-launch path stale after first install from portable)
+**Files changed:**
+- `FuzzyClock.Core/`: 6 novelty providers — add `GetSegmentKey`
+- `FuzzyClock.App/AppSettings.cs` — remove `DialMode`; add `ClockType` + `LcdUse24Hr` + `LcdShowSeconds` + `LcdStyle`
+- `FuzzyClock.App/SettingsSnapshot.cs` — remove `DialMode`; add `ClockType` + LCD + `ShowHourTicks` + `ShowMinuteDots` + `ShowHourNumbers`
+- Test project — update `STEST-01`; add absent-field test
+
+### Wave 2 (57-02): UI Wiring and Remaining Build Error Resolution
+
+**Rationale:** Depends on Wave 1. Once `SettingsSnapshot.ClockType` exists and `FuzzyClock.Core` compiles, `SettingsWindow` can be updated without cascading errors. The stale `_dialMode` reference and the `DialModeChanged` rename are addressed here, completing NIX-02 (Settings rail), NIX-03 (implicit — Nixie is already wired in `SetClockType`), and NIX-04 (remaining build error: `_dialMode` reference).
+
+**Delivers:** Full solution builds with 0 errors. `BtnNixie` appears in the Settings Clock Style rail. Selecting Nixie activates the tube clock face on the widget and persists across restarts. All seven previously-missing events declared. `DialModeChanged` and `_dialMode` have zero occurrences in the codebase.
+
+**Uses:** Existing `SegmentButtonStyle`, `Action<ClockType>` event pattern, `Visibility`-toggle clock face switch pattern
+
+**Implements:** SettingsWindow 3-button rail; completes the `MainWindow` → `SettingsWindow` → `NixieClockView` data flow
+
+**Files changed:**
+- `FuzzyClock.App/SettingsWindow.xaml` — add `BtnNixie` to Clock Style `StackPanel`
+- `FuzzyClock.App/SettingsWindow.xaml.cs` — replace `DialModeChanged` with `ClockTypeChanged`; add 6 missing event declarations; update `SetClockStyleButtonStates(ClockType)`, `PopulateControls`, `BtnPhrase_Click`, `BtnDial_Click`; add `BtnNixie_Click`
+- `FuzzyClock.App/MainWindow.xaml.cs` — fix `_dialMode` reference in `ApplyPhraseWrap` (line ~718)
 
 ### Phase Ordering Rationale
 
-- **Settings redesign first** — zero functional risk; pure visual; gives the milestone a visual win immediately; any XAML mistake is immediately visible and easily reverted without affecting any other code path
-- **Edge snap + single-instance second** — both are self-contained `MainWindow`/`App` changes; neither requires a stable build artifact; can be verified by manual interaction within minutes of implementation; single-instance bring-to-front adds named-pipe code that is best verified before packaging
-- **Installer last** — depends on a stable EXE to wrap; auto-launch cleanup is a prerequisite that is also resolved in this phase; CI changes are the highest-ceremony changes and should happen after all code is stable
-- **Single-instance Mutex is already done** — only the crash-recovery (`AbandonedMutexException`) and bring-to-front (named pipe) increments are needed; these are small additions in Phase 2
+- **Wave 1 before Wave 2 is a hard dependency:** `SettingsWindow` code-behind will not compile until `SettingsSnapshot.ClockType` exists. Attempting Wave 2 changes without Wave 1 complete is impossible.
+- **Novelty providers are the absolute first change:** They block `FuzzyClock.Core` from building entirely, which prevents any test run or incremental verification of other changes.
+- **All `DialMode` deletions and callers must be fixed in a single commit:** Any intermediate state where the property is deleted but a caller remains is an unbuildable repo.
+- **XAML button addition and code-behind handler must ship in the same commit:** Omitting the XAML element causes a `NullReferenceException` only at Settings window open time, not at compile time.
 
 ### Research Flags
 
-Phases with well-documented patterns — skip `/gsd:research-phase`:
-- **Phase 1 (Settings visual redesign):** Pure XAML color changes on an existing window with an established style structure; `ThemeMode="Dark"` is officially documented; all patterns are known
-- **Phase 2 (Edge snap + single-instance):** Post-DragMove snap is a one-method addition; Mutex + NamedPipe bring-to-front is a well-documented .NET pattern (~40 lines); no external APIs
-- **Phase 3 (Installer):** Inno Setup is mature with comprehensive documentation; CI step pattern (`choco install` + `iscc`) is established; no novel integration
+Phases with standard, well-documented patterns — skip `/gsd:research-phase` for both waves:
+- **Wave 1 (data model):** `init`-property record field addition/removal is a standard C# pattern; `GetSegmentKey` delegation is a one-line implementation already specified in the architecture doc; JSON migration safety is verified by direct line inspection.
+- **Wave 2 (UI wiring):** `SegmentButtonStyle` is already applied to existing buttons; `Action<T>?` event pattern matches the existing six events; the XAML addition is a single `<Button>` element following an established template.
 
-No phases require `/gsd:research-phase` — all patterns are fully specified in STACK.md and ARCHITECTURE.md with exact code samples.
+No waves require external research. All implementation patterns are fully specified in STACK.md, ARCHITECTURE.md, and PITFALLS.md with exact code samples and line numbers.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All technologies are built-in BCL/WPF or standalone CLI tools; verified against official docs; Inno Setup conflict resolved to known-good approach |
-| Features | HIGH | Installer/single-instance/edge-snap are well-established patterns; settings dark theme is officially documented via ThemeMode; SmartScreen behavior is HIGH confidence |
-| Architecture | HIGH | Derived from direct codebase source reading; all integration points identified by name and line; no speculative architectural changes |
-| Pitfalls | HIGH | All 9 pitfalls grounded in direct source inspection of App.xaml.cs, MainWindow.xaml.cs, GhostModeController.cs, SettingsWindow.xaml; prior-milestone regressions documented |
+| Stack | HIGH | All verified by direct source audit; zero new packages confirmed; no csproj changes needed |
+| Features | HIGH | All findings from codebase inspection + UI-SPEC + phase research; no external sources required |
+| Architecture | HIGH | Component boundaries, data flow, and build order verified by cross-referencing all affected files with exact line numbers |
+| Pitfalls | HIGH | Every pitfall verified by exact file path and line number in source; no speculation |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Edge snap threshold conflict resolved:** STACK.md and ARCHITECTURE.md suggest 16-20px; PITFALLS.md analysis (per-monitor position memory corruption) requires 8px maximum. **Resolution: use 8px.** This is the correct value for intentional-snap sensitivity without overwriting near-edge placements.
+- **Accent color isolation — verification required during NIX-03:** `ApplyTheme()` and `ApplyDisplayColor()` must be audited to confirm `NixieClockView` is not included in any accent-element iteration loop. Research expects this to be safe (Nixie controls were not in the known accent element lists at time of audit), but the check must be explicit before NIX-03 can be closed.
 
-- **Installer technology conflict resolved:** STACK.md recommends Velopack (requires custom `Main`, NuGet package, App.xaml Build Action change); FEATURES.md and ARCHITECTURE.md recommend Inno Setup (no app code changes). **Resolution: Inno Setup.** The user requirement is "download Setup.exe, run it, upgrades in-place" — Inno Setup delivers this without any app code changes. Velopack's Main refactor is disproportionate.
+- **`ResetToDefaults()` — confirm no stale `DialMode` reference:** Research flagged this as a likely caller site for `DialMode` but did not confirm by exact line number. Must be verified as the first check of NIX-01 field deletion, not assumed safe.
 
-- **SmartScreen — accept and document:** No code-signing certificate is planned for v3.3. The SmartScreen "Unknown Publisher" warning is accepted; README must document "More info → Run anyway" before the release. This is a documentation task in Phase 3, not a code gap.
+- **`NixieClockView` timer stop-on-collapse — verify before NIX-03 wiring:** Research expects the `IsVisibleChanged` handler to stop the timer when `IsVisible == false`. This must be confirmed by reading `NixieClockView.xaml.cs` before `SetClockType(ClockType.Nixie)` is exercised, to prevent the double-start pitfall (Pitfall 12).
 
-- **Named-pipe bring-to-front vs. silent exit:** ARCHITECTURE.md initially states that silent exit is correct for a widget that is "always visible." This is overridden: a widget in ghost mode (Opacity=0) or minimized to tray is not visible, and users re-launching it expect it to reactivate. The named-pipe bring-to-front is the correct v3.3 behavior.
-
-- **`SettingsSnapshot` coverage for redesign:** Phase 1 is a visual-only redesign with no new controls. If no new controls are added, `SettingsSnapshot` does not need updating. If a new control is added (e.g., About section), `SettingsSnapshot` must be updated in the same commit.
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
 
-- `FuzzyClock.App/App.xaml.cs` — Mutex implementation (lines 13-24); `OnExit` mutex release; `AbandonedMutexException` handling absent (confirmed gap)
-- `FuzzyClock.App/MainWindow.xaml.cs` — `Grid_MouseLeftButtonDown` drag flow; `DragMove()` call; `_isDragging` flag; `LocationChanged` handler; `UpdateLayout()` usage in `UpdatePhraseIfChanged()`; `Screen.FromPoint` usage
-- `FuzzyClock.App/SettingsWindow.xaml` — `Window.Resources` structure; `SegmentButtonStyle` with `DataTrigger` on `Tag`; all `x:Name` attributes
-- `FuzzyClock.App/GhostModeController.cs` — 75ms restore timer; `GetCursorPos` + `GetWindowRect` pattern
-- `FuzzyClock.App/App.xaml` — `<Application.Resources />` confirmed empty
-- `.planning/PROJECT.md` — v2.3 ghost mode: DragMove modal loop unreliability; `WS_EX_TRANSPARENT` patterns
-- `.github/workflows/release.yml` — existing pipeline steps (restore/test/publish/release)
-- https://learn.microsoft.com/en-us/dotnet/desktop/wpf/whats-new/net90 — `ThemeMode="Dark"`, Fluent dark mode, Window-scoped XAML attribute stable in .NET 9+/10
-- https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-moving — lParam is mutable RECT*; however post-DragMove is preferred over WM_MOVING hook per architecture analysis
-- https://learn.microsoft.com/en-us/dotnet/api/system.io.pipes.namedpipeserverstream — net-10.0 moniker confirmed
-- https://learn.microsoft.com/en-us/dotnet/standard/threading/mutexes — Named system Mutex cross-process detection; AbandonedMutexException behavior
+All findings are from direct source audit of the current codebase.
 
-### Secondary (MEDIUM confidence)
-
-- Inno Setup 6 documentation (https://jrsoftware.org/ishelp/) — per-user install path `{localappdata}\Programs`; uninstall entry registration; upgrade behavior
-- Edge snap threshold 20px — Rainmeter community-documented default; overridden to 8px by per-monitor-position-memory analysis
-- SmartScreen reputation (~5 installs to clear) — community-documented observation; Microsoft does not publish exact threshold
-
-### Tertiary (LOW confidence)
-
-- SmartScreen clearance timing — "weeks to months" for OV certificate reputation building; no official Microsoft publication on exact timeline
+- `FuzzyClock.App/MainWindow.xaml.cs` — clock type wiring, `OpenSettings()` subscriptions (lines 460–481), `ApplySettings()` Nixie branch (line 272), `SaveSettings()` (line 557), `GetCurrentSettingsSnapshot()` (line 412), `ApplyPhraseWrap()` stale `_dialMode` reference (line 718)
+- `FuzzyClock.App/AppSettings.cs` — `DialMode` field confirmed present; `ClockType` absent
+- `FuzzyClock.App/SettingsSnapshot.cs` — `DialMode` field confirmed present; `ClockType` absent
+- `FuzzyClock.App/SettingsWindow.xaml.cs` — event declarations audited (lines 22–48); `DialModeChanged` present; seven events absent; `PopulateControls` reads `s.DialMode` at line 79
+- `FuzzyClock.App/SettingsWindow.xaml` — 2-button Clock Style rail (Phrase / Dial) confirmed; `BtnNixie` absent
+- `FuzzyClock.App/SettingsService.cs` — `DialMode → ClockType` migration at lines 53–61; reads from raw `JsonDocument` via `TryGetProperty`, not from deserialized record
+- `FuzzyClock.App/ClockType.cs` — `Phrase / Dial / Lcd / Nixie` enum confirmed complete
+- `FuzzyClock.App/TrayMenuBuilder.cs` — `_nixieClockItem` wired to `SetClockType(ClockType.Nixie)` confirmed
+- `FuzzyClock.App/Controls/NixieClockView.xaml.cs` — self-contained 1s timer via `IsVisibleChanged` confirmed
+- `FuzzyClock.App/Controls/NixieDigit.xaml.cs` — amber palette, ghost cathode four-level opacity, wire mesh texture, glass highlight confirmed
+- `FuzzyClock.App/NixieSize.cs` — `NixieSizeMap.ToDigitHeight`: Small=40, Medium=56, Large=72 confirmed
+- `.planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-RESEARCH.md` — primary phase research; full source audit
+- `.planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-UI-SPEC.md` — UI design contract; accent isolation spec
+- `.planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-01-PLAN.md` — Wave 1 task specification
+- `.planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-02-PLAN.md` — Wave 2 task specification
+- `.planning/PROJECT.md` — validated requirements NIX-01 through NIX-04
 
 ---
-*Research completed: 2026-03-17*
+*Research completed: 2026-03-19*
 *Ready for roadmap: yes*
