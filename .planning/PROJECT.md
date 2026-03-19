@@ -20,6 +20,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**Phase 57 complete: 2026-03-19** — Nixie clock re-introduced: `ClockType` enum replaces `DialMode bool` across `AppSettings`/`SettingsSnapshot`; SettingsWindow has 3-button Clock Style rail (Phrase/Dial/Nixie); `ClockTypeChanged` event wired to `SetClockType`; all 6 novelty phrase providers implement `GetSegmentKey`; solution builds with 0 errors, 298 tests pass
+
 **v3.6.1 shipped: 2026-03-19** — AutoContrast and BackdropAlwaysVisible stable over empty desktop; `HasAppWindowBeneath` Z-order walk guard in `ContrastRefreshController.Tick` skips sampling when only shell windows (Progman/WorkerW/SysListView32) are beneath the widget, eliminating contrast oscillation feedback loop
 
 **v3.6 shipped: 2026-03-18** — Settings Appearance tab fully visible within 480×600 window; compact theme cards; tighter inter-section spacing
