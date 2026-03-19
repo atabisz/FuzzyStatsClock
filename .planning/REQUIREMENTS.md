@@ -8,8 +8,8 @@
 ### Clock Type Migration
 
 - [x] **NIX-01**: `AppSettings` and `SettingsSnapshot` use `ClockType` enum instead of `DialMode` bool; LCD fields added; JSON migration preserves existing dial/phrase preferences on upgrade
-- [ ] **NIX-02**: `SettingsWindow` exposes a 3-button Clock Style rail (Phrase / Dial / Nixie) with `ClockTypeChanged` event; all 7 missing event declarations added (`ClockTypeChanged`, `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged`, `ShowHourTicksChanged`, `ShowMinuteDotsChanged`, `ShowHourNumbersChanged`)
-- [ ] **NIX-03**: Selecting Nixie in Settings activates the Nixie tube clock face on the widget; `_clockType` field drives all clock-type branching in `MainWindow`
+- [x] **NIX-02**: `SettingsWindow` exposes a 3-button Clock Style rail (Phrase / Dial / Nixie) with `ClockTypeChanged` event; all 7 missing event declarations added (`ClockTypeChanged`, `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged`, `ShowHourTicksChanged`, `ShowMinuteDotsChanged`, `ShowHourNumbersChanged`)
+- [x] **NIX-03**: Selecting Nixie in Settings activates the Nixie tube clock face on the widget; `_clockType` field drives all clock-type branching in `MainWindow`
 
 ### Build Integrity
 
@@ -40,8 +40,8 @@
 |-------------|-------|--------|
 | NIX-01 | Phase 58 | Complete |
 | NIX-04 (GetSegmentKey errors) | Phase 58 | Pending |
-| NIX-02 | Phase 59 | Pending |
-| NIX-03 | Phase 59 | Pending |
+| NIX-02 | Phase 59 | Complete |
+| NIX-03 | Phase 59 | Complete |
 | NIX-04 (stale _dialMode reference) | Phase 59 | Pending |
 | BACK-05 | Phase 59 | Pending |
 

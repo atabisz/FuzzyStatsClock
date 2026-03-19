@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Nixie Clock
-status: executing
-stopped_at: Completed 57-01-PLAN.md
-last_updated: "2026-03-19T01:57:00Z"
+status: complete
+stopped_at: Completed 57-02-PLAN.md
+last_updated: "2026-03-19T02:02:11Z"
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 57 — re-introduce-nixie-into-the-new-architecture
+**Current focus:** Phase 57 — COMPLETE
 
 ## Current Position
 
-Phase: 57 (re-introduce-nixie-into-the-new-architecture) — EXECUTING
+Phase: 57 (re-introduce-nixie-into-the-new-architecture) — COMPLETE
 Plan: 2 of 2
 
 ## Accumulated Context
@@ -42,19 +42,23 @@ Plan: 2 of 2
 - Tray menu already wires a Nixie item via _nixieClockItem → SetClockType(ClockType.Nixie)
 - SettingsService.Load() already performs the JSON dialMode:true → ClockType.Dial migration (lines 53–61)
 - Phase 57 plans at .planning/phases/57-re-introduce-nixie-into-the-new-architecture/ are prior art for Phase 58-59
-- Phase 58 covers Wave 1 (NIX-01 + NIX-04 partial); Phase 59 covers Wave 2 (NIX-02, NIX-03, NIX-04 remaining, BACK-05)
-- Hard dependency: Phase 58 must complete before Phase 59 can compile
 
 ### Decisions from 57-01
 
 - DialMode bool removed from AppSettings and SettingsSnapshot; ClockType enum is the single source of truth for clock view selection
 - ApplyPhraseWrap guard: _clockType != ClockType.Phrase replaces _dialMode (semantically equivalent)
-- SettingsWindow.PopulateControls: s.ClockType == ClockType.Dial replaces s.DialMode
+- SettingsWindow.PopulateControls: s.ClockType used directly (SetClockStyleButtonStates accepts ClockType)
+
+### Decisions from 57-02
+
+- ClockTypeChanged replaces DialModeChanged — single Action<ClockType> event covers all 4 clock modes
+- 6 LCD/dial-decoration events declared as stubs in SettingsWindow to satisfy MainWindow subscriptions; full LCD UI wired in future plan
+- _dialMode fix in MainWindow was already committed in Plan 01; Task 2 of Plan 02 was verification only
 
 ### Pending Todos
 
 - Japanese phrase naturalness is medium confidence; native-speaker review recommended (not blocking).
-- FuzzyClock.App has 7 remaining build errors (pre-existing SettingsWindow event stubs): ClockTypeChanged, LcdUse24HrChanged, LcdShowSecondsChanged, LcdStyleChanged, ShowHourTicksChanged, ShowMinuteDotsChanged, ShowHourNumbersChanged — addressed by Plan 02.
+- 6 LCD/dial-decoration events in SettingsWindow are declared stubs; need UI wiring in a future plan for LCD and dial settings.
 
 ### Blockers/Concerns
 
@@ -63,5 +67,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-19
-Stopped at: Completed 57-01-PLAN.md
+Stopped at: Completed 57-02-PLAN.md
 Resume file: None
