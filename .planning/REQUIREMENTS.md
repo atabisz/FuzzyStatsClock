@@ -37,4 +37,4 @@ None deferred.
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initial definition*
+*Last updated: 2026-03-19 — traceability confirmed after roadmap creation*
