@@ -209,7 +209,7 @@ Plans:
 | 54. Backdrop Enhancement | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 55. Poetic Hour Hints | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 56. Settings Window Layout Redesign | v3.6 | 1/1 | Complete | 2026-03-18 |
-| 57. Contrast Flicker Fix | v3.6.1 | 1/1 | Complete | 2026-03-19 |
+| 57. Contrast Flicker Fix | v3.6.1 | Complete    | 2026-03-19 | 2026-03-19 |
 
 ---
 *Last updated: 2026-03-19 — Phase 57 complete; milestone v3.6.1 shipped*
