@@ -3,6 +3,21 @@ gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Settings Layout Fix
 status: completed
+stopped_at: Phase 57 UI-SPEC approved
+last_updated: "2026-03-19T00:30:18.687Z"
+last_activity: 2026-03-18 — Completed 56-01-PLAN.md (Appearance tab compacted)
+progress:
+  total_phases: 3
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 3
+---
+
+---
+gsd_state_version: 1.0
+milestone: v3.6
+milestone_name: Settings Layout Fix
+status: completed
 stopped_at: Completed 56-01-PLAN.md
 last_updated: "2026-03-18T09:35:14.633Z"
 last_activity: 2026-03-18 — Completed 56-01-PLAN.md (Appearance tab compacted)
@@ -35,6 +50,7 @@ Progress: [██████████] 100%
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed this milestone: 1
 - Prior milestone (v3.5): 12 plans, 8 phases
 
@@ -66,6 +82,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-18T09:29:18.703Z
-Stopped at: Completed 56-01-PLAN.md
-Resume file: None
+Last session: 2026-03-19T00:30:18.684Z
+Stopped at: Phase 57 UI-SPEC approved
+Resume file: .planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-UI-SPEC.md

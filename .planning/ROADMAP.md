@@ -26,7 +26,7 @@
 - **v3.1 Quality + Battery** (2026-03-08) — Battery stat row, DateFormatter extraction with tests, AppSettings round-trip coverage, README accuracy pass. 4 phases, 6 plans. → [Archive](milestones/v3.1-ROADMAP.md)
 - **v3.2 Expanded Experience** (2026-03-09) — Settings window (3-tab), named themes, battery low alert, English phrase style personalities, multilingual phrases. 7 phases (41–47), 16 plans. → [Archive](milestones/v3.2-ROADMAP.md)
 - ✅ **v3.5 Phrase Wrap + Installer** (2026-03-18) — Dark-mode Settings, edge snapping, IPC fixes, Inno Setup installer, CI release pipeline, phrase wrapping, backdrop enhancement, poetic hour hints. 8 phases (48–55), 12 plans. → [Archive](milestones/v3.5-ROADMAP.md)
-- 🚧 **v3.6 Settings Layout Fix** — Appearance tab fully visible within 480×600 window; compact theme cards; tighter spacing. 1 phase (56). In progress.
+- 🚧 **v3.6 Settings Layout Fix** — Appearance tab fully visible within 480×600 window; compact theme cards; tighter spacing; Nixie clock type in Settings. 2 phases (56–57). In progress.
 
 ## Phases
 
@@ -130,7 +130,7 @@
 
 ### 🚧 v3.6 Settings Layout Fix (In Progress)
 
-**Milestone Goal:** The Appearance tab is fully visible within the existing 480×600 Settings window without clipping; Stats and Behavior tabs are unaffected.
+**Milestone Goal:** The Appearance tab is fully visible within the existing 480×600 Settings window without clipping; Stats and Behavior tabs are unaffected. Nixie clock type selectable from Settings.
 
 #### Phase 56: Settings Window Layout Redesign
 
@@ -145,7 +145,23 @@
 **Plans**: 1 plan
 
 Plans:
-- [ ] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
+- [x] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
+
+#### Phase 57: Re-introduce Nixie into the New Architecture
+
+**Goal**: Nixie tube clock face is selectable from the Settings window Clock Style rail; DialMode bool replaced with ClockType enum throughout the settings plumbing; project compiles clean
+**Depends on**: Phase 56
+**Requirements**: NIX-01, NIX-02, NIX-03, NIX-04
+**Success Criteria** (what must be TRUE):
+  1. AppSettings persists ClockType as an enum (Phrase/Dial/Lcd/Nixie) instead of DialMode bool
+  2. SettingsWindow Clock Style rail shows three buttons: Phrase, Dial, Nixie
+  3. Clicking Nixie in Settings activates the Nixie tube clock face on the desktop widget
+  4. The entire solution compiles with 0 errors (including pre-existing GetSegmentKey and _dialMode fixes)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 57-01: Fix pre-existing build errors and migrate AppSettings/SettingsSnapshot to ClockType enum
+- [ ] 57-02: Wire ClockTypeChanged event in SettingsWindow and fix MainWindow stale references
 
 ## Phase Details
 
@@ -161,7 +177,22 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
+- [x] 56-01: Compact theme cards and tighten Appearance tab spacing in SettingsWindow.xaml
+
+### Phase 57: Re-introduce Nixie into the New Architecture
+**Goal**: Nixie tube clock face is selectable from the Settings window Clock Style rail; DialMode bool replaced with ClockType enum throughout the settings plumbing; project compiles clean
+**Depends on**: Phase 56
+**Requirements**: NIX-01, NIX-02, NIX-03, NIX-04
+**Success Criteria** (what must be TRUE):
+  1. AppSettings persists ClockType as an enum (Phrase/Dial/Lcd/Nixie) instead of DialMode bool
+  2. SettingsWindow Clock Style rail shows three buttons: Phrase, Dial, Nixie
+  3. Clicking Nixie in Settings activates the Nixie tube clock face on the desktop widget
+  4. The entire solution compiles with 0 errors (including pre-existing GetSegmentKey and _dialMode fixes)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 57-01: Fix pre-existing build errors and migrate AppSettings/SettingsSnapshot to ClockType enum
+- [ ] 57-02: Wire ClockTypeChanged event in SettingsWindow and fix MainWindow stale references
 
 ## Progress
 
@@ -200,17 +231,8 @@ Plans:
 | 53. Fix Phrase Update Rate | v3.5 | 2/2 | Complete | 2026-03-18 |
 | 54. Backdrop Enhancement | v3.5 | 1/1 | Complete | 2026-03-18 |
 | 55. Poetic Hour Hints | v3.5 | 1/1 | Complete | 2026-03-18 |
-| 56. Settings Window Layout Redesign | 1/1 | Complete    | 2026-03-18 | - |
-
-### Phase 57: re-introduce Nixie into the new architecture
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 56
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 57 to break down)
+| 56. Settings Window Layout Redesign | v3.6 | 1/1 | Complete | 2026-03-18 |
+| 57. Re-introduce Nixie | v3.6 | 0/2 | Planned | - |
 
 ---
-*Last updated: 2026-03-18 — v3.6 roadmap created*
+*Last updated: 2026-03-19 — Phase 57 planned*
