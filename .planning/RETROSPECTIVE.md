@@ -4,6 +4,42 @@
 
 ---
 
+## Milestone: v3.6.1 — Contrast Flicker Fix
+
+**Shipped:** 2026-03-19
+**Phases:** 1 (57) | **Plans:** 1
+
+### What Was Built
+- `HasAppWindowBeneath` private static helper in `ContrastRefreshController`: Z-order walk from `GetWindow(widgetHwnd, GW_HWNDNEXT)`, checking `IsWindowVisible`, rect overlap, and class name against shell whitelist (Progman, WorkerW, SysListView32)
+- Guard in `Tick` that skips BitBlt sampling and holds `_contrastState` stable when only shell windows are beneath — eliminates oscillation feedback loop over empty desktop
+- `Overlaps` helper: four-inequality RECT intersection with no extra P/Invoke surface
+- FIX-01, FIX-02, FIX-03 human-verified; 274 tests pass, 0 regressions
+
+### What Worked
+- Root cause analysis was precise: the oscillation was a feedback loop — backdrop sampling its own backdrop — resolved by detecting "no app window beneath" rather than patching sampling values
+- Z-order walk seeded from the widget's next Z-peer (GW_HWNDNEXT) is the correct "what's below me" pattern and was clean to implement
+- Single-file change (`ContrastRefreshController.cs`) with no interface changes or refactoring — true surgical fix
+- Human-verify checkpoint confirmed all three requirements before completion
+
+### What Was Inefficient
+- None notable — small focused milestone with clear requirements and a single implementation path
+
+### Patterns Established
+- `HasAppWindowBeneath` Z-order walk pattern: seed with `GetWindow(widgetHwnd, GW_HWNDNEXT)` to skip widget; iterate via `GW_HWNDNEXT`; check `IsWindowVisible` + `Overlaps` + `GetClassName` shell whitelist
+- Hold `_contrastState` stable (return without mutation) when sampling should be skipped — preserves hysteresis state from prior valid samples
+
+### Key Lessons
+1. When a feature oscillates, look for a feedback loop before tuning thresholds — the flicker was caused by the contrast sampler reading its own backdrop color
+2. Shell window class whitelist (Progman, WorkerW, SysListView32) is a stable fingerprint for "empty desktop" detection on Windows
+3. Z-order walk is simple and reliable for "what's beneath this window" detection — no hooking or event subscription needed
+
+### Cost Observations
+- Model mix: 100% sonnet
+- Sessions: 1
+- Notable: entire fix (research → plan → implement → test → human-verify) completed in under 1 hour
+
+---
+
 ## Milestone: v3.5 — Phrase Wrap + Installer
 
 **Shipped:** 2026-03-18
@@ -59,6 +95,7 @@
 | v2.5 | 3 | 3 | CI gate + test extraction patterns |
 | v3.2 | 7 | 16 | Settings window + multilingual — largest milestone to date |
 | v3.5 | 8 | 12 | Installer + CI pipeline shipped; wave parallelism at scale |
+| v3.6.1 | 1 | 1 | Surgical single-file fix; Z-order walk pattern established |
 
 ### Cumulative Quality
 
@@ -68,6 +105,7 @@
 | v3.1 | 122 | Battery + DateFormatter coverage |
 | v3.2 | 224 | PhraseEngine + settings coverage |
 | v3.5 | 274 | Wrap, segment-key, poetic coverage |
+| v3.6.1 | 274 | No new tests; existing suite confirmed no regression |
 
 ### Top Lessons (Verified Across Milestones)
 

@@ -1,26 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.6
-milestone_name: Settings Layout Fix
-status: completed
-stopped_at: Phase 57 UI-SPEC approved
-last_updated: "2026-03-19T00:30:18.687Z"
-last_activity: 2026-03-18 — Completed 56-01-PLAN.md (Appearance tab compacted)
-progress:
-  total_phases: 3
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 3
----
-
----
-gsd_state_version: 1.0
-milestone: v3.6
-milestone_name: Settings Layout Fix
-status: completed
-stopped_at: Completed 56-01-PLAN.md
-last_updated: "2026-03-18T09:35:14.633Z"
-last_activity: 2026-03-18 — Completed 56-01-PLAN.md (Appearance tab compacted)
+milestone: v1.0
+milestone_name: milestone
+status: between_milestones
+stopped_at: Milestone v3.6.1 archived — ready for next milestone
+last_updated: "2026-03-19T00:39:06.428Z"
+last_activity: 2026-03-19 — Plan 57-01 complete (FIX-01, FIX-02, FIX-03 verified)
 progress:
   total_phases: 1
   completed_phases: 1
@@ -33,44 +18,53 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-18)
+See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 56 — Settings Window Layout Redesign
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 56 of 56 (Settings Window Layout Redesign)
-Plan: 1 of 1 in current phase
-Status: Complete
-Last activity: 2026-03-18 — Completed 56-01-PLAN.md (Appearance tab compacted)
+Phase: 57 of 57 (Contrast Flicker Fix)
+Plan: 1 of 1 in current phase — COMPLETE
+Status: All tasks complete; human-verify checkpoint approved
+Last activity: 2026-03-19 — Plan 57-01 complete (FIX-01, FIX-02, FIX-03 verified)
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
+- Total plans completed: 1 (this milestone)
+- Average duration: ~8 min
+- Total execution time: ~8 min
 
-- Total plans completed this milestone: 1
-- Prior milestone (v3.5): 12 plans, 8 phases
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 57-contrast-flicker-fix | 01 | 8min | 2 | 1 |
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
-### Decisions
-
-- v3.6 scope: condense Appearance tab layout only; no ScrollViewer, no tab reorganization, no resizable window
-- Out of scope: moving controls between tabs; only compact and tighten existing layout
-- [Phase 56-settings-window-layout-redesign]: Theme cards reduced 64px to 40px; spacing follows 4px grid (section gaps 14→8, header bottom 6→4)
-
-### Carried from v3.5
+### Carried from v3.6
 
 - SettingsWindow uses ThemeMode="Dark"; zero style leakage to MainWindow
 - 274 MSTest tests (249 Core + 25 App), 0 failures
-- Settings window is 480×600; Appearance tab has theme preset cards that consume excessive vertical space
+- Settings window is 480×600; Appearance tab compacted (theme cards 40px, 4px grid spacing)
 
-### Roadmap Evolution
+### Known Context for Phase 57
 
-- Phase 57 added: re-introduce Nixie into the new architecture
+- `ContrastSamplerService` uses BitBlt to sample the screen under the widget footprint every 500ms
+- Over empty desktop, the sampled color may alternate between the desktop background color and the widget's own rendered color, causing the contrast threshold to flip back and forth
+- `BackdropAlwaysVisible` renders a semi-transparent backdrop; when AutoContrast samples this backdrop it may see its own dark color and flip to white, then sample white text and flip back — the loop causes the flicker
+- The fix must not alter the public interface of `ContrastService` or `ContrastSamplerService` in ways that break existing tests
+
+### Phase 57 Decisions (Plan 01)
+
+- Z-order walk guard: skip ContrastSamplerService.Sample entirely when only Progman/WorkerW/SysListView32 beneath widget; hold _contrastState stable (no mutation on skip)
+- _hwnd stored in ContrastRefreshController.Initialize via WindowInteropHelper; stable for widget lifetime
+- Manual RECT overlap (4 inequalities) preferred over IntersectRect to minimize P/Invoke surface
 
 ### Pending Todos
 
@@ -82,6 +76,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T00:30:18.684Z
-Stopped at: Phase 57 UI-SPEC approved
-Resume file: .planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-UI-SPEC.md
+Last session: 2026-03-19
+Stopped at: Completed 57-01-PLAN.md — all 3 tasks done; milestone v3.6.1 complete
