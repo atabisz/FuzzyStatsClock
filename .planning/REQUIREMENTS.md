@@ -7,9 +7,9 @@
 
 ### Contrast Flicker
 
-- [ ] **FIX-01**: When AutoContrast is enabled and the widget sits over an empty desktop (no application window beneath), displayed colors remain stable — no oscillation or flicker
-- [ ] **FIX-02**: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker
-- [ ] **FIX-03**: AutoContrast continues to correctly switch text to black/white when the widget is over an application window (no regression)
+- [x] **FIX-01**: When AutoContrast is enabled and the widget sits over an empty desktop (no application window beneath), displayed colors remain stable — no oscillation or flicker
+- [x] **FIX-02**: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker
+- [x] **FIX-03**: AutoContrast continues to correctly switch text to black/white when the widget is over an application window (no regression)
 
 ## Future Requirements
 
@@ -25,9 +25,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FIX-01 | Phase 57 | Pending |
-| FIX-02 | Phase 57 | Pending |
-| FIX-03 | Phase 57 | Pending |
+| FIX-01 | Phase 57 | Complete |
+| FIX-02 | Phase 57 | Complete |
+| FIX-03 | Phase 57 | Complete |
 
 **Coverage:**
 - v3.6.1 requirements: 3 total
