@@ -23,7 +23,13 @@ public sealed partial class SettingsWindow : Window
     public event Action<Color>?  AccentColorChanged;
     public event Action<double>? OpacityChanged;
     public event Action<int>?    FontSizeChanged;
-    public event Action<bool>?   DialModeChanged;
+    public event Action<ClockType>? ClockTypeChanged;
+    public event Action<bool>?   LcdUse24HrChanged;
+    public event Action<bool>?   LcdShowSecondsChanged;
+    public event Action<string>? LcdStyleChanged;
+    public event Action<bool>?   ShowHourTicksChanged;
+    public event Action<bool>?   ShowMinuteDotsChanged;
+    public event Action<bool>?   ShowHourNumbersChanged;
     public event Action<string>? PhraseStyleChanged;
     public event Action<bool>?   StatsVisibleChanged;
     public event Action<bool>?   CpuVisibleChanged;
@@ -76,7 +82,7 @@ public sealed partial class SettingsWindow : Window
 
         // Font size / clock style toggle buttons
         SetFontSizeButtonStates(s.FontSize);
-        SetClockStyleButtonStates(s.ClockType == ClockType.Dial);
+        SetClockStyleButtonStates(s.ClockType);
 
         // Phrase language combo
         string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
@@ -195,10 +201,11 @@ public sealed partial class SettingsWindow : Window
         BtnFontXL.Tag = size == 40 ? "selected" : null;
     }
 
-    private void SetClockStyleButtonStates(bool dialMode)
+    private void SetClockStyleButtonStates(ClockType ct)
     {
-        BtnPhrase.Tag = !dialMode ? "selected" : null;
-        BtnDial.Tag   =  dialMode ? "selected" : null;
+        BtnPhrase.Tag = ct == ClockType.Phrase ? "selected" : null;
+        BtnDial.Tag   = ct == ClockType.Dial   ? "selected" : null;
+        BtnNixie.Tag  = ct == ClockType.Nixie  ? "selected" : null;
     }
 
     private void SetActiveSwatch(Border? activeRing)
@@ -382,15 +389,22 @@ public sealed partial class SettingsWindow : Window
     private void BtnPhrase_Click(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        SetClockStyleButtonStates(false);
-        DialModeChanged?.Invoke(false);
+        SetClockStyleButtonStates(ClockType.Phrase);
+        ClockTypeChanged?.Invoke(ClockType.Phrase);
     }
 
     private void BtnDial_Click(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        SetClockStyleButtonStates(true);
-        DialModeChanged?.Invoke(true);
+        SetClockStyleButtonStates(ClockType.Dial);
+        ClockTypeChanged?.Invoke(ClockType.Dial);
+    }
+
+    private void BtnNixie_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetClockStyleButtonStates(ClockType.Nixie);
+        ClockTypeChanged?.Invoke(ClockType.Nixie);
     }
 
     // ── Phrase style combo ────────────────────────────────────────────────
