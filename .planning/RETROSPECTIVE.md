@@ -4,6 +4,43 @@
 
 ---
 
+## Milestone: v3.6.2 — Contrast Flicker Regression Fix
+
+**Shipped:** 2026-03-19
+**Phases:** 1 (58) | **Plans:** 1
+
+### What Was Built
+- `SHELLDLL_DefView` added to shell class exclusion list in `HasAppWindowBeneath` — desktop icon host window missing from the original v3.6.1 whitelist
+- `DwmGetWindowAttribute(DWMWA_CLOAKED)` check added after the class filter: Windows 11 UWP shell panels (`ApplicationFrameWindow` — Start, Search, Widgets) stay in Z-order when dismissed with `IsWindowVisible=true`; DWM cloaked attribute (non-zero = hidden by DWM) discriminates them from real app windows
+- FIX-04, FIX-05, FIX-06 human-verified; 274 tests pass, 0 regressions
+
+### What Worked
+- Two-phase fix strategy (add exclusion → human test → add DWM check) was correct: first commit fixed desktop-with-icons, second commit fixed Windows 11 shell panels; human testing caught the gap
+- Human-verify checkpoint before milestone completion is essential — visual flicker cannot be unit-tested; the checkpoint proved its value by catching an incomplete fix
+- DWM cloaked check is the right Win32 pattern for "window alive in Z-order but hidden from user" — avoids fragile class-name heuristics for UWP shell frames
+- Surgical single-file fix maintained: `ContrastRefreshController.cs` only, no interface changes
+
+### What Was Inefficient
+- Root cause analysis at v3.6.1 was too narrow (only considered empty desktop); a broader matrix at that time might have included "desktop with icons" and "Windows 11 with shell panels" scenarios
+- Two commits were needed (iterative discovery) rather than one — inherent to visual bugs but points to more thorough root cause enumeration upfront
+
+### Patterns Established
+- Shell exclusion list extension protocol: update (1) the condition, (2) the XML doc summary, and (3) the inline `Tick` comment — all three must stay in sync
+- DWM cloaked-window check: `DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED=14, out uint result, 4)` — non-zero result means window is hidden by DWM; call after class filter to keep hot path lean
+- `ApplicationFrameWindow` cannot be added to shell exclusion list — it hosts real UWP apps; cloaked attribute is the only reliable discriminator
+
+### Key Lessons
+1. Shell window detection on Windows 11 requires both class name filtering AND DWM cloaked state — `IsWindowVisible` returns true for dismissed UWP shell panels
+2. Visual bug regression matrices should include: empty desktop, desktop with icons, Windows 11 shell panels open, Windows 11 shell panels dismissed
+3. When the v3.6.1 whitelist was defined, SHELLDLL_DefView was an obvious omission — enumerate all Windows desktop-shell window classes during the original investigation, not just what's visible in the hierarchy at that moment
+
+### Cost Observations
+- Model mix: 100% sonnet
+- Sessions: 1
+- Notable: ~30 min end-to-end; iterative human-verify is correct process for visual correctness, not a workflow inefficiency
+
+---
+
 ## Milestone: v3.6.1 — Contrast Flicker Fix
 
 **Shipped:** 2026-03-19
@@ -96,6 +133,7 @@
 | v3.2 | 7 | 16 | Settings window + multilingual — largest milestone to date |
 | v3.5 | 8 | 12 | Installer + CI pipeline shipped; wave parallelism at scale |
 | v3.6.1 | 1 | 1 | Surgical single-file fix; Z-order walk pattern established |
+| v3.6.2 | 1 | 1 | Z-order walk extended: SHELLDLL_DefView + DWM cloaked check for Win11 |
 
 ### Cumulative Quality
 
@@ -106,6 +144,7 @@
 | v3.2 | 224 | PhraseEngine + settings coverage |
 | v3.5 | 274 | Wrap, segment-key, poetic coverage |
 | v3.6.1 | 274 | No new tests; existing suite confirmed no regression |
+| v3.6.2 | 274 | No new tests; existing suite confirmed no regression |
 
 ### Top Lessons (Verified Across Milestones)
 
