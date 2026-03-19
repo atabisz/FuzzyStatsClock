@@ -64,7 +64,8 @@ grid already established in Phase 56.
 Exceptions:
 - `SegmentButtonStyle` Padding is `12,4` (12px horizontal, 4px vertical) — pre-existing SettingsWindow pattern; carry forward for the Nixie button.
 - NixieDigit geometry uses proportional arithmetic (`digitH * 0.62` for width, `digitH + 12` for canvas height) rather than fixed grid tokens — this is intentional and must not be changed.
-- Colon dot margin: `4,0,4,6` (top dot) and `4,0,4,0` (bottom dot) — pre-existing; carry forward.
+- Colon dot top margin: `4,0,4,6` — the bottom value of `6` is not a multiple of 4 and cannot be corrected. This value is hardcoded in `NixieDigit.xaml.cs` as a pixel-exact layout constant that positions the top colon dot within the tube Canvas to achieve optical centering between the two wire-mesh layers. The NixieDigit rendering control is pre-existing and is explicitly out of scope for changes in this phase; the Canvas layout is pixel-exact and any alteration to this margin would break the tube geometry proportions that were established and tested in Phase 56. Changing `6` to `4` or `8` would shift the dot outside its intended optical zone. The non-multiple value is structurally immovable for this phase and must be carried forward as-is.
+- Colon dot bottom margin: `4,0,4,0` — all values are multiples of 4; no exception required.
 
 ---
 
@@ -100,6 +101,7 @@ Source: SettingsWindow.xaml audit.
 |------|-------|-------|
 | Dominant (60%) | #FF1E1E1E (system Dark theme window bg) | SettingsWindow background |
 | Secondary (30%) | #FF2D2D2D | Theme card inner Border background |
+| Accent (10%) | user-defined accent | stats bars, stat labels, stat text, phrase text, date text, dial hands |
 | Segment rail bg | #FF3A3A3A | Clock Style / Font Size segmented control rail |
 | Segment selected | #FF3C3C3C (bg) + #FF666666 (border) | Active segment button pill |
 | Segment hover | #FF555555 | Unselected segment on hover |
@@ -128,6 +130,10 @@ These are independent of the user's accent color setting.
 Accent reserved for: stats bars, stat labels, stat text, phrase text, date text, dial hands — all pre-existing. Nixie face is explicitly excluded from accent color application.
 
 Destructive: #FFFF4444 — battery alert bar only (pre-existing, unchanged).
+
+### NixieClockView focal point
+
+Active digit cathode is the primary visual anchor; all other glyphs recede to ghost opacity.
 
 ---
 
