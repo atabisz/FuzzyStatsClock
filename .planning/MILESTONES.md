@@ -1,4 +1,13 @@
 # Milestones
+## v3.6.1 Contrast Flicker Fix (Shipped: 2026-03-19)
+
+**Phases completed:** 1 phases, 1 plans, 0 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v3.5 Phrase Wrap + Installer (Shipped: 2026-03-18)
 
 **Phases completed:** 8 phases (48–55), 12 plans

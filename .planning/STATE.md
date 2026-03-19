@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 57-01-PLAN.md — all 3 tasks done; milestone v3.6.1 complete
-last_updated: "2026-03-19T00:33:00.006Z"
+status: between_milestones
+stopped_at: Milestone v3.6.1 archived — ready for next milestone
+last_updated: "2026-03-19T00:39:06.428Z"
 last_activity: 2026-03-19 — Plan 57-01 complete (FIX-01, FIX-02, FIX-03 verified)
 progress:
   total_phases: 1
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 57 — Contrast Flicker Fix
+**Current focus:** Planning next milestone
 
 ## Current Position
 

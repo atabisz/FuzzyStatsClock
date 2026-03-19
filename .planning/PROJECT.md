@@ -10,22 +10,15 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v3.6.1 shipped: 2026-03-19** — AutoContrast and BackdropAlwaysVisible stable over empty desktop; `HasAppWindowBeneath` Z-order walk guard in `ContrastRefreshController.Tick` skips sampling when only shell windows (Progman/WorkerW/SysListView32) are beneath the widget, eliminating contrast oscillation feedback loop
+
+**v3.6 shipped: 2026-03-18** — Settings Appearance tab fully visible within 480×600 window; compact theme cards; tighter inter-section spacing
+
 **v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping (midpoint/natural pause), segment-key phrase guard, full-widget backdrop with opacity control, poetic phrase hour hints, dark-mode Settings window redesign, edge snapping, single-instance IPC, AbandonedMutex crash recovery
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
 
-**v3.1 shipped: 2026-03-08** — Battery stat row, DateFormatter extraction + tests, AppSettings round-trip tests, README accuracy pass
-
 274 MSTest tests (249 Core + 25 App) passing. CI gate enforced.
-
-## Current Milestone: v3.6.1 Contrast Flicker Fix
-
-**Goal:** Eliminate the color-flicker feedback loop that causes the widget to oscillate between two colors every second when BackdropAlwaysVisible or AutoContrast is enabled and the widget sits over an empty desktop.
-
-**Target features:**
-- Fix flicker when AutoContrast is enabled over empty desktop
-- Fix flicker when BackdropAlwaysVisible is enabled over empty desktop
-- No regression to AutoContrast behavior over application windows
 
 ## Requirements
 
@@ -231,6 +224,12 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ BDROP-03: Backdrop opacity is configurable via slider (10–100%, step 5) in Settings > Appearance — v3.5
 - ✓ POETIC-01: Every poetic phrase names the current or approaching hour naturally via {h}/{h1} templates — v3.5
 
+### Validated (v3.6–v3.6.1)
+
+- ✓ FIX-01: When AutoContrast is enabled and the widget sits over an empty desktop, text color remains stable — no oscillation or flicker — v3.6.1
+- ✓ FIX-02: When BackdropAlwaysVisible is enabled and the widget sits over an empty desktop, backdrop and text colors remain stable — no oscillation or flicker — v3.6.1
+- ✓ FIX-03: AutoContrast correctly switches text to black/white when the widget is over an application window — no regression — v3.6.1
+
 ### Out of Scope
 
 - User-created/saved themes — only built-in named presets; custom theme authoring is out of scope
@@ -239,6 +238,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - Arbitrary font size input — 3-step ladder is sufficient
 - Font family selector — single clean font (Segoe UI Light) is part of the design
 - Reset all stats to visible via Show Stats — individual toggles are independent; simpler model
+- ContrastSamplerService architecture refactor — flicker fix required only a guard in `ContrastRefreshController.Tick`; no structural changes to the sampling pipeline
 
 ## Context
 
@@ -385,6 +385,10 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | BackdropBorder covering full StackPanel footprint | Original ContentBorder only covered the phrase/dial row; full-widget backdrop requires a Border element that wraps all rows (phrase+date+stats+uptime) | ✓ Validated — backdrop covers all rows; phrase row is intentionally double-layered for darker effect |
 | {h}/{h1} placeholder system in PoeticPhraseProvider | HourWords[hour12] indexed array for past-half phrasing; HourWords[(hour12 % 12) + 1] for to-half; templates evaluated at GetPhrase() call time | ✓ Validated — all 48 templates contain a placeholder; hour word correct at every minute of every hour |
 | GetStructuredPhrase qualifier/emphasis split for Poetic | PoeticPhraseProvider returns (qualifier: surrounding text, emphasis: hour word) so caller can apply typographic hierarchy to the time anchor | ✓ Validated — qualifier and hourWord correctly split; 8 tests cover all buckets and special cases |
+| Skip sampling when only shell windows beneath (Progman/WorkerW/SysListView32) | Z-order walk detects shell-only coverage; holding `_contrastState` stable on skip preserves hysteresis state from prior valid samples — eliminates feedback oscillation | ✓ Validated — contrast stable over empty desktop; correct switching over app windows |
+| Seed Z-order walk with GetWindow(widgetHwnd, GW_HWNDNEXT) | Skipping the widget's own HWND avoids self-comparison; walking downward from next Z-peer is correct for "what's below me" semantics | ✓ Validated — `HasAppWindowBeneath` correctly returns false over empty desktop, true over app windows |
+| Manual RECT overlap (4 inequalities) over IntersectRect P/Invoke | Avoids adding extra P/Invoke import; four-inequality check is logically equivalent | ✓ Validated — correct overlap detection; no extra P/Invoke surface |
+| _hwnd field set in Initialize via WindowInteropHelper | Window HWND is stable post-Show; caching avoids per-tick allocation and matches GhostModeController pattern | ✓ Validated — HWND stable across sampling ticks; no allocation overhead |
 
 ---
-*Last updated: 2026-03-19 after v3.6.1 milestone start*
+*Last updated: 2026-03-19 after v3.6.1 milestone*
