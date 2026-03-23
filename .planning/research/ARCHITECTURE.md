@@ -1,429 +1,588 @@
 # Architecture Patterns
 
-**Project:** FuzzyClock v3.7 — Nixie Clock Re-introduction
-**Milestone:** Phase 57 — Re-introduce Nixie into the new architecture
-**Researched:** 2026-03-19
-**Confidence:** HIGH (verified by direct source audit of all affected files)
+**Project:** FuzzyClock v3.9 - LCD Clock + Japanese Styles
+**Researched:** 2026-03-23
+**Confidence:** HIGH - derived entirely from direct source audit of the production codebase
 
 ---
 
-## Context
+## Existing Architecture Baseline
 
-This is a subsequent milestone research document. The Nixie rendering layer (`NixieClockView`, `NixieDigit`) is already complete. The `ClockType` enum already includes `Nixie`. `MainWindow` already handles `ClockType.Nixie` in `ApplySettings()`, `SetClockType()`, and `SaveSettings()`. The tray menu already exposes Nixie. The work is entirely in the settings plumbing layer: four data-model records and one UI file.
+The widget is a single WPF `MainWindow` (WinExe, `SizeToContent=WidthAndHeight`, transparent
+frameless, `Topmost=True`). A vertical inner `Grid` contains three rows: Row 0 = the clock
+display area (phrase/dial/LCD/Nixie all stacked in the same cell, mutually exclusive by
+`Visibility`), Row 1 = date `TextBlock`, Row 2 = stats `StackPanel`. `BackdropBorder` wraps the
+entire widget for hover backdrop.
 
----
-
-## System Overview
+### Phrase/Provider System
 
 ```
-MainWindow (orchestrator — source of truth for all runtime state)
-├── NixieClockView (UserControl)  — manages its own 1s DispatcherTimer via IsVisibleChanged
-│   └── NixieDigit (UserControl)  — pixel-exact Canvas geometry per UI-SPEC
-├── DialCanvas (Canvas)           — Visibility-switched in same Row 0 as NixieView
-├── PhraseText (TextBlock)        — Visibility-switched in same Row 0
-├── StatsPanel (StackPanel)       — always below clock face regardless of type
-└── SettingsWindow (modeless)     — fires per-setting Action<T> events; MainWindow subscribes in OpenSettings()
-
-Settings flow:
-AppSettings (JSON record) ──load/save──> SettingsService
-                                              |
-SettingsSnapshot (populate-on-open) <── MainWindow.GetCurrentSettingsSnapshot()
-                                              |
-SettingsWindow (reads snapshot, fires events) ──ClockTypeChanged──> MainWindow.SetClockType(ct)
+PhraseEngine (static facade)
+  _providers: Dictionary<string, IPhraseProvider>
+    "en-classic"     -> EnglishPhraseProvider
+    "en-terse"       -> TersePhraseProvider
+    "en-poetic"      -> PoeticPhraseProvider
+    "en-rude"        -> RudePhraseProvider
+    "en-pirate"      -> PiratePhraseProvider
+    "en-dwarf"       -> DwarfPhraseProvider
+    "en-jive"        -> JivePhraseProvider
+    "en-valleygirl"  -> ValleyGirlPhraseProvider
+    "en-yoda"        -> YodaPhraseProvider
+    "en-shakespeare" -> ShakespearePhraseProvider
+    "fr"             -> FrenchPhraseProvider
+    "es"             -> SpanishPhraseProvider
+    "de"             -> GermanPhraseProvider
+    "ja"             -> JapanesePhraseProvider   (Classic only; all styles route here today)
+    "pl"             -> PolishPhraseProvider
+  _activeProvider: IPhraseProvider   (default = _providers["en-classic"])
+  CurrentLocale: string              (tracks active key)
 ```
+
+`PhraseEngine.SetLocale(key)` swaps `_activeProvider` by exact dictionary key. The routing
+logic in `MainWindow.SetLanguage()` and `ApplySettings()` maps `(locale, style)` to a provider
+key. For English the compound key form is `"en-{style}"`. For all non-English locales today the
+key is a bare two-letter code (`"ja"`, `"fr"`, etc.) with no style suffix - all phrase style
+settings are silently ignored when a non-English locale is active.
+
+### Clock Type Switching
+
+`ClockType` enum: `Phrase | Dial | Lcd | Nixie`. The enum was established in v3.7. `AppSettings`
+already stores `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, and `LcdSize`. The `SetClockType()` /
+`ApplySettings()` branching in `MainWindow` already handles all four enum values including `Lcd`.
+`LcdView` (a `LcdClockView` UserControl) is already declared in `MainWindow.xaml` Row 0, collapsed
+by default.
 
 ---
 
-## Component Boundaries
+## Component Map: New vs Modified vs Unchanged
+
+### Already Complete (confirmed in current codebase)
+
+| Component | Location | Verified State |
+|-----------|----------|---------------|
+| `ClockType.Lcd` enum value | `ClockType.cs` | Complete |
+| `LcdSize` enum + `LcdSizeMap` | `LcdSize.cs` | Complete |
+| `AppSettings` LCD fields | `AppSettings.cs` | `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize` all present |
+| `SettingsSnapshot` LCD fields | `SettingsSnapshot.cs` | All four fields present |
+| `LcdTimeFormatHelper` | `LcdTimeFormatHelper.cs` | Complete (12hr/24hr, with/without seconds) |
+| `SevenSegmentEncoder` | `FuzzyClock.Core/SevenSegmentEncoder.cs` | Complete (digits 0-9, colon, space) |
+| `SevenSegmentDigit` UserControl | `Controls/SevenSegmentDigit.xaml.cs` | Complete (Classic/Bold geometry, ghost color, SegmentHeight DP) |
+| `LcdClockView` UserControl | `Controls/LcdClockView.xaml.cs` | Complete (own 1s DispatcherTimer, DPs for Use24Hr/ShowSeconds/LitColor/BgColor/GhostColor/Size/SegmentStyle) |
+| `LcdView` element in `MainWindow.xaml` | Row 0 inner Grid, line 110 | Declared, `Visibility="Collapsed"` |
+| `MainWindow.SetClockType(Lcd)` branch | `MainWindow.xaml.cs` line 1308 | Complete (`ApplyLcdColors()`, sets DPs, sets `Visibility`) |
+| `MainWindow.ApplyLcdColors()` | `MainWindow.xaml.cs` line 1689 | Complete (Dark/Paper/Silver style logic) |
+| `MainWindow.ApplySettings()` LCD branch | `MainWindow.xaml.cs` line 262 | Complete (startup restore) |
+| `MainWindow.SaveSettings()` LCD fields | `MainWindow.xaml.cs` line 558 | Complete |
+| `SettingsWindow` LCD events declared | `SettingsWindow.xaml.cs` line 27 | `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` declared |
+| `MainWindow.OpenSettings()` LCD handlers | Lines 460-477 | Complete (all three LCD events subscribed and handled) |
+| `MainWindow` phrase timer skips LCD/Nixie | `ContentRendered` lambda, line 112 | `_clockType != ClockType.Lcd && _clockType != ClockType.Nixie` guard in place |
+
+### Still Needed for LCD
+
+| Component | Type | Location |
+|-----------|------|----------|
+| `BtnLcd` button in Clock Style rail | XAML addition | `SettingsWindow.xaml` |
+| `BtnLcd_Click` handler | Code addition | `SettingsWindow.xaml.cs` |
+| `SetClockStyleButtonStates` Lcd case | Code modification | `SettingsWindow.xaml.cs` |
+| LCD settings panel (24hr/seconds/style controls) | XAML addition + code | `SettingsWindow.xaml`, `SettingsWindow.xaml.cs` |
+| `PopulateControls` LCD controls population | Code modification | `SettingsWindow.xaml.cs` |
+| Blinking colon toggle in `LcdClockView` | Code modification | `Controls/LcdClockView.xaml.cs` |
+
+### Still Needed for Japanese Styles
+
+| Component | Type | Location |
+|-----------|------|----------|
+| `JapaneseTersePhraseProvider` | New class | `FuzzyClock.Core/` |
+| `JapanesePoeticPhraseProvider` | New class | `FuzzyClock.Core/` |
+| `JapaneseRudePhraseProvider` | New class | `FuzzyClock.Core/` |
+| `PhraseEngine` registry `ja-terse`, `ja-poetic`, `ja-rude` | Registry addition | `FuzzyClock.Core/PhraseEngine.cs` |
+| Routing logic for `ja-{style}` in `ApplySettings()` | Logic modification | `MainWindow.xaml.cs` |
+| Routing logic for `ja-{style}` in `SetLanguage()` | Logic modification | `MainWindow.xaml.cs` |
+| `SetPhraseStyle()` guard expansion | Logic modification | `MainWindow.xaml.cs` |
+| `CmbPhraseStyle` enable/disable gating for Japanese | Logic modification | `SettingsWindow.xaml.cs` |
+
+---
+
+## Question 1: LCD Clock Integration with ClockType Switching
+
+### The existing switching path (no changes needed here)
+
+1. `SettingsWindow` fires `ClockTypeChanged(ClockType.Lcd)`
+2. `MainWindow.SetClockType(Lcd)` collapses all four display elements, calls `ApplyLcdColors()`,
+   sets `LcdView.Use24Hr`, `LcdView.ShowSeconds`, `LcdView.Size`, then sets `LcdView.Visibility = Visible`
+3. `LcdClockView.IsVisibleChanged` fires; the view starts its own `DispatcherTimer(1s)` and calls
+   `UpdateTime()` immediately for the first frame
+4. `SaveSettings()` persists `ClockType.Lcd`
+
+The `MainWindow` 10-second phrase timer already skips its update branch when
+`_clockType == ClockType.Lcd`, so no phrase updates fire while LCD is active. This is correct.
+
+### What the SettingsWindow is missing
+
+**BtnLcd in the Clock Style rail.** The XAML rail currently has three buttons: `BtnPhrase`,
+`BtnDial`, `BtnNixie`. A fourth `BtnLcd` must be added to the same `StackPanel`. It fires
+`ClockTypeChanged?.Invoke(ClockType.Lcd)` and follows the `SegmentButtonStyle` visual pattern.
+
+`SetClockStyleButtonStates(ClockType ct)` must be extended:
+
+```csharp
+BtnLcd.Tag = ct == ClockType.Lcd ? "selected" : null;
+```
+
+**LCD settings panel.** The Appearance tab needs a visibility-gated section (same `DialFaceLabel`/
+`DialFacePanel` pattern from v3.8) that collapses when clock style is not Lcd. It contains:
+- 12hr / 24hr CheckBox wired to `LcdUse24HrChanged`
+- Seconds row CheckBox wired to `LcdShowSecondsChanged`
+- Style ComboBox (Dark / Paper / Silver) wired to `LcdStyleChanged`
+
+Visibility gating belongs in `SetClockStyleButtonStates()`:
+
+```csharp
+var lcdVis = ct == ClockType.Lcd ? Visibility.Visible : Visibility.Collapsed;
+LcdSettingsLabel.Visibility = lcdVis;
+LcdSettingsPanel.Visibility = lcdVis;
+```
+
+`PopulateControls` must populate these under `_suppressEvents` using `SettingsSnapshot.LcdUse24Hr`,
+`LcdShowSeconds`, and `LcdStyle`.
+
+### Per-second timer
+
+`LcdClockView` owns its own `DispatcherTimer(1s)` that self-starts via `IsVisibleChanged`. This
+is the identical pattern to `NixieClockView`. `MainWindow` does not manage this timer. No new
+timer code is needed anywhere in `MainWindow`.
+
+### Blinking colon
+
+The colon currently displays permanently as `':'`. Blinking requires a `bool _colonVisible` field
+in `LcdClockView`, flipped on each `_timer.Tick`. The tick replaces the static colon assignment
+with a conditional:
+
+```csharp
+_colonVisible = !_colonVisible;
+Colon1.Character = _colonVisible ? ':' : ' ';
+if (ShowSeconds) Colon2.Character = _colonVisible ? ':' : ' ';
+```
+
+`SevenSegmentEncoder.Encode(' ')` returns `0x00` (all segments off) - blank colon is already
+supported. No Core changes are needed.
+
+### AccentColor propagation
+
+`ApplyLcdColors()` already reads `_accentColor` for the "Dark" style and passes it to
+`LcdView.LitColor`. `SetAccentColor()` calls `ApplyLcdColors()` unconditionally. The accent
+color path for LCD is closed - no new wiring needed.
+
+### LCD component boundary summary
 
 | Component | Responsibility | Communicates With |
 |-----------|---------------|-------------------|
-| `AppSettings` | Persistent settings record; serialized to `settings.json` | `SettingsService` (read/write), `MainWindow` (with-expression updates) |
-| `SettingsSnapshot` | Immutable read-only view of settings at window-open time; never written back | Produced by `MainWindow.GetCurrentSettingsSnapshot()`; consumed by `SettingsWindow.PopulateControls()` |
-| `SettingsWindow` | UI for settings; fires typed `Action<T>?` events per setting change | Receives `SettingsSnapshot` on open; fires events to `MainWindow` |
-| `MainWindow` | Source of truth for all runtime state; applies settings and saves them | Subscribes to all `SettingsWindow` events in `OpenSettings()`; owns `_clockType` field |
-| `NixieClockView` | Self-contained Nixie clock face; manages its own 1s DispatcherTimer | Activated by `MainWindow.SetClockType(ClockType.Nixie)` via `Visibility` toggle |
-| `SettingsService` | File I/O + schema migration for `AppSettings` | Called by `MainWindow` on load/save |
-| `TrayMenuBuilder` | Tray menu construction; wires tray-level clock type toggles | Calls `MainWindow.SetClockType()` directly |
+| `SevenSegmentEncoder` (Core) | Char to 7-segment bitmask | `SevenSegmentDigit.UpdateSegments()` |
+| `LcdTimeFormatHelper` (App) | `DateTime` to display string (12hr/24hr, w/wo seconds) | `LcdClockView.UpdateTime()` |
+| `SevenSegmentDigit` (UserControl) | WPF polygon geometry for one digit or colon | `LcdClockView` via XAML + `AllDigits()` |
+| `LcdClockView` (UserControl) | Compose digits, own 1s timer, blinking colon, expose DPs | `MainWindow` sets DPs; `ApplyLcdColors()` sets color DPs |
+| `MainWindow` | Switch visibility; route settings to DPs; propagate accent color | `LcdClockView` via DPs; `SettingsWindow` via event subscriptions |
+| `SettingsWindow` | Fire `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` | `MainWindow.OpenSettings()` handlers |
 
 ---
 
-## Integration Points: New vs Modified
+## Question 2: Japanese Style Routing in IPhraseProvider/PhraseEngine
 
-### New (does not currently exist)
+### Current state
 
-| Item | File | Description |
-|------|------|-------------|
-| `BtnNixie` XAML button | `SettingsWindow.xaml` | Third button in Clock Style rail, after BtnDial |
-| `BtnNixie_Click` handler | `SettingsWindow.xaml.cs` | Invokes `ClockTypeChanged?.Invoke(ClockType.Nixie)` |
-| `ClockTypeChanged` event | `SettingsWindow.xaml.cs` | Replaces `DialModeChanged: Action<bool>` |
-| `LcdUse24HrChanged` event | `SettingsWindow.xaml.cs` | Missing declaration; MainWindow already subscribes |
-| `LcdShowSecondsChanged` event | `SettingsWindow.xaml.cs` | Missing declaration |
-| `LcdStyleChanged` event | `SettingsWindow.xaml.cs` | Missing declaration |
-| `ShowHourTicksChanged` event | `SettingsWindow.xaml.cs` | Missing declaration |
-| `ShowMinuteDotsChanged` event | `SettingsWindow.xaml.cs` | Missing declaration |
-| `ShowHourNumbersChanged` event | `SettingsWindow.xaml.cs` | Missing declaration |
-| `AppSettings.ClockType` | `AppSettings.cs` | Replaces `DialMode: bool`; default `ClockType.Phrase` |
-| `AppSettings.LcdUse24Hr` | `AppSettings.cs` | New LCD field; default `false` |
-| `AppSettings.LcdShowSeconds` | `AppSettings.cs` | New LCD field; default `true` |
-| `AppSettings.LcdStyle` | `AppSettings.cs` | New LCD field; default `"Dark"` |
-| `AppSettings.LcdSize` | `AppSettings.cs` | New LCD field; default `LcdSize.Medium` |
-| `SettingsSnapshot.ClockType` | `SettingsSnapshot.cs` | Replaces `DialMode: bool` |
-| `SettingsSnapshot.LcdUse24Hr` | `SettingsSnapshot.cs` | New LCD field |
-| `SettingsSnapshot.LcdShowSeconds` | `SettingsSnapshot.cs` | New LCD field |
-| `SettingsSnapshot.LcdStyle` | `SettingsSnapshot.cs` | New LCD field |
-| `SettingsSnapshot.LcdSize` | `SettingsSnapshot.cs` | New LCD field |
-| `SettingsSnapshot.ShowHourTicks` | `SettingsSnapshot.cs` | New dial decoration field |
-| `SettingsSnapshot.ShowMinuteDots` | `SettingsSnapshot.cs` | New dial decoration field |
-| `SettingsSnapshot.ShowHourNumbers` | `SettingsSnapshot.cs` | New dial decoration field |
+`PhraseEngine` has one Japanese entry: `["ja"] = new JapanesePhraseProvider()`. There is no
+style suffix. The `SetLanguage()` routing treats `"ja"` identically to `"fr"`, `"es"`, `"de"`,
+`"pl"` - it maps the bare locale code directly as the provider key, ignoring `_currentPhraseStyle`.
 
-### Modified (exists, requires change)
+`SettingsWindow.PopulateControls` disables `CmbPhraseStyle` when the locale is `"ja"` or any
+other non-English code. This prevents phrase style changes from having any effect.
 
-| Item | File | Current State | Required State |
-|------|------|--------------|----------------|
-| `DialModeChanged` event | `SettingsWindow.xaml.cs` | `Action<bool>?` | Remove; replaced by `ClockTypeChanged: Action<ClockType>?` |
-| `SetClockStyleButtonStates` | `SettingsWindow.xaml.cs` | `(bool dialMode)` — 2-button | `(ClockType ct)` — 3-button including `BtnNixie.Tag` |
-| `PopulateControls` clock style call | `SettingsWindow.xaml.cs` | `SetClockStyleButtonStates(s.DialMode)` | `SetClockStyleButtonStates(s.ClockType)` |
-| `BtnPhrase_Click` | `SettingsWindow.xaml.cs` | Fires `DialModeChanged?.Invoke(false)` | Fires `ClockTypeChanged?.Invoke(ClockType.Phrase)` |
-| `BtnDial_Click` | `SettingsWindow.xaml.cs` | Fires `DialModeChanged?.Invoke(true)` | Fires `ClockTypeChanged?.Invoke(ClockType.Dial)` |
-| `AppSettings.DialMode` | `AppSettings.cs` | `public bool DialMode { get; init; } = false;` | Remove property |
-| `SettingsSnapshot.DialMode` | `SettingsSnapshot.cs` | `public bool DialMode { get; init; }` | Remove property |
-| `_dialMode` reference in `ApplyPhraseWrap` | `MainWindow.xaml.cs` line ~718 | Stale field reference — compile error | Replace with `_clockType != ClockType.Phrase` |
-
-### Pre-existing (verified complete — no changes needed)
-
-| Item | File | Notes |
-|------|------|-------|
-| `NixieClockView` UserControl | `Controls/NixieClockView.xaml` + `.cs` | Complete; manages its own 1s timer via IsVisibleChanged |
-| `NixieDigit` UserControl | `Controls/NixieDigit.xaml` + `.cs` | Complete pixel geometry |
-| `NixieView` in MainWindow XAML | `MainWindow.xaml` line 118 | Declared, `Visibility="Collapsed"` |
-| `ClockType` enum | `ClockType.cs` | `Phrase / Dial / Lcd / Nixie` — all four values present |
-| `NixieSizeMap` | `NixieSize.cs` | `ToDigitHeight(LcdSize)` — Small=40, Medium=56, Large=72 |
-| `_nixieClockItem` in tray | `TrayMenuBuilder.cs` | Wired to `SetClockType(ClockType.Nixie)` |
-| `SetClockType(ClockType.Nixie)` branch | `MainWindow.xaml.cs` line 1323 | Sets `NixieView.Size`, shows `NixieView` |
-| `ApplySettings` Nixie branch | `MainWindow.xaml.cs` line 272 | Restores Nixie on startup from `s.ClockType` |
-| `SaveSettings` ClockType write | `MainWindow.xaml.cs` line 557 | Persists `_clockType` |
-| `_clockType` field | `MainWindow.xaml.cs` line 35 | `ClockType _clockType = ClockType.Phrase` |
-| `ClockTypeChanged` subscription | `MainWindow.xaml.cs` `OpenSettings()` | Already wired; compiles once the event exists on SettingsWindow |
-| `DialMode → ClockType` JSON migration | `SettingsService.cs` lines 53–61 | Already implemented; reads from raw JsonDocument, not from record |
-
----
-
-## Data Flow: Nixie Selection
-
-```
-User clicks "Nixie" in Settings window
-    |
-    v
-BtnNixie_Click (SettingsWindow.xaml.cs)
-    SetClockStyleButtonStates(ClockType.Nixie)   -- updates button Tag for visual selection state
-    ClockTypeChanged?.Invoke(ClockType.Nixie)     -- fires event
-    |
-    v
-MainWindow.OpenSettings() lambda (wired at line 460)
-    ClearActiveTheme()
-    SetClockType(ClockType.Nixie)
-    |
-    v
-MainWindow.SetClockType(ClockType.Nixie)
-    _clockType = ClockType.Nixie
-    NixieView.Size = NixieSizeMap.ToDigitHeight(FontSizeToLcdSize(_currentFontSize))
-    NixieView.Visibility = Visible
-    DialCanvas.Visibility = Collapsed
-    PhraseText.Visibility = Collapsed
-    ShadowText.Visibility = Collapsed
-    SaveSettings()
-    |
-    v
-NixieClockView.IsVisibleChanged fires
-    Starts its internal 1s DispatcherTimer
-    Displays current time as Nixie tube digits
-```
-
----
-
-## Data Flow: Settings Persistence
-
-```
-MainWindow.SaveSettings()
-    builds new AppSettings with { ..., ClockType = _clockType,
-        LcdUse24Hr = _lcdUse24Hr, LcdShowSeconds = _lcdShowSeconds,
-        LcdStyle = _lcdStyle, LcdSize = FontSizeToLcdSize(_currentFontSize),
-        ShowHourTicks = _showHourTicks, ShowMinuteDots = _showMinuteDots,
-        ShowHourNumbers = _showHourNumbers }
-    SettingsService.Save(settings)
-        writes to %LOCALAPPDATA%\FuzzyClock\settings.json (atomic via temp + File.Move)
-
-MainWindow.ApplySettings(s)
-    reads s.ClockType -> SetClockType(s.ClockType)
-    reads s.LcdUse24Hr, s.LcdShowSeconds, s.LcdStyle -> sets _lcdUse24Hr, etc.
-    reads s.ShowHourTicks, s.ShowMinuteDots, s.ShowHourNumbers -> sets decoration state
-
-SettingsService.Load()
-    reads raw JsonDocument
-    migration: if "DialMode"=true in old JSON and ClockType==Phrase -> set ClockType=Dial
-    deserializes into AppSettings record (absent fields use init defaults)
-    Validate() corrects invalid values
-```
-
----
-
-## Data Flow: Settings Window Populate
-
-```
-MainWindow.OpenSettings()
-    snap = GetCurrentSettingsSnapshot()
-        returns new SettingsSnapshot {
-            ClockType = _clockType,
-            LcdUse24Hr = _lcdUse24Hr, LcdShowSeconds = _lcdShowSeconds,
-            LcdStyle = _lcdStyle, LcdSize = FontSizeToLcdSize(_currentFontSize),
-            ShowHourTicks = _showHourTicks, ...
-        }
-    _settingsWindow = new SettingsWindow(snap)
-    _settingsWindow.ClockTypeChanged       += ct => { ClearActiveTheme(); SetClockType(ct); }
-    _settingsWindow.LcdUse24HrChanged      += use24 => { ... }
-    _settingsWindow.LcdShowSecondsChanged  += show => { ... }
-    _settingsWindow.LcdStyleChanged        += style => { ... }
-    _settingsWindow.ShowHourTicksChanged   += v => SetShowHourTicks(v)
-    _settingsWindow.ShowMinuteDotsChanged  += v => SetShowMinuteDots(v)
-    _settingsWindow.ShowHourNumbersChanged += v => SetShowHourNumbers(v)
-    _settingsWindow.Show()
-
-SettingsWindow.PopulateControls(s)
-    SetClockStyleButtonStates(s.ClockType)   -- selects correct button visually
-    ... (other controls populated from snapshot)
-```
-
----
-
-## Patterns to Follow
-
-### Pattern 1: Visibility-Switch for Clock Face Toggle
-
-`Visibility.Collapsed` / `Visible` toggle is the established pattern for switching between `PhraseText`, `DialCanvas`, and `NixieView`. All three occupy Grid Row 0. No row restructuring is needed.
+`SetPhraseStyle()` in `MainWindow` has an early-return guard:
 
 ```csharp
-// The existing SetClockType pattern already in MainWindow.xaml.cs line 1323:
-case ClockType.Nixie:
-    NixieView.Visibility  = Visibility.Visible;
-    DialCanvas.Visibility = Visibility.Collapsed;
-    PhraseText.Visibility = Visibility.Collapsed;
-    ShadowText.Visibility = Visibility.Collapsed;
-    NixieView.Size        = NixieSizeMap.ToDigitHeight(FontSizeToLcdSize(_currentFontSize));
-    break;
+if (!PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal))
+    return;
 ```
 
-### Pattern 2: SettingsWindow Per-Setting Event Model
+This guard blocks all style changes when `CurrentLocale` is `"ja"`.
 
-All settings changes fire individual `Action<T>?` events. SettingsWindow is one-way out — it never reads back from MainWindow. MainWindow is the sole source of truth.
+### Step 1 - New provider classes in FuzzyClock.Core
+
+Add three new classes following the identical structure of `JapanesePhraseProvider`:
+
+- `JapaneseTersePhraseProvider : IPhraseProvider`
+- `JapanesePoeticPhraseProvider : IPhraseProvider`
+- `JapaneseRudePhraseProvider : IPhraseProvider`
+
+Each implements all three `IPhraseProvider` methods. The 12-bucket `(UpperBound, Template)[]`
+array is unique per style; the `HourWords[]` array is identical across all four Japanese providers.
+`GetSegmentKey(DateTime dt) => GetPhrase(dt)` is the correct pattern, already used in the
+existing `JapanesePhraseProvider`.
+
+### Step 2 - PhraseEngine registry additions
+
+Add four entries; keep the existing `"ja"` entry unchanged for backward compatibility with the
+auto-detect path (`uiLang == "ja"` routes to `"ja"`):
 
 ```csharp
-// Correct pattern for the new event declarations:
-public event Action<ClockType>? ClockTypeChanged;
-public event Action<bool>?      LcdUse24HrChanged;
-public event Action<string>?    LcdStyleChanged;
+["ja"]         = new JapanesePhraseProvider(),      // unchanged - auto-detect fallback
+["ja-classic"] = new JapanesePhraseProvider(),      // alias for explicit classic selection
+["ja-terse"]   = new JapaneseTersePhraseProvider(),
+["ja-poetic"]  = new JapanesePoeticPhraseProvider(),
+["ja-rude"]    = new JapaneseRudePhraseProvider(),
+```
 
-// Correct pattern for click handlers:
-private void BtnNixie_Click(object sender, RoutedEventArgs e)
+Keeping `"ja"` as-is ensures that `uiLang == "ja"` auto-detect continues to resolve without any
+change to the auto-detect branch. The `"ja-classic"` alias allows clean symmetric routing in the
+explicit-style case.
+
+### Step 3 - Routing logic changes
+
+Three locations in `MainWindow.xaml.cs` contain the locale-to-provider-key routing switch. All
+three must be updated identically. The current block treating `"ja"` the same as other
+non-English locales:
+
+```csharp
+if (locale is "fr" or "es" or "de" or "ja" or "pl")
+    effectiveLocale = locale;
+```
+
+must expand to apply the style suffix when locale is `"ja"`:
+
+```csharp
+if (locale == "ja")
 {
-    if (_suppressEvents) return;
-    SetClockStyleButtonStates(ClockType.Nixie);
-    ClockTypeChanged?.Invoke(ClockType.Nixie);
+    effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
+    {
+        "terse"  => "ja-terse",
+        "poetic" => "ja-poetic",
+        "rude"   => "ja-rude",
+        _        => "ja",   // "Classic" or unrecognized
+    };
+}
+else if (locale is "fr" or "es" or "de" or "pl")
+{
+    effectiveLocale = locale;   // other languages have no style variants
 }
 ```
 
-### Pattern 3: AppSettings Init-Property Record with Safe Defaults
+The three locations where this change is needed:
+1. `ApplySettings()` - startup restore path (around line 332)
+2. `SetLanguage()` - runtime language change (around line 1403)
+3. `SetPhraseStyle()` - runtime style change for Japanese (not currently reached due to guard;
+   the guard removal in Step 4 opens this path)
 
-All new `AppSettings` fields use `{ get; init; }` with explicit defaults. JSON absent-field behavior deserializes to the C# `init` value, enabling safe upgrade from old `settings.json` files.
-
-```csharp
-// Correct pattern:
-public ClockType ClockType      { get; init; } = ClockType.Phrase;  // safe: always-valid
-public bool      LcdUse24Hr    { get; init; } = false;              // safe: bool false
-public bool      LcdShowSeconds { get; init; } = true;              // deliberate: show seconds
-public string    LcdStyle       { get; init; } = "Dark";            // safe: always-valid string
-public LcdSize   LcdSize        { get; init; } = LcdSize.Medium;    // safe: middle value
-```
-
-### Pattern 4: SettingsSnapshot as Populate-Only Snapshot
-
-`SettingsSnapshot` is constructed once when the Settings window opens. Values flow out via events only; they never flow back into the snapshot. No two-way binding or live-sync is needed.
+Because this logic is duplicated three times, extract a private helper
+`ResolveLocaleKey(string locale, string phraseStyle)` called from all three sites:
 
 ```csharp
-// Correct: populate once on open, never update
-private SettingsSnapshot GetCurrentSettingsSnapshot() => new SettingsSnapshot
-{
-    ClockType       = _clockType,
-    LcdUse24Hr      = _lcdUse24Hr,
-    LcdShowSeconds  = _lcdShowSeconds,
-    LcdStyle        = _lcdStyle,
-    LcdSize         = FontSizeToLcdSize(_currentFontSize),
-    ShowHourTicks   = _showHourTicks,
-    ShowMinuteDots  = _showMinuteDots,
-    ShowHourNumbers = _showHourNumbers,
-    // ... all other fields
-};
+private static string ResolveLocaleKey(string locale, string phraseStyle) =>
+    locale switch
+    {
+        "ja" => phraseStyle.ToLowerInvariant() switch
+        {
+            "terse"  => "ja-terse",
+            "poetic" => "ja-poetic",
+            "rude"   => "ja-rude",
+            _        => "ja",
+        },
+        "en" => phraseStyle.ToLowerInvariant() switch
+        {
+            "terse"       => "en-terse",
+            "poetic"      => "en-poetic",
+            "rude"        => "en-rude",
+            "pirate"      => "en-pirate",
+            "dwarf"       => "en-dwarf",
+            "jive"        => "en-jive",
+            "valleygirl"  => "en-valleygirl",
+            "yoda"        => "en-yoda",
+            "shakespeare" => "en-shakespeare",
+            _             => "en-classic",
+        },
+        "fr" or "es" or "de" or "pl" => locale,
+        _ => "en-classic",   // "auto" is handled before calling this helper
+    };
 ```
 
-### Pattern 5: NixieClockView Self-Contained Timer
+This eliminates the current code duplication and makes adding future non-English style variants
+a one-line change.
 
-`NixieClockView` manages its own 1-second `DispatcherTimer` via `IsVisibleChanged`. MainWindow does not start or stop this timer. The correct activation path is simply setting `NixieView.Visibility = Visible`. Do not add Nixie-specific timer logic to MainWindow's phrase or stats timers.
+### Step 4 - SetPhraseStyle guard expansion
 
-### Pattern 6: GetSegmentKey Delegation
-
-All `IPhraseProvider` implementations must return a segment key that changes when the displayed phrase changes. The correct pattern for all providers is direct delegation to `GetPhrase()`:
+The current guard in `SetPhraseStyle()`:
 
 ```csharp
-public string GetSegmentKey(DateTime dt) => GetPhrase(dt);
+if (!PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal))
+    return;
 ```
 
-The six novelty providers (`Yoda`, `Jive`, `Pirate`, `Shakespeare`, `Dwarf`, `ValleyGirl`) are missing this implementation — it must be added to all six as the first step of Wave 1.
+must be expanded to also pass through when `CurrentLocale` is a Japanese key:
+
+```csharp
+bool isEnglish  = PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal)
+                  || PhraseEngine.CurrentLocale == "en";
+bool isJapanese = PhraseEngine.CurrentLocale.StartsWith("ja", StringComparison.Ordinal);
+if (!isEnglish && !isJapanese)
+    return;
+```
+
+After the guard passes, the locale-key derivation calls `ResolveLocaleKey(_currentPhraseLocale, style)`.
+
+### Step 5 - SettingsWindow style selector gating
+
+`CmbPhraseStyle` is currently disabled for `"ja"` locale. With Japanese style variants added,
+the selector must be re-enabled for Japanese. The four options (Classic/Terse/Poetic/Rude) apply
+equally to English and Japanese; the routing logic handles the provider key difference.
+
+In `PopulateControls`:
+
+```csharp
+// Current: disables for ja/fr/es/de/pl
+bool isNonEnglish = nonEnglishActive || (s.PhraseLocale is "fr" or "es" or "de" or "ja" or "pl");
+CmbPhraseStyle.IsEnabled = !isNonEnglish;
+
+// Replacement: re-enables for ja (has style variants)
+bool styleDisabled = s.PhraseLocale is "fr" or "es" or "de" or "pl"
+    || (s.PhraseLocale == "auto" && nonEnglishActive
+        && System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName != "ja");
+CmbPhraseStyle.IsEnabled = !styleDisabled;
+```
+
+In `CmbPhraseLanguage_SelectionChanged`:
+
+```csharp
+// Current: "ja" in disabled set
+bool isNonEnglish = locale is "fr" or "es" or "de" or "ja" or "pl";
+
+// Replacement: "ja" removed from disabled set
+bool isNonEnglish = locale is "fr" or "es" or "de" or "pl";
+CmbPhraseStyle.IsEnabled = !isNonEnglish;
+```
+
+### Data flow - Japanese style change at runtime
+
+```
+User selects "Terse" in CmbPhraseStyle while PhraseLocale = "ja"
+    -> CmbPhraseStyle_SelectionChanged (_suppressEvents is false)
+    -> PhraseStyleChanged?.Invoke("Terse")
+    -> MainWindow.SetPhraseStyle("Terse")
+        guard: CurrentLocale starts with "ja" -> passes
+        _currentPhraseStyle = "Terse"
+        localeKey = ResolveLocaleKey("ja", "Terse") -> "ja-terse"
+        PhraseEngine.SetLocale("ja-terse")
+        _currentRawPhrase = ""   (invalidate cache)
+        _lastSegmentKey   = ""
+        UpdatePhraseIfChanged()  -> new phrase rendered
+        SaveSettings()           -> PhraseStyle="Terse" persisted
+```
+
+On restart, `ApplySettings()` reads `PhraseLocale="ja"` and `PhraseStyle="Terse"`, calls
+`ResolveLocaleKey("ja", "Terse")` -> `"ja-terse"`, and calls `PhraseEngine.SetLocale("ja-terse")`.
 
 ---
 
-## Anti-Patterns to Avoid
+## Component Boundaries - Full v3.9 Picture
 
-### Anti-Pattern 1: Reading AppSettings.DialMode After Migration
-
-**What goes wrong:** Referencing `loaded.DialMode` or `s.DialMode` anywhere after the property is removed from the record.
-
-**Why it happens:** Developers assume migration code reads from the deserialized record.
-
-**Prevention:** The `SettingsService.Load()` migration reads `DialMode` from the raw `JsonDocument` via `TryGetProperty("DialMode", ...)`. This operates on the JSON string, not on the deserialized object. Removing the property from the record does not break the migration. Search for all `DialMode` references before and after making the change.
-
-### Anti-Pattern 2: Using the _dialMode Field
-
-**What goes wrong:** `MainWindow.xaml.cs` line ~718 in `ApplyPhraseWrap` contains `if (_dialMode || ...)`. There is no `_dialMode` field declared in the class. This is a pre-existing compile error.
-
-**Prevention:** Replace with `if (_clockType != ClockType.Phrase || ...)`. The semantics are identical: phrase wrapping applies only in Phrase mode. All other clock types (Dial, Lcd, Nixie) skip it.
-
-### Anti-Pattern 3: Adding a Nixie-Specific Timer to MainWindow
-
-**What goes wrong:** Adding `_nixieTimer` or wiring the 10s phrase timer to update Nixie, creating redundant double-update.
-
-**Prevention:** Set `NixieView.Visibility = Visible` in `SetClockType(ClockType.Nixie)`. The view handles everything via its own `IsVisibleChanged` handler.
-
-### Anti-Pattern 4: Declaring Only ClockTypeChanged and Skipping the Other Six Events
-
-**What goes wrong:** `MainWindow.OpenSettings()` already subscribes to `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged`, `ShowHourTicksChanged`, `ShowMinuteDotsChanged`, `ShowHourNumbersChanged`. Without these event declarations in `SettingsWindow.xaml.cs`, the project will not compile.
-
-**Prevention:** Audit all `_settingsWindow.XXXChanged +=` subscriptions in `MainWindow.OpenSettings()` against the event declarations in `SettingsWindow.xaml.cs`. Add all missing declarations in a single edit.
-
-### Anti-Pattern 5: Two-Way SettingsWindow State Sync
-
-**What goes wrong:** Updating `SettingsSnapshot` when settings change and re-populating the window, causing flickering and sync complexity.
-
-**Prevention:** The snapshot is a populate-on-open record. Events fire once per user change; MainWindow applies and saves. The snapshot is not updated until the next window open.
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| `FuzzyClock.Core` (pure library) | Phrase providers, segment encoding, formatting - zero WPF deps | No WPF references |
+| `JapaneseXxxPhraseProvider` (Core) | Style-specific Japanese phrase buckets | `PhraseEngine` registry |
+| `PhraseEngine` (Core static facade) | Route locale key to active provider | `MainWindow.ApplySettings()`, `SetLanguage()`, `SetPhraseStyle()` |
+| `SevenSegmentEncoder` (Core) | Char to 7-segment bitmask | `SevenSegmentDigit.UpdateSegments()` |
+| `LcdClockView` (App UserControl) | Digit display, own 1s timer, blinking colon, expose DPs | `MainWindow` sets DPs; `IsVisibleChanged` auto-manages timer |
+| `SevenSegmentDigit` (App UserControl) | WPF polygon geometry per digit | `LcdClockView` |
+| `AppSettings` (App record) | Persist all settings including LCD fields, `PhraseStyle`, `PhraseLocale` | `SettingsService`, `MainWindow.SaveSettings()` |
+| `SettingsSnapshot` (App record) | Immutable open-time snapshot | `SettingsWindow` constructor |
+| `SettingsWindow` (App window) | Fire per-setting events; LCD panel visibility-gated; style combo enabled for en+ja | `MainWindow.OpenSettings()` handlers |
+| `MainWindow` (App window) | Source of truth for all runtime state; routes events to Core/XAML/services | All components |
 
 ---
 
-## Build Order (Phase Dependencies)
+## Recommended Build Order
 
-The phase is structured as two sequential waves. Wave 2 depends on the data model records Wave 1 establishes.
+### 1. Japanese provider classes - first (no dependencies)
 
-### Wave 1 (57-01): Data Model Foundation
+`JapaneseTersePhraseProvider`, `JapanesePoeticPhraseProvider`, `JapaneseRudePhraseProvider` are
+pure Core classes. They depend on nothing new and can be written, reviewed, and unit-tested
+completely before any other step. Tests follow the exhaustive bucket pattern of
+`MultilingualPhraseProviderTests` - every time bucket for every provider must pass.
 
-**Files touched:**
-- `FuzzyClock.Core/YodaPhraseProvider.cs` — add `GetSegmentKey`
-- `FuzzyClock.Core/JivePhraseProvider.cs` — add `GetSegmentKey`
-- `FuzzyClock.Core/PiratePhraseProvider.cs` — add `GetSegmentKey`
-- `FuzzyClock.Core/ShakespearePhraseProvider.cs` — add `GetSegmentKey`
-- `FuzzyClock.Core/DwarfPhraseProvider.cs` — add `GetSegmentKey`
-- `FuzzyClock.Core/ValleyGirlPhraseProvider.cs` — add `GetSegmentKey`
-- `FuzzyClock.App/AppSettings.cs` — remove `DialMode`; add `ClockType` + LCD fields
-- `FuzzyClock.App/SettingsSnapshot.cs` — remove `DialMode`; add `ClockType` + LCD + dial decoration fields
+### 2. PhraseEngine registry + ResolveLocaleKey extraction - second (depends on Step 1)
 
-**Why first:** `SettingsWindow.xaml.cs` cannot compile `SetClockStyleButtonStates(s.ClockType)` or `PopulateControls` until `SettingsSnapshot.ClockType` exists. `MainWindow.SaveSettings()` `with`-expression cannot compile until `AppSettings.ClockType` exists. The six novelty providers block `FuzzyClock.Core` from compiling entirely.
+Register `ja-classic`, `ja-terse`, `ja-poetic`, `ja-rude` in `PhraseEngine._providers`. Extract
+`ResolveLocaleKey()` helper to replace the three duplicated switch blocks in `MainWindow`. Update
+`ApplySettings()`, `SetLanguage()`, and `SetPhraseStyle()` to call the helper. Update the
+`SetPhraseStyle()` guard. Add coordinator tests for `ja-*` locale round-trips.
 
-**Wave 1 output gate:** `FuzzyClock.Core` compiles; `AppSettings` and `SettingsSnapshot` have `ClockType` + LCD + dial-decoration fields; `DialMode` property removed from both.
+### 3. SettingsWindow LCD UI + Japanese style gating - third (depends on Step 2 for style logic)
 
-### Wave 2 (57-02): UI Wiring
+Add `BtnLcd` to the Clock Style rail. Add the LCD settings panel. Extend
+`SetClockStyleButtonStates()`. Update `PopulateControls()` for LCD controls and for the revised
+`CmbPhraseStyle` enable/disable logic. Wire `BtnLcd_Click` and LCD control event handlers. The
+LCD events are already declared and subscribed in `MainWindow.OpenSettings()` - only the XAML
+controls and `PopulateControls` population are missing.
 
-**Files touched:**
-- `FuzzyClock.App/SettingsWindow.xaml` — add `BtnNixie` to Clock Style rail
-- `FuzzyClock.App/SettingsWindow.xaml.cs` — replace `DialModeChanged` with `ClockTypeChanged`; add 6 missing events; update `SetClockStyleButtonStates`, `PopulateControls`, click handlers
-- `FuzzyClock.App/MainWindow.xaml.cs` — fix `_dialMode` reference in `ApplyPhraseWrap`
+### 4. LcdClockView blinking colon - fourth (self-contained)
 
-**Depends on:** Wave 1 (`SettingsSnapshot.ClockType` must exist before `SetClockStyleButtonStates(s.ClockType)` compiles)
+Add `bool _colonVisible` field, toggle it in `_timer.Tick`, and apply it conditionally to
+`Colon1` and `Colon2`. No other file changes required. Can be done in parallel with Step 3 or
+after.
 
-**Wave 2 output gate:** Full solution builds with 0 errors; `_dialMode` and `DialModeChanged` have zero occurrences in the codebase; `BtnNixie` exists in XAML; `ClockTypeChanged` and all six missing events are declared.
+### Build order rationale
+
+- Steps 1 and 2 are pure Core work with no UI surface - they compile and test independently
+  before any UI work touches them.
+- Step 3 is safe the moment Step 2's `ResolveLocaleKey` helper is confirmed correct, because the
+  SettingsWindow changes rely on the routing logic being stable.
+- Step 4 is fully isolated to a single UserControl file and carries no risk to other steps.
+- No settings migration is required: all `AppSettings` LCD fields and `PhraseStyle`/`PhraseLocale`
+  fields already exist and serialize/deserialize correctly.
 
 ---
 
 ## File Change Map
 
 ```
-Wave 1 (57-01):
-FuzzyClock.Core/
-├── YodaPhraseProvider.cs        — ADD GetSegmentKey
-├── JivePhraseProvider.cs        — ADD GetSegmentKey
-├── PiratePhraseProvider.cs      — ADD GetSegmentKey
-├── ShakespearePhraseProvider.cs — ADD GetSegmentKey
-├── DwarfPhraseProvider.cs       — ADD GetSegmentKey
-└── ValleyGirlPhraseProvider.cs  — ADD GetSegmentKey
+Step 1 - Japanese providers (FuzzyClock.Core):
+  ADD FuzzyClock.Core/JapaneseTersePhraseProvider.cs
+  ADD FuzzyClock.Core/JapanesePoeticPhraseProvider.cs
+  ADD FuzzyClock.Core/JapaneseRudePhraseProvider.cs
+  ADD FuzzyClock.Core.Tests/* (new test cases)
 
-FuzzyClock.App/
-├── AppSettings.cs               — REMOVE DialMode; ADD ClockType + LcdUse24Hr + LcdShowSeconds + LcdStyle + LcdSize
-└── SettingsSnapshot.cs          — REMOVE DialMode; ADD ClockType + LCD fields + ShowHourTicks + ShowMinuteDots + ShowHourNumbers
+Step 2 - Registry + routing (FuzzyClock.Core + FuzzyClock.App):
+  MODIFY FuzzyClock.Core/PhraseEngine.cs
+      ADD ["ja-classic"], ["ja-terse"], ["ja-poetic"], ["ja-rude"] entries
+  MODIFY FuzzyClock.App/MainWindow.xaml.cs
+      ADD ResolveLocaleKey() private helper
+      UPDATE ApplySettings() Japanese routing block
+      UPDATE SetLanguage() Japanese routing block
+      UPDATE SetPhraseStyle() guard + locale-key derivation
+  ADD FuzzyClock.Core.Tests/* (PhraseEngineCoordinatorTests ja-* round-trips)
 
-Wave 2 (57-02):
-FuzzyClock.App/
-├── SettingsWindow.xaml          — ADD BtnNixie to Clock Style rail StackPanel
-├── SettingsWindow.xaml.cs       — REPLACE DialModeChanged with ClockTypeChanged;
-│                                   ADD 6 missing event declarations;
-│                                   UPDATE SetClockStyleButtonStates(ClockType);
-│                                   UPDATE PopulateControls;
-│                                   UPDATE BtnPhrase_Click, BtnDial_Click;
-│                                   ADD BtnNixie_Click
-└── MainWindow.xaml.cs           — FIX _dialMode reference in ApplyPhraseWrap
+Step 3 - SettingsWindow LCD UI + style gating (FuzzyClock.App):
+  MODIFY FuzzyClock.App/SettingsWindow.xaml
+      ADD BtnLcd to Clock Style rail StackPanel
+      ADD LCD settings panel (LcdSettingsLabel + LcdSettingsPanel with CheckBoxes + ComboBox)
+  MODIFY FuzzyClock.App/SettingsWindow.xaml.cs
+      UPDATE SetClockStyleButtonStates(): add BtnLcd.Tag + LcdSettingsLabel/Panel visibility
+      UPDATE PopulateControls(): populate LCD controls + revised CmbPhraseStyle enable logic
+      ADD BtnLcd_Click handler
+      ADD LCD control event handlers
+      UPDATE CmbPhraseLanguage_SelectionChanged: remove "ja" from disabled set
 
-NOT MODIFIED (verified complete):
-FuzzyClock.App/
-├── ClockType.cs                 — enum already has Nixie
-├── NixieSize.cs                 — NixieSizeMap already complete
-├── TrayMenuBuilder.cs           — _nixieClockItem already wired
-├── SettingsService.cs           — DialMode migration already implemented
-├── MainWindow.xaml              — NixieView already declared Visibility=Collapsed
-└── MainWindow.xaml.cs           — SetClockType(Nixie), ApplySettings Nixie branch, SaveSettings all complete
-Controls/
-├── NixieClockView.xaml + .cs   — complete
-└── NixieDigit.xaml + .cs       — complete
+Step 4 - Blinking colon (FuzzyClock.App):
+  MODIFY FuzzyClock.App/Controls/LcdClockView.xaml.cs
+      ADD _colonVisible field
+      UPDATE _timer.Tick handler to toggle colon
+
+NOT MODIFIED (already complete):
+  FuzzyClock.App/ClockType.cs
+  FuzzyClock.App/AppSettings.cs               (LCD fields already present)
+  FuzzyClock.App/SettingsSnapshot.cs          (LCD fields already present)
+  FuzzyClock.App/LcdSize.cs
+  FuzzyClock.App/LcdTimeFormatHelper.cs
+  FuzzyClock.App/MainWindow.xaml              (LcdView element already declared)
+  FuzzyClock.App/MainWindow.xaml.cs           (SetClockType/ApplySettings/SaveSettings LCD branches complete)
+  FuzzyClock.Core/JapanesePhraseProvider.cs   (kept as-is; "ja" key preserved)
+  FuzzyClock.Core/SevenSegmentEncoder.cs
+  FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs
+  FuzzyClock.App/Controls/LcdClockView.xaml   (no structural XAML changes needed)
 ```
 
 ---
 
-## Scalability Considerations
+## Anti-Patterns to Avoid
 
-This is a single-user desktop widget. The relevant scalability concern is adding a fifth clock type in a future milestone.
+### Anti-Pattern 1: Adding a second timer to MainWindow for LCD
 
-| Concern | Current Approach | Why It Holds |
-|---------|-----------------|--------------|
-| Adding a new clock type | Add enum value, add `case` in `SetClockType`, add XAML view element | Clean switch pattern; no flag explosion |
-| New settings fields | Add to `AppSettings` with safe `init` default; add to `SettingsSnapshot`; add event to `SettingsWindow`; subscribe in `MainWindow.OpenSettings()` | Established 4-step pattern; JSON backward compat via init defaults |
-| Old `settings.json` files | `SettingsService.Validate()` corrects invalid values; migration block handles schema changes | Pre-existing migration infrastructure handles new cases |
+**What:** Adding a new `DispatcherTimer(1s)` to `MainWindow` to call `LcdView.UpdateTime()`.
+
+**Why bad:** `LcdClockView` already owns its own 1s `DispatcherTimer` that auto-starts via
+`IsVisibleChanged`. A second timer in `MainWindow` would double-tick the display and create
+ownership confusion over the update cadence.
+
+**Instead:** `LcdClockView` self-manages its timer. `MainWindow` only sets DPs and visibility.
+
+### Anti-Pattern 2: Routing all Japanese styles through a disabled CmbPhraseStyle
+
+**What:** Keeping `CmbPhraseStyle.IsEnabled = false` for Japanese locale and adding a separate
+per-language style control.
+
+**Why bad:** Diverges from the clean locale+style orthogonality the system already has for English.
+Creates two style-selection paths and doubles the event wiring surface.
+
+**Instead:** Re-enable `CmbPhraseStyle` for `"ja"` locale. The four options (Classic/Terse/Poetic/
+Rude) map symmetrically to `ja-*` keys. `ResolveLocaleKey()` handles the routing.
+
+### Anti-Pattern 3: Partially updating the routing duplication
+
+**What:** Updating `SetLanguage()` for Japanese but leaving the duplicate switch in `ApplySettings()`
+and `SetPhraseStyle()` unchanged.
+
+**Why bad:** On app restart, `ApplySettings()` still routes `ja` to Classic regardless of the
+persisted `PhraseStyle`. The widget displays Classic Japanese after restart even though the user
+selected Terse.
+
+**Instead:** Update all three routing sites in the same commit. Extract `ResolveLocaleKey()` to
+make the triple-site pattern impossible to miss.
+
+### Anti-Pattern 4: Blinking colon on Colon2 when ShowSeconds is false
+
+**What:** Applying the blink toggle to `Colon2.Character` unconditionally in the tick handler.
+
+**Why bad:** `Colon2` has `Visibility.Collapsed` when `ShowSeconds = false`. Writing its
+`Character` when collapsed is harmless but indicates the blink logic is not accounting for
+visibility state. If visibility is toggled while the colon is in the blank phase it could
+appear stuck.
+
+**Instead:** Guard: `if (ShowSeconds) Colon2.Character = _colonVisible ? ':' : ' ';`
+
+### Anti-Pattern 5: Renaming JapanesePhraseProvider
+
+**What:** Renaming the existing class to `JapaneseClassicPhraseProvider` for naming symmetry.
+
+**Why bad:** The registry key `"ja"` must remain pointing to the same provider for the auto-detect
+path (`uiLang == "ja"`). Renaming would require a refactor that risks a build break with no
+behavioral benefit.
+
+**Instead:** Keep `JapanesePhraseProvider` as-is. Add `"ja-classic"` as an alias in the registry
+pointing to the same instance if symmetric naming is desired.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Japanese phrase content | Phrase naturalness requires native-speaker review (flagged in existing `JapanesePhraseProvider` source comment) | Mark as provisional; exhaustive bucket tests verify coverage regardless of phrase quality |
+| `_suppressEvents` in PopulateControls | New LCD controls must be populated under the existing guard or spurious events fire on window open | Follow the exact `PopulateControls` pattern: set controls between `_suppressEvents = true` and `false` |
+| `SetPhraseStyle` guard expansion | The guard uses `StartsWith("en-")` - expanding to cover `"ja"` must not accidentally pass through `"fr"`, `"de"`, `"es"`, `"pl"` | Use `StartsWith("ja", StringComparison.Ordinal)` - not a generic removal of the guard |
+| `ResolveLocaleKey` extraction | Three copies of the routing switch exist in `MainWindow` - partial extraction leaves one copy stale and creates a restart regression | Extract all three call sites in the same commit |
+| Blinking colon and ShowSeconds toggle | `OnVisualPropertyChanged` already calls `UpdateTime()` when `ShowSeconds` DP changes, so a blank-phase colon corrects within the same call | No extra handling needed - existing DP callback covers this |
 
 ---
 
 ## Sources
 
-All findings are HIGH confidence — derived from direct source audit.
+All findings are HIGH confidence - derived from direct source audit of the production codebase.
+No external documentation or web search was performed.
 
-| Source | What was verified |
-|--------|------------------|
-| `FuzzyClock.App/MainWindow.xaml.cs` | Clock type wiring, `OpenSettings()` subscriptions (lines 460–481), `ApplySettings()` Nixie branch (line 272), `SaveSettings()` (line 557), `GetCurrentSettingsSnapshot()` (line 412), `ApplyPhraseWrap()` stale `_dialMode` reference (line 718) |
-| `FuzzyClock.App/AppSettings.cs` | `DialMode` field confirmed present; `ClockType` absent |
-| `FuzzyClock.App/SettingsSnapshot.cs` | `DialMode` field confirmed present; `ClockType` absent |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` | `DialModeChanged` event confirmed; `ClockTypeChanged` absent; LCD/decoration event declarations absent |
-| `FuzzyClock.App/SettingsWindow.xaml` | 2-button Clock Style rail (Phrase / Dial) confirmed |
-| `FuzzyClock.App/SettingsService.cs` | `DialMode → ClockType` migration at lines 53–61 verified; reads from raw `JsonDocument`, not from deserialized record |
-| `FuzzyClock.App/ClockType.cs` | Enum with `Phrase / Dial / Lcd / Nixie` confirmed |
-| `FuzzyClock.App/TrayMenuBuilder.cs` | `_nixieClockItem` wired to `SetClockType(ClockType.Nixie)` confirmed |
-| `Controls/NixieClockView.xaml.cs` | Self-contained 1s timer via `IsVisibleChanged` confirmed |
-| `.planning/phases/57-.../57-RESEARCH.md` | Primary research source — full source audit |
-| `.planning/phases/57-.../57-01-PLAN.md` | Wave 1 task specification |
-| `.planning/phases/57-.../57-02-PLAN.md` | Wave 2 task specification |
+| File audited | Key findings |
+|-------------|-------------|
+| `FuzzyClock.App/ClockType.cs` | `Lcd` enum value confirmed present |
+| `FuzzyClock.App/AppSettings.cs` | All LCD fields present; `PhraseStyle`/`PhraseLocale` present |
+| `FuzzyClock.App/SettingsSnapshot.cs` | All LCD fields present |
+| `FuzzyClock.App/MainWindow.xaml` | `LcdView` element at line 110, `Visibility="Collapsed"` |
+| `FuzzyClock.App/MainWindow.xaml.cs` | `SetClockType(Lcd)` at line 1308; `ApplyLcdColors()` at line 1689; `SetLanguage()` at line 1397; `SetPhraseStyle()` at line 1370; phrase timer guard at line 112; `OpenSettings()` LCD subscriptions at line 460 |
+| `FuzzyClock.App/SettingsWindow.xaml` | 3-button Clock Style rail (Phrase/Dial/Nixie) confirmed; no BtnLcd |
+| `FuzzyClock.App/SettingsWindow.xaml.cs` | LCD events declared at lines 27-29; `SetClockStyleButtonStates` has no Lcd case; `PopulateControls` has no LCD controls; `CmbPhraseLanguage_SelectionChanged` disables style for "ja" |
+| `FuzzyClock.App/Controls/LcdClockView.xaml.cs` | Own 1s timer confirmed; colon blink not implemented |
+| `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` | `' '` -> `0x00` (blank) path confirmed |
+| `FuzzyClock.Core/PhraseEngine.cs` | `"ja"` -> `JapanesePhraseProvider()` only; no `ja-*` variants |
+| `FuzzyClock.Core/JapanesePhraseProvider.cs` | 12-bucket structure; `GetSegmentKey` returns `GetPhrase(dt)` |
+| `FuzzyClock.Core/IPhraseProvider.cs` | `GetPhrase`, `GetStructuredPhrase`, `GetSegmentKey` confirmed |
 
 ---
 
-*Architecture research for: FuzzyClock v3.7 — Phase 57 Nixie re-introduction*
-*Researched: 2026-03-19*
+*Architecture research for: FuzzyClock v3.9 - LCD Clock + Japanese Styles*
+*Researched: 2026-03-23*
