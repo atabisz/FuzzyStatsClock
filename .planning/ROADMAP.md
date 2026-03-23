@@ -64,8 +64,11 @@ Full details: `.planning/milestones/v3.7-ROADMAP.md`
   3. Opening Settings shows each checkbox in the state matching the current persisted value
   4. Toggling any checkbox immediately updates the live widget (decoration appears or disappears without closing Settings)
   5. Decoration state persists to settings.json and restores correctly after app restart
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
+
+Plans:
+- [ ] 60-01-PLAN.md — Add Dial Face checkboxes to Appearance tab with visibility gating and live-apply handlers
 
 ## Progress Table
 
