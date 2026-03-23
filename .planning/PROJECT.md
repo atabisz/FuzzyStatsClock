@@ -8,17 +8,17 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v3.8 Dial Settings
+## Next Milestone
 
-**Goal:** Re-expose dial clock decoration toggles (hour ticks, minute dots, hour numbers) in the Settings window Appearance tab.
+Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 
-**Target features:**
-- 3 checkboxes in Settings > Appearance for Show Hour Ticks, Show Minute Dots, Show Hour Numbers
-- Controls visible only when Dial clock style is active (DIAL-09 pattern)
-- `PopulateControls()` populates all three from the current snapshot
-- Settings persist and restore across restart (backend already intact — pure UI wiring)
+**Candidates:**
+- LCD clock face (fourth clock type, stub events already declared in SettingsWindow)
+- Japanese phrase naturalness review (medium confidence; native-speaker review recommended)
 
 ## Current State
+
+**v3.8 shipped: 2026-03-23** — Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) in Settings > Appearance with Dial-only visibility gating; `PopulateControls` + `_suppressEvents` guard pattern; 299 tests pass (262 Core + 37 App)
 
 **v3.7 shipped: 2026-03-23** — Nixie tube clock re-introduced as a selectable clock style; `ClockType` enum replaces `DialMode bool`; SettingsWindow 3-button Clock Style rail (Phrase/Dial/Nixie); `BackdropBorder` is sole hover backdrop; 0 build errors, 299 tests pass (262 Core + 37 App)
 
@@ -262,10 +262,14 @@ Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 - ✓ NIX-04: Pre-existing build errors resolved (GetSegmentKey on novelty providers, stale _dialMode reference); project compiles clean — v3.7
 - ✓ BACK-05: ContentBorder backdrop removed; BackdropBorder is sole hover backdrop for the widget — v3.7
 
+### Validated (v3.8)
+
+- ✓ DIAL-10: Settings > Appearance shows Hour Ticks, Minute Dots, and Hour Numbers checkboxes; visible only when Dial clock style is active, collapsed for Phrase/Nixie — v3.8
+- ✓ DIAL-11: Each checkbox reflects persisted value on open (PopulateControls); fires existing event through _suppressEvents guard on toggle; persists to settings.json and restores on restart — v3.8
+
 ### Active
 
-- [ ] DIAL-10: Settings > Appearance exposes Hour Ticks, Minute Dots, and Hour Numbers toggles visible only when Dial clock style is active
-- [ ] DIAL-11: Each toggle reflects persisted state on open, applies changes immediately, and persists to settings.json
+(none — see Next Milestone candidates above)
 
 ### Out of Scope
 
@@ -433,6 +437,8 @@ Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 | BackdropBorder as sole hover backdrop | Original ContentBorder backdrop covered only the phrase row, creating a double-layer artifact on hover; BackdropBorder wraps the full widget; ContentBorder.Background must never be set in code | ✓ Validated — BACK-05: single uniform backdrop; no visual artifact on hover |
 | 6 LCD/dial-decoration events declared as stubs in SettingsWindow | MainWindow subscribes to all 7 events including LCD-specific ones; declaring stubs satisfies compilation while deferring LCD UI implementation to a future milestone | ✓ Validated — compiles clean; full LCD UI wiring deferred |
 | ClockTypeChanged replaces DialModeChanged | Single Action<ClockType> event covers all current and future clock modes; no separate event per mode needed | ✓ Validated — wired via single subscription in MainWindow |
+| DialFaceLabel VerticalAlignment=Top (not Center) | Column 1 of the Dial Face row contains a multi-line StackPanel of checkboxes; Top alignment matches the Phrase Wrap row pattern for label/control pairs | ✓ Validated — label aligned correctly at all font sizes |
+| Visibility gating in SetClockStyleButtonStates (not a separate handler) | Both the open-time populate path and the button-click path call SetClockStyleButtonStates; centralizing gating there ensures Dial Face row hides/shows correctly in all cases | ✓ Validated — row visible on Dial, collapsed on Phrase/Nixie, at open-time and on style switch |
 
 ---
-*Last updated: 2026-03-23 after v3.7 Nixie Clock milestone*
+*Last updated: 2026-03-23 after v3.8 Dial Settings milestone*

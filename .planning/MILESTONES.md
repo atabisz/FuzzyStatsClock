@@ -1,5 +1,17 @@
 # Milestones
 
+## v3.8 Dial Settings (Shipped: 2026-03-23)
+
+**Phases completed:** 1 phase, 1 plan
+
+**Key accomplishments:**
+
+- Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) wired to Settings > Appearance tab with `Visibility.Collapsed` gating — visible only when ClockType.Dial is active
+- `PopulateControls` reads all three from `SettingsSnapshot`; each handler fires the pre-existing `HourTicksChanged`/`MinuteDotsChanged`/`HourNumbersChanged` event through the `_suppressEvents` guard
+- Live widget update and `settings.json` persistence confirmed end-to-end; 299/299 MSTest tests pass (262 Core + 37 App)
+
+---
+
 ## v3.7 Nixie Clock (Shipped: 2026-03-23)
 
 **Phases completed:** 2 phases, 2 plans, 3 tasks

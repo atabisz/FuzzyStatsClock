@@ -4,6 +4,40 @@
 
 ---
 
+## Milestone: v3.8 — Dial Settings
+
+**Shipped:** 2026-03-23
+**Phases:** 1 (60) | **Plans:** 1
+
+### What Was Built
+- Three dial decoration checkboxes (Hour Ticks, Minute Dots, Hour Numbers) added to Settings > Appearance as a new "Dial Face" row at Grid Row 5
+- Row gated with `Visibility.Collapsed` for non-Dial clock styles; gating lives in `SetClockStyleButtonStates` so both open-time and button-click paths are covered
+- `PopulateControls` reads all three from `SettingsSnapshot`; handlers fire pre-existing `HourTicksChanged`/`MinuteDotsChanged`/`HourNumbersChanged` events through the `_suppressEvents` guard — no new event infrastructure needed
+- 299/299 MSTest tests pass; 6 pre-existing LCD stub warnings unchanged
+
+### What Worked
+- Backend was fully implemented in a prior milestone (Phase 59 data model + stub events); this plan was pure UI wiring — a well-scoped single-plan milestone
+- The `_suppressEvents` guard + `SetClockStyleButtonStates` centralization pattern (from Phase 59) made the implementation mechanical and correct by construction
+- Plan file was precise: explicit XAML row template, exact code-behind methods, clear verification checklist — executor had zero ambiguity
+
+### What Was Inefficient
+- None notable — the milestone was tiny and executed in one session (~2 min 19s execution time per summary)
+
+### Patterns Established
+- Label `VerticalAlignment=Top` for rows whose column 1 is a multi-element StackPanel — matches Phrase Wrap row pattern; should be the standard for future multi-checkbox rows
+- Centralize Dial-mode visibility gating in `SetClockStyleButtonStates` (not in `PopulateControls` or individual handlers) so all entry points stay consistent
+
+### Key Lessons
+1. Pre-implementing the backend (events, AppSettings fields, SettingsSnapshot fields) in a prior milestone makes the UI wiring milestone fast and reliable — the pattern scales well for future Settings tab additions
+2. Single-plan milestones with a fully-complete backend are the fastest GSD cycle: context → UI spec → plan → execute in one session
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 2 (context/planning + execution)
+- Notable: ~2 min execution; smallest milestone in project history; clean scope-bounding paid off
+
+---
+
 ## Milestone: v3.7 — Nixie Clock
 
 **Shipped:** 2026-03-23
