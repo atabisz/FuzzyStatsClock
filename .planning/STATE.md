@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.8
 milestone_name: Dial Settings
-status: Defining requirements
-stopped_at: Completed 59-01-PLAN.md
-last_updated: "2026-03-23T09:23:33.156Z"
+status: Ready to plan
+stopped_at: Roadmap created — Phase 60 not started
+last_updated: "2026-03-23"
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  total_phases: 1
+  completed_phases: 0
+  total_plans: 1
+  completed_plans: 0
 ---
 
 # Project State
@@ -19,29 +19,37 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Milestone v3.8 Dial Settings — defining requirements
+**Current focus:** Milestone v3.8 Dial Settings — Phase 60 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 60 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-23 — Milestone v3.8 started
+Status: Ready to plan
+Last activity: 2026-03-23 — Roadmap created for v3.8
 
-## Carried Context for Next Milestone
+## Progress
+
+```
+Phase 60 [          ] 0/1 plans
+```
+
+## Accumulated Context
+
+### Key Decisions and Constraints
 
 - SettingsWindow uses ThemeMode="Dark"; zero style leakage to MainWindow
 - 299 MSTest tests (262 Core + 37 App), 0 failures
-- Settings window is 480×600; Appearance tab compacted (theme cards 40px, 4px grid spacing)
-- ContrastRefreshController has HasAppWindowBeneath Z-order walk guard
-- ClockType enum is the single source of truth; DialMode bool fully removed
-- 6 LCD/dial-decoration events in SettingsWindow are declared stubs; LCD UI wiring is future work
+- ClockType enum is the single source of truth (Phrase/Dial/Nixie); DialMode bool fully removed
+- Backend for dial decorations (AppSettings fields, SettingsSnapshot fields, event declarations in SettingsWindow, MainWindow subscriptions) is fully implemented — Phase 60 is pure SettingsWindow XAML + PopulateControls + click handler wiring
+- 6 LCD/dial-decoration events in SettingsWindow are declared stubs; the 3 dial-decoration events (HourTicksChanged, MinuteDotsChanged, HourNumbersChanged) need XAML checkboxes and handlers wired
+- Visibility gating pattern: checkboxes visible only when ClockType.Dial is active — mirror the existing 3-button Clock Style rail pattern from Phase 59
 - BackdropBorder is the sole hover backdrop; ContentBorder.Background must never be set in code
+- Settings window is 480×600; Appearance tab uses 4px grid spacing and compacted layout
 
 ### Pending Todos
 
 - Japanese phrase naturalness is medium confidence; native-speaker review recommended (not blocking)
-- 6 LCD/dial-decoration events in SettingsWindow are declared stubs; need UI wiring in a future plan for LCD and dial settings
 
 ### Blockers/Concerns
 
@@ -50,5 +58,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-23
-Stopped at: v3.7 milestone complete
+Stopped at: v3.8 roadmap created
 Resume file: None

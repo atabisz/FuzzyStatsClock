@@ -27,6 +27,7 @@
 - ✅ **v3.6 Settings Appearance Compact** - Phase 56 (shipped 2026-03-18)
 - ✅ **v3.6.1 Contrast Flicker Fix** - Phase 57 (shipped 2026-03-19)
 - ✅ **v3.7 Nixie Clock** - Phases 58-59 (shipped 2026-03-23)
+- 🔄 **v3.8 Dial Settings** - Phase 60 (in progress)
 
 ## Phases
 
@@ -46,3 +47,28 @@ Phases 1-57 are complete. See `.planning/MILESTONES.md` for per-milestone summar
 Full details: `.planning/milestones/v3.7-ROADMAP.md`
 
 </details>
+
+### v3.8 Dial Settings
+
+- [ ] **Phase 60: Dial Decoration Settings UI** - Wire three dial decoration checkboxes in Settings Appearance tab with visibility gating and live-apply
+
+## Phase Details
+
+### Phase 60: Dial Decoration Settings UI
+**Goal**: Users can control dial face decorations from Settings > Appearance, with controls visible only when Dial clock style is active
+**Depends on**: Phase 59 (SettingsWindow with ClockType rail; dial decoration backend already complete)
+**Requirements**: DIAL-10, DIAL-11
+**Success Criteria** (what must be TRUE):
+  1. Settings > Appearance shows "Hour Ticks", "Minute Dots", and "Hour Numbers" checkboxes when Dial clock style is selected
+  2. The three checkboxes are hidden when Phrase or Nixie clock style is selected
+  3. Opening Settings shows each checkbox in the state matching the current persisted value
+  4. Toggling any checkbox immediately updates the live widget (decoration appears or disappears without closing Settings)
+  5. Decoration state persists to settings.json and restores correctly after app restart
+**Plans**: TBD
+**UI hint**: yes
+
+## Progress Table
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 60. Dial Decoration Settings UI | 0/1 | Not started | - |
