@@ -70,7 +70,10 @@ Plans:
   3. Selecting Nixie, closing the app, and relaunching restores the Nixie clock face — ClockType.Nixie persists to settings.json
   4. Hovering the widget does not show a secondary backdrop on the clock/phrase area — ContentBorder background is never set in mouse enter/leave handlers
   5. `dotnet test` passes — all existing tests green; 274+ tests with 0 failures
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 59-01-PLAN.md — Remove ContentBorder backdrop assignments and verify build/tests clean
 
 ## Progress
 
@@ -79,4 +82,4 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 58. Data Model Foundation | 1/1 | Complete    | 2026-03-19 | - |
-| 59. UI Wiring and Build Clean | v3.7 | 0/TBD | Not started | - |
+| 59. UI Wiring and Build Clean | v3.7 | 0/1 | Not started | - |
