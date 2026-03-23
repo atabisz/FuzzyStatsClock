@@ -82,4 +82,4 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 58. Data Model Foundation | 1/1 | Complete    | 2026-03-19 | - |
-| 59. UI Wiring and Build Clean | v3.7 | 1/1 | Complete   | 2026-03-23 |
+| 59. UI Wiring and Build Clean | v3.7 | 1/1 | Complete    | 2026-03-23 |
