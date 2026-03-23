@@ -38,45 +38,17 @@ Source: `MainWindow.xaml`, `SettingsWindow.xaml`
 
 ## Spacing Scale
 
-Declared values matching the existing WPF margin/padding patterns (multiples of 4):
+Phase 59 introduces no spacing changes — no spacing contract required.
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| xs | 4px | Inline padding, tight element gaps |
-| sm | 8px | Tab control margin, section spacing |
-| md | 12px | StackPanel inner margin (Settings content) |
-| lg | 16px | Section separation (label-to-control gaps) |
-| xl | 24px | Not used in current phase surfaces |
-| 2xl | 48px | Not used in current phase surfaces |
-| 3xl | 64px | Not used in current phase surfaces |
-
-Exceptions:
-- ContentBorder padding: 6px (pre-existing; leave untouched per BACK-05 scope)
-- SegmentButtonStyle padding: 12px horizontal, 4px vertical (pre-existing; leave untouched)
-- Clock Style rail row top margin: 8px (matches Font Size and Phrase Style rows above it)
-
-Source: `SettingsWindow.xaml` rows 289–298, `MainWindow.xaml` line 46
+Pre-existing XAML spacing values (ContentBorder padding 6px, SegmentButtonStyle padding 12px/4px, etc.) are untouched by this phase and need not be declared as part of this phase's contract.
 
 ---
 
 ## Typography
 
-All values extracted from existing XAML. Phase 59 adds no text elements.
+Phase 59 introduces no typography changes — no typography contract required.
 
-| Role | Size | Weight | Line Height |
-|------|------|--------|-------------|
-| Widget phrase (PhraseText) | 32px | Light (300) | 1.2 (auto) |
-| Widget emphasis (EmphasisText, split style) | 44px | Light (300) | 1.2 (auto) |
-| Widget qualifier (QualifierText, split style) | 20px | Light (300) | 1.2 (auto) |
-| Widget date (DateText) | 26px | Light (300) | 1.2 (auto) |
-| Widget stats labels/values | 12px | Light (300) | 1.2 (auto) |
-| Widget uptime | 11px | Light (300) | 1.2 (auto) |
-| Settings section heading | system default semibold | SemiBold (600) | 1.4 |
-| Settings label | system default | Regular (400) | 1.4 |
-| Settings helper text | 11px | Regular (400) | 1.4 |
-| Theme card label (Appearance tab) | 10px | Regular (400) | 1.2 |
-
-Source: `MainWindow.xaml` lines 52–83, 131–141, 162–174, 263–270; `SettingsWindow.xaml` lines 58, 75–76, 466–467
+Pre-existing XAML text elements are untouched by this phase and need not be declared as part of this phase's contract.
 
 ---
 
