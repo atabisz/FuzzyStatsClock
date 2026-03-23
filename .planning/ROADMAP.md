@@ -50,7 +50,7 @@ Full details: `.planning/milestones/v3.7-ROADMAP.md`
 
 ### v3.8 Dial Settings
 
-- [ ] **Phase 60: Dial Decoration Settings UI** - Wire three dial decoration checkboxes in Settings Appearance tab with visibility gating and live-apply
+- [x] **Phase 60: Dial Decoration Settings UI** - Wire three dial decoration checkboxes in Settings Appearance tab with visibility gating and live-apply (completed 2026-03-23)
 
 ## Phase Details
 
@@ -68,10 +68,10 @@ Full details: `.planning/milestones/v3.7-ROADMAP.md`
 **UI hint**: yes
 
 Plans:
-- [ ] 60-01-PLAN.md — Add Dial Face checkboxes to Appearance tab with visibility gating and live-apply handlers
+- [x] 60-01-PLAN.md — Add Dial Face checkboxes to Appearance tab with visibility gating and live-apply handlers
 
 ## Progress Table
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 60. Dial Decoration Settings UI | 0/1 | Not started | - |
+| 60. Dial Decoration Settings UI | 1/1 | Complete   | 2026-03-23 |

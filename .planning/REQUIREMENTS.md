@@ -7,8 +7,8 @@
 
 ### Dial Decoration Settings
 
-- [ ] **DIAL-10**: Settings > Appearance shows three checkboxes — "Hour Ticks", "Minute Dots", "Hour Numbers" — that are visible only when Dial clock style is active; they are hidden when Phrase or Nixie is active
-- [ ] **DIAL-11**: Each checkbox reflects the persisted value on open (via `PopulateControls`), fires its `Changed` event immediately on toggle so the widget updates live, and persists to settings.json; values restore on app restart
+- [x] **DIAL-10**: Settings > Appearance shows three checkboxes — "Hour Ticks", "Minute Dots", "Hour Numbers" — that are visible only when Dial clock style is active; they are hidden when Phrase or Nixie is active
+- [x] **DIAL-11**: Each checkbox reflects the persisted value on open (via `PopulateControls`), fires its `Changed` event immediately on toggle so the widget updates live, and persists to settings.json; values restore on app restart
 
 ## Future Requirements
 
@@ -29,8 +29,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DIAL-10 | Phase 60 | Pending |
-| DIAL-11 | Phase 60 | Pending |
+| DIAL-10 | Phase 60 | Complete |
+| DIAL-11 | Phase 60 | Complete |
 
 **Coverage:**
 - v3.8 requirements: 2 total
