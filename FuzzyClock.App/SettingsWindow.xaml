@@ -251,6 +251,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Opacity -->
@@ -326,6 +327,21 @@
                             <RadioButton x:Name="RbWrapNatural" Content="Natural Pause"
                                          GroupName="WrapStyle" Checked="RbWrapNatural_Checked"/>
                         </StackPanel>
+                    </StackPanel>
+
+                    <!-- Dial Face (per D-01, D-02, D-03) -->
+                    <TextBlock x:Name="DialFaceLabel" Grid.Row="5" Grid.Column="0"
+                               Text="Dial Face" VerticalAlignment="Top"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"/>
+                    <StackPanel x:Name="DialFacePanel"
+                                Grid.Row="5" Grid.Column="1"
+                                Margin="0,8,0,0">
+                        <CheckBox x:Name="ChkShowHourTicks" Content="Hour Ticks"
+                                  Checked="ChkShowHourTicks_Changed" Unchecked="ChkShowHourTicks_Changed"/>
+                        <CheckBox x:Name="ChkShowMinuteDots" Content="Minute Dots"
+                                  Checked="ChkShowMinuteDots_Changed" Unchecked="ChkShowMinuteDots_Changed"/>
+                        <CheckBox x:Name="ChkShowHourNumbers" Content="Hour Numbers"
+                                  Checked="ChkShowHourNumbers_Changed" Unchecked="ChkShowHourNumbers_Changed"/>
                     </StackPanel>
 
                 </Grid>
