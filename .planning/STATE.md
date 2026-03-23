@@ -1,8 +1,8 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.7
-milestone_name: Nixie Clock
-status: v3.7 milestone complete
+milestone: v3.8
+milestone_name: Dial Settings
+status: Defining requirements
 stopped_at: Completed 59-01-PLAN.md
 last_updated: "2026-03-23T09:23:33.156Z"
 progress:
@@ -19,11 +19,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Planning next milestone
+**Current focus:** Milestone v3.8 Dial Settings — defining requirements
 
 ## Current Position
 
-v3.7 milestone complete. Ready for next milestone.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-23 — Milestone v3.8 started
 
 ## Carried Context for Next Milestone
 

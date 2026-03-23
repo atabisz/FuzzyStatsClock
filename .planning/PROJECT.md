@@ -8,6 +8,16 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v3.8 Dial Settings
+
+**Goal:** Re-expose dial clock decoration toggles (hour ticks, minute dots, hour numbers) in the Settings window Appearance tab.
+
+**Target features:**
+- 3 checkboxes in Settings > Appearance for Show Hour Ticks, Show Minute Dots, Show Hour Numbers
+- Controls visible only when Dial clock style is active (DIAL-09 pattern)
+- `PopulateControls()` populates all three from the current snapshot
+- Settings persist and restore across restart (backend already intact — pure UI wiring)
+
 ## Current State
 
 **v3.7 shipped: 2026-03-23** — Nixie tube clock re-introduced as a selectable clock style; `ClockType` enum replaces `DialMode bool`; SettingsWindow 3-button Clock Style rail (Phrase/Dial/Nixie); `BackdropBorder` is sole hover backdrop; 0 build errors, 299 tests pass (262 Core + 37 App)
@@ -254,7 +264,8 @@ Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 
 ### Active
 
-(None — ready for next milestone)
+- [ ] DIAL-10: Settings > Appearance exposes Hour Ticks, Minute Dots, and Hour Numbers toggles visible only when Dial clock style is active
+- [ ] DIAL-11: Each toggle reflects persisted state on open, applies changes immediately, and persists to settings.json
 
 ### Out of Scope
 
