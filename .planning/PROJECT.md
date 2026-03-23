@@ -20,6 +20,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**Phase 59 complete: 2026-03-23** — v3.7 Nixie Clock shippable: removed 5 `ContentBorder.Background` assignments from hover handlers (BACK-05); `BackdropBorder` is now sole hover backdrop; 0 build errors, 299 tests pass (262 Core + 37 App)
+
 **Phase 58 complete: 2026-03-19** — Data model foundation finalized: absent-field `ClockType` unit test added (`Deserialize_MissingClockType_DefaultsToPhrase`); all 299 tests pass (262 Core + 37 App); NIX-01 and NIX-04 fully verified
 
 **Phase 57 complete: 2026-03-19** — Nixie clock re-introduced: `ClockType` enum replaces `DialMode bool` across `AppSettings`/`SettingsSnapshot`; SettingsWindow has 3-button Clock Style rail (Phrase/Dial/Nixie); `ClockTypeChanged` event wired to `SetClockType`; all 6 novelty phrase providers implement `GetSegmentKey`; solution builds with 0 errors, 298 tests pass
@@ -34,7 +36,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
 
-274 MSTest tests (249 Core + 25 App) passing. CI gate enforced.
+299 MSTest tests (262 Core + 37 App) passing. CI gate enforced.
 
 ## Next Milestone
 
