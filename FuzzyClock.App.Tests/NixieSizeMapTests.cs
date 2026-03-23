@@ -9,7 +9,7 @@ namespace FuzzyClock.App.Tests;
 [TestClass]
 public class NixieSizeMapTests
 {
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(LcdSize.Small,  40.0)]
     [DataRow(LcdSize.Medium, 56.0)]
     [DataRow(LcdSize.Large,  72.0)]

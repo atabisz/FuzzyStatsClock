@@ -52,6 +52,7 @@
 
         <!-- ===== APPEARANCE TAB ===== -->
         <TabItem Header="Appearance">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12">
 
                 <!-- Named Themes — personality presets; placed above accent color -->
@@ -373,6 +374,7 @@
                 </Grid>
 
             </StackPanel>
+            </ScrollViewer>
         </TabItem>
 
         <!-- ===== STATS TAB ===== -->
