@@ -4,6 +4,45 @@
 
 ---
 
+## Milestone: v3.7 — Nixie Clock
+
+**Shipped:** 2026-03-23
+**Phases:** 2 (58–59) | **Plans:** 2
+
+### What Was Built
+- `ClockType` enum replaces `DialMode bool` across `AppSettings`/`SettingsSnapshot`; JSON migration preserves existing preferences; LCD fields added for future use
+- SettingsWindow 3-button Clock Style rail (Phrase / Dial / Nixie) with `ClockTypeChanged` event and all 7 event declarations (6 LCD stubs)
+- Nixie tube clock face selectable in Settings; `ClockType.Nixie` persists to settings.json and restores correctly
+- Absent-field deserialization test (`Deserialize_MissingClockType_DefaultsToPhrase`) closes the data model verification
+- BACK-05: 5 `ContentBorder.Background` assignments removed from hover handlers; `BackdropBorder` is now sole hover backdrop — no double-layer visual artifact
+
+### What Worked
+- Splitting the work into a focused data model phase (58) and a UI/build-clean phase (59) kept each plan narrow and verifiable
+- The plan file for Phase 59 was exceptionally precise — exact line numbers, exact removal targets — which made the executor's job deterministic; zero ambiguity about what to delete
+- Absent-field test pattern (minimal JSON string, not full round-trip) is the right isolation strategy for default-value coverage
+- The existing NixieClockView/NixieDigit controls were already complete; the milestone's job was wiring, not building — scope was correctly bounded
+
+### What Was Inefficient
+- Worktree isolation caused a split-commit issue: the code change committed to the worktree branch while the docs commit went to master; required a cherry-pick to reconcile. This is a known edge case in the parallel executor pattern when the worktree is created from an older branch point
+- The traceability table for NIX-04 was left with two "Pending" rows (a table update bug from the executor); caught in verification but adds minor cleanup noise
+
+### Patterns Established
+- When a plan removes specific lines, list exact line numbers AND surrounding context lines that must not be touched — eliminates deletion ambiguity for the executor
+- Worktree isolation for single-file edits adds overhead; for plans that modify only one file, inline execution avoids the cherry-pick reconciliation step
+- Declaring stub events in SettingsWindow satisfies compilation while deferring UI implementation — a clean "just enough" pattern for future capability plumbing
+
+### Key Lessons
+1. Precise plan files (exact line numbers, exact patterns, explicit "do not touch" callouts) are worth the upfront effort — they eliminate executor ambiguity and verification is clean
+2. Worktree branch point matters: if the worktree is created from an older branch than HEAD, docs commits and code commits can land on divergent histories; check and cherry-pick after each parallel wave
+3. Stub events are a valid scaffold: declaring all 7 events now means future LCD work has zero interface friction
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 2 (one for planning/context, one for execution)
+- Notable: small focused milestone completed in a single execution session; precise plan files drove efficient executor output
+
+---
+
 ## Milestone: v3.6.2 — Contrast Flicker Regression Fix
 
 **Shipped:** 2026-03-19
