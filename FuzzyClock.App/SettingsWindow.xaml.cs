@@ -160,6 +160,11 @@ public sealed partial class SettingsWindow : Window
         RbWrapNatural.IsChecked  = s.PhraseWrapStyle == "natural";
         WrapStylePanel.IsEnabled = s.PhraseWrapEnabled;
 
+        // Dial face decoration checkboxes
+        ChkShowHourTicks.IsChecked   = s.ShowHourTicks;
+        ChkShowMinuteDots.IsChecked  = s.ShowMinuteDots;
+        ChkShowHourNumbers.IsChecked = s.ShowHourNumbers;
+
         // Backdrop controls
         BackdropOpacitySlider.Value = s.BackdropOpacityPercent;
         BackdropOpacityLabel.Text = $"{s.BackdropOpacityPercent}%";
@@ -206,6 +211,11 @@ public sealed partial class SettingsWindow : Window
         BtnPhrase.Tag = ct == ClockType.Phrase ? "selected" : null;
         BtnDial.Tag   = ct == ClockType.Dial   ? "selected" : null;
         BtnNixie.Tag  = ct == ClockType.Nixie  ? "selected" : null;
+
+        // Dial face row: visible only for Dial clock style
+        var dialVis = ct == ClockType.Dial ? Visibility.Visible : Visibility.Collapsed;
+        DialFaceLabel.Visibility = dialVis;
+        DialFacePanel.Visibility = dialVis;
     }
 
     private void SetActiveSwatch(Border? activeRing)
@@ -572,6 +582,25 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         PhraseWrapStyleChanged?.Invoke("natural");
+    }
+
+    // -- Dial face decoration checkboxes ------------------------------------
+    private void ChkShowHourTicks_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        ShowHourTicksChanged?.Invoke(ChkShowHourTicks.IsChecked == true);
+    }
+
+    private void ChkShowMinuteDots_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        ShowMinuteDotsChanged?.Invoke(ChkShowMinuteDots.IsChecked == true);
+    }
+
+    private void ChkShowHourNumbers_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        ShowHourNumbersChanged?.Invoke(ChkShowHourNumbers.IsChecked == true);
     }
 
     // ── Backdrop controls ─────────────────────────────────────────────────
