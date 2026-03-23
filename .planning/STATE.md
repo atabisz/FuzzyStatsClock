@@ -3,22 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Nixie Clock
 status: unknown
-stopped_at: Phase 59 context gathered
-last_updated: "2026-03-19T06:07:36.857Z"
-progress:
-  total_phases: 2
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
----
-
----
-gsd_state_version: 1.0
-milestone: v3.7
-milestone_name: Nixie Clock
-status: unknown
-stopped_at: Completed 58-01-PLAN.md
-last_updated: "2026-03-19T02:34:06.278Z"
+stopped_at: Phase 59 UI-SPEC approved
+last_updated: "2026-03-23T07:44:43.697Z"
 progress:
   total_phases: 2
   completed_phases: 1
@@ -85,6 +71,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T06:07:36.854Z
-Stopped at: Phase 59 context gathered
-Resume file: .planning/phases/59-ui-wiring-and-build-clean/59-CONTEXT.md
+Last session: 2026-03-23T07:44:43.693Z
+Stopped at: Phase 59 UI-SPEC approved
+Resume file: .planning/phases/59-ui-wiring-and-build-clean/59-UI-SPEC.md
