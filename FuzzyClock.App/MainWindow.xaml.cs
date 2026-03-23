@@ -157,7 +157,6 @@ public partial class MainWindow : Window
             _ghostMode.Restored += () =>
             {
                 this.Opacity = _windowOpacity;
-                ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
                 if (!_backdropAlwaysVisible)
                     BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
             };
@@ -1024,8 +1023,6 @@ public partial class MainWindow : Window
             var alpha = BackdropAlpha();
             BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
                 System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
-            ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
         }
         SaveSettings();
     }
@@ -1044,8 +1041,6 @@ public partial class MainWindow : Window
         {
             // Normal hover path (CTRLALT-01/02): show backdrop + activate fast-refresh.
             // WS_EX_TRANSPARENT is NOT applied — window stays fully interactive (drag, right-click, scroll).
-            ContentBorder.Background = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromArgb(BackdropAlpha(), 0, 0, 0));
             BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
                 System.Windows.Media.Color.FromArgb(BackdropAlpha(), 0, 0, 0));
 
@@ -1065,7 +1060,6 @@ public partial class MainWindow : Window
         // Step 1: Run synthetic MouseLeave cleanup BEFORE going click-through.
         // WS_EX_TRANSPARENT stops WM_MOUSELEAVE delivery. Backdrop and timer state
         // must be clean before we disappear or they will be corrupted post-restore.
-        ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
         if (!_backdropAlwaysVisible)
             BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
         if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null)
@@ -1088,7 +1082,6 @@ public partial class MainWindow : Window
         if (_ghostMode.IsActive) return;
 
         // Backdrop restore (Phase 14): always clear on leave regardless of stats state
-        ContentBorder.Background = System.Windows.Media.Brushes.Transparent;
         if (!_backdropAlwaysVisible)
             BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
 
