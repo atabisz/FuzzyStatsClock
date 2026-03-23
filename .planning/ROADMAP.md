@@ -26,7 +26,7 @@
 - ✅ **v3.5 Phrase Wrap + Installer** - Phases 48-55 (shipped 2026-03-18)
 - ✅ **v3.6 Settings Appearance Compact** - Phase 56 (shipped 2026-03-18)
 - ✅ **v3.6.1 Contrast Flicker Fix** - Phase 57 (shipped 2026-03-19)
-- 🚧 **v3.7 Nixie Clock** - Phases 58-59 (in progress)
+- ✅ **v3.7 Nixie Clock** - Phases 58-59 (shipped 2026-03-23)
 
 ## Phases
 
@@ -37,49 +37,12 @@ Phases 1-57 are complete. See `.planning/MILESTONES.md` for per-milestone summar
 
 </details>
 
-### 🚧 v3.7 Nixie Clock (In Progress)
+<details>
+<summary>✅ v3.7 Nixie Clock (Phases 58-59) — SHIPPED 2026-03-23</summary>
 
-**Milestone Goal:** Re-introduce the Nixie tube clock face as a selectable clock style in Settings alongside Phrase and Dial.
+- [x] Phase 58: Data Model Foundation (1/1 plans) — completed 2026-03-19
+- [x] Phase 59: UI Wiring and Build Clean (1/1 plans) — completed 2026-03-23
 
-- [x] **Phase 58: Data Model Foundation** - Migrate AppSettings/SettingsSnapshot from DialMode bool to ClockType enum; resolve novelty provider build errors (completed 2026-03-19)
-- [x] **Phase 59: UI Wiring and Build Clean** - Add Nixie button to Settings Clock Style rail; wire Nixie clock face; resolve remaining build errors; remove ContentBorder duplicate backdrop (completed 2026-03-23)
+Full details: `.planning/milestones/v3.7-ROADMAP.md`
 
-## Phase Details
-
-### Phase 58: Data Model Foundation
-**Goal**: AppSettings and SettingsSnapshot use ClockType enum; FuzzyClock.Core compiles clean; existing tests updated
-**Depends on**: Phase 57 (v3.6.1 complete)
-**Requirements**: NIX-01, NIX-04 (novelty provider GetSegmentKey errors)
-**Success Criteria** (what must be TRUE):
-  1. `dotnet build FuzzyClock.Core` exits 0 — six novelty providers each implement GetSegmentKey
-  2. AppSettings has ClockType field (not DialMode); existing settings.json with dialMode:true upgrades to ClockType.Dial without data loss
-  3. SettingsSnapshot has ClockType, LcdUse24Hr, LcdShowSeconds, LcdStyle, ShowHourTicks, ShowMinuteDots, ShowHourNumbers fields
-  4. STEST-01 round-trip test passes with new AppSettings fields; absent-field test confirms ClockType defaults to Phrase
-**Plans:** 1/1 plans complete
-
-Plans:
-- [ ] 58-01-PLAN.md — Add ClockType absent-field test and verify all success criteria
-
-### Phase 59: UI Wiring and Build Clean
-**Goal**: Nixie is selectable in Settings, activates the tube clock face on the widget, and the full solution builds with 0 errors
-**Depends on**: Phase 58
-**Requirements**: NIX-02, NIX-03, NIX-04 (stale _dialMode reference), BACK-05
-**Success Criteria** (what must be TRUE):
-  1. `dotnet build` exits 0 with 0 errors — no stale _dialMode reference, all 7 events declared in SettingsWindow
-  2. Settings window Clock Style rail shows three buttons: Phrase, Dial, Nixie; clicking Nixie immediately activates the Nixie tube clock face on the widget
-  3. Selecting Nixie, closing the app, and relaunching restores the Nixie clock face — ClockType.Nixie persists to settings.json
-  4. Hovering the widget does not show a secondary backdrop on the clock/phrase area — ContentBorder background is never set in mouse enter/leave handlers
-  5. `dotnet test` passes — all existing tests green; 274+ tests with 0 failures
-**Plans:** 1/1 plans complete
-
-Plans:
-- [x] 59-01-PLAN.md — Remove ContentBorder backdrop assignments and verify build/tests clean
-
-## Progress
-
-**Execution Order:** 58 → 59
-
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 58. Data Model Foundation | 1/1 | Complete    | 2026-03-19 | - |
-| 59. UI Wiring and Build Clean | v3.7 | 1/1 | Complete    | 2026-03-23 |
+</details>

@@ -2,45 +2,31 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers). It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. Five built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers), or as a Nixie tube clock face. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. Five built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v3.7 Nixie Clock
-
-**Goal:** Re-introduce the Nixie tube clock face as a selectable clock style in Settings alongside Phrase and Dial.
-
-**Target features:**
-- AppSettings/SettingsSnapshot migrated from `DialMode bool` to `ClockType` enum with LCD fields
-- SettingsWindow 3-button Clock Style rail (Phrase / Dial / Nixie) with `ClockTypeChanged` event
-- Selecting Nixie activates the Nixie tube clock face on the widget
-- Pre-existing build errors resolved (GetSegmentKey on novelty providers, stale `_dialMode` reference)
-
 ## Current State
 
-**Phase 59 complete: 2026-03-23** — v3.7 Nixie Clock shippable: removed 5 `ContentBorder.Background` assignments from hover handlers (BACK-05); `BackdropBorder` is now sole hover backdrop; 0 build errors, 299 tests pass (262 Core + 37 App)
+**v3.7 shipped: 2026-03-23** — Nixie tube clock re-introduced as a selectable clock style; `ClockType` enum replaces `DialMode bool`; SettingsWindow 3-button Clock Style rail (Phrase/Dial/Nixie); `BackdropBorder` is sole hover backdrop; 0 build errors, 299 tests pass (262 Core + 37 App)
 
-**Phase 58 complete: 2026-03-19** — Data model foundation finalized: absent-field `ClockType` unit test added (`Deserialize_MissingClockType_DefaultsToPhrase`); all 299 tests pass (262 Core + 37 App); NIX-01 and NIX-04 fully verified
+**v3.6.2 shipped: 2026-03-19** — `HasAppWindowBeneath` extended with `SHELLDLL_DefView` shell exclusion and `DwmGetWindowAttribute(DWMWA_CLOAKED)` check; AutoContrast and BackdropAlwaysVisible stable over desktops with icons and Windows 11 shell panels
 
-**Phase 57 complete: 2026-03-19** — Nixie clock re-introduced: `ClockType` enum replaces `DialMode bool` across `AppSettings`/`SettingsSnapshot`; SettingsWindow has 3-button Clock Style rail (Phrase/Dial/Nixie); `ClockTypeChanged` event wired to `SetClockType`; all 6 novelty phrase providers implement `GetSegmentKey`; solution builds with 0 errors, 298 tests pass
+**v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping (midpoint/natural pause), dark-mode Settings window redesign, edge snapping, single-instance IPC
 
-**v3.6.2 shipped: 2026-03-19** — `HasAppWindowBeneath` extended with `SHELLDLL_DefView` shell exclusion and `DwmGetWindowAttribute(DWMWA_CLOAKED)` check; AutoContrast and BackdropAlwaysVisible stable over desktops with icons and Windows 11 shell panels; 274 tests pass
-
-**v3.6.1 shipped: 2026-03-19** — AutoContrast and BackdropAlwaysVisible stable over empty desktop; `HasAppWindowBeneath` Z-order walk guard in `ContrastRefreshController.Tick` skips sampling when only shell windows (Progman/WorkerW/SysListView32) are beneath the widget, eliminating contrast oscillation feedback loop
-
-**v3.6 shipped: 2026-03-18** — Settings Appearance tab fully visible within 480×600 window; compact theme cards; tighter inter-section spacing
-
-**v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping (midpoint/natural pause), segment-key phrase guard, full-widget backdrop with opacity control, poetic phrase hour hints, dark-mode Settings window redesign, edge snapping, single-instance IPC, AbandonedMutex crash recovery
-
-**v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl), PhraseEngine provider refactor
+**v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
 
 299 MSTest tests (262 Core + 37 App) passing. CI gate enforced.
 
 ## Next Milestone
 
 Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
+
+**Candidates:**
+- LCD clock face (fourth clock type, stub events already declared in SettingsWindow)
+- Japanese phrase naturalness review (medium confidence; native-speaker review recommended)
 
 ## Requirements
 
@@ -260,13 +246,15 @@ Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 
 ### Validated (v3.7)
 
-- ✓ NIX-01: AppSettings and SettingsSnapshot use ClockType enum instead of DialMode bool; LCD fields added — Phase 57–58
-- ✓ NIX-04: Pre-existing build errors resolved (GetSegmentKey on novelty providers, stale _dialMode reference); project compiles clean — Phase 57–58
+- ✓ NIX-01: AppSettings and SettingsSnapshot use ClockType enum instead of DialMode bool; LCD fields added — v3.7
+- ✓ NIX-02: SettingsWindow exposes a 3-button Clock Style rail (Phrase/Dial/Nixie) with ClockTypeChanged event — v3.7
+- ✓ NIX-03: Selecting Nixie in Settings activates the Nixie tube clock face on the widget — v3.7
+- ✓ NIX-04: Pre-existing build errors resolved (GetSegmentKey on novelty providers, stale _dialMode reference); project compiles clean — v3.7
+- ✓ BACK-05: ContentBorder backdrop removed; BackdropBorder is sole hover backdrop for the widget — v3.7
 
 ### Active
 
-- [ ] NIX-02: SettingsWindow exposes a 3-button Clock Style rail (Phrase/Dial/Nixie) with ClockTypeChanged event
-- [ ] NIX-03: Selecting Nixie in Settings activates the Nixie tube clock face on the widget
+(None — ready for next milestone)
 
 ### Out of Scope
 
@@ -430,6 +418,10 @@ Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 | SHELLDLL_DefView added as 4th shell exclusion class | Desktop icon host window present when icons visible; omitting it caused guard to return true over empty desktop with icons, reintroducing feedback loop | ✓ Validated — flicker eliminated on desktops with visible icons |
 | DwmGetWindowAttribute(DWMWA_CLOAKED) for ApplicationFrameWindow | Windows 11 UWP shell panels (Start, Search, Widgets) stay in Z-order when dismissed with IsWindowVisible=true; DWM cloaked attribute (non-zero = hidden) reliably distinguishes them from real app windows; class cannot be added to exclusion list | ✓ Validated — flicker eliminated on Windows 11 with shell panels present |
 | Cloaked check after non-shell-class filter | Running cloaked P/Invoke only on windows that passed the class filter keeps the hot path lean; avoids per-tick DwmGetWindowAttribute overhead for known shell classes | ✓ Validated — no UI stutter at 500ms tick rate |
+| ClockType enum replaces DialMode bool | Single source of truth for clock view selection; enum is extensible to LCD and future types; bool cannot grow without migration complexity | ✓ Validated — v3.7: 3-way selection (Phrase/Dial/Nixie) works with zero migration complexity for existing users |
+| BackdropBorder as sole hover backdrop | Original ContentBorder backdrop covered only the phrase row, creating a double-layer artifact on hover; BackdropBorder wraps the full widget; ContentBorder.Background must never be set in code | ✓ Validated — BACK-05: single uniform backdrop; no visual artifact on hover |
+| 6 LCD/dial-decoration events declared as stubs in SettingsWindow | MainWindow subscribes to all 7 events including LCD-specific ones; declaring stubs satisfies compilation while deferring LCD UI implementation to a future milestone | ✓ Validated — compiles clean; full LCD UI wiring deferred |
+| ClockTypeChanged replaces DialModeChanged | Single Action<ClockType> event covers all current and future clock modes; no separate event per mode needed | ✓ Validated — wired via single subscription in MainWindow |
 
 ---
-*Last updated: 2026-03-19 after Phase 58 complete*
+*Last updated: 2026-03-23 after v3.7 Nixie Clock milestone*
