@@ -17,7 +17,7 @@
 
 ### Backdrop Cleanup
 
-- [ ] **BACK-05**: The phrase/clock-area hover backdrop (`ContentBorder` background set in `Window_MouseEnter`) is removed; `BackdropBorder` is the sole hover backdrop for the widget
+- [x] **BACK-05**: The phrase/clock-area hover backdrop (`ContentBorder` background set in `Window_MouseEnter`) is removed; `BackdropBorder` is the sole hover backdrop for the widget
 
 ## Future Requirements
 
@@ -43,7 +43,7 @@
 | NIX-02 | Phase 59 | Complete |
 | NIX-03 | Phase 59 | Complete |
 | NIX-04 (stale _dialMode reference) | Phase 59 | Pending |
-| BACK-05 | Phase 59 | Pending |
+| BACK-05 | Phase 59 | Complete |
 
 **Coverage:**
 - v3.7 requirements: 5 total

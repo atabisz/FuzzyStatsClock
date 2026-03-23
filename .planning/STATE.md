@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Nixie Clock
-status: unknown
-stopped_at: Phase 59 UI-SPEC approved
-last_updated: "2026-03-23T07:44:43.697Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 59-01-PLAN.md
+last_updated: "2026-03-23T08:23:04.058Z"
 progress:
   total_phases: 2
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 59 — next phase
+**Current focus:** Phase 59 — ui-wiring-and-build-clean
 
 ## Current Position
 
-Phase: 58 (data-model-foundation) — COMPLETE
-Plan: 1 of 1 (all complete)
+Phase: 59 (ui-wiring-and-build-clean) — EXECUTING
+Plan: 1 of 1
 
 ## Accumulated Context
 
@@ -60,6 +60,11 @@ Plan: 1 of 1 (all complete)
 - No STEST ID assigned to ClockType absent-field test — follows pattern of TextStyle test which also has no STEST ID
 - Phase 58 complete: all 4 ROADMAP success criteria verified (Core build clean, ClockType enum replaces DialMode, SettingsSnapshot has 7 required fields, absent-field test confirms ClockType defaults to Phrase)
 
+### Decisions from 59-01
+
+- BackdropBorder is the sole hover backdrop; ContentBorder.Background is not set in code-behind (BACK-05 complete)
+- Phase 59 complete: v3.7 Nixie Clock build-clean and shippable; 274 tests pass, 0 errors
+
 ### Pending Todos
 
 - Japanese phrase naturalness is medium confidence; native-speaker review recommended (not blocking).
@@ -71,6 +76,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-23T07:44:43.693Z
-Stopped at: Phase 59 UI-SPEC approved
-Resume file: .planning/phases/59-ui-wiring-and-build-clean/59-UI-SPEC.md
+Last session: 2026-03-23T08:23:04.054Z
+Stopped at: Completed 59-01-PLAN.md
+Resume file: None

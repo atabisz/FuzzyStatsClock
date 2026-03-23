@@ -42,7 +42,7 @@ Phases 1-57 are complete. See `.planning/MILESTONES.md` for per-milestone summar
 **Milestone Goal:** Re-introduce the Nixie tube clock face as a selectable clock style in Settings alongside Phrase and Dial.
 
 - [x] **Phase 58: Data Model Foundation** - Migrate AppSettings/SettingsSnapshot from DialMode bool to ClockType enum; resolve novelty provider build errors (completed 2026-03-19)
-- [ ] **Phase 59: UI Wiring and Build Clean** - Add Nixie button to Settings Clock Style rail; wire Nixie clock face; resolve remaining build errors; remove ContentBorder duplicate backdrop
+- [x] **Phase 59: UI Wiring and Build Clean** - Add Nixie button to Settings Clock Style rail; wire Nixie clock face; resolve remaining build errors; remove ContentBorder duplicate backdrop (completed 2026-03-23)
 
 ## Phase Details
 
@@ -70,10 +70,10 @@ Plans:
   3. Selecting Nixie, closing the app, and relaunching restores the Nixie clock face — ClockType.Nixie persists to settings.json
   4. Hovering the widget does not show a secondary backdrop on the clock/phrase area — ContentBorder background is never set in mouse enter/leave handlers
   5. `dotnet test` passes — all existing tests green; 274+ tests with 0 failures
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 59-01-PLAN.md — Remove ContentBorder backdrop assignments and verify build/tests clean
+- [x] 59-01-PLAN.md — Remove ContentBorder backdrop assignments and verify build/tests clean
 
 ## Progress
 
@@ -82,4 +82,4 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 58. Data Model Foundation | 1/1 | Complete    | 2026-03-19 | - |
-| 59. UI Wiring and Build Clean | v3.7 | 0/1 | Not started | - |
+| 59. UI Wiring and Build Clean | v3.7 | 1/1 | Complete   | 2026-03-23 |
