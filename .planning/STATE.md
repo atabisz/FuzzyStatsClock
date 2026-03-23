@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: LCD Clock + Japanese Styles
-status: Defining requirements
-stopped_at: Milestone started
-last_updated: "2026-03-23"
+status: Roadmap defined
+stopped_at: Phase 61 not started
+last_updated: "2026-03-24"
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -23,30 +23,42 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 61 — Japanese Phrase Providers (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-23 — Milestone v3.9 started
+Status: Roadmap defined; ready to plan Phase 61
+Last activity: 2026-03-24 — Roadmap created
 
 ## Progress
 
-(No phases defined yet — roadmap pending)
+```
+Phase 61: Japanese Phrase Providers    [ ] Not started
+Phase 62: Routing Consolidation        [ ] Not started
+Phase 63: SettingsWindow LCD UI        [ ] Not started
+Phase 64: Blinking Colon               [ ] Not started
+Phase 65: Settings Persistence         [ ] Not started
+
+[----------] 0/5 phases complete
+```
 
 ## Accumulated Context
 
 ### Key Decisions and Constraints
 
 - SettingsWindow uses ThemeMode="Dark"; zero style leakage to MainWindow
-- 299 MSTest tests (262 Core + 37 App), 0 failures
-- ClockType enum is the single source of truth (Phrase/Dial/Nixie); LCD will add a fourth value
-- SettingsWindow already has stub LCD events declared; MainWindow subscribes to them — LCD implementation needs XAML canvas + segment drawing logic
-- Japanese providers follow IPhraseProvider pattern; ja-JP Classic provider is the reference baseline
-- LCD: 7-segment digits drawn as WPF shapes (Lines/Rectangles), accent-colored; 12/24h switchable; blinking colon; optional seconds row — both 12/24h and seconds-row are Settings-toggleable
+- 299 MSTest tests (262 Core + 37 App), 0 failures at milestone start
+- ClockType enum is the single source of truth (Phrase/Dial/Nixie/Lcd already defined in ClockType.cs)
+- All LCD rendering infrastructure already complete: SevenSegmentDigit, LcdClockView, SevenSegmentEncoder, LcdTimeFormatHelper, LcdSize, AppSettings LCD fields, SettingsWindow LCD stub events
+- Japanese providers follow IPhraseProvider 12-bucket pattern; JapanesePhraseProvider (Classic) is the reference baseline
+- LCD colon blink: use _colonVisible toggle in LcdClockView.UpdateTime() — no new DispatcherTimer
+- LCD options visibility gating belongs in SetClockStyleButtonStates() alongside existing Dial Face row gating
 - BackdropBorder is the sole hover backdrop; ContentBorder.Background must never be set in code
+- ResolveLocaleKey helper must be extracted before SettingsWindow exposes Japanese style selection (Phase 62 before Phase 63)
+- [DoNotParallelize] class required for any PhraseEngine coordinator tests referencing static PhraseEngine state
 
 ### Pending Todos
 
-- Japanese phrase naturalness is medium confidence; native-speaker review recommended (not blocking)
+- Japanese Poetic and Rude phrase vocabulary is LOW confidence; native-speaker review recommended before shipping (non-blocking)
+- STEST-01 round-trip test coverage for LCD fields: audit existing test before writing new assertions (Phase 65)
 
 ### Blockers/Concerns
 
@@ -54,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-23
-Stopped at: Milestone v3.9 initialized
+Last session: 2026-03-24
+Stopped at: Roadmap created; Phase 61 ready to plan
 Resume file: None

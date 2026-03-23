@@ -48,17 +48,17 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| LCD-01 | TBD | Pending |
-| LCD-02 | TBD | Pending |
-| LCD-03 | TBD | Pending |
-| LCD-04 | TBD | Pending |
-| LCD-05 | TBD | Pending |
-| LCD-06 | TBD | Pending |
-| LCD-07 | TBD | Pending |
-| LCD-08 | TBD | Pending |
-| JA-01 | TBD | Pending |
-| JA-02 | TBD | Pending |
-| JA-03 | TBD | Pending |
-| JA-04 | TBD | Pending |
-| JA-05 | TBD | Pending |
-| JA-06 | TBD | Pending |
+| LCD-01 | Phase 63 | Pending |
+| LCD-02 | Phase 63 | Pending |
+| LCD-03 | Phase 63 | Pending |
+| LCD-04 | Phase 63 | Pending |
+| LCD-05 | Phase 63 | Pending |
+| LCD-06 | Phase 64 | Pending |
+| LCD-07 | Phase 65 | Pending |
+| LCD-08 | Phase 65 | Pending |
+| JA-01  | Phase 61 | Pending |
+| JA-02  | Phase 61 | Pending |
+| JA-03  | Phase 61 | Pending |
+| JA-04  | Phase 62 | Pending |
+| JA-05  | Phase 62 | Pending |
+| JA-06  | Phase 61 | Pending |
