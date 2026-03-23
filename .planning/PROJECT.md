@@ -8,13 +8,15 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Next Milestone
+## Current Milestone: v3.9 LCD Clock + Japanese Styles
 
-Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
+**Goal:** Add a 7-segment LCD clock as the fourth clock style and add Terse/Poetic/Rude phrase personality variants for Japanese locale.
 
-**Candidates:**
-- LCD clock face (fourth clock type, stub events already declared in SettingsWindow)
-- Japanese phrase naturalness review (medium confidence; native-speaker review recommended)
+**Target features:**
+- LCD clock face: WPF-drawn 7-segment digits, accent-colored, 12-hour or 24-hour switchable, blinking colon, optional toggleable seconds row
+- Japanese Terse: short, clipped casual phrasing
+- Japanese Poetic: atmospheric imagery-based phrasing
+- Japanese Rude: brusque / impatient phrasing
 
 ## Current State
 
@@ -29,14 +31,6 @@ Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
 
 299 MSTest tests (262 Core + 37 App) passing. CI gate enforced.
-
-## Next Milestone
-
-Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
-
-**Candidates:**
-- LCD clock face (fourth clock type, stub events already declared in SettingsWindow)
-- Japanese phrase naturalness review (medium confidence; native-speaker review recommended)
 
 ## Requirements
 
@@ -269,7 +263,13 @@ Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 
 ### Active
 
-(none — see Next Milestone candidates above)
+- [ ] **LCD-01**: LCD clock face (7-segment, WPF-drawn, accent-colored)
+- [ ] **LCD-02**: 12-hour / 24-hour toggle in Settings
+- [ ] **LCD-03**: Blinking colon (every second)
+- [ ] **LCD-04**: Optional seconds row, toggleable in Settings
+- [ ] **JA-01**: Japanese Terse phrase style (clipped casual phrasing)
+- [ ] **JA-02**: Japanese Poetic phrase style (atmospheric imagery-based)
+- [ ] **JA-03**: Japanese Rude phrase style (brusque / impatient)
 
 ### Out of Scope
 
@@ -440,5 +440,22 @@ Ready to plan. Run `/gsd:new-milestone` to define the next milestone goals.
 | DialFaceLabel VerticalAlignment=Top (not Center) | Column 1 of the Dial Face row contains a multi-line StackPanel of checkboxes; Top alignment matches the Phrase Wrap row pattern for label/control pairs | ✓ Validated — label aligned correctly at all font sizes |
 | Visibility gating in SetClockStyleButtonStates (not a separate handler) | Both the open-time populate path and the button-click path call SetClockStyleButtonStates; centralizing gating there ensures Dial Face row hides/shows correctly in all cases | ✓ Validated — row visible on Dial, collapsed on Phrase/Nixie, at open-time and on style switch |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-23 after v3.8 Dial Settings milestone*
+*Last updated: 2026-03-23 — Milestone v3.9 LCD Clock + Japanese Styles started*
