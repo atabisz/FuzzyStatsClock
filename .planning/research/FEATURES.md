@@ -1,43 +1,178 @@
-# Feature Landscape: Nixie Clock Re-Introduction
+# Feature Landscape: LCD Clock + Japanese Phrase Styles
 
-**Domain:** Desktop overlay widget — adding Nixie tube clock as a third selectable clock type
-**Milestone:** v3.7 — Phase 57
-**Researched:** 2026-03-19
-**Confidence:** HIGH (all findings are from direct source audit of the existing codebase + UI-SPEC + phase research)
+**Domain:** Desktop overlay widget — adding LCD 7-segment clock (fourth clock style) and Japanese Terse/Poetic/Rude phrase variants
+**Milestone:** v3.9
+**Researched:** 2026-03-23
+**Confidence:** HIGH (findings from direct codebase audit; no external research needed — all infrastructure already exists in-repo)
+
+---
+
+## What Is Already Built (Do Not Re-Implement)
+
+Before listing what to build, the existing infrastructure must be understood to avoid
+duplicating work.
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| `SevenSegmentDigit` UserControl | Complete | `Controls/SevenSegmentDigit.xaml.cs` |
+| `SevenSegmentEncoder` (7-seg bitmasks for 0-9, colon, space) | Complete | `FuzzyClock.Core/SevenSegmentEncoder.cs` |
+| `LcdClockView` UserControl (HH:MM[:SS], Use24Hr, ShowSeconds, 1s timer) | Complete | `Controls/LcdClockView.xaml.cs` |
+| `LcdTimeFormatHelper.FormatTime()` | Complete | `LcdTimeFormatHelper.cs` |
+| `LcdSize` enum + `LcdSizeMap.ToSegmentHeight()` | Complete | `LcdSize.cs` |
+| `ClockType.Lcd` enum value | Complete | `ClockType.cs` |
+| `AppSettings.LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize` fields | Complete | `AppSettings.cs` |
+| `MainWindow.SetClockType(ClockType.Lcd)` + `ApplyLcdColors()` | Complete | `MainWindow.xaml.cs` |
+| Three `LcdStyle` color modes: Dark (accent-colored), Paper (sage green), Silver (neutral gray) | Complete | `MainWindow.xaml.cs` `ApplyLcdColors()` |
+| `SettingsWindow` events: `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` (declared as stubs) | Declared, not wired to UI | `SettingsWindow.xaml.cs` |
+| `JapanesePhraseProvider` (Classic, ja locale, all 12 buckets) | Complete | `FuzzyClock.Core/JapanesePhraseProvider.cs` |
+| `PhraseEngine` locale registry with `["ja"]` key | Complete | `FuzzyClock.Core/PhraseEngine.cs` |
+| `IPhraseProvider` interface (`GetPhrase`, `GetStructuredPhrase`, `GetSegmentKey`) | Complete | `FuzzyClock.Core/IPhraseProvider.cs` |
+| `SettingsWindow.CmbPhraseStyle` disabled for Japanese locale | Exists (as gate to relax) | `SettingsWindow.xaml.cs` line 103-104 |
 
 ---
 
 ## Table Stakes
 
-Features users expect from a Nixie clock display. Missing any of these makes the
-clock type feel incomplete or broken.
+Features users expect from the LCD clock face and Japanese styles. Missing any of these
+makes the feature feel incomplete or broken.
+
+### LCD Clock
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Nixie digit display for HH:MM | A clock must show hours and minutes; warm amber cathode glow is the defining visual | LOW | `NixieClockView` + `NixieDigit` already complete; wiring is the work |
-| Real-time update (1s tick) | Nixie tubes are exact clocks, not fuzzy; users expect the minute digit to flip precisely at :00 | LOW | `NixieClockView` manages its own 1s `DispatcherTimer` via `IsVisibleChanged`; no MainWindow timer involvement |
-| Selectable in Settings (alongside Phrase and Dial) | Clock style is already a user-facing choice; Nixie must live in the same 3-button rail | LOW | Extend the existing 2-button "Phrase / Dial" rail to 3-button "Phrase / Dial / Nixie" in `SettingsWindow.xaml` |
-| Selection persists across restarts | All other clock settings persist; Nixie must too | LOW | Requires migrating `AppSettings.DialMode: bool` to `AppSettings.ClockType: ClockType`; `SettingsService` migration already implemented |
-| Ghost cathode effect (all 10 digits faintly visible) | Core visual identity of an IN-18 Nixie tube; without it the display looks like a plain LCD | LOW | Already implemented in `NixieDigit.xaml.cs` with distance-weighted opacity (base/distance-2/distance-1/active four-level system) |
-| Correct amber-orange glow color | Nixie tubes emit warm orange — wrong color breaks the aesthetic | LOW | Hardcoded palette already in `NixieDigit.xaml.cs`: active cathode `#FF8C00 FF`, glow center `#FF8C00 A0` |
-| Colon separator between hours and minutes | HH:MM format requires a visual separator; colon dots must pulse or be static | LOW | `NixieClockView` already renders two colon dots between the digit pairs |
-| Stats panel visible below Nixie clock | Stats panel is the widget's primary secondary feature; must not vanish when switching to Nixie | LOW | `NixieClockView` replaces `PhraseText`/`DialCanvas` in Row 0; stats remain in their own rows unchanged |
-| Font size change reflected in tube size | User changes font size in Settings; Nixie digits should scale proportionally | LOW | `NixieView.Size = FontSizeToLcdSize(FontSize)` already wired in `SetClockType()` and `ApplyFontSize()`; `NixieSizeMap` maps Small=40px/Medium=56px/Large=72px digit height |
+| LCD button in SettingsWindow Clock Style rail | LCD is a new clock mode; it must be selectable alongside Phrase/Dial/Nixie | LOW | Extend `BtnPhrase/BtnDial/BtnNixie` rail with `BtnLcd`; fire `ClockTypeChanged(ClockType.Lcd)` |
+| LCD settings section in SettingsWindow Appearance tab | 12/24h and seconds toggles are LCD-specific settings; user cannot configure without UI | LOW | Add a visibility-gated panel (visible only when Lcd selected); wire to the three stub events already declared |
+| 12-hour / 24-hour toggle in LCD settings | Clock convention varies by locale; 12h is default, 24h is needed for non-US users | LOW | `ChkLcd24Hr` checkbox wired to `LcdUse24HrChanged` event; already handled in MainWindow |
+| Optional seconds row toggleable in LCD settings | Seconds are distracting for a glanceable clock; must be off by default but user-accessible | LOW | `ChkLcdShowSeconds` checkbox wired to `LcdShowSecondsChanged`; already handled in MainWindow |
+| LCD style selector (Dark / Paper / Silver) | The three styles give the LCD a distinct look; Dark uses accent color; Paper and Silver are fixed palettes | LOW | 3-button segment rail or ComboBox wired to `LcdStyleChanged`; `ApplyLcdColors()` already handles all three |
+| 12-hour leading-space handling | 12-hour display uses a leading space for single-digit hours (` 3:45`) to prevent layout shift | LOW | Already implemented in `LcdTimeFormatHelper.FormatTime()`; `SevenSegmentEncoder.Encode(' ')` returns `0x00` (blank) |
+| Blinking colon (every second) | All real LCD clocks blink the colon separator; a static colon looks unfinished | MEDIUM | `LcdClockView` ticks every second; colon blink requires toggling `Colon1.Character` between `':'` and `' '` on odd/even seconds; seconds display colons do not blink |
+| LCD excluded from accent color application (Dark mode exception) | Dark mode intentionally uses accent color; Paper and Silver must NOT receive accent | LOW | `ApplyLcdColors()` in MainWindow already handles this correctly; accent applied only in Dark branch |
+| LCD size follows font size setting | User changes font size in Settings; LCD digits should scale proportionally | LOW | `LcdView.Size = FontSizeToLcdSize(s.FontSize)` already wired in `SetClockType()` and `ApplyFontSize()` |
+| Persist LCD settings across restarts | `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle` already in `AppSettings`; must round-trip through settings.json | LOW | Field storage done; requires `PopulateControls` to read and reflect values on open |
+
+### Japanese Phrase Styles
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Japanese Terse provider (ja-terse) | Matches the English Terse pattern — clipped, compact phrasing without elaboration | MEDIUM | New `JapaneseTersePhraseProvider` class; 12 buckets; same template system as `JapanesePhraseProvider`; register as `["ja-terse"]` in `PhraseEngine` |
+| Japanese Poetic provider (ja-poetic) | Matches the English Poetic pattern — imagery-based, atmospheric; Japanese has rich vocabulary for this | MEDIUM | New `JapanesePoeticPhraseProvider` class; multiple candidates per bucket; `Random.Shared` selection; register as `["ja-poetic"]` |
+| Japanese Rude provider (ja-rude) | Matches the English Rude pattern — blunt, dismissive, impatient | MEDIUM | New `JapaneseRudePhraseProvider` class; multiple candidates per bucket; register as `["ja-rude"]` |
+| Phrase style selector enabled for Japanese locale | Currently `CmbPhraseStyle.IsEnabled = false` when `ja` locale is active; styles must be accessible | LOW | Relax the gate in `PopulateControls` so `CmbPhraseStyle.IsEnabled = true` when locale is `"ja"` (or `"auto"` with Japanese UI culture) |
+| PhraseEngine routing for ja-terse / ja-poetic / ja-rude | `SetPhraseStyle()` / `SetLocale()` must map `(locale="ja", style="Terse")` to `["ja-terse"]` | LOW | `PhraseEngine` already uses locale keys; add `["ja-terse"]`, `["ja-poetic"]`, `["ja-rude"]` entries and update `SetPhraseStyle()` locale-style routing logic |
+| All 12 time buckets covered in each style | Missing buckets cause runtime exceptions; tests must verify exhaustive coverage | LOW | Follow the existing 12-bucket table (`UpperBound` 2/7/12/17/22/27/32/37/42/47/52/59) and special cases (正午 at 12:00, 真夜中 at 00:00) |
+| Unit tests for all three new providers | Existing `MultilingualPhraseProviderTests.cs` exhaustively covers all buckets; same pattern required | LOW | One `[TestClass]` per new provider; test all 12 buckets + noon + midnight special cases |
 
 ---
 
 ## Differentiators
 
-Features that distinguish this Nixie implementation beyond minimal correctness.
+Features that go beyond minimal correctness and give the implementation character.
+
+### LCD Clock
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Wire mesh texture inside tube | Physical Nixie tubes have a wire mesh cathode cage; the rendered version simulates this with horizontal strokes at 7px spacing | LOW | Already rendered in `NixieDigit.xaml.cs`; `#FF8C00 18` (9.4% alpha) strokes; no action needed |
-| Glass reflection highlight | Top highlight rectangle simulates glass curvature — differentiates from flat LCD-style rendering | LOW | Already implemented: `#FFFFFF 14` (7.8% alpha) rectangle at tube top |
-| Dark tube fill (not transparent) | Physical tubes have a dark glass envelope; `#1A0800 CC` (80% alpha) background conveys depth | LOW | Already implemented in `NixieDigit.xaml.cs` |
-| Accent color isolation (no accent bleed onto Nixie face) | Nixie authenticity depends on fixed amber colors; user accent color must NOT override tube glow | LOW | UI-SPEC explicitly excludes `NixieClockView` from accent color application; requires validation that `ApplyTheme()` and `ApplyDisplayColor()` do not iterate over Nixie elements |
-| Proportional digit geometry (not fixed px) | Digits scale correctly at all three font sizes without distortion | LOW | `NixieDigit.xaml.cs` uses `DigitHeight * 0.62` for width, `DigitHeight * 0.72` for glyph font size; already correct |
-| Three-button Settings rail (not a dropdown) | Segment rail is visually consistent with the existing font-size rail; faster to tap than a ComboBox | LOW | Extend the `SegmentButtonStyle` rail with a "Nixie" button at `Padding="12,4"` |
+| Ghost segments (unlit segments visible at low opacity) | Real LCD displays show all 8-segment outlines faintly; without it the display looks flat | LOW | Already implemented in `SevenSegmentDigit.UpdateSegments()`: unlit segments use `_ghostBrush` (auto-computed as 15% of lit color, or explicit `GhostColor` for Paper/Silver styles) |
+| Hexagonal chamfer on segment polygons | Physical 7-segment displays have beveled segment ends; chamfered polygons convey depth | LOW | Already implemented in `SevenSegmentDigit.RebuildGeometry()` via `ch` parameter; `HorizontalSegment` and `VerticalSegment` helpers produce 6-point polygons |
+| Classic vs Bold segment styles | Classic = slender (calculator aesthetic); Bold = thick minimal-gap (Bodet station clock aesthetic); Paper/Silver use Bold | LOW | Already implemented via `SegmentStyle` dependency property; `SegmentStyle == "Bold"` branch in `RebuildGeometry()` |
+| Background panel per digit | Real LCD displays have a physical substrate behind each digit; `BgColor` property fills this | LOW | Already implemented via `_backgroundRect` in `SevenSegmentDigit` |
+| Blinking colon as liveness indicator | Static colon feels like a frozen screenshot; blink confirms the clock is running | MEDIUM | Requires odd/even second detection in `UpdateTime()`; toggle `Colon1.Character` between `':'` and `' '` |
+
+### Japanese Phrase Styles
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Terse: uses casual spoken registers (口語) | Japanese casual speech is distinctly shorter than written formal — matches the Terse intent precisely | MEDIUM | Use plain form verbs, contracted forms, particles omitted where natural in casual speech |
+| Terse: avoids kanji-heavy Sino-Japanese clock vocabulary | 一時 / 二時 etc. are formal; casual speech often uses `1時` (Arabic numerals + 時) or time-of-day words (朝, 昼, 夕) | MEDIUM | Mix Arabic numerals with `時` for compact notation in Terse |
+| Poetic: uses nature/season imagery (時候の挨拶 style) | Japanese has a deep tradition of seasonal time expressions (春暁, 払暁, 白夜); poetic phrases can reference atmospheric conditions | HIGH | Requires Japanese language knowledge; examples below; confidence LOW on naturalness — native review recommended |
+| Poetic: uses poetic register vocabulary (文語) | Literary Japanese uses classical forms (あけぼの for dawn, 夕暮れ for dusk) that feel genuinely evocative | HIGH | See phrase examples section below |
+| Rude: uses coarse/brusque register (rough speech, タメ口) | Japanese casual-rude phrasing is syntactically distinct from English rudeness; requires Japanese-specific vocabulary | HIGH | See phrase examples section below; confidence LOW — native review recommended |
+| Rude: uses dismissive sentence-final particles and forms | もう3時じゃん / いい加減〜だろ / とっくに〜 convey impatience in ways that feel authentically Japanese | HIGH | Examples below; do not translate English rude phrases literally |
+
+---
+
+## Japanese Phrase Style Examples by Bucket
+
+These examples cover representative time buckets. Each row shows the Classic baseline
+and the three new style variants. Confidence: MEDIUM for Terse (structural patterns
+well-established), LOW for Poetic and Rude (cultural register nuance — native speaker
+review recommended before shipping).
+
+**Hour variables:** `{h}` = current hour (Sino-Japanese: 一時, 二時 ... 十二時);
+`{h1}` = next hour. Terse may use `{hn}` = Arabic numeral hour (1–12).
+
+### Bucket 0: On the hour (minute 0-2)
+
+| Style | 3:00 example | Pattern note |
+|-------|-------------|-------------|
+| Classic | `三時ちょうど` | Formal Sino-Japanese + ちょうど |
+| Terse | `3時` or `3時だ` | Arabic numeral, drop ちょうど |
+| Poetic | `三時の鐘が鳴る` / `三時の静けさ` | Bell metaphor, silence metaphor |
+| Rude | `もう3時じゃん` / `3時だけど？` | もう (already), じゃん (dismissive) |
+
+### Bucket 1: Five past (minute 3-7)
+
+| Style | 3:05 example | Pattern note |
+|-------|-------------|-------------|
+| Classic | `三時過ぎ` | hour + 過ぎ (past) |
+| Terse | `3時ちょい過ぎ` | ちょい (casual "a little") |
+| Poetic | `三時を少し越えた頃` | 頃 (around that time) |
+| Rude | `3時過ぎてるし` | してるし = exasperated "it's already past" |
+
+### Bucket 2: Ten past (minute 8-12)
+
+| Style | 3:10 example | Pattern note |
+|-------|-------------|-------------|
+| Classic | `三時十分過ぎ` | hour + 十分過ぎ |
+| Terse | `3時10分` | Bare time, no elaboration |
+| Poetic | `三時を十分ほど過ぎた` | ほど = approximately |
+| Rude | `3時10分にもなるのに` | にもなる = "has gotten to be" (impatient) |
+
+### Bucket 3: Quarter past (minute 13-17)
+
+| Style | 3:15 example | Pattern note |
+|-------|-------------|-------------|
+| Classic | `三時十五分` | Bare time |
+| Terse | `3時15分` | Arabic numerals only |
+| Poetic | `三時の四半後` | 四半 = quarter, archaic feel |
+| Rude | `とっくに3時過ぎだろ` | とっくに = "long since" |
+
+### Bucket 6: Half past (minute 28-32)
+
+| Style | 3:30 example | Pattern note |
+|-------|-------------|-------------|
+| Classic | `三時半` | Standard half-hour form |
+| Terse | `3時半` | Same — half-hour is already short |
+| Poetic | `夜の折り返し地点、三時半` | 折り返し地点 = turnaround point |
+| Rude | `3時半か、まだ半分か` | まだ半分か = "still only halfway" |
+
+### Bucket 10: Ten to (minute 48-52)
+
+| Style | 2:50 → "nearly 3" example | Pattern note |
+|-------|---------------------------|-------------|
+| Classic | `もうすぐ三時` | Standard "soon three" |
+| Terse | `3時まであと少し` | あと少し = a little more |
+| Poetic | `三時の気配がしてきた` | 気配 = presence/sense, evocative |
+| Rude | `まだ3時じゃないの？早くなれよ` | 早くなれよ = "hurry up and arrive" |
+
+### Special: Noon (12:00)
+
+| Style | Example | Note |
+|-------|---------|------|
+| Classic | `正午` | Standard noon word |
+| Terse | `正午` | Same — no shorter form exists |
+| Poetic | `お天道様が頂点に立つ` | Sun at zenith; poetic |
+| Rude | `もう昼か` | もう (already), か (resigned) |
+
+### Special: Midnight (00:00)
+
+| Style | Example | Note |
+|-------|---------|------|
+| Classic | `真夜中` | Standard midnight word |
+| Terse | `真夜中` | Same — no shorter form |
+| Poetic | `丑三つ時` | Classical: witching hour (2-2:30 AM), acceptable at midnight |
+| Rude | `こんな時間まで何してんの` | "What are you doing at this hour" |
 
 ---
 
@@ -47,117 +182,141 @@ Features to explicitly not build in this milestone.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Accent color applied to Nixie digit glow | Would make tubes green/blue/pink depending on user theme — destroys the tube aesthetic | Keep `NixieClockView` excluded from all accent-color update loops; hardcoded amber palette is the design contract |
-| 24-hour / seconds display toggle surfaced in UI | LCD clock (future) will own 24hr/seconds controls; Nixie shows HH:MM in 12-hour by default | `LcdUse24Hr` and `LcdShowSeconds` are added to `AppSettings`/`SettingsSnapshot` for LCD but should not be wired to Nixie display in this phase |
-| Custom Nixie color picker | Authentic Nixie tubes emit one color; a color picker undercuts the nostalgic premise | Fixed amber palette only |
-| Digit animation (cathode crossfade) | Animated cathode switching would require a timed opacity transition per digit per tick — significant complexity for a widget | Instant digit swap on tick (current implementation); animation is a post-MVP consideration |
-| Tray menu changes | Tray already exposes `_nixieClockItem` wired to `SetClockType(ClockType.Nixie)` and reflects checked state | No tray changes required in this phase |
-| Re-implementing NixieDigit / NixieClockView geometry | Already pixel-exact and validated in Phase 56; zero changes to the rendering controls needed | Wire the existing controls; do not touch `Controls/NixieDigit.xaml.cs` or `Controls/NixieClockView.xaml.cs` |
-| Separate Nixie settings section in SettingsWindow | Nixie has no user-configurable display options in this phase | The single "Nixie" button in the Clock Style rail is the complete Nixie UI surface |
+| Blinking colon in seconds display | The seconds digits already convey time movement; a blinking colon in the seconds position creates visual noise without benefit | Blink only `Colon1` (hours/minutes separator); keep `Colon2` (minutes/seconds separator) static lit |
+| AM/PM indicator on LCD face | AM/PM adds a rendered label element that doesn't fit the minimal 7-segment aesthetic; the widget is a glanceable overlay, not an alarm clock | Omit; 12/24h toggle is sufficient |
+| Custom LCD color palette separate from accent color | Three preset styles (Dark/Paper/Silver) already cover the design space; a fourth custom palette adds settings complexity without clear value | Dark mode reuses the existing accent color — the user's full color picker already covers custom LCD colors |
+| Translating English Rude/Poetic phrases word-for-word into Japanese | Direct translation produces unnatural Japanese; the styles must be re-authored in idiomatic Japanese registers | Author each Japanese style bucket independently using Japanese-appropriate register vocabulary |
+| Japanese Terse/Poetic/Rude covering time-of-day periods (morning/afternoon) | Time-of-day labels (朝/昼/夕/夜) would require a day-quadrant lookup in addition to the minute-bucket system; adds significant complexity | Use the same 12-bucket/minute-based system as Classic; rely on clock context for time-of-day orientation |
+| LCD-specific tray menu items | The tray menu already handles clock type switching via `_lcdClockItem`; adding LCD sub-items to the tray for 12/24h or seconds would duplicate the SettingsWindow UI | LCD configuration lives entirely in SettingsWindow > Appearance > LCD Settings panel |
+| Digit animation (segment crossfade) on LCD | Animated segment transitions require per-segment opacity tweens on every second tick — high rendering cost for a background widget | Instant segment state flip on tick (current implementation) |
+| NixieSizeMap rename / unification with LcdSizeMap | Both enums use the same `LcdSize` type but `NixieClockView` uses `NixieSizeMap.ToDigitHeight()` while `LcdClockView` uses `LcdSizeMap.ToSegmentHeight()`; renaming would require migration | Leave both maps as-is; they produce different pixel values appropriate to their respective digit geometries |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[ClockType enum]
-    already exists in ClockType.cs (Phrase/Dial/Lcd/Nixie)
-    already used by MainWindow._clockType, SetClockType(), ApplySettings(), SaveSettings()
-    already used by TrayMenuBuilder._nixieClockItem
+[LCD Settings UI in SettingsWindow]
+    requires: BtnLcd added to Clock Style rail in SettingsWindow.xaml
+    requires: LCD settings panel (ChkLcd24Hr, ChkLcdShowSeconds, LCD style selector) added to Appearance tab
+    requires: SetClockStyleButtonStates(ClockType) extended to handle Lcd, gate LCD panel visibility
+    requires: PopulateControls to read s.LcdUse24Hr, s.LcdShowSeconds, s.LcdStyle
+    events: LcdUse24HrChanged, LcdShowSecondsChanged, LcdStyleChanged already declared in SettingsWindow.xaml.cs
+    already handled: MainWindow.OpenSettings() subscribes to all three events; wires to _lcdUse24Hr/_lcdShowSeconds/_lcdStyle fields and LcdView
 
-[AppSettings.ClockType migration]
-    requires removing: AppSettings.DialMode bool
-    requires adding: AppSettings.ClockType ClockType, LcdUse24Hr bool, LcdShowSeconds bool, LcdStyle string
-    SettingsService.Load() migration (DialMode → ClockType) already implemented — no changes needed there
-    removing DialMode from the record does NOT break the migration (reads from JsonDocument.TryGetProperty, not from deserialized field)
+[Blinking colon]
+    requires: LcdClockView.UpdateTime() to toggle Colon1.Character on odd/even seconds
+    detect even/odd: DateTime.Now.Second % 2 == 0
+    no new timer needed: LcdClockView already ticks every second via its own DispatcherTimer
+    colon blank: Character = ' ' → SevenSegmentEncoder.Encode(' ') = 0x00 → all segments ghost
 
-[SettingsSnapshot.ClockType migration]
-    requires removing: SettingsSnapshot.DialMode bool
-    requires adding: SettingsSnapshot.ClockType ClockType, LcdUse24Hr bool, LcdShowSeconds bool, LcdStyle string, LcdSize LcdSize
-    GetCurrentSettingsSnapshot() in MainWindow.xaml.cs already populates ClockType = _clockType — will compile once SettingsSnapshot has the field
+[Japanese Terse/Poetic/Rude providers]
+    requires: JapaneseTersePhraseProvider, JapanesePoeticPhraseProvider, JapaneseRudePhraseProvider
+    register: ["ja-terse"], ["ja-poetic"], ["ja-rude"] in PhraseEngine._providers
+    routing: SetPhraseStyle("Terse") when CurrentLocale starts with "ja" → must route to "ja-terse"
+             (currently routes to "en-terse" — the guard "if locale !starts-with en- return" must be extended)
+    PhraseEngine.SetPhraseStyle() currently hard-codes English style keys; needs locale-aware dispatch
+    or: add a separate SetLocaleAndStyle(locale, style) method to PhraseEngine
 
-[SettingsWindow 3-button rail]
-    requires adding BtnNixie to SettingsWindow.xaml Clock Style StackPanel
-    requires replacing DialModeChanged: Action<bool> with ClockTypeChanged: Action<ClockType>
-    requires updating SetClockStyleButtonStates(bool) to SetClockStyleButtonStates(ClockType)
-    requires adding BtnNixie_Click handler
-    requires updating PopulateControls to read s.ClockType instead of s.DialMode
+[SettingsWindow phrase style gate]
+    currently: CmbPhraseStyle.IsEnabled = false when locale is "ja"
+    required change: enable CmbPhraseStyle for "ja" locale (styles now exist)
+    scope: PopulateControls isNonEnglish gate must exclude "ja" from the disabled set
+    keep disabled: "fr", "es", "de", "pl" (no style variants exist for those languages)
 
-[Missing SettingsWindow event declarations]
-    MainWindow.OpenSettings() already subscribes to: ClockTypeChanged, LcdUse24HrChanged,
-    LcdShowSecondsChanged, LcdStyleChanged, ShowHourTicksChanged, ShowMinuteDotsChanged, ShowHourNumbersChanged
-    SettingsWindow.xaml.cs currently only declares: DialModeChanged (and likely the others as missing)
-    All missing events must be declared on SettingsWindow for the project to compile
+[Unit tests]
+    JapaneseTersePhraseProvider: all 12 buckets + noon + midnight
+    JapanesePoeticPhraseProvider: all 12 buckets + noon + midnight (random selection — test that result is non-null/non-empty)
+    JapaneseRudePhraseProvider: all 12 buckets + noon + midnight
+    Pattern: follow MultilingualPhraseProviderTests.cs structure
 
-[MainWindow _dialMode stale reference]
-    ApplyPhraseWrap() at line 718 references _dialMode (no such field exists)
-    must be replaced with: _clockType != ClockType.Phrase
-    this is a pre-existing compile error that this phase must resolve (NIX-04)
-
-[NixieClockView visibility wiring]
-    already handled in SetClockType(ClockType.Nixie): sets NixieView.Size, sets NixieView.Visibility = Visible
-    NixieClockView.IsVisibleChanged starts/stops its own internal 1s timer
-    ApplySettings() Nixie branch already restores Nixie from s.ClockType on startup
-    no new timer management needed in MainWindow
-
-[Accent color isolation — validation required]
-    ApplyTheme() and ApplyDisplayColor() must NOT iterate over NixieClockView elements
-    if either method uses a broad XAML-tree walk or catches NixieView by name, the hardcoded amber palette
-    would be overwritten by the user's accent color
-    requires code audit of the accent-application path; expected to be safe (Nixie controls are not in
-    the existing accent element lists), but must be verified
+[PhraseEngine routing for Japanese styles]
+    Option A: Extend PhraseEngine.SetPhraseStyle() to check CurrentLocale and route ja+Terse → ja-terse
+    Option B: Add PhraseEngine.SetLocaleAndStyle(string locale, string style) that resolves the combined key
+    Option A is simpler and consistent with the existing "en-terse" / "en-poetic" / "en-rude" pattern
+    The existing SetPhraseStyle guard ("early return if !starts-with en-") must become locale-aware
 ```
 
 ---
 
 ## MVP Definition
 
-### This Phase Delivers (v3.7)
+### This Milestone Delivers (v3.9)
 
-These four requirements are the complete scope of this phase:
+Per PROJECT.md active requirements:
 
-- [ ] NIX-01: `AppSettings` and `SettingsSnapshot` use `ClockType` enum instead of `DialMode` bool; LCD fields added
-- [ ] NIX-02: `SettingsWindow` exposes a 3-button Clock Style rail (Phrase / Dial / Nixie) with `ClockTypeChanged` event
-- [ ] NIX-03: Selecting Nixie in Settings activates the Nixie tube clock face on the widget
-- [ ] NIX-04: Pre-existing build errors resolved (`_dialMode` reference in `ApplyPhraseWrap`, `GetSegmentKey` on novelty providers); project compiles clean
+- [ ] LCD-01: LCD clock face (7-segment, WPF-drawn, accent-colored) — Surface LCD in Settings rail; verify LcdClockView is correctly activated
+- [ ] LCD-02: 12-hour / 24-hour toggle in Settings — LCD settings panel with ChkLcd24Hr
+- [ ] LCD-03: Blinking colon (every second) — Toggle Colon1 on odd/even seconds in LcdClockView.UpdateTime()
+- [ ] LCD-04: Optional seconds row, toggleable in Settings — ChkLcdShowSeconds in LCD settings panel
+- [ ] JA-01: Japanese Terse phrase style — JapaneseTersePhraseProvider registered as ja-terse
+- [ ] JA-02: Japanese Poetic phrase style — JapanesePoeticPhraseProvider registered as ja-poetic
+- [ ] JA-03: Japanese Rude phrase style — JapaneseRudePhraseProvider registered as ja-rude
 
-### Deferred (Not This Phase)
+### Deferred (Not This Milestone)
 
-- Nixie digit crossfade animation — cosmetic, high complexity
-- Nixie 24hr display option — belongs to a future Nixie settings panel
-- LCD clock type surfaced in SettingsWindow — separate future phase
-- Dial decoration toggles surfaced via new events — events declared here as stubs; UI controls deferred
-- Custom Nixie color — explicitly out of scope (anti-feature)
+- LCD digit crossfade animation — cosmetic, high rendering cost
+- Japanese time-of-day period labels (朝/昼/夕/夜) integrated into phrase display
+- Additional LCD styles beyond Dark/Paper/Silver
+- French/Spanish/German/Polish style variants
 
 ---
 
-## Complexity Notes
+## Complexity Assessment
 
-### Why This Phase Is Low Complexity Overall
+### LCD Clock (Overall: LOW)
 
-The rendering stack is pre-existing and validated (Phase 56). The `ClockType` enum is pre-existing. `MainWindow` already handles `ClockType.Nixie` in all key paths. The tray menu already works. The migration code in `SettingsService` is already written.
+The rendering stack is fully pre-built and validated. `SevenSegmentDigit`, `LcdClockView`,
+`LcdTimeFormatHelper`, `LcdSizeMap`, and all MainWindow wiring exist and work.
+The work is:
+1. SettingsWindow XAML: add `BtnLcd` to the clock style rail, add the LCD settings panel
+2. SettingsWindow code-behind: extend `SetClockStyleButtonStates()`, `PopulateControls()`, add three click handlers
+3. `LcdClockView.UpdateTime()`: add one-line colon blink toggle
 
-The work is entirely settings-plumbing: four targeted changes across five files plus resolving two pre-existing compile errors.
+Blinking colon is MEDIUM only because it requires understanding that `Colon2` (seconds separator)
+must NOT blink while `Colon1` (HH:MM separator) must blink; also requires verifying that
+`SevenSegmentDigit` renders a blank cleanly (it does — `Encode(' ')` = `0x00`).
 
-### Highest-Risk Change
+### Japanese Phrase Styles (Overall: MEDIUM)
 
-Removing `AppSettings.DialMode` and ensuring `SettingsService.Load()` migration still works. The migration reads from the raw `JsonDocument`, not the deserialized object, so the removal is safe — but this requires careful verification before and after the change.
+Infrastructure is fully built. Adding three providers requires:
+1. Authoring phrase content for each style across all 12 buckets + noon + midnight
+2. Extending `PhraseEngine.SetPhraseStyle()` to be locale-aware
+3. Relaxing the SettingsWindow `isNonEnglish` gate for Japanese
+4. Writing unit tests for all three providers
 
-### Most Likely Source of Surprises
+The highest uncertainty is phrase naturalness for Poetic and Rude registers.
+Japanese Terse is the most straightforward (casual contracted forms have clear patterns).
+Japanese Poetic requires cultural knowledge of classical/evocative vocabulary.
+Japanese Rude requires knowledge of coarse registers — タメ口, sentence-final particles
+like じゃん/だろ/か, and constructions like もう/とっくに/まだ.
 
-Missing `SettingsWindow` event declarations. `MainWindow.OpenSettings()` subscribes to six events that may not be declared on `SettingsWindow`. A compile-time audit of all `_settingsWindow.XXXChanged +=` subscriptions against the declared events in `SettingsWindow.xaml.cs` is the critical first step.
+**Native speaker review is recommended before shipping Poetic and Rude phrases.**
+Terse is lower risk and can be validated mechanically.
 
 ---
 
 ## Sources
 
-- `.planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-RESEARCH.md` — direct source audit, HIGH confidence
-- `.planning/phases/57-re-introduce-nixie-into-the-new-architecture/57-UI-SPEC.md` — UI design contract, HIGH confidence
-- `.planning/PROJECT.md` — validated requirements list through v3.6.1, HIGH confidence
-- `FuzzyClock.App/MainWindow.xaml.cs` (audited in phase research) — clock type wiring confirmed
-- `FuzzyClock.App/Controls/NixieDigit.xaml.cs` (audited in phase research) — rendering geometry confirmed
+- Direct codebase audit (2026-03-23): HIGH confidence for all structural findings
+  - `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — segment geometry, ghost, bitmask rendering
+  - `FuzzyClock.App/Controls/LcdClockView.xaml.cs` — time update loop, Use24Hr/ShowSeconds/Size/Style DPs
+  - `FuzzyClock.App/LcdTimeFormatHelper.cs` — 12/24h formatting, leading-space behavior
+  - `FuzzyClock.Core/SevenSegmentEncoder.cs` — supported characters, bitmask values
+  - `FuzzyClock.App/AppSettings.cs` — LcdUse24Hr/LcdShowSeconds/LcdStyle/LcdSize field status
+  - `FuzzyClock.App/MainWindow.xaml.cs` — SetClockType(Lcd), ApplyLcdColors(), style modes
+  - `FuzzyClock.App/SettingsWindow.xaml.cs` + `.xaml` — stub events, missing LCD panel, phrase style gate
+  - `FuzzyClock.Core/JapanesePhraseProvider.cs` — Classic ja bucket structure and HourWords
+  - `FuzzyClock.Core/PhraseEngine.cs` — provider registry, SetLocale, SetPhraseStyle routing
+  - `.planning/PROJECT.md` — active requirements LCD-01..LCD-04, JA-01..JA-03
+
+- Japanese phrase style assessment: MEDIUM confidence for Terse; LOW confidence for Poetic/Rude
+  - Terse patterns: well-established casual Japanese spoken forms; Arabic numeral + 時 usage confirmed
+  - Poetic vocabulary (丑三つ時, 鐘が鳴る, 気配, 折り返し地点): literature-based; plausible but requires review
+  - Rude register (じゃん, だろ, もう, とっくに, まだ): confirmed as authentic dismissive/impatient markers in
+    contemporary Japanese casual speech; specific phrase combinations require native review
 
 ---
 
-*Feature landscape for: FuzzyStatsClock v3.7 — Nixie tube clock re-introduction*
-*Researched: 2026-03-19*
+*Feature landscape for: FuzzyStatsClock v3.9 — LCD Clock + Japanese Phrase Styles*
+*Researched: 2026-03-23*
