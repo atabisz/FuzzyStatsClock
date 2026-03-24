@@ -20,7 +20,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v3.9 in progress: Phase 62 complete** — ResolveLocaleKey helper consolidates all 3 routing sites; bare "ja" key removed; SettingsWindow combo enabled for explicit Japanese; 318 tests pass; Phase 63 (SettingsWindow LCD UI) next
+**v3.9 in progress: Phase 63 complete** — BtnLcd in Clock Style rail; LCD options panel (24hr/seconds/style) visible only when LCD active; 355 tests pass (318 Core + 37 App); Phase 64 (Blinking Colon) next
 
 **v3.8 shipped: 2026-03-23** — Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) in Settings > Appearance with Dial-only visibility gating; `PopulateControls` + `_suppressEvents` guard pattern; 299 tests pass (262 Core + 37 App)
 
