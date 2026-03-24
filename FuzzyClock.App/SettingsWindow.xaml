@@ -253,6 +253,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Opacity -->
@@ -296,6 +297,7 @@
                             <Button x:Name="BtnPhrase" Content="Phrase" Style="{StaticResource SegmentButtonStyle}" Click="BtnPhrase_Click"/>
                             <Button x:Name="BtnDial"   Content="Dial"   Style="{StaticResource SegmentButtonStyle}" Click="BtnDial_Click"/>
                             <Button x:Name="BtnNixie"  Content="Nixie"  Style="{StaticResource SegmentButtonStyle}" Click="BtnNixie_Click"/>
+                            <Button x:Name="BtnLcd"    Content="LCD"    Style="{StaticResource SegmentButtonStyle}" Click="BtnLcd_Click"/>
                         </StackPanel>
                     </Border>
 
@@ -343,6 +345,32 @@
                                   Checked="ChkShowMinuteDots_Changed" Unchecked="ChkShowMinuteDots_Changed"/>
                         <CheckBox x:Name="ChkShowHourNumbers" Content="Hour Numbers"
                                   Checked="ChkShowHourNumbers_Changed" Unchecked="ChkShowHourNumbers_Changed"/>
+                    </StackPanel>
+
+                    <!-- LCD Options (per D-05, D-06) -->
+                    <TextBlock x:Name="LcdOptionsLabel"
+                               Grid.Row="6" Grid.Column="0"
+                               Text="LCD"
+                               VerticalAlignment="Top"
+                               HorizontalAlignment="Right"
+                               Margin="0,8,10,0"/>
+                    <StackPanel x:Name="LcdOptionsPanel"
+                                Grid.Row="6" Grid.Column="1"
+                                Margin="0,8,0,0">
+                        <CheckBox x:Name="ChkLcdUse24Hr" Content="24-hour mode"
+                                  Checked="ChkLcdUse24Hr_Changed"
+                                  Unchecked="ChkLcdUse24Hr_Changed"/>
+                        <CheckBox x:Name="ChkLcdShowSeconds" Content="Show seconds"
+                                  Checked="ChkLcdShowSeconds_Changed"
+                                  Unchecked="ChkLcdShowSeconds_Changed"/>
+                        <ComboBox x:Name="CmbLcdStyle"
+                                  Width="120" HorizontalAlignment="Left"
+                                  Margin="0,8,0,0" VerticalAlignment="Center"
+                                  SelectionChanged="CmbLcdStyle_SelectionChanged">
+                            <ComboBoxItem Content="Dark"/>
+                            <ComboBoxItem Content="Paper"/>
+                            <ComboBoxItem Content="Silver"/>
+                        </ComboBox>
                     </StackPanel>
 
                 </Grid>
