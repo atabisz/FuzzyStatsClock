@@ -278,3 +278,129 @@ public class PolishPhraseProviderTests
         Assert.IsFalse(string.IsNullOrEmpty(emphasis));
     }
 }
+
+// ─── Japanese Terse ──────────────────────────────────────────────────────────
+
+[TestClass]
+public class JapaneseTersePhraseProviderTests
+{
+    private static readonly IPhraseProvider Provider = new JapaneseTersePhraseProvider();
+
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void JapaneseTerse_Noon_ReturnsExpectedPhrase()
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 12, 0, 0));
+        Assert.AreEqual("正午", phrase);
+    }
+
+    [TestMethod]
+    public void JapaneseTerse_Midnight_ReturnsExpectedPhrase()
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 0, 0, 0));
+        Assert.AreEqual("真夜中", phrase);
+    }
+
+    [TestMethod]
+    [DataRow(0)][DataRow(1)][DataRow(5)][DataRow(10)][DataRow(15)][DataRow(20)]
+    [DataRow(25)][DataRow(30)][DataRow(35)][DataRow(40)][DataRow(45)][DataRow(50)][DataRow(55)]
+    public void JapaneseTerse_AllBuckets_ReturnNonEmpty(int minute)
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 3, minute, 0));
+        Assert.IsFalse(string.IsNullOrEmpty(phrase), $"Expected non-empty phrase for minute={minute}");
+    }
+
+    [TestMethod]
+    public void JapaneseTerse_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = Provider.GetStructuredPhrase(new DateTime(2024, 1, 15, 3, 30, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
+
+// ─── Japanese Poetic ─────────────────────────────────────────────────────────
+
+[TestClass]
+public class JapanesePoeticPhraseProviderTests
+{
+    private static readonly IPhraseProvider Provider = new JapanesePoeticPhraseProvider();
+
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void JapanesePoetic_Noon_ReturnsExpectedPhrase()
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 12, 0, 0));
+        Assert.AreEqual("昼の頂", phrase);
+    }
+
+    [TestMethod]
+    public void JapanesePoetic_Midnight_ReturnsExpectedPhrase()
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 0, 0, 0));
+        Assert.AreEqual("夜の果て", phrase);
+    }
+
+    [TestMethod]
+    [DataRow(0)][DataRow(1)][DataRow(5)][DataRow(10)][DataRow(15)][DataRow(20)]
+    [DataRow(25)][DataRow(30)][DataRow(35)][DataRow(40)][DataRow(45)][DataRow(50)][DataRow(55)]
+    public void JapanesePoetic_AllBuckets_ReturnNonEmpty(int minute)
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 3, minute, 0));
+        Assert.IsFalse(string.IsNullOrEmpty(phrase), $"Expected non-empty phrase for minute={minute}");
+    }
+
+    [TestMethod]
+    public void JapanesePoetic_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = Provider.GetStructuredPhrase(new DateTime(2024, 1, 15, 3, 30, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
+
+// ─── Japanese Rude ───────────────────────────────────────────────────────────
+
+[TestClass]
+public class JapaneseRudePhraseProviderTests
+{
+    private static readonly IPhraseProvider Provider = new JapaneseRudePhraseProvider();
+
+    [TestCleanup]
+    public void ResetLocale() => PhraseEngine.SetLocale("en-classic");
+
+    [TestMethod]
+    public void JapaneseRude_Noon_ReturnsExpectedPhrase()
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 12, 0, 0));
+        Assert.AreEqual("もう昼だ", phrase);
+    }
+
+    [TestMethod]
+    public void JapaneseRude_Midnight_ReturnsExpectedPhrase()
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 0, 0, 0));
+        Assert.AreEqual("真夜中じゃないか", phrase);
+    }
+
+    [TestMethod]
+    [DataRow(0)][DataRow(1)][DataRow(5)][DataRow(10)][DataRow(15)][DataRow(20)]
+    [DataRow(25)][DataRow(30)][DataRow(35)][DataRow(40)][DataRow(45)][DataRow(50)][DataRow(55)]
+    public void JapaneseRude_AllBuckets_ReturnNonEmpty(int minute)
+    {
+        string phrase = Provider.GetPhrase(new DateTime(2024, 1, 15, 3, minute, 0));
+        Assert.IsFalse(string.IsNullOrEmpty(phrase), $"Expected non-empty phrase for minute={minute}");
+    }
+
+    [TestMethod]
+    public void JapaneseRude_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = Provider.GetStructuredPhrase(new DateTime(2024, 1, 15, 3, 30, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
