@@ -93,7 +93,9 @@ Plans:
   3. After selecting Japanese Terse and restarting the app, the Terse provider is active on next launch (not Classic fallback)
   4. ResolveLocaleKey private helper consolidates all three MainWindow routing sites (ApplySettings, SetLanguage, SetPhraseStyle); no duplicate locale-switch logic remains
   5. Coordinator tests for ja-* locale round-trips pass in the DoNotParallelize PhraseEngineCoordinatorTests class
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 62-01-PLAN.md — Extract ResolveLocaleKey, consolidate routing, update SettingsWindow combo, fix and extend coordinator tests
 
 ### Phase 63: SettingsWindow LCD UI
 **Goal**: Users can select LCD clock style and configure its options (12/24h, seconds row, segment style) from Settings > Appearance, with the LCD options panel visible only when LCD is the active clock style
@@ -134,7 +136,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 61. Japanese Phrase Providers | 1/2 | Complete    | 2026-03-24 |
-| 62. Routing Consolidation | 0/? | Not started | - |
+| 62. Routing Consolidation | 0/1 | Not started | - |
 | 63. SettingsWindow LCD UI | 0/? | Not started | - |
 | 64. Blinking Colon | 0/? | Not started | - |
 | 65. Settings Persistence Hardening | 0/? | Not started | - |
