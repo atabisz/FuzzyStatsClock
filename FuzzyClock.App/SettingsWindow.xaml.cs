@@ -99,9 +99,9 @@ public sealed partial class SettingsWindow : Window
             _    => 0,  // "auto" or unrecognized
         };
 
-        // Phrase style combo — disable when non-English is active (auto-detected OR explicit)
-        bool isNonEnglish = nonEnglishActive || (s.PhraseLocale is "fr" or "es" or "de" or "ja" or "pl");
-        CmbPhraseStyle.IsEnabled = !isNonEnglish;
+        // Phrase style combo — enable for explicit English or explicit Japanese selection (D-07)
+        CmbPhraseStyle.IsEnabled = s.PhraseLocale is "en" or "ja"
+                                    || (s.PhraseLocale == "auto" && !nonEnglishActive);
         CmbPhraseStyle.SelectedIndex = s.PhraseStyle switch
         {
             "Terse"  => 1,
@@ -433,9 +433,8 @@ public sealed partial class SettingsWindow : Window
         {
             string locale = (string)item.Tag;
             LanguageChanged?.Invoke(locale);
-            // Disable phrase style combo for non-English locales
-            bool isNonEnglish = locale is "fr" or "es" or "de" or "ja" or "pl";
-            CmbPhraseStyle.IsEnabled = !isNonEnglish;
+            // Enable phrase style combo for English or explicit Japanese; disable for others and auto
+            CmbPhraseStyle.IsEnabled = locale is "en" or "ja";
         }
     }
 

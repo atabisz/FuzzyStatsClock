@@ -328,49 +328,7 @@ public partial class MainWindow : Window
 
         // LANG-01: detect Windows UI language; explicit manual override takes precedence over auto-detect
         string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        string effectiveLocale;
-        if (_currentPhraseLocale is "fr" or "es" or "de" or "ja" or "pl")
-        {
-            // User has explicitly chosen a non-English language
-            effectiveLocale = _currentPhraseLocale;
-        }
-        else if (_currentPhraseLocale == "en")
-        {
-            // User has explicitly chosen English — respect PhraseStyle
-            effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
-            {
-                "terse"       => "en-terse",
-                "poetic"      => "en-poetic",
-                "rude"        => "en-rude",
-                "pirate"      => "en-pirate",
-                "dwarf"       => "en-dwarf",
-                "jive"        => "en-jive",
-                "valleygirl"  => "en-valleygirl",
-                "yoda"        => "en-yoda",
-                "shakespeare" => "en-shakespeare",
-                _             => "en-classic",
-            };
-        }
-        else
-        {
-            // "auto" — detect from Windows UI culture
-            if (uiLang is "fr" or "es" or "de" or "ja" or "pl")
-                effectiveLocale = uiLang;
-            else
-                effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
-                {
-                    "terse"       => "en-terse",
-                    "poetic"      => "en-poetic",
-                    "rude"        => "en-rude",
-                    "pirate"      => "en-pirate",
-                    "dwarf"       => "en-dwarf",
-                    "jive"        => "en-jive",
-                    "valleygirl"  => "en-valleygirl",
-                    "yoda"        => "en-yoda",
-                    "shakespeare" => "en-shakespeare",
-                    _             => "en-classic",
-                };
-        }
+        string effectiveLocale = ResolveLocaleKey(_currentPhraseLocale, _currentPhraseStyle, uiLang);
         PhraseEngine.SetLocale(effectiveLocale);
         // LANG-04: if SetLocale returned false (unsupported), en-classic remains active (default)
         bool isSerifStyle = s.TextStyle == "Literary";
@@ -1369,24 +1327,16 @@ public partial class MainWindow : Window
 
     private void SetPhraseStyle(string style)
     {
-        // LANG-01 guard: do not override a non-English locale with an English phrase style
-        if (!PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal))
+        // LANG-01 guard: do not override a non-English/non-Japanese locale with an English phrase style
+        if (!PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal)
+            && !PhraseEngine.CurrentLocale.StartsWith("ja-", StringComparison.Ordinal))
             return;
 
         _currentPhraseStyle = style;
-        string localeKey = style.ToLowerInvariant() switch
-        {
-            "terse"       => "en-terse",
-            "poetic"      => "en-poetic",
-            "rude"        => "en-rude",
-            "pirate"      => "en-pirate",
-            "dwarf"       => "en-dwarf",
-            "jive"        => "en-jive",
-            "valleygirl"  => "en-valleygirl",
-            "yoda"        => "en-yoda",
-            "shakespeare" => "en-shakespeare",
-            _             => "en-classic",
-        };
+        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        string localeKey = PhraseEngine.CurrentLocale.StartsWith("ja-", StringComparison.Ordinal)
+            ? ResolveLocaleKey("ja", style, uiLang)
+            : ResolveLocaleKey("en", style, uiLang);
         PhraseEngine.SetLocale(localeKey);
         _currentRawPhrase = "";          // invalidate UpdatePhraseIfChanged guard cache
         _lastSegmentKey   = "";
@@ -1399,11 +1349,33 @@ public partial class MainWindow : Window
         _currentPhraseLocale = locale;
 
         string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        string effectiveLocale;
-        if (locale is "fr" or "es" or "de" or "ja" or "pl")
-            effectiveLocale = locale;
-        else if (locale == "en")
-            effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
+        string effectiveLocale = ResolveLocaleKey(locale, _currentPhraseStyle, uiLang);
+
+        PhraseEngine.SetLocale(effectiveLocale);
+        _currentRawPhrase = "";
+        _lastSegmentKey   = "";
+        UpdatePhraseIfChanged();
+        SaveSettings();
+    }
+
+    private string ResolveLocaleKey(string phraseLocale, string phraseStyle, string uiLang)
+    {
+        string styleLower = phraseStyle.ToLowerInvariant();
+
+        if (phraseLocale is "fr" or "es" or "de" or "pl")
+            return phraseLocale;
+
+        if (phraseLocale == "ja")
+            return styleLower switch
+            {
+                "terse"  => "ja-terse",
+                "poetic" => "ja-poetic",
+                "rude"   => "ja-rude",
+                _        => "ja-classic",
+            };
+
+        if (phraseLocale == "en")
+            return styleLower switch
             {
                 "terse"       => "en-terse",
                 "poetic"      => "en-poetic",
@@ -1416,28 +1388,32 @@ public partial class MainWindow : Window
                 "shakespeare" => "en-shakespeare",
                 _             => "en-classic",
             };
-        else  // "auto"
-            effectiveLocale = (uiLang is "fr" or "es" or "de" or "ja" or "pl")
-                ? uiLang
-                : _currentPhraseStyle.ToLowerInvariant() switch
-                  {
-                      "terse"       => "en-terse",
-                      "poetic"      => "en-poetic",
-                      "rude"        => "en-rude",
-                      "pirate"      => "en-pirate",
-                      "dwarf"       => "en-dwarf",
-                      "jive"        => "en-jive",
-                      "valleygirl"  => "en-valleygirl",
-                      "yoda"        => "en-yoda",
-                      "shakespeare" => "en-shakespeare",
-                      _             => "en-classic",
-                  };
 
-        PhraseEngine.SetLocale(effectiveLocale);
-        _currentRawPhrase = "";
-        _lastSegmentKey   = "";
-        UpdatePhraseIfChanged();
-        SaveSettings();
+        // "auto" — detect from Windows UI culture
+        if (uiLang is "fr" or "es" or "de" or "pl")
+            return uiLang;
+        if (uiLang == "ja")
+            return styleLower switch
+            {
+                "terse"  => "ja-terse",
+                "poetic" => "ja-poetic",
+                "rude"   => "ja-rude",
+                _        => "ja-classic",
+            };
+        // auto + English system
+        return styleLower switch
+        {
+            "terse"       => "en-terse",
+            "poetic"      => "en-poetic",
+            "rude"        => "en-rude",
+            "pirate"      => "en-pirate",
+            "dwarf"       => "en-dwarf",
+            "jive"        => "en-jive",
+            "valleygirl"  => "en-valleygirl",
+            "yoda"        => "en-yoda",
+            "shakespeare" => "en-shakespeare",
+            _             => "en-classic",
+        };
     }
 
     private void SetPhraseWrapEnabled(bool enabled)
