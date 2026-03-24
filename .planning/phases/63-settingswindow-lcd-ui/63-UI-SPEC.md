@@ -37,13 +37,12 @@ Declared values used by the Appearance tab grid (extracted from existing XAML):
 |-------|-------|------------------------|
 | xs | 4px | SegmentButtonStyle Padding="2" (rail inset) |
 | sm | 8px | Row top margin (`Margin="0,8,0,0"` per row) |
-| md | 10px | Label right margin (`Margin="0,8,10,0"` — label to control gap) |
 | lg | 12px | StackPanel outer margin (`Margin="12"`) |
 | button-h | 4px | SegmentButtonStyle Padding="12,4" (vertical padding) |
 | button-w | 12px | SegmentButtonStyle Padding="12,4" (horizontal padding) |
 
 **New Row 6 spacing must match all existing rows exactly:**
-- Row label: `Margin="0,8,10,0"` — top 8px, right 10px, bottom and left 0
+- Row label: `Margin="0,8,10,0"` — copied verbatim from `DialFaceLabel` for compatibility. The right-offset value of 10 is a literal copied from the existing element, not a grid-aligned design token; it is not entered into the token table.
 - Panel: `Margin="0,8,0,0"` — top 8px only
 
 Exceptions: none
@@ -123,7 +122,7 @@ existing three buttons — no new container needed.
 | Grid.Column | 0 | D-05 |
 | VerticalAlignment | Top | D-05 — mirrors DialFaceLabel |
 | HorizontalAlignment | Right | D-05 — mirrors DialFaceLabel |
-| Margin | "0,8,10,0" | D-05 — mirrors DialFaceLabel |
+| Margin | "0,8,10,0" | D-05 — copied verbatim from DialFaceLabel for visual compatibility; the right-offset of 10 is a compatibility literal, not a canonical spacing token |
 | Default Visibility | Collapsed | D-09 |
 
 ### LcdOptionsPanel — new Row 6 control panel
@@ -248,8 +247,9 @@ Destructive confirmation: not applicable — no destructive actions.
 
 - **No new colors.** The LCD options row uses only inherited WPF defaults and the existing
   secondary (#FF3A3A3A) container color for BtnLcd.
-- **No new spacing values.** Row 6 spacing replicates Row 5 (DialFaceLabel/DialFacePanel)
-  exactly: `Margin="0,8,10,0"` on label, `Margin="0,8,0,0"` on panel.
+- **No new spacing tokens.** Row 6 spacing replicates Row 5 (DialFaceLabel/DialFacePanel)
+  exactly: `Margin="0,8,10,0"` on label (compatibility literal copied from DialFaceLabel,
+  not a grid-aligned token), `Margin="0,8,0,0"` on panel.
 - **No MainWindow changes.** Event subscriptions for the three LCD events already exist in
   MainWindow.xaml.cs. This phase only wires the SettingsWindow side.
 - **No new AppSettings fields.** LcdUse24Hr, LcdShowSeconds, LcdStyle all exist in
