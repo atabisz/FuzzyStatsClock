@@ -107,7 +107,9 @@ Plans:
   3. Opening Settings while LCD is active shows each LCD option in the state matching the current persisted value (PopulateControls reads SettingsSnapshot LCD fields)
   4. Toggling 24hr mode or the seconds row in Settings immediately changes the LCD display on the live widget
   5. Selecting a segment style (Dark/Paper/Silver) in Settings immediately applies the new style to the LCD digits on the live widget
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 63-01-PLAN.md — Add BtnLcd to Clock Style rail, LCD options panel with 24hr/seconds/style controls, visibility gating, PopulateControls LCD section
 **UI hint**: yes
 
 ### Phase 64: Blinking Colon
@@ -137,6 +139,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 61. Japanese Phrase Providers | 1/2 | Complete    | 2026-03-24 |
 | 62. Routing Consolidation | 1/1 | Complete    | 2026-03-24 |
-| 63. SettingsWindow LCD UI | 0/? | Not started | - |
+| 63. SettingsWindow LCD UI | 0/1 | Not started | - |
 | 64. Blinking Colon | 0/? | Not started | - |
 | 65. Settings Persistence Hardening | 0/? | Not started | - |
