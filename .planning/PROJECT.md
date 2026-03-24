@@ -20,6 +20,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v3.9 in progress: Phase 61 complete** — JapaneseTerse/Poetic/Rude providers + PhraseEngine registry; 314 tests pass (299 baseline + 15 new); Phase 62 (Routing Consolidation) next
+
 **v3.8 shipped: 2026-03-23** — Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) in Settings > Appearance with Dial-only visibility gating; `PopulateControls` + `_suppressEvents` guard pattern; 299 tests pass (262 Core + 37 App)
 
 **v3.7 shipped: 2026-03-23** — Nixie tube clock re-introduced as a selectable clock style; `ClockType` enum replaces `DialMode bool`; SettingsWindow 3-button Clock Style rail (Phrase/Dial/Nixie); `BackdropBorder` is sole hover backdrop; 0 build errors, 299 tests pass (262 Core + 37 App)
@@ -267,9 +269,9 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - [ ] **LCD-02**: 12-hour / 24-hour toggle in Settings
 - [ ] **LCD-03**: Blinking colon (every second)
 - [ ] **LCD-04**: Optional seconds row, toggleable in Settings
-- [ ] **JA-01**: Japanese Terse phrase style (clipped casual phrasing)
-- [ ] **JA-02**: Japanese Poetic phrase style (atmospheric imagery-based)
-- [ ] **JA-03**: Japanese Rude phrase style (brusque / impatient)
+- ✓ **JA-01**: Japanese Terse phrase style (clipped casual phrasing) — v3.9 Phase 61
+- ✓ **JA-02**: Japanese Poetic phrase style (atmospheric imagery-based) — v3.9 Phase 61
+- ✓ **JA-03**: Japanese Rude phrase style (brusque / impatient) — v3.9 Phase 61
 
 ### Out of Scope
 
@@ -458,4 +460,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-23 — Milestone v3.9 LCD Clock + Japanese Styles started*
+*Last updated: 2026-03-24 — Phase 61 complete: Japanese Phrase Providers (Terse/Poetic/Rude)*
