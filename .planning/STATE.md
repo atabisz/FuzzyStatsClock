@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: LCD Clock + Japanese Styles
-status: Ready to plan
-stopped_at: Phase 62 context gathered
-last_updated: "2026-03-24T08:13:12.037Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 62-01-PLAN.md — routing consolidation
+last_updated: "2026-03-24T08:34:46.378Z"
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,23 +19,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 61 — Japanese Phrase Providers
+**Current focus:** Phase 63 — SettingsWindow LCD UI (next)
 
 ## Current Position
 
-Phase: 62
-Plan: Not started
+Phase: 62 (routing-consolidation) — COMPLETE
+Plan: 1 of 1 — COMPLETE
 
 ## Progress
 
 ```
-Phase 61: Japanese Phrase Providers    [ ] Not started
-Phase 62: Routing Consolidation        [ ] Not started
+Phase 61: Japanese Phrase Providers    [x] Complete (2 plans)
+Phase 62: Routing Consolidation        [x] Complete (1 plan)
 Phase 63: SettingsWindow LCD UI        [ ] Not started
 Phase 64: Blinking Colon               [ ] Not started
 Phase 65: Settings Persistence         [ ] Not started
 
-[----------] 0/5 phases complete
+[████------] 2/5 phases complete
 ```
 
 ## Accumulated Context
@@ -50,8 +50,12 @@ Phase 65: Settings Persistence         [ ] Not started
 - LCD colon blink: use _colonVisible toggle in LcdClockView.UpdateTime() — no new DispatcherTimer
 - LCD options visibility gating belongs in SetClockStyleButtonStates() alongside existing Dial Face row gating
 - BackdropBorder is the sole hover backdrop; ContentBorder.Background must never be set in code
-- ResolveLocaleKey helper must be extracted before SettingsWindow exposes Japanese style selection (Phase 62 before Phase 63)
+- ResolveLocaleKey helper extracted in Phase 62; SettingsWindow can now expose Japanese style selection in Phase 63
 - [DoNotParallelize] class required for any PhraseEngine coordinator tests referencing static PhraseEngine state
+- Phase 62: ResolveLocaleKey consolidates all locale-switch ladders; auto+Japanese routes to ja-style (not bare ja key)
+- Phase 62: Bare "ja" key removed from PhraseEngine._providers; all Japanese routing via ja-classic/terse/poetic/rude
+- Phase 62: SettingsWindow phrase style combo enabled for explicit "en" or "ja" only
+- 318 MSTest tests (281 Core + 37 App) passing after Phase 62 (4 new coordinator GetPhrase round-trip tests)
 
 ### Pending Todos
 
@@ -64,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T08:13:12.033Z
-Stopped at: Phase 62 context gathered
-Resume file: .planning/phases/62-routing-consolidation/62-CONTEXT.md
+Last session: 2026-03-24T08:34:46.373Z
+Stopped at: Completed 62-01-PLAN.md — routing consolidation
+Resume file: None
