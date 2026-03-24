@@ -74,12 +74,14 @@ public class PhraseEngineCoordinatorTests
     }
 
     [TestMethod]
-    public void SetLocale_Ja_ReturnsTrue()
+    public void SetLocale_JaBare_ReturnsFalse_AfterKeyRemoval()
     {
+        // Bare "ja" key intentionally removed in Phase 62 (D-06).
+        // All Japanese routing now uses "ja-classic", "ja-terse", "ja-poetic", "ja-rude".
         bool result = PhraseEngine.SetLocale("ja");
 
-        Assert.IsTrue(result);
-        Assert.AreEqual("ja", PhraseEngine.CurrentLocale);
+        Assert.IsFalse(result);
+        Assert.AreEqual("en-classic", PhraseEngine.CurrentLocale);
     }
 
     [TestMethod]
@@ -131,5 +133,45 @@ public class PhraseEngineCoordinatorTests
         string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 15, 3, 30, 0));
 
         Assert.AreEqual("half past three", phrase);
+    }
+
+    [TestMethod]
+    public void GetPhrase_JaClassic_ReturnsNonEmpty()
+    {
+        PhraseEngine.SetLocale("ja-classic");
+
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 15, 3, 30, 0));
+
+        Assert.IsFalse(string.IsNullOrWhiteSpace(phrase));
+    }
+
+    [TestMethod]
+    public void GetPhrase_JaTerse_ReturnsNonEmpty()
+    {
+        PhraseEngine.SetLocale("ja-terse");
+
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 15, 3, 30, 0));
+
+        Assert.IsFalse(string.IsNullOrWhiteSpace(phrase));
+    }
+
+    [TestMethod]
+    public void GetPhrase_JaPoetic_ReturnsNonEmpty()
+    {
+        PhraseEngine.SetLocale("ja-poetic");
+
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 15, 3, 30, 0));
+
+        Assert.IsFalse(string.IsNullOrWhiteSpace(phrase));
+    }
+
+    [TestMethod]
+    public void GetPhrase_JaRude_ReturnsNonEmpty()
+    {
+        PhraseEngine.SetLocale("ja-rude");
+
+        string phrase = PhraseEngine.GetPhrase(new DateTime(2024, 1, 15, 3, 30, 0));
+
+        Assert.IsFalse(string.IsNullOrWhiteSpace(phrase));
     }
 }
