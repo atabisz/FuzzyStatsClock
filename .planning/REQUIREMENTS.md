@@ -8,11 +8,11 @@
 
 ## LCD Clock UI
 
-- [ ] **LCD-01**: User can select LCD clock style from Settings > Appearance Clock Style rail (BtnLcd added; Phrase/Dial/Nixie/LCD are four mutually exclusive buttons)
-- [ ] **LCD-02**: User can toggle between 12-hour (H:MM) and 24-hour (HH:MM) in Settings when LCD is active; persists and restores on launch
-- [ ] **LCD-03**: User can show or hide the seconds row (SS digits) in Settings when LCD is active; persists and restores on launch
-- [ ] **LCD-04**: User can select LCD segment style (Dark/Paper/Silver) in Settings when LCD is active; persists and restores on launch
-- [ ] **LCD-05**: LCD settings panel (24hr, seconds row, style) is visible only when LCD is the active clock style; collapsed for Phrase/Dial/Nixie
+- [x] **LCD-01**: User can select LCD clock style from Settings > Appearance Clock Style rail (BtnLcd added; Phrase/Dial/Nixie/LCD are four mutually exclusive buttons)
+- [x] **LCD-02**: User can toggle between 12-hour (H:MM) and 24-hour (HH:MM) in Settings when LCD is active; persists and restores on launch
+- [x] **LCD-03**: User can show or hide the seconds row (SS digits) in Settings when LCD is active; persists and restores on launch
+- [x] **LCD-04**: User can select LCD segment style (Dark/Paper/Silver) in Settings when LCD is active; persists and restores on launch
+- [x] **LCD-05**: LCD settings panel (24hr, seconds row, style) is visible only when LCD is the active clock style; collapsed for Phrase/Dial/Nixie
 - [ ] **LCD-06**: LCD clock colon (between HH and MM digits) blinks on/off every second
 - [ ] **LCD-07**: STEST-01 round-trip test covers all LCD AppSettings fields (LcdUse24Hr, LcdShowSeconds, LcdStyle, LcdSize)
 - [ ] **LCD-08**: SettingsService.Validate() corrects invalid LcdStyle values to the Dark default
@@ -48,11 +48,11 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| LCD-01 | Phase 63 | Pending |
-| LCD-02 | Phase 63 | Pending |
-| LCD-03 | Phase 63 | Pending |
-| LCD-04 | Phase 63 | Pending |
-| LCD-05 | Phase 63 | Pending |
+| LCD-01 | Phase 63 | Complete |
+| LCD-02 | Phase 63 | Complete |
+| LCD-03 | Phase 63 | Complete |
+| LCD-04 | Phase 63 | Complete |
+| LCD-05 | Phase 63 | Complete |
 | LCD-06 | Phase 64 | Pending |
 | LCD-07 | Phase 65 | Pending |
 | LCD-08 | Phase 65 | Pending |
