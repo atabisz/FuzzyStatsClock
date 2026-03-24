@@ -92,6 +92,38 @@ public class PhraseEngineCoordinatorTests
     }
 
     [TestMethod]
+    public void SetLocale_JaClassic_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("ja-classic");
+        Assert.IsTrue(result);
+        Assert.AreEqual("ja-classic", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
+    public void SetLocale_JaTerse_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("ja-terse");
+        Assert.IsTrue(result);
+        Assert.AreEqual("ja-terse", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
+    public void SetLocale_JaPoetic_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("ja-poetic");
+        Assert.IsTrue(result);
+        Assert.AreEqual("ja-poetic", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
+    public void SetLocale_JaRude_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("ja-rude");
+        Assert.IsTrue(result);
+        Assert.AreEqual("ja-rude", PhraseEngine.CurrentLocale);
+    }
+
+    [TestMethod]
     public void GetPhrase_DelegatesCorrectly_AfterSetLocaleRoundTrip()
     {
         PhraseEngine.SetLocale("en-classic");
