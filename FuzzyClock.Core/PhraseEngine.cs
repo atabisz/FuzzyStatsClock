@@ -18,7 +18,11 @@ public static class PhraseEngine
         ["fr"]             = new FrenchPhraseProvider(),
         ["es"]         = new SpanishPhraseProvider(),
         ["de"]         = new GermanPhraseProvider(),
-        ["ja"]         = new JapanesePhraseProvider(),
+        ["ja"]             = new JapanesePhraseProvider(),
+        ["ja-classic"]     = new JapanesePhraseProvider(),
+        ["ja-terse"]       = new JapaneseTersePhraseProvider(),
+        ["ja-poetic"]      = new JapanesePoeticPhraseProvider(),
+        ["ja-rude"]        = new JapaneseRudePhraseProvider(),
         ["pl"]         = new PolishPhraseProvider(),
     };
 
