@@ -80,7 +80,7 @@ Full details: `.planning/milestones/v3.8-ROADMAP.md`
   5. Unit tests for all three providers cover all 12 buckets plus noon and midnight (isolation tests; no PhraseEngine coordinator involvement)
 **Plans**: 2 plans
 Plans:
-- [ ] 61-01-PLAN.md — Create three Japanese phrase style providers and register in PhraseEngine
+- [x] 61-01-PLAN.md — Create three Japanese phrase style providers and register in PhraseEngine
 - [ ] 61-02-PLAN.md — Unit tests for all three providers and coordinator round-trip tests
 
 ### Phase 62: Routing Consolidation
@@ -133,7 +133,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 61. Japanese Phrase Providers | 0/2 | Not started | - |
+| 61. Japanese Phrase Providers | 1/2 | In Progress|  |
 | 62. Routing Consolidation | 0/? | Not started | - |
 | 63. SettingsWindow LCD UI | 0/? | Not started | - |
 | 64. Blinking Colon | 0/? | Not started | - |
