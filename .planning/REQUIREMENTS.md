@@ -22,8 +22,8 @@
 - [x] **JA-01**: Japanese Terse phrase style covers all 12 five-minute buckets, noon, and midnight; active when Windows UI language is Japanese and Terse style is selected
 - [x] **JA-02**: Japanese Poetic phrase style covers all 12 five-minute buckets, noon, and midnight; active when Japanese + Poetic selected (marked provisional pending native review)
 - [x] **JA-03**: Japanese Rude phrase style covers all 12 five-minute buckets, noon, and midnight; active when Japanese + Rude selected (marked provisional pending native review)
-- [ ] **JA-04**: Phrase style selector in Settings is enabled when Japanese locale is active (all four styles: Classic/Terse/Poetic/Rude)
-- [ ] **JA-05**: Selecting a Japanese phrase style persists to settings.json and is correctly restored on app restart (all routing sites updated via ResolveLocaleKey helper)
+- [x] **JA-04**: Phrase style selector in Settings is enabled when Japanese locale is active (all four styles: Classic/Terse/Poetic/Rude)
+- [x] **JA-05**: Selecting a Japanese phrase style persists to settings.json and is correctly restored on app restart (all routing sites updated via ResolveLocaleKey helper)
 - [x] **JA-06**: Unit tests for each Japanese style provider cover all 12 buckets plus noon and midnight cases
 
 ---
@@ -59,6 +59,6 @@
 | JA-01  | Phase 61 | Complete |
 | JA-02  | Phase 61 | Complete |
 | JA-03  | Phase 61 | Complete |
-| JA-04  | Phase 62 | Pending |
-| JA-05  | Phase 62 | Pending |
+| JA-04  | Phase 62 | Complete |
+| JA-05  | Phase 62 | Complete |
 | JA-06  | Phase 61 | Complete |

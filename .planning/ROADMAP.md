@@ -61,7 +61,7 @@ Full details: `.planning/milestones/v3.8-ROADMAP.md`
 ### v3.9 LCD Clock + Japanese Styles
 
 - [x] **Phase 61: Japanese Phrase Providers** - Three new IPhraseProvider implementations (Terse/Poetic/Rude) and PhraseEngine registry entries for ja-* keys (completed 2026-03-24)
-- [ ] **Phase 62: Routing Consolidation** - ResolveLocaleKey helper; all three MainWindow routing sites updated; Japanese style selector enabled in SettingsWindow
+- [x] **Phase 62: Routing Consolidation** - ResolveLocaleKey helper; all three MainWindow routing sites updated; Japanese style selector enabled in SettingsWindow (completed 2026-03-26)
 - [ ] **Phase 63: SettingsWindow LCD UI** - BtnLcd in Clock Style rail; LcdOptionsPanel with 24hr/seconds/style controls; visibility gating; PopulateControls LCD section
 - [ ] **Phase 64: Blinking Colon** - _colonVisible toggle in LcdClockView.UpdateTime(); Colon2 gated on ShowSeconds
 - [ ] **Phase 65: Settings Persistence Hardening** - STEST-01 round-trip assertions for LCD fields; SettingsService.Validate() guard for LcdStyle
@@ -136,7 +136,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 61. Japanese Phrase Providers | 1/2 | Complete    | 2026-03-24 |
-| 62. Routing Consolidation | 0/1 | Not started | - |
+| 62. Routing Consolidation | 1/1 | Complete   | 2026-03-26 |
 | 63. SettingsWindow LCD UI | 0/? | Not started | - |
 | 64. Blinking Colon | 0/? | Not started | - |
 | 65. Settings Persistence Hardening | 0/? | Not started | - |
