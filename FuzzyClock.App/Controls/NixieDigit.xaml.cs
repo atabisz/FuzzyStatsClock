@@ -70,8 +70,8 @@ public partial class NixieDigit : WpfUserControl
         "M 5,5 L 26,5 L 12,49",
         // 8: two stacked loops
         "M 16,27 C 6,27 6,5 16,5 C 26,5 26,27 16,27 C 6,27 6,49 16,49 C 26,49 26,27 16,27",
-        // 9: upper loop + descending tail
-        "M 5,20 C 5,9 9,4 16,4 C 23,4 27,11 27,19 C 27,27 22,31 16,30 C 10,29 5,23 5,20 M 27,19 C 27,39 22,49 12,49",
+        // 9: upper loop + descending tail (tail originates from loop's lower-right)
+        "M 5,20 C 5,9 9,4 16,4 C 23,4 27,11 27,19 C 27,27 22,31 16,30 C 10,29 5,23 5,20 C 5,17 10,15 18,17 C 24,19 27,28 25,38 C 23,46 17,50 11,49",
     };
 
     // Glow layer config: outermost (index 0) → core (index 3)
@@ -111,6 +111,8 @@ public partial class NixieDigit : WpfUserControl
     public NixieDigit()
     {
         InitializeComponent();
+        _flickerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
+        _flickerTimer.Tick += OnFlickerTick;
         RebuildGeometry();
         UpdateDisplay(ActiveDigit);
     }
@@ -121,12 +123,18 @@ public partial class NixieDigit : WpfUserControl
 
     private void RebuildGeometry()
     {
+        _flickerTimer?.Stop();
         RootCanvas.Children.Clear();
 
-        double digitH  = DigitHeight;
-        double digitW  = digitH * 0.62;
-        double canvasH = digitH + 12;
-        double tubePad = 4.0;
+        double digitH     = DigitHeight;
+        double digitW     = digitH * 0.62;
+        double canvasH    = digitH + 12;
+        double tubePad    = 4.0;
+        double scale      = digitH / 50.0;
+        double baseStroke = Math.Max(2.0, digitH * 0.05);
+        double depthOffset = 1.5 * scale;
+        double centerX    = (digitW - 30.0 * scale) / 2.0;
+        double centerY    = (canvasH - 50.0 * scale) / 2.0;
 
         _builtDigitW = digitW;
         _builtDigitH = digitH;
@@ -160,10 +168,10 @@ public partial class NixieDigit : WpfUserControl
         Canvas.SetTop(highlight, 0);
         RootCanvas.Children.Add(highlight);
 
-        // 3. Wire mesh overlay (thin horizontal lines inside tube area)
+        // 3. Wire mesh overlay (thin horizontal scan lines)
         for (double y = tubePad; y <= canvasH - tubePad; y += 7.0)
         {
-            var wire = new System.Windows.Shapes.Line
+            var wire = new Line
             {
                 X1              = tubePad + 2,
                 X2              = digitW - tubePad - 2,
@@ -175,55 +183,69 @@ public partial class NixieDigit : WpfUserControl
             RootCanvas.Children.Add(wire);
         }
 
-        // 4. Ghost cathode TextBlocks (10 digits, 0-9)
-        _ghosts = new TextBlock[10];
-        double fontSize    = digitH * 0.72;
-        double baseVertical = (canvasH - digitH) / 2.0;
-
+        // 4. Build scaled geometry cache — one per digit, with depth-stacking offset baked in
+        _scaledGeometries = new Geometry[10];
         for (int i = 0; i < 10; i++)
         {
-            var tb = new TextBlock
-            {
-                Text       = i.ToString(),
-                FontFamily = new WpfFontFamily("Segoe UI"),
-                FontSize   = fontSize,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(WpfColor.FromArgb(0x14, 0xFF, 0x80, 0x00))
-            };
-
-            // Measure to center horizontally after adding to canvas
-            tb.Measure(new WpfSize(double.PositiveInfinity, double.PositiveInfinity));
-            double textW = tb.DesiredSize.Width;
-            double textH = tb.DesiredSize.Height;
-
-            double leftPos = (digitW - textW) / 2.0;
-            double topPos  = baseVertical + (i * 1.5);
-
-            Canvas.SetLeft(tb, leftPos);
-            Canvas.SetTop(tb, topPos);
-            RootCanvas.Children.Add(tb);
-            _ghosts[i] = tb;
+            var geom = Geometry.Parse(DigitPaths[i]);
+            var xform = new TransformGroup();
+            xform.Children.Add(new ScaleTransform(scale, scale));
+            xform.Children.Add(new TranslateTransform(centerX, centerY + i * depthOffset));
+            geom.Transform = xform;
+            _scaledGeometries[i] = geom;
         }
 
-        // 5. Active digit glow ellipse (RadialGradientBrush — NO UIElement.Effect)
-        var glowBrush = new RadialGradientBrush();
-        glowBrush.GradientStops.Add(new GradientStop(WpfColor.FromArgb(0xA0, 0xFF, 0x8C, 0x00), 0.0));
-        glowBrush.GradientStops.Add(new GradientStop(Colors.Transparent, 1.0));
-
-        _glowEllipse = new Ellipse
+        // 5. Ghost cathode paths (all 10 digits, always visible at medium alpha)
+        _ghostPaths = new Path[10];
+        for (int i = 0; i < 10; i++)
         {
-            Width      = digitW * 1.1,
-            Height     = digitH * 0.55,
-            Fill       = glowBrush,
-            Visibility = Visibility.Collapsed
-        };
-        RootCanvas.Children.Add(_glowEllipse);
+            var p = new Path
+            {
+                Data            = _scaledGeometries[i],
+                Stroke          = new SolidColorBrush(WpfColor.FromArgb(0x21, 0xFF, 0x78, 0x00)),
+                StrokeThickness = baseStroke,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap   = PenLineCap.Round,
+                StrokeLineJoin     = PenLineJoin.Round,
+                Fill            = System.Windows.Media.Brushes.Transparent
+            };
+            RootCanvas.Children.Add(p);
+            _ghostPaths[i] = p;
+        }
 
-        // 6. Set explicit canvas and control dimensions
+        // 6. Active glow paths (4 concentric stroke layers, Z-order: outermost first)
+        _glowPaths = new Path[4];
+        for (int layer = 0; layer < 4; layer++)
+        {
+            var p = new Path
+            {
+                Stroke          = new SolidColorBrush(GlowLayerColors[layer]),
+                StrokeThickness = baseStroke * GlowWidthMultipliers[layer],
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap   = PenLineCap.Round,
+                StrokeLineJoin     = PenLineJoin.Round,
+                Fill            = System.Windows.Media.Brushes.Transparent,
+                Opacity         = GlowBaseOpacities[layer],
+                Visibility      = Visibility.Collapsed
+            };
+            RootCanvas.Children.Add(p);
+            _glowPaths[layer] = p;
+        }
+
+        // 7. Canvas and control dimensions
         RootCanvas.Width  = digitW;
         RootCanvas.Height = canvasH;
         Width             = digitW;
         Height            = canvasH;
+    }
+
+    // ---------------------------------------------------------------
+    // Flicker
+    // ---------------------------------------------------------------
+
+    private void OnFlickerTick(object? sender, EventArgs e)
+    {
+        // Placeholder — implemented in Task 3 alongside UpdateDisplay rewrite
     }
 
     // ---------------------------------------------------------------
