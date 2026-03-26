@@ -326,53 +326,8 @@ public partial class MainWindow : Window
         _currentPhraseStyle  = s.PhraseStyle;
         _currentPhraseLocale = s.PhraseLocale;
 
-        // LANG-01: detect Windows UI language; explicit manual override takes precedence over auto-detect
-        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        string effectiveLocale;
-        if (_currentPhraseLocale is "fr" or "es" or "de" or "ja" or "pl")
-        {
-            // User has explicitly chosen a non-English language
-            effectiveLocale = _currentPhraseLocale;
-        }
-        else if (_currentPhraseLocale == "en")
-        {
-            // User has explicitly chosen English — respect PhraseStyle
-            effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
-            {
-                "terse"       => "en-terse",
-                "poetic"      => "en-poetic",
-                "rude"        => "en-rude",
-                "pirate"      => "en-pirate",
-                "dwarf"       => "en-dwarf",
-                "jive"        => "en-jive",
-                "valleygirl"  => "en-valleygirl",
-                "yoda"        => "en-yoda",
-                "shakespeare" => "en-shakespeare",
-                _             => "en-classic",
-            };
-        }
-        else
-        {
-            // "auto" — detect from Windows UI culture
-            if (uiLang is "fr" or "es" or "de" or "ja" or "pl")
-                effectiveLocale = uiLang;
-            else
-                effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
-                {
-                    "terse"       => "en-terse",
-                    "poetic"      => "en-poetic",
-                    "rude"        => "en-rude",
-                    "pirate"      => "en-pirate",
-                    "dwarf"       => "en-dwarf",
-                    "jive"        => "en-jive",
-                    "valleygirl"  => "en-valleygirl",
-                    "yoda"        => "en-yoda",
-                    "shakespeare" => "en-shakespeare",
-                    _             => "en-classic",
-                };
-        }
-        PhraseEngine.SetLocale(effectiveLocale);
-        // LANG-04: if SetLocale returned false (unsupported), en-classic remains active (default)
+        // LANG-01: resolve locale key; Japanese and English support phrase-style variants
+        PhraseEngine.SetLocale(ResolveLocaleKey(_currentPhraseLocale, _currentPhraseStyle));
         bool isSerifStyle = s.TextStyle == "Literary";
         bool isMonoStyle  = s.TextStyle == "Mono";
         string styleFontName = isSerifStyle ? "Palatino Linotype" : isMonoStyle ? "Consolas" : "Segoe UI Light";
@@ -1369,26 +1324,20 @@ public partial class MainWindow : Window
 
     private void SetPhraseStyle(string style)
     {
-        // LANG-01 guard: do not override a non-English locale with an English phrase style
-        if (!PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal))
+        // No-op for locales that have no style variants (fr, es, de, pl)
+        if (_currentPhraseLocale is "fr" or "es" or "de" or "pl")
             return;
+        // No-op for auto when the detected UI language has no style variants
+        if (_currentPhraseLocale == "auto")
+        {
+            string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+            if (uiLang is "fr" or "es" or "de" or "ja" or "pl")
+                return;
+        }
 
         _currentPhraseStyle = style;
-        string localeKey = style.ToLowerInvariant() switch
-        {
-            "terse"       => "en-terse",
-            "poetic"      => "en-poetic",
-            "rude"        => "en-rude",
-            "pirate"      => "en-pirate",
-            "dwarf"       => "en-dwarf",
-            "jive"        => "en-jive",
-            "valleygirl"  => "en-valleygirl",
-            "yoda"        => "en-yoda",
-            "shakespeare" => "en-shakespeare",
-            _             => "en-classic",
-        };
-        PhraseEngine.SetLocale(localeKey);
-        _currentRawPhrase = "";          // invalidate UpdatePhraseIfChanged guard cache
+        PhraseEngine.SetLocale(ResolveLocaleKey(_currentPhraseLocale, _currentPhraseStyle));
+        _currentRawPhrase = "";
         _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
@@ -1397,43 +1346,7 @@ public partial class MainWindow : Window
     private void SetLanguage(string locale)
     {
         _currentPhraseLocale = locale;
-
-        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        string effectiveLocale;
-        if (locale is "fr" or "es" or "de" or "ja" or "pl")
-            effectiveLocale = locale;
-        else if (locale == "en")
-            effectiveLocale = _currentPhraseStyle.ToLowerInvariant() switch
-            {
-                "terse"       => "en-terse",
-                "poetic"      => "en-poetic",
-                "rude"        => "en-rude",
-                "pirate"      => "en-pirate",
-                "dwarf"       => "en-dwarf",
-                "jive"        => "en-jive",
-                "valleygirl"  => "en-valleygirl",
-                "yoda"        => "en-yoda",
-                "shakespeare" => "en-shakespeare",
-                _             => "en-classic",
-            };
-        else  // "auto"
-            effectiveLocale = (uiLang is "fr" or "es" or "de" or "ja" or "pl")
-                ? uiLang
-                : _currentPhraseStyle.ToLowerInvariant() switch
-                  {
-                      "terse"       => "en-terse",
-                      "poetic"      => "en-poetic",
-                      "rude"        => "en-rude",
-                      "pirate"      => "en-pirate",
-                      "dwarf"       => "en-dwarf",
-                      "jive"        => "en-jive",
-                      "valleygirl"  => "en-valleygirl",
-                      "yoda"        => "en-yoda",
-                      "shakespeare" => "en-shakespeare",
-                      _             => "en-classic",
-                  };
-
-        PhraseEngine.SetLocale(effectiveLocale);
+        PhraseEngine.SetLocale(ResolveLocaleKey(locale, _currentPhraseStyle));
         _currentRawPhrase = "";
         _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
@@ -1457,6 +1370,49 @@ public partial class MainWindow : Window
         UpdatePhraseIfChanged();
         SaveSettings();
     }
+
+    /// <summary>
+    /// Resolves the PhraseEngine locale key from the user's locale preference and phrase style.
+    /// Japanese and English are the only locales with phrase-style variants.
+    /// </summary>
+    private static string ResolveLocaleKey(string locale, string style)
+    {
+        if (locale is "fr" or "es" or "de" or "pl")
+            return locale;
+
+        if (locale == "ja")
+            return style.ToLowerInvariant() switch
+            {
+                "terse"  => "ja-terse",
+                "poetic" => "ja-poetic",
+                "rude"   => "ja-rude",
+                _        => "ja-classic",
+            };
+
+        if (locale == "en")
+            return EnStyleKey(style);
+
+        // "auto" — detect from Windows UI culture
+        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        if (uiLang is "fr" or "es" or "de" or "ja" or "pl")
+            return uiLang;  // auto-detected non-English: use base locale (Classic only)
+        return EnStyleKey(style);
+    }
+
+    private static string EnStyleKey(string style) =>
+        style.ToLowerInvariant() switch
+        {
+            "terse"       => "en-terse",
+            "poetic"      => "en-poetic",
+            "rude"        => "en-rude",
+            "pirate"      => "en-pirate",
+            "dwarf"       => "en-dwarf",
+            "jive"        => "en-jive",
+            "valleygirl"  => "en-valleygirl",
+            "yoda"        => "en-yoda",
+            "shakespeare" => "en-shakespeare",
+            _             => "en-classic",
+        };
 
     private void SetTextStyle(string style)
     {
