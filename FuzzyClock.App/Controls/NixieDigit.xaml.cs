@@ -113,6 +113,7 @@ public partial class NixieDigit : WpfUserControl
         InitializeComponent();
         _flickerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
         _flickerTimer.Tick += OnFlickerTick;
+        Unloaded += (_, _) => _flickerTimer.Stop();
         RebuildGeometry();
         UpdateDisplay(ActiveDigit);
     }
@@ -128,11 +129,11 @@ public partial class NixieDigit : WpfUserControl
 
         double digitH     = DigitHeight;
         double digitW     = digitH * 0.62;
-        double canvasH    = digitH + 12;
+        double canvasH    = digitH + 21;
         double tubePad    = 4.0;
         double scale      = digitH / 50.0;
         double baseStroke = Math.Max(2.0, digitH * 0.05);
-        double depthOffset = 1.5 * scale;
+        double depthOffset = 1.0;
         double centerX    = (digitW - 30.0 * scale) / 2.0;
         double centerY    = (canvasH - 50.0 * scale) / 2.0;
 
@@ -254,37 +255,25 @@ public partial class NixieDigit : WpfUserControl
 
     public void UpdateDisplay(int activeDigit)
     {
-        if (_ghosts is null || _ghosts.Length == 0) return;
-
-        for (int i = 0; i < 10; i++)
-        {
-            int distance = Math.Abs(i - activeDigit);
-            WpfColor color = distance switch
-            {
-                0 => WpfColor.FromArgb(0xFF, 0xFF, 0x8C, 0x00), // full warm orange
-                1 => WpfColor.FromArgb(0x1E, 0xFF, 0x80, 0x00), // ~12%
-                2 => WpfColor.FromArgb(0x18, 0xFF, 0x80, 0x00), // ~9.5%
-                _ => WpfColor.FromArgb(0x14, 0xFF, 0x80, 0x00), // ~8%
-            };
-            _ghosts[i].Foreground = new SolidColorBrush(color);
-        }
+        if (_glowPaths is null || _glowPaths.Length == 0) return;
 
         if (activeDigit == -1)
         {
-            // Blank: set all to base ghost opacity, hide glow
-            foreach (var ghost in _ghosts)
-                ghost.Foreground = new SolidColorBrush(WpfColor.FromArgb(0x14, 0xFF, 0x80, 0x00));
-            _glowEllipse.Visibility = Visibility.Collapsed;
+            foreach (var p in _glowPaths)
+                p.Visibility = Visibility.Collapsed;
+            _flickerTimer?.Stop();
+            return;
         }
-        else
+
+        var geom = _scaledGeometries[activeDigit];
+        foreach (var p in _glowPaths)
         {
-            // Position glow ellipse centered behind the active TextBlock
-            var activeGhost = _ghosts[activeDigit];
-            double glowLeft = Canvas.GetLeft(activeGhost) + (activeGhost.DesiredSize.Width - _glowEllipse.Width) / 2.0;
-            double glowTop  = Canvas.GetTop(activeGhost) + (activeGhost.DesiredSize.Height - _glowEllipse.Height) / 2.0;
-            Canvas.SetLeft(_glowEllipse, glowLeft);
-            Canvas.SetTop(_glowEllipse, glowTop);
-            _glowEllipse.Visibility = Visibility.Visible;
+            p.Data       = geom;
+            p.Visibility = Visibility.Visible;
         }
+
+        _flickerCurrent   = 1.0;
+        _flickerTarget    = 1.0;
+        _flickerTimer?.Start();
     }
 }
