@@ -52,7 +52,11 @@ Path data may be fine-tuned during implementation for visual quality; the coordi
 - One `Path` per digit, `Fill = Transparent`, `StrokeThickness = baseStroke` (computed as `DigitHeight * 0.05`, minimum 2px)
 - `Stroke = SolidColorBrush(Color.FromArgb(0x21, 0xFF, 0x78, 0x00))` — ~13% alpha warm orange, static
 - `StrokeStartLineCap = StrokeEndLineCap = StrokeLineJoin = Round`
-- Transform: `ScaleTransform(scale, scale)` + `TranslateTransform(centerX, centerY + i * depthOffset)` where `depthOffset = 1.5 * scale`, simulating 3D cathode stacking depth
+- Transform: `ScaleTransform(scale, scale)` + `TranslateTransform(centerX, centerY + i * depthOffset)` where:
+  - `scale = DigitHeight / 50.0`
+  - `centerX = (digitW - 30 * scale) / 2`
+  - `centerY = (canvasH - 50 * scale) / 2`
+  - `depthOffset = 1.5 * scale` — simulates 3D cathode stacking depth
 - All 10 ghosts always visible including the active digit's ghost (the physical wire is always present)
 
 ### Active glow paths (`_glowPaths[4]`)
@@ -64,7 +68,7 @@ Four `Path` elements sharing the active digit's geometry, drawn in Z-order outer
 | 0 — halo | `baseStroke × 3.6` | 4% | `rgba(255, 120, 0, a)` |
 | 1 — mid glow | `baseStroke × 2.4` | 10% | `rgba(255, 140, 0, a)` |
 | 2 — inner bloom | `baseStroke × 1.6` | 30% | `rgba(255, 160, 0, a)` |
-| 3 — core | `baseStroke × 1.0` | 100% | `rgb(255, ~185, ~10)` (warm cream) |
+| 3 — core | `baseStroke × 1.0` | 100% | `rgb(255, 184, 20)` (warm amber-cream) |
 
 These 4 paths are added to `RootCanvas` above all ghost paths. Their `.Data` is swapped to `_scaledGeometries[activeDigit]` in `UpdateDisplay()`. They collapse (`Visibility.Collapsed`) when `activeDigit == -1`.
 
@@ -139,8 +143,10 @@ for each p in _glowPaths:
     p.Data = geometry
     p.Visibility = Visible
 
+_flickerCurrent = 1.0
+_flickerTarget  = 1.0
 _flickerTimer.Start()
-ApplyFlickerColors(1.0)   // reset to base brightness immediately
+// next tick will apply base colors; no immediate color update needed
 ```
 
 ---
