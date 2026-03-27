@@ -77,7 +77,7 @@ Full details: `.planning/milestones/v3.9-ROADMAP.md`
 **Milestone Goal:** Extend ghost mode so the widget fades out gradually as the cursor approaches, rather than snapping invisible on mouse entry.
 
 - [x] **Phase 66: AppSettings Foundation** - Add GhostFadeRadiusPx field with validation, tests, and ResetToDefaults coverage (completed 2026-03-27)
-- [ ] **Phase 67: GhostModeController Extension** - Proximity ratio computation, controller events, and unit tests for ComputeProximityRatio
+- [x] **Phase 67: GhostModeController Extension** - Proximity ratio computation, controller events, and unit tests for ComputeProximityRatio (completed 2026-03-27)
 - [ ] **Phase 68: MainWindow Wiring + Contrast Guard** - Wire proximity fade into opacity, drag guard, ghost toggle gate, and auto-contrast skip predicate
 - [ ] **Phase 69: SettingsWindow UI** - Fade radius slider in Behavior tab with ghost mode gating and persistence
 
@@ -106,9 +106,9 @@ Plans:
   3. WS_EX_TRANSPARENT is applied only when ProximityRatio reaches exactly 1.0 (Activating event path), never during the fade gradient
   4. Symmetric restore: as cursor retreats from proximity zone, ProximityChanged fires with decreasing ratio values (fade-in, not snap)
   5. All existing GHOST-01/GHOST-02/CTRLALT-01/CTRLALT-02 test outcomes are unaffected (zero-radius path unchanged)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 67-01-PLAN.md -- ComputeProximityRatio TDD + controller timer/event extension
+- [x] 67-01-PLAN.md -- ComputeProximityRatio TDD + controller timer/event extension (completed 2026-03-27)
 
 ### Phase 68: MainWindow Wiring + Contrast Guard
 **Goal**: The live widget applies proximity fade to this.Opacity on every controller tick — ghost toggle gates the behavior, drag pauses it, and the auto-contrast sampler skips during any fade state
@@ -137,6 +137,6 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
-| 67. GhostModeController Extension | v4.0 | 0/1 | Planned | - |
+| 67. GhostModeController Extension | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 68. MainWindow Wiring + Contrast Guard | v4.0 | 0/TBD | Not started | - |
 | 69. SettingsWindow UI | v4.0 | 0/TBD | Not started | - |

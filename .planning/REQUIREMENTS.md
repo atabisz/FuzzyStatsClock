@@ -7,17 +7,17 @@
 
 ### Proximity Fade Behavior
 
-- [ ] **PROX-01**: When Ghost Mode is enabled and the cursor enters the proximity zone (within configured radius of widget edge), widget opacity begins decreasing toward 0
-- [ ] **PROX-02**: Opacity decreases linearly as cursor approaches — `display_opacity = configured_opacity × (distance / radius)` — no snap at any point in the fade zone
-- [ ] **PROX-03**: When cursor crosses the widget boundary (distance = 0), fade continues to 0; `WS_EX_TRANSPARENT` is applied only when `Opacity` reaches exactly 0
-- [ ] **PROX-04**: When cursor retreats from the proximity zone, widget fades back up to configured opacity symmetrically (gradual restore, not instant snap)
-- [ ] **PROX-05**: Holding Ctrl+Alt while approaching suppresses the proximity fade — widget stays at configured opacity and remains interactive
+- [x] **PROX-01**: When Ghost Mode is enabled and the cursor enters the proximity zone (within configured radius of widget edge), widget opacity begins decreasing toward 0
+- [x] **PROX-02**: Opacity decreases linearly as cursor approaches — `display_opacity = configured_opacity × (distance / radius)` — no snap at any point in the fade zone
+- [x] **PROX-03**: When cursor crosses the widget boundary (distance = 0), fade continues to 0; `WS_EX_TRANSPARENT` is applied only when `Opacity` reaches exactly 0
+- [x] **PROX-04**: When cursor retreats from the proximity zone, widget fades back up to configured opacity symmetrically (gradual restore, not instant snap)
+- [x] **PROX-05**: Holding Ctrl+Alt while approaching suppresses the proximity fade — widget stays at configured opacity and remains interactive
 
 ### Configuration
 
 - [ ] **PROX-06**: User can configure the proximity fade radius via a slider in Settings > Behavior; range 20–200px, default 80px
 - [ ] **PROX-07**: Fade radius persists to settings.json and restores on launch; Reset to Defaults restores to 80px
-- [ ] **PROX-08**: When radius slider is at minimum, behavior matches current instant-snap ghost mode exactly (backward-compat path)
+- [x] **PROX-08**: When radius slider is at minimum, behavior matches current instant-snap ghost mode exactly (backward-compat path)
 
 ### System Compatibility
 
@@ -27,8 +27,8 @@
 
 ### Quality
 
-- [ ] **PROX-12**: AppSettings JSON round-trip test covers `GhostFadeRadiusPx`; absent-field test verifies 80px init default
-- [ ] **PROX-13**: `ComputeProximityRatio` is a pure static method with unit tests covering: outside zone → 0 ratio, at boundary → proportional ratio, inside widget → 1.0, zero-radius → 1.0 (instant-snap compat)
+- [x] **PROX-12**: AppSettings JSON round-trip test covers `GhostFadeRadiusPx`; absent-field test verifies 80px init default
+- [x] **PROX-13**: `ComputeProximityRatio` is a pure static method with unit tests covering: outside zone → 0 ratio, at boundary → proportional ratio, inside widget → 1.0, zero-radius → 1.0 (instant-snap compat)
 
 ## Out of Scope
 
@@ -44,19 +44,19 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROX-01 | Phase 67 | Pending |
-| PROX-02 | Phase 67 | Pending |
-| PROX-03 | Phase 67 | Pending |
-| PROX-04 | Phase 67 | Pending |
-| PROX-05 | Phase 67 | Pending |
+| PROX-01 | Phase 67 | Complete |
+| PROX-02 | Phase 67 | Complete |
+| PROX-03 | Phase 67 | Complete |
+| PROX-04 | Phase 67 | Complete |
+| PROX-05 | Phase 67 | Complete |
 | PROX-06 | Phase 69 | Pending |
 | PROX-07 | Phase 69 | Pending |
-| PROX-08 | Phase 67 | Pending |
+| PROX-08 | Phase 67 | Complete |
 | PROX-09 | Phase 68 | Pending |
 | PROX-10 | Phase 68 | Pending |
 | PROX-11 | Phase 68 | Pending |
 | PROX-12 | Phase 66 | Complete |
-| PROX-13 | Phase 67 | Pending |
+| PROX-13 | Phase 67 | Complete |
 
 **Coverage:**
 - v1 requirements: 13 total
@@ -65,4 +65,4 @@
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 — traceability mapped after roadmap creation*
+*Last updated: 2026-03-27 — PROX-01..05, PROX-08, PROX-13 completed in Phase 67*
