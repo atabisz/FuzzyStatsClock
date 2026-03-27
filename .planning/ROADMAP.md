@@ -86,20 +86,20 @@ Full details: `.planning/milestones/v3.9-ROADMAP.md`
 ### Phase 66: AppSettings Foundation
 **Goal**: AppSettings and SettingsService fully support the new GhostFadeRadiusPx field — zero behavioral change to the running widget, full data model safety before any controller code lands
 **Depends on**: Phase 65 (v3.9 complete)
-**Requirements**: PROX-12, PROX-08
+**Requirements**: PROX-12
 **Success Criteria** (what must be TRUE):
   1. AppSettings JSON round-trip test for GhostFadeRadiusPx passes — field serializes and deserializes correctly
   2. Absent-field test passes — old settings.json without GhostFadeRadiusPx deserializes to 80px default (not 0)
   3. SettingsService.Validate() clamps out-of-range values (e.g. -1, 999) to the valid range without throwing
   4. ResetToDefaults() restores GhostFadeRadiusPx to 80px (field is not silently omitted from reset)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [x] 66-01-PLAN.md — Add GhostFadeRadiusPx field, validation, defaults, and tests (completed 2026-03-27)
 
 ### Phase 67: GhostModeController Extension
 **Goal**: GhostModeController can compute a proximity ratio from cursor position and emit it as an event — pure computational logic fully unit-tested before any opacity change touches the live widget
 **Depends on**: Phase 66
-**Requirements**: PROX-01, PROX-02, PROX-03, PROX-04, PROX-05, PROX-13
+**Requirements**: PROX-01, PROX-02, PROX-03, PROX-04, PROX-05, PROX-08, PROX-13
 **Success Criteria** (what must be TRUE):
   1. ComputeProximityRatio unit tests pass: cursor outside zone returns 0.0, cursor at zone boundary returns proportional ratio, cursor inside widget returns 1.0, zero-radius returns 1.0 (instant-snap compat)
   2. Ctrl+Alt held while cursor is in the proximity zone: ProximityRatio is forced to 0.0 (no fade suppression side effect)
@@ -134,7 +134,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 66. AppSettings Foundation | v4.0 | 1/1 | Complete | 2026-03-27 |
+| 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 67. GhostModeController Extension | v4.0 | 0/TBD | Not started | - |
 | 68. MainWindow Wiring + Contrast Guard | v4.0 | 0/TBD | Not started | - |
 | 69. SettingsWindow UI | v4.0 | 0/TBD | Not started | - |

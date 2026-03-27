@@ -51,11 +51,11 @@
 | PROX-05 | Phase 67 | Pending |
 | PROX-06 | Phase 69 | Pending |
 | PROX-07 | Phase 69 | Pending |
-| PROX-08 | Phase 66 | Pending |
+| PROX-08 | Phase 67 | Pending |
 | PROX-09 | Phase 68 | Pending |
 | PROX-10 | Phase 68 | Pending |
 | PROX-11 | Phase 68 | Pending |
-| PROX-12 | Phase 66 | Pending |
+| PROX-12 | Phase 66 | Complete |
 | PROX-13 | Phase 67 | Pending |
 
 **Coverage:**

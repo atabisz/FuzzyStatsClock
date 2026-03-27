@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Proximity Ghost Mode
-status: Phase 66 plan 1 complete
+status: Ready to plan
 stopped_at: Completed 66-01-PLAN.md — GhostFadeRadiusPx AppSettings foundation
-last_updated: "2026-03-27T01:10:00.000Z"
+last_updated: "2026-03-27T02:57:51.217Z"
 progress:
-  total_phases: 1
+  total_phases: 4
   completed_phases: 1
   total_plans: 1
   completed_plans: 1
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 ## Current Position
 
-Phase: 66
-Plan: 1 of 1 complete
+Phase: 67
+Plan: Not started
 
 ## Progress
 
