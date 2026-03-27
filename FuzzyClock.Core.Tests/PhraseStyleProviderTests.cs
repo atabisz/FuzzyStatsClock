@@ -197,3 +197,384 @@ public class RudePhraseProviderTests
         Assert.IsFalse(string.IsNullOrEmpty(emphasis));
     }
 }
+
+// ---------------------------------------------------------------------------
+// JivePhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class JivePhraseProviderTests
+{
+    private static readonly IPhraseProvider _provider = new JivePhraseProvider();
+
+    [TestMethod]
+    public void SetLocale_EnJive_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-jive");
+        PhraseEngine.SetLocale("en-classic");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Jive_OnTheHour_ContainsHourWord()
+    {
+        // All bucket-0 candidates reference {h}, so at 4:00 every phrase contains "four".
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        StringAssert.Contains(phrase, "four");
+    }
+
+    [TestMethod]
+    public void Jive_NearlyHour_ContainsNextHourWord()
+    {
+        // All bucket-11 candidates reference {h1}, so at 4:55 every phrase contains "five".
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
+        StringAssert.Contains(phrase, "five", $"Expected next-hour word but got: {phrase}");
+    }
+
+    [TestMethod]
+    public void Jive_Noon_ReturnsNoonPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("high noon, daddy-o", phrase);
+    }
+
+    [TestMethod]
+    public void Jive_Midnight_ReturnsMidnightPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
+        Assert.AreEqual("the witching hour, cat", phrase);
+    }
+
+    [TestMethod]
+    public void Jive_GetSegmentKey_SameBucket_ReturnsSameKey()
+    {
+        string key1 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 0, 0));
+        string key2 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 2, 0));
+        Assert.AreEqual(key1, key2);
+    }
+
+    [TestMethod]
+    public void Jive_GetSegmentKey_AdjacentBuckets_ReturnDifferentKeys()
+    {
+        string key1 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 2, 0));
+        string key2 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 3, 0));
+        Assert.AreNotEqual(key1, key2);
+    }
+
+    [TestMethod]
+    public void Jive_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PiratePhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class PiratePhraseProviderTests
+{
+    private static readonly IPhraseProvider _provider = new PiratePhraseProvider();
+
+    [TestMethod]
+    public void SetLocale_EnPirate_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-pirate");
+        PhraseEngine.SetLocale("en-classic");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Pirate_OnTheHour_ContainsHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        StringAssert.Contains(phrase, "four");
+    }
+
+    [TestMethod]
+    public void Pirate_NearlyHour_ContainsNextHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
+        StringAssert.Contains(phrase, "five", $"Expected next-hour word but got: {phrase}");
+    }
+
+    [TestMethod]
+    public void Pirate_Noon_ReturnsNoonPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("high noon at sea, arr", phrase);
+    }
+
+    [TestMethod]
+    public void Pirate_Midnight_ReturnsMidnightPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
+        Assert.AreEqual("the dead of night, yarr", phrase);
+    }
+
+    [TestMethod]
+    public void Pirate_GetSegmentKey_SameBucket_ReturnsSameKey()
+    {
+        string key1 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 0, 0));
+        string key2 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 2, 0));
+        Assert.AreEqual(key1, key2);
+    }
+
+    [TestMethod]
+    public void Pirate_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DwarfPhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class DwarfPhraseProviderTests
+{
+    private static readonly IPhraseProvider _provider = new DwarfPhraseProvider();
+
+    [TestMethod]
+    public void SetLocale_EnDwarf_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-dwarf");
+        PhraseEngine.SetLocale("en-classic");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Dwarf_OnTheHour_ContainsHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        StringAssert.Contains(phrase, "four");
+    }
+
+    [TestMethod]
+    public void Dwarf_NearlyHour_ContainsNextHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
+        StringAssert.Contains(phrase, "five", $"Expected next-hour word but got: {phrase}");
+    }
+
+    [TestMethod]
+    public void Dwarf_Noon_ReturnsNoonPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("midday. eat.", phrase);
+    }
+
+    [TestMethod]
+    public void Dwarf_Midnight_ReturnsMidnightPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
+        Assert.AreEqual("deep in the night, bah", phrase);
+    }
+
+    [TestMethod]
+    public void Dwarf_GetSegmentKey_SameBucket_ReturnsSameKey()
+    {
+        string key1 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 0, 0));
+        string key2 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 2, 0));
+        Assert.AreEqual(key1, key2);
+    }
+
+    [TestMethod]
+    public void Dwarf_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ValleyGirlPhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class ValleyGirlPhraseProviderTests
+{
+    private static readonly IPhraseProvider _provider = new ValleyGirlPhraseProvider();
+
+    [TestMethod]
+    public void SetLocale_EnValleyGirl_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-valleygirl");
+        PhraseEngine.SetLocale("en-classic");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void ValleyGirl_OnTheHour_ContainsHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        StringAssert.Contains(phrase, "four");
+    }
+
+    [TestMethod]
+    public void ValleyGirl_NearlyHour_ContainsNextHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
+        StringAssert.Contains(phrase, "five", $"Expected next-hour word but got: {phrase}");
+    }
+
+    [TestMethod]
+    public void ValleyGirl_Noon_ReturnsNoonPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("like, it's literally noon", phrase);
+    }
+
+    [TestMethod]
+    public void ValleyGirl_Midnight_ReturnsMidnightPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
+        Assert.AreEqual("omg it's literally midnight", phrase);
+    }
+
+    [TestMethod]
+    public void ValleyGirl_GetSegmentKey_SameBucket_ReturnsSameKey()
+    {
+        string key1 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 0, 0));
+        string key2 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 2, 0));
+        Assert.AreEqual(key1, key2);
+    }
+
+    [TestMethod]
+    public void ValleyGirl_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// YodaPhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class YodaPhraseProviderTests
+{
+    private static readonly IPhraseProvider _provider = new YodaPhraseProvider();
+
+    [TestMethod]
+    public void SetLocale_EnYoda_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-yoda");
+        PhraseEngine.SetLocale("en-classic");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Yoda_OnTheHour_ContainsHourWord()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        StringAssert.Contains(phrase, "four");
+    }
+
+    [TestMethod]
+    public void Yoda_NearlyHour_ContainsNextHourWord()
+    {
+        // All bucket-11 candidates reference {h1} directly or as "approaches" (no {h1} token
+        // in "{h1} approaches" but the word "five" will appear at 4:55).
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
+        StringAssert.Contains(phrase, "five", $"Expected next-hour word but got: {phrase}");
+    }
+
+    [TestMethod]
+    public void Yoda_Noon_ReturnsNoonPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("noon it is, hmm", phrase);
+    }
+
+    [TestMethod]
+    public void Yoda_Midnight_ReturnsMidnightPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
+        Assert.AreEqual("midnight, the dark hour, yes", phrase);
+    }
+
+    [TestMethod]
+    public void Yoda_GetSegmentKey_SameBucket_ReturnsSameKey()
+    {
+        string key1 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 0, 0));
+        string key2 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 2, 0));
+        Assert.AreEqual(key1, key2);
+    }
+
+    [TestMethod]
+    public void Yoda_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ShakespearePhraseProvider tests
+// ---------------------------------------------------------------------------
+[TestClass]
+public class ShakespearePhraseProviderTests
+{
+    private static readonly IPhraseProvider _provider = new ShakespearePhraseProvider();
+
+    [TestMethod]
+    public void SetLocale_EnShakespeare_ReturnsTrue()
+    {
+        bool result = PhraseEngine.SetLocale("en-shakespeare");
+        PhraseEngine.SetLocale("en-classic");
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public void Shakespeare_OnTheHour_ContainsHourWord()
+    {
+        // All bucket-0 candidates reference the hour (via {h} or {ho}), so "four" appears at 4:00.
+        // ("fourth" is also a match since it contains "four" as a substring.)
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        StringAssert.Contains(phrase, "four");
+    }
+
+    [TestMethod]
+    public void Shakespeare_NearlyHour_ContainsNextHourWord()
+    {
+        // All bucket-11 candidates reference {h1}, so "five" appears at 4:55.
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 4, 55, 0));
+        StringAssert.Contains(phrase, "five", $"Expected next-hour word but got: {phrase}");
+    }
+
+    [TestMethod]
+    public void Shakespeare_Noon_ReturnsNoonPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
+        Assert.AreEqual("Hark! 'Tis the noontide hour", phrase);
+    }
+
+    [TestMethod]
+    public void Shakespeare_Midnight_ReturnsMidnightPhrase()
+    {
+        string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
+        Assert.AreEqual("The witching hour doth toll", phrase);
+    }
+
+    [TestMethod]
+    public void Shakespeare_GetSegmentKey_SameBucket_ReturnsSameKey()
+    {
+        string key1 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 0, 0));
+        string key2 = _provider.GetSegmentKey(new DateTime(2024, 1, 1, 4, 2, 0));
+        Assert.AreEqual(key1, key2);
+    }
+
+    [TestMethod]
+    public void Shakespeare_GetStructuredPhrase_ReturnsEmptyQualifier()
+    {
+        var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 4, 0, 0));
+        Assert.AreEqual("", qualifier);
+        Assert.IsFalse(string.IsNullOrEmpty(emphasis));
+    }
+}
