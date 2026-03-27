@@ -21,7 +21,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v4.0 in progress: 2026-03-27** — Proximity Ghost Mode milestone started
+**v4.0 in progress: 2026-03-27** — Phase 66 complete: `GhostFadeRadiusPx` (int, default 80, range 20–200px) added to AppSettings with Validate() guard and Defaults() entry; 7 tests (round-trip, absent-field, clamp, boundary, defaults); 402 tests passing (357 Core + 45 App)
 
 **v3.9 shipped: 2026-03-27** — LCD clock (7-segment, blinking colon, 12/24hr, optional seconds row, Dark/Paper/Silver styles) added as fourth clock style; Japanese Terse/Poetic/Rude phrase providers added; `ResolveLocaleKey` consolidates all locale routing; 395 MSTest tests (357 Core + 38 App) passing (includes Jive/Pirate/Dwarf/ValleyGirl/Yoda/Shakespeare phrase styles added post-milestone)
 
@@ -33,7 +33,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
 
-352 MSTest tests (314 Core + 38 App) passing. CI gate enforced.
+402 MSTest tests (357 Core + 45 App) passing. CI gate enforced.
 
 ## Requirements
 
