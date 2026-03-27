@@ -128,11 +128,13 @@ Plans:
 **Depends on**: Phase 68
 **Requirements**: PROX-06, PROX-07
 **Success Criteria** (what must be TRUE):
-  1. Settings > Behavior tab shows a proximity fade radius slider with range 20–200px and a px value label that updates as the slider moves
+  1. Settings > Behavior tab shows a proximity fade radius slider with range 20-200px and a px value label that updates as the slider moves
   2. Moving the slider immediately changes the fade radius on the live widget — user can see the effect without closing Settings
   3. Fade radius persists to settings.json and is correctly restored after an app restart
   4. The slider is disabled (grayed out) when Ghost Mode is unchecked in the same Behavior tab
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 69-01-PLAN.md — Fade radius slider UI + SettingsSnapshot + MainWindow wiring + persistence
 
 ## Progress
 
@@ -141,4 +143,4 @@ Plans:
 | 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 67. GhostModeController Extension | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 68. MainWindow Wiring + Contrast Guard | 1/1 | Complete   | Complete    | 2026-03-27 |
-| 69. SettingsWindow UI | v4.0 | 0/TBD | Not started | - |
+| 69. SettingsWindow UI | v4.0 | 0/1 | Not started | - |
