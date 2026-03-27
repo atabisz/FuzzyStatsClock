@@ -21,7 +21,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v4.0 in progress: 2026-03-27** — Phase 67 complete: `GhostModeController` extended with always-running 75ms timer, `ComputeProximityRatio` pure static method (Chebyshev distance, 12 TDD tests), `ProximityChanged: Action<double>?` event (fires only on ratio change), `GhostFadeRadiusPx` settable property, WS_EX_TRANSPARENT at ratio=1.0 / removed immediately on retreat; 414 tests passing (357 Core + 57 App)
+**v4.0 in progress: 2026-03-27** — Phase 68 complete: proximity fade fully wired into `MainWindow` — `ProximityChanged` drives `this.Opacity = _windowOpacity * (1.0 - ratio)` with `_isDragging` guard (PROX-10), `IsEnabled` gate at top of `OnTimerTick` (PROX-09), `_proximityRatio` field in MainWindow updates contrast skip predicate (PROX-11), legacy ghost activation block deleted from `Window_MouseEnter`; 414 tests passing (357 Core + 57 App). Phase 69 (Settings UI slider) is next.
 
 **v3.9 shipped: 2026-03-27** — LCD clock (7-segment, blinking colon, 12/24hr, optional seconds row, Dark/Paper/Silver styles) added as fourth clock style; Japanese Terse/Poetic/Rude phrase providers added; `ResolveLocaleKey` consolidates all locale routing; 395 MSTest tests (357 Core + 38 App) passing (includes Jive/Pirate/Dwarf/ValleyGirl/Yoda/Shakespeare phrase styles added post-milestone)
 
