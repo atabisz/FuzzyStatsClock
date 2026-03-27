@@ -110,6 +110,10 @@ public static class SettingsService
                                         "Yoda", "Shakespeare" };
         if (string.IsNullOrWhiteSpace(loaded.PhraseStyle) || !validPhraseStyles.Contains(loaded.PhraseStyle))
             loaded = loaded with { PhraseStyle = Defaults().PhraseStyle };
+        // LcdStyle guard — only Dark, Paper, Silver are valid
+        string[] validLcdStyles = { "Dark", "Paper", "Silver" };
+        if (string.IsNullOrWhiteSpace(loaded.LcdStyle) || !validLcdStyles.Contains(loaded.LcdStyle))
+            loaded = loaded with { LcdStyle = Defaults().LcdStyle };
         // MonitorPositions null guard — null can occur if someone manually edits settings.json
         // and writes "MonitorPositions":null
         if (loaded.MonitorPositions == null)

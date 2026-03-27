@@ -125,4 +125,13 @@ public class SettingsServiceTests
         var result = SettingsService.Validate(s);
         Assert.AreEqual(style, result.TextStyle);
     }
+
+    [TestMethod]
+    public void Validate_InvalidLcdStyle_ResetsToDark()
+    {
+        var input  = new AppSettings { LcdStyle = "Broken" };
+        var result = SettingsService.Validate(input);
+        Assert.AreEqual("Dark", result.LcdStyle,
+            "LcdStyle 'Broken' should reset to Dark default");
+    }
 }
