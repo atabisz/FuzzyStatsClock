@@ -79,7 +79,7 @@ Full details: `.planning/milestones/v3.9-ROADMAP.md`
 - [x] **Phase 66: AppSettings Foundation** - Add GhostFadeRadiusPx field with validation, tests, and ResetToDefaults coverage (completed 2026-03-27)
 - [x] **Phase 67: GhostModeController Extension** - Proximity ratio computation, controller events, and unit tests for ComputeProximityRatio (completed 2026-03-27)
 - [x] **Phase 68: MainWindow Wiring + Contrast Guard** - Wire proximity fade into opacity, drag guard, ghost toggle gate, and auto-contrast skip predicate (completed 2026-03-27)
-- [ ] **Phase 69: SettingsWindow UI** - Fade radius slider in Behavior tab with ghost mode gating and persistence
+- [x] **Phase 69: SettingsWindow UI** - Fade radius slider in Behavior tab with ghost mode gating and persistence (completed 2026-03-27)
 
 ## Phase Details
 
@@ -132,7 +132,7 @@ Plans:
   2. Moving the slider immediately changes the fade radius on the live widget — user can see the effect without closing Settings
   3. Fade radius persists to settings.json and is correctly restored after an app restart
   4. The slider is disabled (grayed out) when Ghost Mode is unchecked in the same Behavior tab
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 69-01-PLAN.md — Fade radius slider UI + SettingsSnapshot + MainWindow wiring + persistence
 
@@ -143,4 +143,4 @@ Plans:
 | 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 67. GhostModeController Extension | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 68. MainWindow Wiring + Contrast Guard | 1/1 | Complete   | Complete    | 2026-03-27 |
-| 69. SettingsWindow UI | v4.0 | 0/1 | Not started | - |
+| 69. SettingsWindow UI | 1/1 | Complete   | 2026-03-27 | - |

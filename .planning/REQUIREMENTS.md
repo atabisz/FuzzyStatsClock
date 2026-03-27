@@ -15,8 +15,8 @@
 
 ### Configuration
 
-- [ ] **PROX-06**: User can configure the proximity fade radius via a slider in Settings > Behavior; range 20–200px, default 80px
-- [ ] **PROX-07**: Fade radius persists to settings.json and restores on launch; Reset to Defaults restores to 80px
+- [x] **PROX-06**: User can configure the proximity fade radius via a slider in Settings > Behavior; range 20–200px, default 80px
+- [x] **PROX-07**: Fade radius persists to settings.json and restores on launch; Reset to Defaults restores to 80px
 - [x] **PROX-08**: When radius slider is at minimum, behavior matches current instant-snap ghost mode exactly (backward-compat path)
 
 ### System Compatibility
@@ -49,8 +49,8 @@
 | PROX-03 | Phase 67 | Complete |
 | PROX-04 | Phase 67 | Complete |
 | PROX-05 | Phase 67 | Complete |
-| PROX-06 | Phase 69 | Pending |
-| PROX-07 | Phase 69 | Pending |
+| PROX-06 | Phase 69 | Complete |
+| PROX-07 | Phase 69 | Complete |
 | PROX-08 | Phase 67 | Complete |
 | PROX-09 | Phase 68 | Complete |
 | PROX-10 | Phase 68 | Complete |

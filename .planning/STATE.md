@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Proximity Ghost Mode
-status: Ready to plan
-stopped_at: Completed 69-01-PLAN.md
-last_updated: "2026-03-27T04:49:21.265Z"
+status: Phase 69 complete — milestone v4.0 all phases done
+stopped_at: Completed 69-01-PLAN.md — GhostFadeRadiusPx SettingsWindow UI
+last_updated: "2026-03-27T04:58:59.564Z"
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 68 complete — opacity wiring done; Phase 69 (Ghost Settings Slider) next
+**Current focus:** Phase 69 — settingswindow-ui (complete); all v4.0 phases done
 
 ## Current Position
 
-Phase: 69
-Plan: Not started
+Phase: 69 (settingswindow-ui) — COMPLETE
+Plan: 1 of 1 complete
 
 ## Progress
 
@@ -32,6 +32,7 @@ Plan: Not started
 Phase 66: AppSettings Foundation        [x] Complete
 Phase 67: GhostModeController Extension [x] Complete
 Phase 68: Opacity Wiring                [x] Complete
+Phase 69: SettingsWindow UI             [x] Complete
 
 [██████████] 100%
 ```
@@ -55,6 +56,7 @@ Phase 68: Opacity Wiring                [x] Complete
 - GhostModeController timer always-running from Initialize(); ProximityChanged fires only on ratio change; WS_EX_TRANSPARENT managed entirely inside controller
 - Restored fires only at ratio=0.0 after ghost activation (not every sub-1.0 tick during retreat)
 - GhostFadeRadiusPx property on controller ready for Phase 69 live slider wiring
+- Phase 69 complete: GhostFadeRadiusPanel indented sub-panel in Settings > Behavior tab; IsEnabled gated by Ghost Mode checkbox; GhostFadeRadiusPxChanged event wires to controller + persists; PROX-06/PROX-07 satisfied
 - InternalsVisibleTo FuzzyClock.App.Tests added to FuzzyClock.App.csproj — pattern mirrors FuzzyClock.Core.csproj
 - Activate() remains public for Phase 67→68 transition (D-03); Phase 68 removes the external Window_MouseEnter call site
 - Phase 68 wiring: _proximityRatio field in MainWindow; ProximityChanged handler updates field + drives this.Opacity = _windowOpacity * (1.0 - ratio); _isDragging guards opacity update; contrast skip predicate adds || _proximityRatio > 0.0; Restored handler resets _proximityRatio = 0.0; Window_MouseEnter ghost activation block (lines 1013-1030) deleted; IsEnabled gate at top of OnTimerTick in controller
@@ -69,6 +71,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T04:49:21.261Z
-Stopped at: Completed 69-01-PLAN.md
-Resume file: .planning/phases/69-settingswindow-ui/69-01-PLAN.md
+Last session: 2026-03-27T04:58:59.561Z
+Stopped at: Completed 69-01-PLAN.md — GhostFadeRadiusPx SettingsWindow UI
+Resume file: None
