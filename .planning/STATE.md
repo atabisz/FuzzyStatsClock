@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Proximity Ghost Mode
-status: Executing Phase 68
-stopped_at: "Completed 67-01-PLAN.md"
-last_updated: "2026-03-27T03:36:03Z"
+status: Ready to plan
+stopped_at: Completed 67-01-PLAN.md
+last_updated: "2026-03-27T03:42:19.324Z"
 progress:
   total_phases: 4
   completed_phases: 2
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 ## Current Position
 
-Phase: 68 (Opacity Wiring) — READY
-Plan: next
+Phase: 68
+Plan: Not started
 
 ## Progress
 
