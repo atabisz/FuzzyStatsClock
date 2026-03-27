@@ -258,7 +258,7 @@ public partial class NixieDigit : WpfUserControl
 
         _flickerCurrent += (_flickerTarget - _flickerCurrent) * 0.25;
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < _glowPaths.Length; i++)
             _glowPaths[i].Opacity = Math.Min(1.0, GlowBaseOpacities[i] * _flickerCurrent);
     }
 
