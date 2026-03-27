@@ -103,6 +103,14 @@ None - no external service configuration required.
 - Phase 67 (proximity controller) can now read `settings.GhostFadeRadiusPx` to implement the fade-distance behavior without any data-model work
 - No blockers
 
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/66-appsettings-foundation/66-01-SUMMARY.md`
+- FOUND: `GhostFadeRadiusPx` in `FuzzyClock.App/AppSettings.cs`
+- FOUND: commit `8a0e716` (feat: AppSettings + SettingsService changes)
+- FOUND: commit `22e50dd` (test: 7 new test methods)
+- FOUND: commit `6cbb447` (docs: SUMMARY.md + STATE.md + ROADMAP.md)
+
 ---
 *Phase: 66-appsettings-foundation*
 *Completed: 2026-03-27*
