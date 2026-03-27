@@ -46,5 +46,6 @@ public record AppSettings
     public string PhraseWrapStyle              { get; init; } = "midpoint";  // "midpoint" | "natural"
     public bool   BackdropAlwaysVisible        { get; init; } = false;
     public int    BackdropOpacityPercent       { get; init; } = 35;
+    public int    GhostFadeRadiusPx            { get; init; } = 80;  // 20-200px; default 80px per PROX-06/PROX-07
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"

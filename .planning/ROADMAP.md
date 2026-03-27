@@ -76,7 +76,7 @@ Full details: `.planning/milestones/v3.9-ROADMAP.md`
 
 **Milestone Goal:** Extend ghost mode so the widget fades out gradually as the cursor approaches, rather than snapping invisible on mouse entry.
 
-- [ ] **Phase 66: AppSettings Foundation** - Add GhostFadeRadiusPx field with validation, tests, and ResetToDefaults coverage
+- [x] **Phase 66: AppSettings Foundation** - Add GhostFadeRadiusPx field with validation, tests, and ResetToDefaults coverage (completed 2026-03-27)
 - [ ] **Phase 67: GhostModeController Extension** - Proximity ratio computation, controller events, and unit tests for ComputeProximityRatio
 - [ ] **Phase 68: MainWindow Wiring + Contrast Guard** - Wire proximity fade into opacity, drag guard, ghost toggle gate, and auto-contrast skip predicate
 - [ ] **Phase 69: SettingsWindow UI** - Fade radius slider in Behavior tab with ghost mode gating and persistence
@@ -94,7 +94,7 @@ Full details: `.planning/milestones/v3.9-ROADMAP.md`
   4. ResetToDefaults() restores GhostFadeRadiusPx to 80px (field is not silently omitted from reset)
 **Plans:** 1 plan
 Plans:
-- [ ] 66-01-PLAN.md — Add GhostFadeRadiusPx field, validation, defaults, and tests
+- [x] 66-01-PLAN.md — Add GhostFadeRadiusPx field, validation, defaults, and tests (completed 2026-03-27)
 
 ### Phase 67: GhostModeController Extension
 **Goal**: GhostModeController can compute a proximity ratio from cursor position and emit it as an event — pure computational logic fully unit-tested before any opacity change touches the live widget
@@ -134,7 +134,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 66. AppSettings Foundation | v4.0 | 0/1 | Not started | - |
+| 66. AppSettings Foundation | v4.0 | 1/1 | Complete | 2026-03-27 |
 | 67. GhostModeController Extension | v4.0 | 0/TBD | Not started | - |
 | 68. MainWindow Wiring + Contrast Guard | v4.0 | 0/TBD | Not started | - |
 | 69. SettingsWindow UI | v4.0 | 0/TBD | Not started | - |

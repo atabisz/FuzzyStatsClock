@@ -114,6 +114,9 @@ public static class SettingsService
         string[] validLcdStyles = { "Dark", "Paper", "Silver" };
         if (string.IsNullOrWhiteSpace(loaded.LcdStyle) || !validLcdStyles.Contains(loaded.LcdStyle))
             loaded = loaded with { LcdStyle = Defaults().LcdStyle };
+        // GhostFadeRadiusPx guard -- valid range 20-200px per PROX-06
+        if (loaded.GhostFadeRadiusPx < 20 || loaded.GhostFadeRadiusPx > 200)
+            loaded = loaded with { GhostFadeRadiusPx = Defaults().GhostFadeRadiusPx };
         // MonitorPositions null guard — null can occur if someone manually edits settings.json
         // and writes "MonitorPositions":null
         if (loaded.MonitorPositions == null)
@@ -148,7 +151,8 @@ public static class SettingsService
         DateFormat = "Short",
         MonitorPositions = new Dictionary<string, MonitorPosition>(),
         LastActiveMonitor = "",
-        BatteryAlertThresholdPercent = 20
+        BatteryAlertThresholdPercent = 20,
+        GhostFadeRadiusPx = 80
     };
 
     /// <summary>
