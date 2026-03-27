@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Proximity Ghost Mode
-status: Phase 68 complete — 68-01 opacity wiring done
+status: Ready to plan
 stopped_at: Completed 68-01-PLAN.md — opacity wiring, ProximityChanged → this.Opacity, IsEnabled gate, legacy ghost block deleted
-last_updated: "2026-03-27T04:21:25.518Z"
+last_updated: "2026-03-27T04:25:43.707Z"
 progress:
   total_phases: 4
   completed_phases: 3
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 ## Current Position
 
-Phase: 68 (opacity-wiring) — COMPLETE
-Plan: 1 of 1 complete
+Phase: 69
+Plan: Not started
 
 ## Progress
 

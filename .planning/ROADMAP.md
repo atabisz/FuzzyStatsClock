@@ -140,5 +140,5 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 67. GhostModeController Extension | v4.0 | 1/1 | Complete    | 2026-03-27 |
-| 68. MainWindow Wiring + Contrast Guard | 1/1 | Complete   | 2026-03-27 | - |
+| 68. MainWindow Wiring + Contrast Guard | 1/1 | Complete   | Complete    | 2026-03-27 |
 | 69. SettingsWindow UI | v4.0 | 0/TBD | Not started | - |
