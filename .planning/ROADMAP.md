@@ -131,7 +131,9 @@ Plans:
   1. The STEST-01 AppSettings round-trip test asserts all four LCD fields (LcdUse24Hr, LcdShowSeconds, LcdStyle, LcdSize) survive a serialize/deserialize cycle with correct values
   2. SettingsService.Validate() corrects an invalid LcdStyle string (e.g. "Broken") to the Dark default without throwing
   3. A settings.json containing an unrecognized LcdStyle value loads cleanly and shows Dark-style LCD digits on the widget
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 65-01-PLAN.md — Add LcdStyle guard to SettingsService.Validate(); add Validate_InvalidLcdStyle_ResetsToDark test
 
 ## Progress Table
 
@@ -141,4 +143,4 @@ Plans:
 | 62. Routing Consolidation | 1/1 | Complete   | 2026-03-26 |
 | 63. SettingsWindow LCD UI | 1/1 | Complete   | 2026-03-27 |
 | 64. Blinking Colon | 1/1 | Complete   | 2026-03-27 |
-| 65. Settings Persistence Hardening | 0/? | Not started | - |
+| 65. Settings Persistence Hardening | 0/1 | Not started | - |
