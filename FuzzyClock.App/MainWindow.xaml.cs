@@ -51,6 +51,7 @@ public partial class MainWindow : Window
     private TrayMenuBuilder _trayMenu = null!;
     private bool _autoLaunchEnabled = false;
     private bool _isDragging = false;   // true between DragMove() start and end — freezes display color
+    private double _proximityRatio = 0.0;   // current proximity ratio from GhostModeController
     private GhostModeController _ghostMode = null!;
     private ContrastRefreshController _contrast = new();
     private SettingsWindow? _settingsWindow;
@@ -150,17 +151,24 @@ public partial class MainWindow : Window
             _contrast.Cleared      += ApplyTheme;
             _contrast.Initialize(
                 this,
-                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging,
+                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging || _proximityRatio > 0.0,
                 () => new RgbColor(_accentColor.R, _accentColor.G, _accentColor.B));
 
             // Ghost mode controller — initialize now that HWND is available
             _ghostMode.Restored += () =>
             {
+                _proximityRatio = 0.0;
                 this.Opacity = _windowOpacity;
                 if (!_backdropAlwaysVisible)
                     BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
             };
             _ghostMode.Initialize(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            _ghostMode.ProximityChanged = ratio =>
+            {
+                _proximityRatio = ratio;
+                if (_isDragging) return;
+                this.Opacity = _windowOpacity * (1.0 - ratio);
+            };
 
             // Tray icon
             _trayMenu = new TrayMenuBuilder(new TrayMenuCallbacks
@@ -1009,25 +1017,6 @@ public partial class MainWindow : Window
             _isHoverFastRefresh = true;
             return;  // Skip ghost mode path — do NOT apply WS_EX_TRANSPARENT
         }
-
-        // Ghost mode activation (v2.3 Phase 26)
-
-        // Step 1: Run synthetic MouseLeave cleanup BEFORE going click-through.
-        // WS_EX_TRANSPARENT stops WM_MOUSELEAVE delivery. Backdrop and timer state
-        // must be clean before we disappear or they will be corrupted post-restore.
-        if (!_backdropAlwaysVisible)
-            BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
-        if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null)
-        {
-            _statsTimer.Stop();
-            _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
-            _statsTimer.Start();
-        }
-        _isHoverFastRefresh = false;
-
-        // Step 2 & 3: Start polling timer and apply WS_EX_TRANSPARENT via controller.
-        _ghostMode.Activate();
-        this.Opacity = 0.0;
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
