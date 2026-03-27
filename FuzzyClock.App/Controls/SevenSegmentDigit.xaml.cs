@@ -200,20 +200,21 @@ public partial class SevenSegmentDigit : WpfUserControl
         foreach (var seg in _segments)
             RootCanvas.Children.Add(seg);
 
-        // Colon dots
+        // Colon dots — sized to fit within the narrow colon slot (t * 3 gives 1t padding each side)
+        double colonW = t * 3.0;
         _dot1 = new WpfRectangle { Width = t, Height = t };
-        Canvas.SetLeft(_dot1, (digitW - t) / 2);
+        Canvas.SetLeft(_dot1, (colonW - t) / 2);
         Canvas.SetTop(_dot1, canvasH / 3 - t / 2);
 
         _dot2 = new WpfRectangle { Width = t, Height = t };
-        Canvas.SetLeft(_dot2, (digitW - t) / 2);
+        Canvas.SetLeft(_dot2, (colonW - t) / 2);
         Canvas.SetTop(_dot2, 2 * canvasH / 3 - t / 2);
 
         RootCanvas.Children.Add(_dot1);
         RootCanvas.Children.Add(_dot2);
 
         _builtDigitW = digitW;
-        _builtColonW = digitW * 0.30;
+        _builtColonW = colonW;
         _builtCanvasH = canvasH;
 
         RootCanvas.Width = digitW;
