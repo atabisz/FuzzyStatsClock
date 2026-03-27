@@ -134,4 +134,38 @@ public class SettingsServiceTests
         Assert.AreEqual("Dark", result.LcdStyle,
             "LcdStyle 'Broken' should reset to Dark default");
     }
+
+    [TestMethod]
+    public void Validate_GhostFadeRadiusPx_BelowMin_ClampsToDefault()
+    {
+        var input  = new AppSettings { GhostFadeRadiusPx = -1 };
+        var result = SettingsService.Validate(input);
+        Assert.AreEqual(80, result.GhostFadeRadiusPx);
+    }
+
+    [TestMethod]
+    public void Validate_GhostFadeRadiusPx_AboveMax_ClampsToDefault()
+    {
+        var input  = new AppSettings { GhostFadeRadiusPx = 999 };
+        var result = SettingsService.Validate(input);
+        Assert.AreEqual(80, result.GhostFadeRadiusPx);
+    }
+
+    [TestMethod]
+    [DataRow(20)]
+    [DataRow(80)]
+    [DataRow(200)]
+    public void Validate_GhostFadeRadiusPx_ValidRange_Preserved(int radius)
+    {
+        var input  = new AppSettings { GhostFadeRadiusPx = radius };
+        var result = SettingsService.Validate(input);
+        Assert.AreEqual(radius, result.GhostFadeRadiusPx);
+    }
+
+    [TestMethod]
+    public void Defaults_GhostFadeRadiusPx_Is80()
+    {
+        var defaults = SettingsService.Defaults();
+        Assert.AreEqual(80, defaults.GhostFadeRadiusPx);
+    }
 }

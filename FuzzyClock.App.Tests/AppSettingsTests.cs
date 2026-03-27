@@ -48,6 +48,7 @@ public class AppSettingsTests
             ShowDate   = false,
             DateFormat = "ISO",
             LcdStyle   = "Paper",
+            GhostFadeRadiusPx = 120,  // non-default value to prove round-trip
         };
 
         string json = JsonSerializer.Serialize(original);
@@ -80,6 +81,7 @@ public class AppSettingsTests
         Assert.AreEqual(original.ShowDate,   result.ShowDate,   "ShowDate");
         Assert.AreEqual(original.DateFormat, result.DateFormat, "DateFormat");
         Assert.AreEqual(original.LcdStyle,   result.LcdStyle,   "LcdStyle");
+        Assert.AreEqual(original.GhostFadeRadiusPx, result.GhostFadeRadiusPx, "GhostFadeRadiusPx");
     }
 
     // STEST-02: Deserialize JSON that omits the UptimeVisible field entirely.
@@ -202,6 +204,15 @@ public class AppSettingsTests
         var result = JsonSerializer.Deserialize<AppSettings>(json)!;
         Assert.AreEqual(ClockType.Phrase, result.ClockType,
             "ClockType should default to Phrase when absent from JSON (init default)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingGhostFadeRadiusPx_DefaultsTo80()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(80, result.GhostFadeRadiusPx,
+            "GhostFadeRadiusPx should default to 80 when absent from JSON (init default), not 0");
     }
 
 }
