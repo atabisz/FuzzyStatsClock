@@ -295,6 +295,7 @@ public partial class MainWindow : Window
         _windowOpacity = s.Opacity;
         this.Opacity   = s.Opacity;
         _ghostMode.IsEnabled = s.GhostModeEnabled;
+        _ghostMode.GhostFadeRadiusPx = s.GhostFadeRadiusPx;
 
         _autoLaunchEnabled = s.AutoLaunchEnabled;
         // Restore registry entry to match persisted setting.
@@ -396,6 +397,7 @@ public partial class MainWindow : Window
         ShowDate               = _showDate,
         DateFormat             = _dateFormat,
         GhostModeEnabled       = _ghostMode.IsEnabled,
+        GhostFadeRadiusPx      = _ghostMode.GhostFadeRadiusPx,
         AutoContrastEnabled    = _contrast.IsEnabled,
         AutoLaunchEnabled      = _autoLaunchEnabled,
         ActiveTheme            = _currentTheme,
@@ -457,6 +459,11 @@ public partial class MainWindow : Window
         _settingsWindow.ShowDateChanged       += v => SetDateVisible(v);
         _settingsWindow.DateFormatChanged     += fmt => SetDateFormat(fmt);
         _settingsWindow.GhostModeChanged      += v => { _ghostMode.IsEnabled = v; SaveSettings(); };
+        _settingsWindow.GhostFadeRadiusPxChanged += v =>
+        {
+            _ghostMode.GhostFadeRadiusPx = v;
+            SaveSettings();
+        };
         _settingsWindow.AutoContrastChanged   += v => { _contrast.SetEnabled(v); SaveSettings(); };
         _settingsWindow.AutoLaunchChanged     += v =>
         {
@@ -527,6 +534,7 @@ public partial class MainWindow : Window
             AccentColor          = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}",
             Opacity              = _windowOpacity,
             GhostModeEnabled     = _ghostMode.IsEnabled,
+            GhostFadeRadiusPx    = _ghostMode.GhostFadeRadiusPx,
             AutoLaunchEnabled    = _autoLaunchEnabled,
             AutoContrastEnabled  = _contrast.IsEnabled,
             ProcessCountThresholdPercent = _processCountThreshold,
