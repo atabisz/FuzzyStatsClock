@@ -132,7 +132,7 @@ Plans:
   2. Moving the slider immediately changes the fade radius on the live widget — user can see the effect without closing Settings
   3. Fade radius persists to settings.json and is correctly restored after an app restart
   4. The slider is disabled (grayed out) when Ghost Mode is unchecked in the same Behavior tab
-**Plans:** 1/1 plans complete
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 69-01-PLAN.md — Fade radius slider UI + SettingsSnapshot + MainWindow wiring + persistence
 
@@ -143,4 +143,4 @@ Plans:
 | 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 67. GhostModeController Extension | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 68. MainWindow Wiring + Contrast Guard | 1/1 | Complete   | Complete    | 2026-03-27 |
-| 69. SettingsWindow UI | 1/1 | Complete   | 2026-03-27 | - |
+| 69. SettingsWindow UI | 2/2 | Complete   | 2026-03-27 | - |

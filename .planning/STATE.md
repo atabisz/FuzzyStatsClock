@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Proximity Ghost Mode
-status: Phase 69 complete — milestone v4.0 all phases done
-stopped_at: Completed 69-01-PLAN.md — GhostFadeRadiusPx SettingsWindow UI
-last_updated: "2026-03-27T04:58:59.564Z"
+status: Phase 69 complete — gap closure done, v4.0 all phases complete
+stopped_at: Completed 69-02-PLAN.md — GhostFadeRadiusPx reset in ResetToDefaults
+last_updated: "2026-03-27T05:13:00.661Z"
 progress:
   total_phases: 4
   completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 69 (settingswindow-ui) — COMPLETE
-Plan: 1 of 1 complete
+Plan: 2 of 2 complete
 
 ## Progress
 
@@ -57,6 +57,7 @@ Phase 69: SettingsWindow UI             [x] Complete
 - Restored fires only at ratio=0.0 after ghost activation (not every sub-1.0 tick during retreat)
 - GhostFadeRadiusPx property on controller ready for Phase 69 live slider wiring
 - Phase 69 complete: GhostFadeRadiusPanel indented sub-panel in Settings > Behavior tab; IsEnabled gated by Ghost Mode checkbox; GhostFadeRadiusPxChanged event wires to controller + persists; PROX-06/PROX-07 satisfied
+- Phase 69 gap closure (plan 02): ResetToDefaults() assigns _ghostMode.GhostFadeRadiusPx = 80 to restore the 80px default when user resets — PROX-07 fully satisfied
 - InternalsVisibleTo FuzzyClock.App.Tests added to FuzzyClock.App.csproj — pattern mirrors FuzzyClock.Core.csproj
 - Activate() remains public for Phase 67→68 transition (D-03); Phase 68 removes the external Window_MouseEnter call site
 - Phase 68 wiring: _proximityRatio field in MainWindow; ProximityChanged handler updates field + drives this.Opacity = _windowOpacity * (1.0 - ratio); _isDragging guards opacity update; contrast skip predicate adds || _proximityRatio > 0.0; Restored handler resets _proximityRatio = 0.0; Window_MouseEnter ghost activation block (lines 1013-1030) deleted; IsEnabled gate at top of OnTimerTick in controller
@@ -71,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T04:58:59.561Z
-Stopped at: Completed 69-01-PLAN.md — GhostFadeRadiusPx SettingsWindow UI
+Last session: 2026-03-27T05:13:00.657Z
+Stopped at: Completed 69-02-PLAN.md — GhostFadeRadiusPx reset in ResetToDefaults
 Resume file: None
