@@ -100,10 +100,6 @@ public partial class NixieDigit : WpfUserControl
     private double          _flickerTarget   = 1.0;
     private DateTime        _flickerNextChange = DateTime.MinValue;
 
-    // Geometry cache
-    private double _builtDigitW;
-    private double _builtDigitH;
-
     // ---------------------------------------------------------------
     // Constructor
     // ---------------------------------------------------------------
@@ -128,18 +124,15 @@ public partial class NixieDigit : WpfUserControl
         RootCanvas.Children.Clear();
 
         double digitH     = DigitHeight;
-        double digitW     = digitH * 0.62;
         double haloHalf = Math.Ceiling(Math.Max(2.0, digitH * 0.05) * 3.6 / 2.0);
+        double digitW     = digitH * 0.62 + (int)(haloHalf * 2);   // includes halo padding left+right
         double canvasH  = digitH + (int)(haloHalf * 2) + 4;   // halo top + bottom + tube pad
         double tubePad    = 4.0;
         double scale      = digitH / 50.0;
         double baseStroke = Math.Max(2.0, digitH * 0.05);
-        double depthOffset = 0.4 * scale;
+        double depthOffset = 0.4 * scale;   // spec: 1.5*scale, reduced to prevent digit-9 overflow at small DigitHeight values
         double centerX    = (digitW - 30.0 * scale) / 2.0;
         double centerY    = (canvasH - 50.0 * scale) / 2.0;
-
-        _builtDigitW = digitW;
-        _builtDigitH = digitH;
 
         // 1. Glass tube border
         var tubeBorder = new WpfRectangle
