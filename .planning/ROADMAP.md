@@ -119,8 +119,9 @@ Plans:
   1. When LCD clock style is active, the colon between hours and minutes visibly alternates between lit and unlit every second
   2. Colon blink uses the existing 1s DispatcherTimer in LcdClockView (no new timer added to the codebase)
   3. Colon2 (seconds separator, if seconds row is visible) does not blink — only Colon1 blinks
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 64-01-PLAN.md — _colonVisible field + Colon1 ternary toggle in UpdateTime(); build and test gate
 
 ### Phase 65: Settings Persistence Hardening
 **Goal**: LCD settings fields are covered by the round-trip serialization test and protected against invalid persisted values
@@ -139,5 +140,5 @@ Plans:
 | 61. Japanese Phrase Providers | 1/2 | Complete    | 2026-03-24 |
 | 62. Routing Consolidation | 1/1 | Complete   | 2026-03-26 |
 | 63. SettingsWindow LCD UI | 1/1 | Complete   | 2026-03-27 |
-| 64. Blinking Colon | 0/? | Not started | - |
+| 64. Blinking Colon | 0/1 | Not started | - |
 | 65. Settings Persistence Hardening | 0/? | Not started | - |
