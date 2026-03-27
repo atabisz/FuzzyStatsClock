@@ -1,0 +1,68 @@
+# Requirements: Fuzzy Clock v4.0
+
+**Defined:** 2026-03-27
+**Core Value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
+
+## v1 Requirements
+
+### Proximity Fade Behavior
+
+- [ ] **PROX-01**: When Ghost Mode is enabled and the cursor enters the proximity zone (within configured radius of widget edge), widget opacity begins decreasing toward 0
+- [ ] **PROX-02**: Opacity decreases linearly as cursor approaches — `display_opacity = configured_opacity × (distance / radius)` — no snap at any point in the fade zone
+- [ ] **PROX-03**: When cursor crosses the widget boundary (distance = 0), fade continues to 0; `WS_EX_TRANSPARENT` is applied only when `Opacity` reaches exactly 0
+- [ ] **PROX-04**: When cursor retreats from the proximity zone, widget fades back up to configured opacity symmetrically (gradual restore, not instant snap)
+- [ ] **PROX-05**: Holding Ctrl+Alt while approaching suppresses the proximity fade — widget stays at configured opacity and remains interactive
+
+### Configuration
+
+- [ ] **PROX-06**: User can configure the proximity fade radius via a slider in Settings > Behavior; range 20–200px, default 80px
+- [ ] **PROX-07**: Fade radius persists to settings.json and restores on launch; Reset to Defaults restores to 80px
+- [ ] **PROX-08**: When radius slider is at minimum, behavior matches current instant-snap ghost mode exactly (backward-compat path)
+
+### System Compatibility
+
+- [ ] **PROX-09**: Proximity fade is fully gated by the Ghost Mode tray toggle — cursor approach has no opacity effect when Ghost Mode is off
+- [ ] **PROX-10**: Proximity fade pauses during widget drag — widget stays at configured opacity while being dragged
+- [ ] **PROX-11**: Auto-contrast sampler skips sampling while widget is in proximity fade state (prevents WCAG flicker feedback loop — v3.6 regression guard)
+
+### Quality
+
+- [ ] **PROX-12**: AppSettings JSON round-trip test covers `GhostFadeRadiusPx`; absent-field test verifies 80px init default
+- [ ] **PROX-13**: `ComputeProximityRatio` is a pure static method with unit tests covering: outside zone → 0 ratio, at boundary → proportional ratio, inside widget → 1.0, zero-radius → 1.0 (instant-snap compat)
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| WPF DoubleAnimation / Storyboard for fade | Seizes ownership of Window.Opacity DP, breaks _windowOpacity discipline and WS_EX_TRANSPARENT timing |
+| Eased (non-linear) opacity curve | Position-driven effect — ease-in/out creates unintuitive behaviour when cursor reverses direction |
+| Proximity fade independent of Ghost Mode | Ghost Mode is the master gate; proximity fade is an extension of it, not a separate feature |
+| Separate "proximity fade enabled" toggle | Ghost Mode tray toggle already gates the behaviour; a second toggle adds UI complexity with no benefit |
+| Animated fade using a separate DispatcherTimer | Existing 75ms restore timer is extended; a duplicate timer wastes resources and introduces timing edge cases |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| PROX-01 | TBD | Pending |
+| PROX-02 | TBD | Pending |
+| PROX-03 | TBD | Pending |
+| PROX-04 | TBD | Pending |
+| PROX-05 | TBD | Pending |
+| PROX-06 | TBD | Pending |
+| PROX-07 | TBD | Pending |
+| PROX-08 | TBD | Pending |
+| PROX-09 | TBD | Pending |
+| PROX-10 | TBD | Pending |
+| PROX-11 | TBD | Pending |
+| PROX-12 | TBD | Pending |
+| PROX-13 | TBD | Pending |
+
+**Coverage:**
+- v1 requirements: 13 total
+- Mapped to phases: TBD (roadmap pending)
+- Unmapped: 13 ⚠️
+
+---
+*Requirements defined: 2026-03-27*
+*Last updated: 2026-03-27 after initial definition*
