@@ -21,9 +21,9 @@
 
 ### System Compatibility
 
-- [ ] **PROX-09**: Proximity fade is fully gated by the Ghost Mode tray toggle — cursor approach has no opacity effect when Ghost Mode is off
-- [ ] **PROX-10**: Proximity fade pauses during widget drag — widget stays at configured opacity while being dragged
-- [ ] **PROX-11**: Auto-contrast sampler skips sampling while widget is in proximity fade state (prevents WCAG flicker feedback loop — v3.6 regression guard)
+- [x] **PROX-09**: Proximity fade is fully gated by the Ghost Mode tray toggle — cursor approach has no opacity effect when Ghost Mode is off
+- [x] **PROX-10**: Proximity fade pauses during widget drag — widget stays at configured opacity while being dragged
+- [x] **PROX-11**: Auto-contrast sampler skips sampling while widget is in proximity fade state (prevents WCAG flicker feedback loop — v3.6 regression guard)
 
 ### Quality
 
@@ -52,9 +52,9 @@
 | PROX-06 | Phase 69 | Pending |
 | PROX-07 | Phase 69 | Pending |
 | PROX-08 | Phase 67 | Complete |
-| PROX-09 | Phase 68 | Pending |
-| PROX-10 | Phase 68 | Pending |
-| PROX-11 | Phase 68 | Pending |
+| PROX-09 | Phase 68 | Complete |
+| PROX-10 | Phase 68 | Complete |
+| PROX-11 | Phase 68 | Complete |
 | PROX-12 | Phase 66 | Complete |
 | PROX-13 | Phase 67 | Complete |
 

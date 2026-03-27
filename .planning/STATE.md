@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Proximity Ghost Mode
-status: Ready to plan
-stopped_at: Completed 68-01-PLAN.md
-last_updated: "2026-03-27T04:45:00.000Z"
+status: Phase 68 complete — 68-01 opacity wiring done
+stopped_at: Completed 68-01-PLAN.md — opacity wiring, ProximityChanged → this.Opacity, IsEnabled gate, legacy ghost block deleted
+last_updated: "2026-03-27T04:21:25.518Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,20 +19,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 68 — Opacity Wiring
+**Current focus:** Phase 68 complete — opacity wiring done; Phase 69 (Ghost Settings Slider) next
 
 ## Current Position
 
-Phase: 68
-Plan: Not started
+Phase: 68 (opacity-wiring) — COMPLETE
+Plan: 1 of 1 complete
 
 ## Progress
 
 ```
-Phase 66: AppSettings Foundation       [x] Complete
+Phase 66: AppSettings Foundation        [x] Complete
 Phase 67: GhostModeController Extension [x] Complete
+Phase 68: Opacity Wiring                [x] Complete
 
-[██████████████████████████] 2/2 plans complete
+[██████████] 100%
 ```
 
 ## Accumulated Context
@@ -40,7 +41,7 @@ Phase 67: GhostModeController Extension [x] Complete
 ### Key Decisions and Constraints
 
 - SettingsWindow uses ThemeMode="Dark"; zero style leakage to MainWindow
-- 414 MSTest tests (357 Core + 57 App), 0 failures as of phase 67
+- 414 MSTest tests (357 Core + 57 App), 0 failures as of phase 68
 - ClockType enum is the single source of truth (Phrase/Dial/Nixie/Lcd already defined in ClockType.cs)
 - All LCD rendering infrastructure already complete: SevenSegmentDigit, LcdClockView, SevenSegmentEncoder, LcdTimeFormatHelper, LcdSize, AppSettings LCD fields, SettingsWindow LCD stub events
 - Japanese providers follow IPhraseProvider 12-bucket pattern; JapanesePhraseProvider (Classic) is the reference baseline
@@ -68,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T04:15:00Z
-Stopped at: Completed 68-01-PLAN.md
-Resume file: .planning/phases/68-opacity-wiring/68-01-PLAN.md (ready to execute)
+Last session: 2026-03-27T04:21:25.514Z
+Stopped at: Completed 68-01-PLAN.md — opacity wiring, ProximityChanged → this.Opacity, IsEnabled gate, legacy ghost block deleted
+Resume file: None

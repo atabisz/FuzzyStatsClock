@@ -78,7 +78,7 @@ Full details: `.planning/milestones/v3.9-ROADMAP.md`
 
 - [x] **Phase 66: AppSettings Foundation** - Add GhostFadeRadiusPx field with validation, tests, and ResetToDefaults coverage (completed 2026-03-27)
 - [x] **Phase 67: GhostModeController Extension** - Proximity ratio computation, controller events, and unit tests for ComputeProximityRatio (completed 2026-03-27)
-- [ ] **Phase 68: MainWindow Wiring + Contrast Guard** - Wire proximity fade into opacity, drag guard, ghost toggle gate, and auto-contrast skip predicate
+- [x] **Phase 68: MainWindow Wiring + Contrast Guard** - Wire proximity fade into opacity, drag guard, ghost toggle gate, and auto-contrast skip predicate (completed 2026-03-27)
 - [ ] **Phase 69: SettingsWindow UI** - Fade radius slider in Behavior tab with ghost mode gating and persistence
 
 ## Phase Details
@@ -119,7 +119,7 @@ Plans:
   2. While dragging the widget, opacity stays at configured opacity regardless of cursor proximity — widget does not fade during drag
   3. Auto-contrast sampler skips sampling whenever ProximityRatio > 0.0 — no WCAG oscillation feedback during the fade gradient
   4. _windowOpacity (configured preference) is never overwritten by the proximity fade callback — only this.Opacity is modified
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 68-01-PLAN.md — IsEnabled gate + ProximityChanged opacity wiring + contrast predicate + legacy ghost block deletion
 
@@ -140,5 +140,5 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 67. GhostModeController Extension | v4.0 | 1/1 | Complete    | 2026-03-27 |
-| 68. MainWindow Wiring + Contrast Guard | v4.0 | 0/1 | In progress | - |
+| 68. MainWindow Wiring + Contrast Guard | 1/1 | Complete   | 2026-03-27 | - |
 | 69. SettingsWindow UI | v4.0 | 0/TBD | Not started | - |
