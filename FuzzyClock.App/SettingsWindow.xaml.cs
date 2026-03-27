@@ -167,6 +167,16 @@ public sealed partial class SettingsWindow : Window
         ChkShowMinuteDots.IsChecked  = s.ShowMinuteDots;
         ChkShowHourNumbers.IsChecked = s.ShowHourNumbers;
 
+        // LCD options
+        ChkLcd24Hr.IsChecked        = s.LcdUse24Hr;
+        ChkLcdShowSeconds.IsChecked = s.LcdShowSeconds;
+        CmbLcdStyle.SelectedIndex   = s.LcdStyle switch
+        {
+            "Paper"  => 1,
+            "Silver" => 2,
+            _        => 0,   // "Dark" is default
+        };
+
         // Backdrop controls
         BackdropOpacitySlider.Value = s.BackdropOpacityPercent;
         BackdropOpacityLabel.Text = $"{s.BackdropOpacityPercent}%";
@@ -213,11 +223,17 @@ public sealed partial class SettingsWindow : Window
         BtnPhrase.Tag = ct == ClockType.Phrase ? "selected" : null;
         BtnDial.Tag   = ct == ClockType.Dial   ? "selected" : null;
         BtnNixie.Tag  = ct == ClockType.Nixie  ? "selected" : null;
+        BtnLcd.Tag    = ct == ClockType.Lcd    ? "selected" : null;
 
         // Dial face row: visible only for Dial clock style
         var dialVis = ct == ClockType.Dial ? Visibility.Visible : Visibility.Collapsed;
         DialFaceLabel.Visibility = dialVis;
         DialFacePanel.Visibility = dialVis;
+
+        // LCD options row: visible only for LCD clock style
+        var lcdVis = ct == ClockType.Lcd ? Visibility.Visible : Visibility.Collapsed;
+        LcdOptionsLabel.Visibility = lcdVis;
+        LcdOptionsPanel.Visibility = lcdVis;
     }
 
     private void SetActiveSwatch(Border? activeRing)
@@ -419,6 +435,13 @@ public sealed partial class SettingsWindow : Window
         ClockTypeChanged?.Invoke(ClockType.Nixie);
     }
 
+    private void BtnLcd_Click(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SetClockStyleButtonStates(ClockType.Lcd);
+        ClockTypeChanged?.Invoke(ClockType.Lcd);
+    }
+
     // ── Phrase style combo ────────────────────────────────────────────────
     private void CmbPhraseStyle_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -602,6 +625,26 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         ShowHourNumbersChanged?.Invoke(ChkShowHourNumbers.IsChecked == true);
+    }
+
+    // ── LCD options ───────────────────────────────────────────────────────
+    private void ChkLcd24Hr_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        LcdUse24HrChanged?.Invoke(ChkLcd24Hr.IsChecked == true);
+    }
+
+    private void ChkLcdShowSeconds_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        LcdShowSecondsChanged?.Invoke(ChkLcdShowSeconds.IsChecked == true);
+    }
+
+    private void CmbLcdStyle_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        if (CmbLcdStyle.SelectedItem is ComboBoxItem item)
+            LcdStyleChanged?.Invoke((string)item.Content);
     }
 
     // ── Backdrop controls ─────────────────────────────────────────────────
