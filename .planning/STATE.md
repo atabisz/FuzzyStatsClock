@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Proximity Ghost Mode
 status: Ready to plan
-stopped_at: Completed 67-01-PLAN.md
-last_updated: "2026-03-27T03:42:19.324Z"
+stopped_at: Completed 68-CONTEXT.md
+last_updated: "2026-03-27T04:15:00.000Z"
 progress:
   total_phases: 4
   completed_phases: 2
@@ -56,6 +56,7 @@ Phase 67: GhostModeController Extension [x] Complete
 - GhostFadeRadiusPx property on controller ready for Phase 69 live slider wiring
 - InternalsVisibleTo FuzzyClock.App.Tests added to FuzzyClock.App.csproj — pattern mirrors FuzzyClock.Core.csproj
 - Activate() remains public for Phase 67→68 transition (D-03); Phase 68 removes the external Window_MouseEnter call site
+- Phase 68 wiring: _proximityRatio field in MainWindow; ProximityChanged handler updates field + drives this.Opacity = _windowOpacity * (1.0 - ratio); _isDragging guards opacity update; contrast skip predicate adds || _proximityRatio > 0.0; Restored handler resets _proximityRatio = 0.0; Window_MouseEnter ghost activation block (lines 1013-1030) deleted; IsEnabled gate at top of OnTimerTick in controller
 
 ### Pending Todos
 
@@ -67,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T03:36:03Z
-Stopped at: Completed 67-01-PLAN.md
+Last session: 2026-03-27T04:15:00Z
+Stopped at: Completed 68-CONTEXT.md
 Resume file: .planning/phases/68-opacity-wiring/ (plan not yet created)
