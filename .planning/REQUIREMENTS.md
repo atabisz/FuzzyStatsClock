@@ -14,8 +14,8 @@
 - [x] **LCD-04**: User can select LCD segment style (Dark/Paper/Silver) in Settings when LCD is active; persists and restores on launch
 - [x] **LCD-05**: LCD settings panel (24hr, seconds row, style) is visible only when LCD is the active clock style; collapsed for Phrase/Dial/Nixie
 - [x] **LCD-06**: LCD clock colon (between HH and MM digits) blinks on/off every second
-- [ ] **LCD-07**: STEST-01 round-trip test covers all LCD AppSettings fields (LcdUse24Hr, LcdShowSeconds, LcdStyle, LcdSize)
-- [ ] **LCD-08**: SettingsService.Validate() corrects invalid LcdStyle values to the Dark default
+- [x] **LCD-07**: STEST-01 round-trip test covers all LCD AppSettings fields (LcdUse24Hr, LcdShowSeconds, LcdStyle, LcdSize)
+- [x] **LCD-08**: SettingsService.Validate() corrects invalid LcdStyle values to the Dark default
 
 ## Japanese Phrase Styles
 
@@ -54,8 +54,8 @@
 | LCD-04 | Phase 63 | Complete |
 | LCD-05 | Phase 63 | Complete |
 | LCD-06 | Phase 64 | Complete |
-| LCD-07 | Phase 65 | Pending |
-| LCD-08 | Phase 65 | Pending |
+| LCD-07 | Phase 65 | Complete |
+| LCD-08 | Phase 65 | Complete |
 | JA-01  | Phase 61 | Complete |
 | JA-02  | Phase 61 | Complete |
 | JA-03  | Phase 61 | Complete |

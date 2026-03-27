@@ -64,7 +64,7 @@ Full details: `.planning/milestones/v3.8-ROADMAP.md`
 - [x] **Phase 62: Routing Consolidation** - ResolveLocaleKey helper; all three MainWindow routing sites updated; Japanese style selector enabled in SettingsWindow (completed 2026-03-26)
 - [x] **Phase 63: SettingsWindow LCD UI** - BtnLcd in Clock Style rail; LcdOptionsPanel with 24hr/seconds/style controls; visibility gating; PopulateControls LCD section (completed 2026-03-27)
 - [x] **Phase 64: Blinking Colon** - _colonVisible toggle in LcdClockView.UpdateTime(); Colon2 gated on ShowSeconds (completed 2026-03-27)
-- [ ] **Phase 65: Settings Persistence Hardening** - STEST-01 round-trip assertions for LCD fields; SettingsService.Validate() guard for LcdStyle
+- [x] **Phase 65: Settings Persistence Hardening** - STEST-01 round-trip assertions for LCD fields; SettingsService.Validate() guard for LcdStyle (completed 2026-03-27)
 
 ## Phase Details
 
@@ -143,4 +143,4 @@ Plans:
 | 62. Routing Consolidation | 1/1 | Complete   | 2026-03-26 |
 | 63. SettingsWindow LCD UI | 1/1 | Complete   | 2026-03-27 |
 | 64. Blinking Colon | 1/1 | Complete   | 2026-03-27 |
-| 65. Settings Persistence Hardening | 0/1 | Not started | - |
+| 65. Settings Persistence Hardening | 1/1 | Complete   | 2026-03-27 |
