@@ -106,7 +106,9 @@ Plans:
   3. WS_EX_TRANSPARENT is applied only when ProximityRatio reaches exactly 1.0 (Activating event path), never during the fade gradient
   4. Symmetric restore: as cursor retreats from proximity zone, ProximityChanged fires with decreasing ratio values (fade-in, not snap)
   5. All existing GHOST-01/GHOST-02/CTRLALT-01/CTRLALT-02 test outcomes are unaffected (zero-radius path unchanged)
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 67-01-PLAN.md -- ComputeProximityRatio TDD + controller timer/event extension
 
 ### Phase 68: MainWindow Wiring + Contrast Guard
 **Goal**: The live widget applies proximity fade to this.Opacity on every controller tick — ghost toggle gates the behavior, drag pauses it, and the auto-contrast sampler skips during any fade state
@@ -135,6 +137,6 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
-| 67. GhostModeController Extension | v4.0 | 0/TBD | Not started | - |
+| 67. GhostModeController Extension | v4.0 | 0/1 | Planned | - |
 | 68. MainWindow Wiring + Contrast Guard | v4.0 | 0/TBD | Not started | - |
 | 69. SettingsWindow UI | v4.0 | 0/TBD | Not started | - |
