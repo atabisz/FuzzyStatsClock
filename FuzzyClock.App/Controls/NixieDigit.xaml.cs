@@ -129,11 +129,12 @@ public partial class NixieDigit : WpfUserControl
 
         double digitH     = DigitHeight;
         double digitW     = digitH * 0.62;
-        double canvasH    = digitH + 21;
+        double haloHalf = Math.Ceiling(Math.Max(2.0, digitH * 0.05) * 3.6 / 2.0);
+        double canvasH  = digitH + (int)(haloHalf * 2) + 4;   // halo top + bottom + tube pad
         double tubePad    = 4.0;
         double scale      = digitH / 50.0;
         double baseStroke = Math.Max(2.0, digitH * 0.05);
-        double depthOffset = 1.0;
+        double depthOffset = 0.4 * scale;
         double centerX    = (digitW - 30.0 * scale) / 2.0;
         double centerY    = (canvasH - 50.0 * scale) / 2.0;
 
@@ -246,7 +247,19 @@ public partial class NixieDigit : WpfUserControl
 
     private void OnFlickerTick(object? sender, EventArgs e)
     {
-        // Placeholder — implemented in Task 3 alongside UpdateDisplay rewrite
+        if (_glowPaths is null || _glowPaths.Length == 0) return;
+
+        var now = DateTime.Now;
+        if (now >= _flickerNextChange)
+        {
+            _flickerTarget     = Math.Clamp(1.0 + (_rng.NextDouble() * 2.0 - 1.0) * 0.18, 0.82, 1.18);
+            _flickerNextChange = now + TimeSpan.FromMilliseconds(30 + _rng.NextDouble() * 80);
+        }
+
+        _flickerCurrent += (_flickerTarget - _flickerCurrent) * 0.25;
+
+        for (int i = 0; i < 4; i++)
+            _glowPaths[i].Opacity = Math.Min(1.0, GlowBaseOpacities[i] * _flickerCurrent);
     }
 
     // ---------------------------------------------------------------
