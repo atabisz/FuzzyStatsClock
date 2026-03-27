@@ -72,7 +72,7 @@ Full details: `.planning/milestones/v3.9-ROADMAP.md`
 
 </details>
 
-### 🚧 v4.0 Proximity Ghost Mode (In Progress)
+### v4.0 Proximity Ghost Mode (In Progress)
 
 **Milestone Goal:** Extend ghost mode so the widget fades out gradually as the cursor approaches, rather than snapping invisible on mouse entry.
 
@@ -119,7 +119,9 @@ Plans:
   2. While dragging the widget, opacity stays at configured opacity regardless of cursor proximity — widget does not fade during drag
   3. Auto-contrast sampler skips sampling whenever ProximityRatio > 0.0 — no WCAG oscillation feedback during the fade gradient
   4. _windowOpacity (configured preference) is never overwritten by the proximity fade callback — only this.Opacity is modified
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 68-01-PLAN.md — IsEnabled gate + ProximityChanged opacity wiring + contrast predicate + legacy ghost block deletion
 
 ### Phase 69: SettingsWindow UI
 **Goal**: Users can configure the proximity fade radius via a slider in Settings > Behavior, with the slider enabled only when Ghost Mode is on and changes applying live to the widget
@@ -138,5 +140,5 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 66. AppSettings Foundation | v4.0 | 1/1 | Complete    | 2026-03-27 |
 | 67. GhostModeController Extension | v4.0 | 1/1 | Complete    | 2026-03-27 |
-| 68. MainWindow Wiring + Contrast Guard | v4.0 | 0/TBD | Not started | - |
+| 68. MainWindow Wiring + Contrast Guard | v4.0 | 0/1 | In progress | - |
 | 69. SettingsWindow UI | v4.0 | 0/TBD | Not started | - |
