@@ -44,25 +44,25 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROX-01 | TBD | Pending |
-| PROX-02 | TBD | Pending |
-| PROX-03 | TBD | Pending |
-| PROX-04 | TBD | Pending |
-| PROX-05 | TBD | Pending |
-| PROX-06 | TBD | Pending |
-| PROX-07 | TBD | Pending |
-| PROX-08 | TBD | Pending |
-| PROX-09 | TBD | Pending |
-| PROX-10 | TBD | Pending |
-| PROX-11 | TBD | Pending |
-| PROX-12 | TBD | Pending |
-| PROX-13 | TBD | Pending |
+| PROX-01 | Phase 67 | Pending |
+| PROX-02 | Phase 67 | Pending |
+| PROX-03 | Phase 67 | Pending |
+| PROX-04 | Phase 67 | Pending |
+| PROX-05 | Phase 67 | Pending |
+| PROX-06 | Phase 69 | Pending |
+| PROX-07 | Phase 69 | Pending |
+| PROX-08 | Phase 66 | Pending |
+| PROX-09 | Phase 68 | Pending |
+| PROX-10 | Phase 68 | Pending |
+| PROX-11 | Phase 68 | Pending |
+| PROX-12 | Phase 66 | Pending |
+| PROX-13 | Phase 67 | Pending |
 
 **Coverage:**
 - v1 requirements: 13 total
-- Mapped to phases: TBD (roadmap pending)
-- Unmapped: 13 ⚠️
+- Mapped to phases: 13/13 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 after initial definition*
+*Last updated: 2026-03-27 — traceability mapped after roadmap creation*
