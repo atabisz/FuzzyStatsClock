@@ -526,8 +526,21 @@
 
                 <CheckBox x:Name="ChkGhostMode"
                           Content="Ghost Mode — auto-hide widget on hover"
-                          Margin="0,0,0,10"
+                          Margin="0,0,0,4"
                           Checked="ChkGhostMode_Changed" Unchecked="ChkGhostMode_Changed"/>
+                <StackPanel x:Name="GhostFadeRadiusPanel"
+                            Orientation="Horizontal"
+                            Margin="16,4,0,8">
+                    <TextBlock Text="Fade Radius" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Slider x:Name="GhostFadeRadiusSlider"
+                            Minimum="20" Maximum="200"
+                            SmallChange="10" LargeChange="20"
+                            TickFrequency="10" IsSnapToTickEnabled="True"
+                            Width="160" VerticalAlignment="Center"
+                            ValueChanged="GhostFadeRadiusSlider_ValueChanged"/>
+                    <TextBlock x:Name="GhostFadeRadiusLabel" Width="42"
+                               VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </StackPanel>
                 <CheckBox x:Name="ChkAutoContrast"
                           Content="Auto-Contrast — WCAG luminance sampling"
                           Margin="0,0,0,10"

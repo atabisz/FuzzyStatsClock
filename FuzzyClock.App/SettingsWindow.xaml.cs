@@ -52,6 +52,7 @@ public sealed partial class SettingsWindow : Window
     public event Action<string>? PhraseWrapStyleChanged;
     public event Action<bool>?   BackdropAlwaysVisibleChanged;
     public event Action<int>?    BackdropOpacityPercentChanged;
+    public event Action<int>?    GhostFadeRadiusPxChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -154,6 +155,9 @@ public sealed partial class SettingsWindow : Window
 
         // Behavior checkboxes
         ChkGhostMode.IsChecked    = s.GhostModeEnabled;
+        GhostFadeRadiusSlider.Value    = s.GhostFadeRadiusPx;
+        GhostFadeRadiusLabel.Text      = $"{s.GhostFadeRadiusPx} px";
+        GhostFadeRadiusPanel.IsEnabled = s.GhostModeEnabled;
         ChkAutoContrast.IsChecked = s.AutoContrastEnabled;
         ChkAutoLaunch.IsChecked   = s.AutoLaunchEnabled;
 
@@ -578,7 +582,9 @@ public sealed partial class SettingsWindow : Window
     private void ChkGhostMode_Changed(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        GhostModeChanged?.Invoke(ChkGhostMode.IsChecked == true);
+        bool enabled = ChkGhostMode.IsChecked == true;
+        GhostFadeRadiusPanel.IsEnabled = enabled;
+        GhostModeChanged?.Invoke(enabled);
     }
 
     private void ChkAutoContrast_Changed(object sender, RoutedEventArgs e)
@@ -666,6 +672,14 @@ public sealed partial class SettingsWindow : Window
         var val = (int)BackdropOpacitySlider.Value;
         BackdropOpacityLabel.Text = $"{val}%";
         BackdropOpacityPercentChanged?.Invoke(val);
+    }
+
+    private void GhostFadeRadiusSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressEvents) return;
+        var val = (int)GhostFadeRadiusSlider.Value;
+        GhostFadeRadiusLabel.Text = $"{val} px";
+        GhostFadeRadiusPxChanged?.Invoke(val);
     }
 
     // ── Win32Window adapter for WinForms dialogs ──────────────────────────

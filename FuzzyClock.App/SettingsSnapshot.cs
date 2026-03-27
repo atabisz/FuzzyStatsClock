@@ -32,6 +32,7 @@ internal sealed record SettingsSnapshot
     public bool    ShowDate                              { get; init; }
     public string  DateFormat                            { get; init; } = "Short";
     public bool    GhostModeEnabled                      { get; init; }
+    public int     GhostFadeRadiusPx                    { get; init; } = 80;
     public bool    AutoContrastEnabled                   { get; init; }
     public bool    AutoLaunchEnabled                     { get; init; }
     public string? ActiveTheme                           { get; init; } = null;
