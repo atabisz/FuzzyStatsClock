@@ -8,9 +8,22 @@ A minimal C# WPF desktop widget that displays the current time as a fuzzy, natur
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
+## Current Milestone: v4.0 Proximity Ghost Mode
+
+**Goal:** Extend ghost mode so the widget fades out gradually as the cursor approaches, rather than snapping invisible on mouse entry.
+
+**Target features:**
+- Proximity fade — opacity decreases smoothly as cursor nears the widget boundary
+- Fade-to-zero on entry — fade continues through the boundary crossing, no snap
+- Symmetric restore — opacity fades back in as cursor retreats from the proximity zone
+- Configurable fade radius — slider in Settings > Behavior (pixels from widget edge where fade begins)
+- Ctrl+Alt suppresses proximity fade — consistent with existing ghost mode override
+
 ## Current State
 
-**v3.9 shipped: 2026-03-27** — LCD clock (7-segment, blinking colon, 12/24hr, optional seconds row, Dark/Paper/Silver styles) added as fourth clock style; Japanese Terse/Poetic/Rude phrase providers added; `ResolveLocaleKey` consolidates all locale routing; 352 MSTest tests (314 Core + 38 App) passing
+**v4.0 in progress: 2026-03-27** — Proximity Ghost Mode milestone started
+
+**v3.9 shipped: 2026-03-27** — LCD clock (7-segment, blinking colon, 12/24hr, optional seconds row, Dark/Paper/Silver styles) added as fourth clock style; Japanese Terse/Poetic/Rude phrase providers added; `ResolveLocaleKey` consolidates all locale routing; 395 MSTest tests (357 Core + 38 App) passing (includes Jive/Pirate/Dwarf/ValleyGirl/Yoda/Shakespeare phrase styles added post-milestone)
 
 **v3.8 shipped: 2026-03-23** — Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) in Settings > Appearance with Dial-only visibility gating
 
@@ -270,7 +283,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ### Active
 
-(none — next milestone defines new requirements)
+(defined in REQUIREMENTS.md — v4.0 Proximity Ghost Mode)
 
 ### Out of Scope
 
@@ -464,4 +477,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 after v3.9 milestone — LCD Clock + Japanese Styles shipped*
+*Last updated: 2026-03-27 — v4.0 milestone started (Proximity Ghost Mode)*
