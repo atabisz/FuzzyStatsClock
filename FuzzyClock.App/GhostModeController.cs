@@ -5,7 +5,9 @@ namespace FuzzyClock.App;
 
 /// <summary>
 /// Owns all Win32 ghost mode infrastructure: P/Invoke declarations, click-through style
-/// management, and the 75ms cursor polling timer used to detect cursor exit under WS_EX_TRANSPARENT.
+/// management, and the 75ms cursor polling timer that drives proximity detection, fade
+/// gradient traversal, ghost activation at ratio=1.0, and restore on cursor retreat.
+/// Timer starts in Initialize() and runs continuously until Dispose().
 /// </summary>
 internal sealed class GhostModeController : IDisposable
 {
@@ -48,6 +50,8 @@ internal sealed class GhostModeController : IDisposable
     private bool _isGhostMode;
     private IntPtr _hwnd;
     private DispatcherTimer? _restoreTimer;
+    private double _lastProximityRatio = 0.0;
+    private int _ghostFadeRadiusPx = 80;
 
     /// <summary>Whether ghost mode is enabled. Persisted to settings.</summary>
     public bool IsEnabled { get; set; } = true;
@@ -58,46 +62,110 @@ internal sealed class GhostModeController : IDisposable
     /// <summary>
     /// Fired when the cursor polling timer determines the cursor has left the ghost window.
     /// Handler should restore Opacity and ContentBorder.Background.
+    /// Fires only when cursor fully exits the proximity zone (ratio=0.0) after ghost activation —
+    /// not on every sub-1.0 tick during cursor retreat. Phase 68 uses this for final opacity snap.
     /// </summary>
     public event Action? Restored;
 
     /// <summary>
+    /// Fires when the proximity ratio changes. Ratio is 0.0 (outside zone) to 1.0 (inside widget).
+    /// Only fires on change — no event when cursor is stationary outside the proximity zone.
+    /// Phase 68 subscribes to this event to drive opacity fade.
+    /// </summary>
+    public Action<double>? ProximityChanged;
+
+    /// <summary>
+    /// Fade radius in pixels. Set from AppSettings.GhostFadeRadiusPx at startup.
+    /// Phase 69 will update this live when the user moves the settings slider.
+    /// </summary>
+    public int GhostFadeRadiusPx
+    {
+        get => _ghostFadeRadiusPx;
+        set => _ghostFadeRadiusPx = value;
+    }
+
+    /// <summary>
     /// Called once from ContentRendered after the HWND is available.
-    /// Creates and wires the 75ms polling timer for cursor detection under WS_EX_TRANSPARENT.
+    /// Creates the 75ms polling timer and starts it immediately — timer runs for the entire session.
+    /// Caller should set GhostFadeRadiusPx from AppSettings.GhostFadeRadiusPx after this call.
     /// </summary>
     public void Initialize(IntPtr hwnd)
     {
         _hwnd = hwnd;
         _restoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(75) };
-        _restoreTimer.Tick += (_, _) =>
-        {
-            if (!_isGhostMode) return;
-            // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
-            // receiving mouse messages when WS_EX_TRANSPARENT is active (Mouse.GetPosition(this)
-            // returns stale/wrong coords and causes immediate spurious restore + flicker loop).
-            if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
-            if (cursor.X < rect.Left || cursor.X > rect.Right ||
-                cursor.Y < rect.Top  || cursor.Y > rect.Bottom)
-            {
-                _restoreTimer!.Stop();
-                _isGhostMode = false;
-                int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-                SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
-                SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-                Restored?.Invoke();
-            }
-        };
+        _restoreTimer.Tick += OnTimerTick;
+        _restoreTimer.Start();   // always-running from Initialize() until Dispose() (D-01)
     }
 
     /// <summary>
-    /// Starts the cursor polling timer and applies WS_EX_TRANSPARENT to make the window click-through.
-    /// Called from Window_MouseEnter (ghost path only).
+    /// Timer tick — runs every 75ms for the full session lifecycle.
+    /// Computes the proximity ratio via Win32 cursor and window rect queries, emits
+    /// ProximityChanged only when the ratio changes, drives ghost activation at ratio=1.0,
+    /// and removes WS_EX_TRANSPARENT immediately when ratio drops below 1.0.
+    /// </summary>
+    private void OnTimerTick(object? sender, EventArgs e)
+    {
+        // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
+        // receiving mouse messages when WS_EX_TRANSPARENT is active.
+        if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
+
+        double ratio;
+        if (IsCtrlAltHeld())
+        {
+            // D-08: Ctrl+Alt suppresses proximity fade — force ratio to 0.0 regardless of cursor position.
+            ratio = 0.0;
+        }
+        else
+        {
+            ratio = ComputeProximityRatio(
+                cursor.X, cursor.Y,
+                rect.Left, rect.Top, rect.Right, rect.Bottom,
+                _ghostFadeRadiusPx);
+        }
+
+        // D-04/D-05: Only emit ProximityChanged when ratio actually changes.
+        // Prevents event storms when cursor is stationary (especially at steady-state 0.0).
+        if (ratio != _lastProximityRatio)
+        {
+            _lastProximityRatio = ratio;
+            ProximityChanged?.Invoke(ratio);
+        }
+
+        // D-06: Ghost activation — WS_EX_TRANSPARENT applied only when ratio reaches exactly 1.0.
+        // ComputeProximityRatio returns exactly 1.0 for inside-rect; the >= guard is defensive only.
+        if (ratio >= 1.0 && !_isGhostMode)
+        {
+            Activate();
+        }
+
+        // D-07: Restore — WS_EX_TRANSPARENT removed immediately when ratio drops below 1.0.
+        // Widget becomes interactive again as soon as cursor retreats from the widget boundary,
+        // even before opacity has fully restored (Phase 68 handles the opacity gradient).
+        if (ratio < 1.0 && _isGhostMode)
+        {
+            _isGhostMode = false;
+            int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+            SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
+            SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+            // Restored fires only when cursor fully exits the proximity zone (ratio=0.0)
+            // after having been in ghost state. Phase 68 uses this for final opacity snap.
+            if (ratio == 0.0)
+                Restored?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// Applies WS_EX_TRANSPARENT to make the window click-through and sets ghost state.
+    /// Called internally by the timer tick when ratio reaches 1.0 (D-06).
+    /// Remains public so MainWindow's existing Activate() call compiles during the Phase 67→68
+    /// transition period (D-03). Phase 68 will remove the external call site.
     /// Caller is responsible for setting window Opacity = 0 after this call.
     /// </summary>
     public void Activate()
     {
-        _restoreTimer!.Start();
+        // _restoreTimer.Start() removed — timer is always running from Initialize() (D-01)
         _isGhostMode = true;
         int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
         SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
