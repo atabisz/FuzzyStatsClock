@@ -164,8 +164,8 @@ public partial class LcdClockView : WpfUserControl
         //        if ShowSeconds: Colon2=':', D4=time[6], D5=time[7]
         D0.Character = time[0];
         D1.Character = time[1];
-        _colonVisible    = !_colonVisible;
-        Colon1.Character = _colonVisible ? ':' : ' ';
+        _colonVisible  = !_colonVisible;
+        Colon1.ColonOn = _colonVisible;
         D2.Character = time[3];
         D3.Character = time[4];
 
