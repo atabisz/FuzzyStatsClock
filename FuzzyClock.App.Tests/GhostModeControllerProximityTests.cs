@@ -19,7 +19,7 @@ public class GhostModeControllerProximityTests
     [DataRow(100, 150, 50, 1.0,  DisplayName = "on exact left edge -> 1.0 (inside)")]
     [DataRow(200, 150, 50, 1.0,  DisplayName = "on exact right edge -> 1.0 (inside)")]
     [DataRow(150, 100, 50, 1.0,  DisplayName = "on exact top edge -> 1.0 (inside)")]
-    [DataRow(400, 150, 500, 0.5, DisplayName = "large radius 500, 250px away -> 0.5")]
+    [DataRow(450, 150, 500, 0.5, DisplayName = "large radius 500, 250px away -> 0.5")]
     public void ComputeProximityRatio_VariousPositions(int cursorX, int cursorY, int radius, double expected)
     {
         double result = GhostModeController.ComputeProximityRatio(

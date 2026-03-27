@@ -114,5 +114,36 @@ internal sealed class GhostModeController : IDisposable
         (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0 &&
         (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
 
+    /// <summary>
+    /// Pure static proximity ratio computation. Returns 0.0 (outside zone) to 1.0 (inside widget).
+    /// Uses Chebyshev distance for rectangular proximity halo — matches the widget's own rectangular shape.
+    /// Parameters use plain ints so tests need no Win32 machinery (avoids inaccessible POINT/RECT structs).
+    /// </summary>
+    internal static double ComputeProximityRatio(
+        int cursorX, int cursorY,
+        int rectLeft, int rectTop, int rectRight, int rectBottom,
+        int radiusPx)
+    {
+        // Step 1: Is cursor inside (or on the edge of) the widget rect?
+        if (cursorX >= rectLeft && cursorX <= rectRight &&
+            cursorY >= rectTop  && cursorY <= rectBottom)
+            return 1.0;
+
+        // Step 2: Zero-radius backward compat (PROX-08/D-09).
+        // Cursor is outside rect (step 1 passed), so with radius=0 nothing is in the zone.
+        if (radiusPx == 0) return 0.0;
+
+        // Step 3: Chebyshev distance from cursor to nearest rect edge.
+        // dx = horizontal overshoot past the rect edge (0 if within x bounds).
+        // dy = vertical overshoot past the rect edge (0 if within y bounds).
+        int dx = Math.Max(rectLeft - cursorX, Math.Max(0, cursorX - rectRight));
+        int dy = Math.Max(rectTop  - cursorY, Math.Max(0, cursorY - rectBottom));
+        int distance = Math.Max(dx, dy);  // Chebyshev — produces square proximity halo
+
+        // Step 4: Normalize and clamp to [0.0, 1.0].
+        double ratio = 1.0 - (double)distance / radiusPx;
+        return Math.Clamp(ratio, 0.0, 1.0);
+    }
+
     public void Dispose() => _restoreTimer?.Stop();
 }
