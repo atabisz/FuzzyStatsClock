@@ -182,7 +182,7 @@ public partial class NixieDigit : WpfUserControl
         _scaledGeometries = new Geometry[10];
         for (int i = 0; i < 10; i++)
         {
-            var geom = Geometry.Parse(DigitPaths[i]);
+            var geom = Geometry.Parse(DigitPaths[i]).Clone();
             var xform = new TransformGroup();
             xform.Children.Add(new ScaleTransform(scale, scale));
             xform.Children.Add(new TranslateTransform(centerX, centerY + i * depthOffset));
