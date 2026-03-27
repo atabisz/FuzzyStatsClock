@@ -1169,6 +1169,7 @@ public partial class MainWindow : Window
 
         // Re-enable ghost mode
         _ghostMode.IsEnabled = true;
+        _ghostMode.GhostFadeRadiusPx = 80;
 
         // Reset auto-launch: disable on reset
         _autoLaunchEnabled = false;
