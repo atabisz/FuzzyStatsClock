@@ -1,5 +1,18 @@
 # Milestones
 
+## v4.0 Proximity Ghost Mode (Shipped: 2026-03-27)
+
+**Phases completed:** 4 phases, 5 plans, 9 tasks
+
+**Key accomplishments:**
+
+- ComputeProximityRatio static method (Chebyshev distance, 12 TDD unit tests) + always-running timer with ProximityChanged event driving ghost state transitions entirely inside the controller
+- Proximity fade wired into MainWindow: IsEnabled gate in controller, ProximityChanged drives this.Opacity via linear fade formula, drag guard, and legacy snap-to-ghost block deleted
+- Proximity fade radius slider wired end-to-end: Settings > Behavior tab slider (20-200px) drives GhostModeController.GhostFadeRadiusPx live and persists via SaveSettings()
+- ResetToDefaults() now resets GhostFadeRadiusPx to 80, closing the PROX-07 gap where the controller retained a stale user value after reset
+
+---
+
 ## v3.9 LCD Clock + Japanese Styles (Shipped: 2026-03-27)
 
 **Phases completed:** 5 phases, 6 plans, 14 tasks

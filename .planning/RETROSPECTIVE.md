@@ -236,6 +236,45 @@
 
 ---
 
+## Milestone: v4.0 — Proximity Ghost Mode
+
+**Shipped:** 2026-03-27
+**Phases:** 4 | **Plans:** 5
+
+### What Was Built
+- GhostFadeRadiusPx init-property in AppSettings with default 80, Validate() range guard (20-200px), and 7 new MSTest methods
+- ComputeProximityRatio pure static method (Chebyshev distance, 12 TDD unit tests) + always-running timer with ProximityChanged event
+- ProximityChanged wired into MainWindow.this.Opacity with _isDragging guard, IsEnabled gate, and _proximityRatio field driving contrast skip predicate; legacy snap-to-ghost block deleted
+- Settings > Behavior fade radius slider (20-200px) live-updates GhostModeController.GhostFadeRadiusPx and persists via SaveSettings(); ResetToDefaults() restores to 80px
+
+### What Worked
+- TDD-first for ComputeProximityRatio: 12 failing tests written before any production code — caught edge cases (zero-radius compat, inside-widget = 1.0) before integration
+- Gap closure cycle worked cleanly: verifier found ResetToDefaults() gap, plan-phase --gaps generated a targeted 1-task plan, executed in minutes
+- Chebyshev distance decision was made once in discuss-phase and never revisited — good gray-area resolution up front
+- Phase context boundaries (controller-only → wiring-only → UI-only) kept subagent scopes tight with zero cross-phase drift
+
+### What Was Inefficient
+- Phase 68 ROADMAP.md had a stale unchecked `[ ]` on 68-01 (plan was complete); required manual cleanup during milestone close
+- Phase 69 VERIFICATION.md showed `status: passed` but `phase complete` tool reported warning — false positive from stale tool state; diagnosed quickly but cost one extra verification check
+
+### Patterns Established
+- `IsEnabled` gate as absolute first statement of `OnTimerTick` — the canonical pattern for gating controller behavior via a toggle
+- `_proximityRatio` field in MainWindow as a guard field for a continuous controller signal (mirrors `_isDragging` pattern)
+- `GhostFadeRadiusPanel.IsEnabled` toggled from `ChkGhostMode_Changed` + `RefreshControls()` — two-site IsEnabled gating is the canonical SettingsWindow sub-panel pattern
+- Gap closure plan with `gap_closure: true` frontmatter for verifier-found issues — keeps the original plan clean while surgically closing gaps
+
+### Key Lessons
+1. Write controller logic as pure static methods first — testable in isolation before any UI or wiring work lands
+2. Verifier false positives from stale tool state are safe to override when direct grep confirms `status: passed`
+3. The IsEnabled gate in controller OnTimerTick must be the first line — even before null/init checks — to ensure the toggle truly gates all computation
+
+### Cost Observations
+- Model mix: 100% sonnet
+- Sessions: 2 (context window limit; mileston continued cleanly from summary)
+- Notable: 4-phase milestone shipped same day; gap closure added ~10 minutes
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -248,6 +287,7 @@
 | v3.5 | 8 | 12 | Installer + CI pipeline shipped; wave parallelism at scale |
 | v3.6.1 | 1 | 1 | Surgical single-file fix; Z-order walk pattern established |
 | v3.6.2 | 1 | 1 | Z-order walk extended: SHELLDLL_DefView + DWM cloaked check for Win11 |
+| v4.0 | 4 | 5 | TDD-first controller + gap closure cycle; IsEnabled gate pattern established |
 
 ### Cumulative Quality
 
@@ -259,6 +299,8 @@
 | v3.5 | 274 | Wrap, segment-key, poetic coverage |
 | v3.6.1 | 274 | No new tests; existing suite confirmed no regression |
 | v3.6.2 | 274 | No new tests; existing suite confirmed no regression |
+| v3.9 | 414 | LCD + Japanese phrase styles; +140 tests covering providers and AppSettings |
+| v4.0 | 414 | Proximity fade; +19 new tests (ComputeProximityRatio × 12, AppSettings × 7) |
 
 ### Top Lessons (Verified Across Milestones)
 
