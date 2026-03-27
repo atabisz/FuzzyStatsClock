@@ -1,355 +1,347 @@
-# Domain Pitfalls
+# Pitfalls Research
 
-**Domain:** WPF C# — Adding LCD 7-segment clock style and Japanese phrase style variants (Terse/Poetic/Rude) to existing widget
-**Project:** Fuzzy Clock v3.9
-**Researched:** 2026-03-23
-**Confidence:** HIGH — all pitfalls derived from direct source audit of MainWindow.xaml.cs, SettingsWindow.xaml.cs, SettingsWindow.xaml, AppSettings.cs, SettingsSnapshot.cs, LcdClockView.xaml.cs, SevenSegmentDigit.xaml.cs, PhraseEngine.cs, JapanesePhraseProvider.cs, and ClockType.cs
-
----
-
-## State at Start of Milestone
-
-The LCD infrastructure is already substantially built. Key facts established by source audit:
-
-- `ClockType.Lcd` is already a member of the `ClockType` enum (ClockType.cs).
-- `AppSettings` already has `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize` fields with init defaults.
-- `SettingsSnapshot` already has the same four LCD fields.
-- `LcdClockView` and `SevenSegmentDigit` are complete WPF UserControls with their own 1-second `DispatcherTimer` managed via `IsVisibleChanged`.
-- `MainWindow` already handles `ClockType.Lcd` in `ApplySettings`, `SetClockType`, `SaveSettings`, and event subscriptions in `OpenSettings`.
-- `SettingsWindow` already declares and fires `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` events with wired handlers in MainWindow.
-- **What is NOT yet built:** `BtnLcd` button in `SettingsWindow.xaml`; the LCD options row (24hr/seconds/style controls) in the Settings Appearance tab; LCD visibility gating in `SetClockStyleButtonStates`; Japanese Terse/Poetic/Rude providers; `SetLanguage` routing for `ja-terse`, `ja-poetic`, `ja-rude`.
-
-This context makes the following pitfalls specific and actionable.
+**Domain:** WPF transparent overlay — proximity fade added to existing ghost mode
+**Project:** Fuzzy Clock v4.0 Proximity Ghost Mode
+**Researched:** 2026-03-27
+**Confidence:** HIGH — all pitfalls derived from direct source audit of GhostModeController.cs, ContrastRefreshController.cs, MainWindow.xaml.cs, AppSettings.cs, SettingsService.cs, and the PROJECT.md decision log
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause build failures or silent runtime regressions.
+Mistakes that cause data corruption, permanent opacity loss, invisible-but-interactive widgets, or silent regression of existing features.
 
 ---
 
-### Pitfall 1: `BtnLcd` Added to XAML But Not to `SetClockStyleButtonStates` — LCD Button Never Shows Selected
+### Pitfall 1: Overwriting the User's Configured Opacity With the Display Opacity
 
-**What goes wrong:** `SetClockStyleButtonStates(ClockType ct)` in SettingsWindow.xaml.cs currently sets `Tag = "selected"` on `BtnPhrase`, `BtnDial`, and `BtnNixie`. When `BtnLcd` is added to the XAML clock style rail, if `SetClockStyleButtonStates` is not updated to include `BtnLcd.Tag = ct == ClockType.Lcd ? "selected" : null`, the LCD button never visually reflects the selected state.
+**What goes wrong:**
+Proximity fade computes a "display opacity" (0.0 to `_windowOpacity`) and writes it to `this.Opacity` on every 75ms tick. If the fade code also writes `_windowOpacity`, the user's preference is silently overwritten. The next `SaveSettings()` call then persists the fade-reduced value. On next launch the widget is dimmer than the user set it.
 
-**Why it happens:** XAML and code-behind are edited in separate files. Adding the button element does not cause a compile error from the code-behind method omission — `BtnLcd` gets `Tag = null` permanently, making it appear unselected even when LCD is the active clock type.
+**Why it happens:**
+Every existing opacity-changing site in MainWindow (`SetOpacity()`, `ApplySettings()`, `PreviewMouseWheel_Handler`, `ResetToDefaults()`) writes `_windowOpacity` and `this.Opacity` together. A developer adding fade naturally follows that pattern and accidentally corrupts the persisted preference.
 
-**Consequences:** Visual bug — LCD is active but Phrase/Dial/Nixie buttons show as selected, or none do. `PopulateControls` also calls `SetClockStyleButtonStates(s.ClockType)`, so opening Settings while LCD is active will also show the wrong button highlighted.
+**Consequences:**
+- `settings.json` `Opacity` field decreases silently over sessions
+- The opacity slider in Settings shows a lower value than the user set
+- The tray Opacity preset checkmarks become unchecked
+- Users report "my opacity keeps changing" — very hard to diagnose after the fact
 
-**Prevention:** Update `SetClockStyleButtonStates` in the same commit as the XAML button addition. The complete required body after this change:
+**How to avoid:**
+Enforce a strict two-variable discipline at the declaration site:
+- `_windowOpacity` = the user's configured preference. Only written by `SetOpacity()`, `ApplySettings()`, `PreviewMouseWheel`, `ResetToDefaults()`, and theme application. Never touched by proximity logic.
+- `this.Opacity` = the display value, set freely by fade.
+
+All fade writes go only to `this.Opacity`. All saves, slider sync, and opacity preset checkmarks read only from `_windowOpacity`. Add a comment at the `_windowOpacity` field declaration explicitly forbidding proximity code from writing it.
+
+**Warning signs:**
+- `settings.json` Opacity field is below the value the user last set via the opacity slider
+- Opacity checkmark in tray or Settings shows a different level after a proximity fade cycle
+- `_windowOpacity != this.Opacity` is true at steady state when the cursor is far away (should never happen at rest)
+
+**Phase to address:**
+The phase introducing the fade tick handler. The two-variable discipline must be established before any fade writes are committed.
+
+---
+
+### Pitfall 2: WS_EX_TRANSPARENT Applied Before Opacity Reaches Zero
+
+**What goes wrong:**
+Proximity fade drives `this.Opacity` down over time. If `WS_EX_TRANSPARENT` (click-through) is applied at any intermediate opacity value — even 0.1 — the widget becomes click-through while still visually present. The cursor passes through it but the widget is still visible on screen. More critically, once `WS_EX_TRANSPARENT` is set, WPF stops delivering mouse events to the window. The Ctrl+Alt modifier check (`GetAsyncKeyState` in `GhostModeController.IsCtrlAltHeld`) is unaffected, but `Window_MouseEnter` and `Window_MouseLeave` no longer fire. Any hover state cleanup that was meant to happen on entry is now lost.
+
+**Why it happens:**
+Developers conflate "fading out" with "going ghost". It is tempting to apply click-through early in the fade to create a smoother feel. But `WS_EX_TRANSPARENT` triggers the synthetic `WM_MOUSELEAVE` delivery immediately (the existing code already guards this), and the restore polling timer (`GhostModeController._restoreTimer`) starts looking for cursor exit — it will detect exit almost immediately because the synthetic leave happened, creating a spurious restore cycle.
+
+**How to avoid:**
+`WS_EX_TRANSPARENT` must only be applied when `this.Opacity == 0.0` — the same invariant as the existing snap-to-ghost. The proximity fade drives opacity; `GhostModeController.Activate()` is called only at the moment `this.Opacity` reaches exactly 0. This must be the only call site of `Activate()`.
+
+**Warning signs:**
+- Widget is partially visible but does not respond to right-click, drag, or Ctrl+Alt during a fade
+- `_ghostMode.IsActive` becomes true before `this.Opacity == 0.0` (check in debugger)
+- Ghost restore fires immediately after ghost activation during a fade (synthetic MOUSELEAVE loop)
+- User report: "the widget disappears instantly instead of fading"
+
+**Phase to address:**
+The phase implementing the fade-to-zero transition at the widget boundary. The `if (this.Opacity == 0.0) { _ghostMode.Activate(); }` gate must be explicit.
+
+---
+
+### Pitfall 3: Ghost Restore Snaps Opacity Instead of Fading In
+
+**What goes wrong:**
+The `GhostModeController._restoreTimer` fires `Restored` when the cursor leaves the window rect. The `Restored` handler in `MainWindow` currently does `this.Opacity = _windowOpacity` — an instant snap. If proximity fade is supposed to provide a smooth fade-in as the cursor retreats, the `Restored` event fires first and snaps opacity to full, canceling the gradual fade-in. The result: instant pop-in on exit, gradual fade-out on approach. The experience is asymmetric and jarring.
+
+**Why it happens:**
+`GhostModeController` was designed for binary ghost mode. The `Restored` event is correct for that model. Adding fade does not automatically make the restore event fade-aware — it still fires and immediately assigns opacity.
+
+**How to avoid:**
+The `Restored` handler must transition the window into "fading-in" state rather than directly assigning `this.Opacity = _windowOpacity`. The `GhostModeController` still owns cursor-exit detection (that logic is sound and must not change). Its only responsibility changes from "snap opacity back" to "signal cursor has exited — start fade-in". The fade-in rate and opacity increments are owned by the proximity fade component.
+
+**Warning signs:**
+- Widget pops to full visibility instantly when the cursor leaves, despite a smooth fade-out on approach
+- A fade-in timer or animation never actually increments opacity because the restore handler already set it to the target
+
+**Phase to address:**
+The phase implementing fade-in (symmetric restore). The `Restored` event handler in `MainWindow` must be updated to initiate a fade-in rather than assign opacity directly. This is a companion change to the fade-out implementation — both must ship together or the behavior is asymmetric.
+
+---
+
+### Pitfall 4: Auto-Contrast Sampler Runs During Fade (Feedback Flicker Regression)
+
+**What goes wrong:**
+`ContrastRefreshController` uses a `shouldSkip` predicate: `() => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging`. During a proximity fade, `_ghostMode.IsActive` is false (click-through has not been applied yet) and `_windowOpacity` is still the user's configured value (e.g., 1.0). The predicate returns false, so the contrast sampler runs its 500ms BitBlt. It captures the screen pixels under the widget — but because the widget is partially transparent, its own dimmed rendering bleeds into the sampled pixels. The sampler then makes a contrast decision based on a blended image that includes the widget's own content, potentially re-introducing the WCAG oscillation feedback loop that required three separate fixes in v3.6, v3.6.1, and v3.6.2.
+
+**Why it happens:**
+The `shouldSkip` predicate was designed for binary ghost (either fully hidden or fully visible). It does not account for the partially-transparent state introduced by proximity fade. The careful layered fixes in v3.6.2 (`SHELLDLL_DefView` + DWM cloaked check) target steady-state sampling over an empty desktop — they do not guard against transient mid-fade sampling.
+
+**How to avoid:**
+Extend the `shouldSkip` predicate to include the "fading" state. Expose an `IsProximityFading` bool from the proximity component and wire it into the predicate:
 
 ```csharp
-BtnPhrase.Tag = ct == ClockType.Phrase ? "selected" : null;
-BtnDial.Tag   = ct == ClockType.Dial   ? "selected" : null;
-BtnNixie.Tag  = ct == ClockType.Nixie  ? "selected" : null;
-BtnLcd.Tag    = ct == ClockType.Lcd    ? "selected" : null;
+// In ContrastRefreshController.Initialize():
+() => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging || _proximityFade.IsActive
 ```
 
-**Detection:** Select LCD via tray → open Settings. The LCD button must be highlighted. If it is not, `SetClockStyleButtonStates` was not updated.
+Alternatively use `this.Opacity < _windowOpacity` as the skip signal: if the display opacity is below the configured value for any reason, skip sampling.
 
-**Phase:** LCD Settings UI wiring phase (first phase of the milestone).
+**Warning signs:**
+- Auto-contrast text color oscillates (flickers between black/white and accent) only during proximity fade transitions
+- Disabling proximity fade makes the oscillation stop
+- The flicker is visible only during the fade-out or fade-in animation, not at steady state
 
----
-
-### Pitfall 2: LCD Options Row Not Gated on `ClockType.Lcd` — Controls Visible in Wrong Clock Mode
-
-**What goes wrong:** The Dial Face row uses the pattern: `DialFaceLabel.Visibility` and `DialFacePanel.Visibility` are gated to `Visibility.Visible` only when `ct == ClockType.Dial` inside `SetClockStyleButtonStates`. If the LCD options row (24hr toggle, show-seconds toggle, style selector) is added to the Settings XAML without a parallel gating block in `SetClockStyleButtonStates`, the LCD controls will be visible regardless of the active clock type.
-
-**Why it happens:** The gating pattern for the Dial Face row is in `SetClockStyleButtonStates` but is easy to miss when adding a new clock-type-specific row, especially if the developer adds the XAML first and the gating second.
-
-**Consequences:** LCD-specific controls clutter the Settings window when the user is in Phrase/Dial/Nixie mode. Controls are visible and interactive even though changing them has no visible effect (the LCD view is hidden). Misleading UX.
-
-**Prevention:** Extend `SetClockStyleButtonStates` to include LCD row gating in the same pass as the Dial Face gating. Name the label and panel elements consistently (e.g., `LcdOptionsLabel`, `LcdOptionsPanel`) and set their `Visibility` using the `ct == ClockType.Lcd` condition.
-
-**Detection:** Select Phrase mode → open Settings. The LCD options row must be `Collapsed`. Select LCD mode → open Settings. The LCD options row must be `Visible`.
-
-**Phase:** LCD Settings UI wiring phase.
+**Phase to address:**
+The phase introducing proximity fade. The `shouldSkip` predicate update must be in the same commit as the fade implementation — never deferred.
 
 ---
 
-### Pitfall 3: `BtnLcd_Click` Fires `ClockTypeChanged` But `SetClockStyleButtonStates` Inside the Handler Only Updates Three Buttons
+### Pitfall 5: Hover Fast-Refresh and Backdrop Activating During Proximity Approach
 
-**What goes wrong:** The click handler pattern for `BtnPhrase_Click`, `BtnDial_Click`, `BtnNixie_Click` is:
+**What goes wrong:**
+`Window_MouseEnter` fires when the cursor crosses the window rect boundary. For the normal hover path (Ctrl+Alt or ghost disabled), `MouseEnter` activates the 0.5s fast stats refresh and shows the backdrop. Proximity fade fades the widget down before the cursor reaches the window boundary. If the fade radius is small, the cursor crosses the boundary before the widget is fully faded. `Window_MouseEnter` fires with the widget still partially visible. The ghost activation path inside `MouseEnter` cleans up hover state and calls `_ghostMode.Activate()` — this is correct. However if ghost mode is disabled but proximity fade is still somehow active, or if the Ctrl+Alt branch fires during an approach the user did not intend as an interaction, the hover behaviors (backdrop display, fast refresh) activate on a nearly-invisible widget.
 
-```csharp
-private void BtnXxx_Click(object sender, RoutedEventArgs e)
-{
-    if (_suppressEvents) return;
-    SetClockStyleButtonStates(ClockType.Xxx);
-    ClockTypeChanged?.Invoke(ClockType.Xxx);
-}
-```
+**Why it happens:**
+`Window_MouseEnter` is tied to the window rect boundary, not the proximity zone. The proximity zone extends `FadeRadiusPx` beyond the window edge. Events that should only trigger on deliberate hover (backdrop, fast-refresh) can trigger at the boundary crossing which is deep into the fade animation.
 
-If `BtnLcd_Click` is added but `SetClockStyleButtonStates` has not yet been updated to include `BtnLcd.Tag`, the LCD button click fires correctly through `ClockTypeChanged` (activating LCD in the widget) but the Settings button row still shows the previous button as selected.
+**How to avoid:**
+The ghost activation path in `Window_MouseEnter` already suppresses fast-refresh by resetting timer interval before calling `_ghostMode.Activate()`. This path is safe. The risk is the Ctrl+Alt path: if the cursor reaches the widget boundary while it is nearly invisible and the user holds Ctrl+Alt (to interact), the backdrop appears on an almost-invisible widget. This is an acceptable edge case but document it. Proximity fade should be active only when ghost mode is enabled — so ghost disabled + proximity fade active should never be a reachable state.
 
-**Why it happens:** `BtnLcd_Click` calls `SetClockStyleButtonStates(ClockType.Lcd)` internally. If that method only sets three tags, the LCD button's own tag is not set.
+**Warning signs:**
+- Stats start fast-refreshing at 0.5s when the cursor approaches (but has not yet entered) the widget
+- Backdrop appears before the cursor reaches the widget boundary
+- `_isHoverFastRefresh` is true during proximity approach without Ctrl+Alt being held
 
-**Consequences:** The correct clock type is activated (widget switches to LCD) but the Settings window shows an inconsistent button selection state.
-
-**Prevention:** This is prevented by fixing Pitfall 1 first. `SetClockStyleButtonStates` must include all four buttons before `BtnLcd_Click` is wired.
-
-**Phase:** LCD Settings UI wiring phase.
+**Phase to address:**
+The phase adding proximity zone detection. Ensure proximity fade is gated on `_ghostMode.IsEnabled` — proximity fade without ghost mode enabled is meaningless and should not run.
 
 ---
 
-### Pitfall 4: Japanese Style Providers Registered Under Keys That Don't Match `SetLanguage` Routing
+### Pitfall 6: Opacity Jitter at the Outer Fade Boundary
 
-**What goes wrong:** `PhraseEngine._providers` currently routes Japanese as `"ja"` → `JapanesePhraseProvider`. The new providers must be registered under keys that `SetLanguage` will compute, e.g., `"ja-terse"`, `"ja-poetic"`, `"ja-rude"`. If the registration keys don't match what `SetLanguage` produces, `PhraseEngine.SetLocale` returns `false` silently and the engine stays on the previously active provider.
+**What goes wrong:**
+Proximity fade computes opacity as a function of cursor distance. At the outer boundary (where fade begins), small cursor movements from input device jitter cause opacity to oscillate: 0.97, 1.0, 0.98, 1.0. Each 75ms tick independently evaluates distance with no memory of the previous tick. The result is visible "breathing" — a subtle but noticeable flicker when the cursor is held stationary near the fade start distance.
 
-**Why it happens:** `PhraseEngine.SetLocale` returns a bool but the callers (`SetLanguage`, `ApplySettings`) do not check the return value. A key mismatch is a silent no-op.
+**Why it happens:**
+A linear or eased distance-to-opacity function is continuous and sensitive. Mouse jitter from standard input devices is typically 1–3 pixels. On a 100px fade zone, 2px of jitter produces 2% opacity change per tick — imperceptible. On a 20px fade zone, 2px of jitter is 10% opacity change — clearly visible. The narrower the fade zone, the worse the jitter amplification.
 
-**Consequences:** Selecting Japanese + Poetic in Settings fires the event, the field is saved as `"Poetic"`, but the phrase display stays on plain Japanese Classic because the locale key lookup failed.
+**How to avoid:**
+Apply hysteresis at the outer boundary — the same pattern used by `ContrastService` (4.5/5.5 WCAG thresholds for contrast switching). Use two distances:
+- `FadeStartDistance` = where fade begins on approach (cursor moving inward)
+- `FullOpacityDistance` = `FadeStartDistance + hysteresisBand` = where full opacity is restored on retreat (cursor moving outward)
 
-**Prevention:** Define the keys in PhraseEngine first, then use those exact string literals in `SetLanguage`'s routing switch. The routing logic for Japanese must parallel the English routing:
+Only begin fading when the cursor crosses `FadeStartDistance` inward; only restore full opacity when the cursor retreats past `FullOpacityDistance`. A hysteresis band of 10–15px absorbs normal mouse jitter. The band can be hardcoded (not user-configurable) since it is a jitter correction, not a preference.
 
-```
-locale == "ja", PhraseStyle == "Terse"  → "ja-terse"
-locale == "ja", PhraseStyle == "Poetic" → "ja-poetic"
-locale == "ja", PhraseStyle == "Rude"   → "ja-rude"
-locale == "ja", default                 → "ja"
-```
+**Warning signs:**
+- Widget "breathes" (subtle opacity change) when cursor is held at approximately the fade start distance
+- Opacity changes without intentional cursor movement
+- Flicker is worse when the fade radius is set to a small value (20–30px)
 
-Register exactly those keys in `_providers`.
-
-**Detection:** Set language to Japanese, set style to Terse → phrase must change from the Classic Japanese output. If it does not change, the key lookup failed. Check `PhraseEngine.CurrentLocale` — it must equal `"ja-terse"` not `"ja"`.
-
-**Phase:** Japanese providers phase.
-
----
-
-### Pitfall 5: `SetLanguage` Routes `"ja"` to a Single Provider, Ignoring `_currentPhraseStyle` — Style × Locale Routing Gap
-
-**What goes wrong:** `SetLanguage("ja")` currently resolves to `effectiveLocale = "ja"` unconditionally. This is correct for v3.8 (no Japanese styles exist). In v3.9, if the user has `PhraseStyle = "Terse"` and switches to Japanese, `SetLanguage` must incorporate `_currentPhraseStyle` into the locale key computation, exactly as it already does for `locale == "en"`.
-
-Looking at the actual code, `SetLanguage` handles `locale == "en"` by checking `_currentPhraseStyle` and mapping to `"en-terse"`, `"en-poetic"`, etc. The `"ja"` branch currently short-circuits before this mapping, assigning `effectiveLocale = locale` directly.
-
-**Why it happens:** The English style routing in `SetLanguage` is a `locale == "en"` branch. Non-English locales (`"fr"`, `"es"`, `"de"`, `"ja"`, `"pl"`) are handled by a single `if (locale is "fr" or ...)` branch that assigns `effectiveLocale = locale` without considering style.
-
-**Consequences:** A user with `PhraseStyle = "Terse"` who switches from English to Japanese will get plain Japanese Classic, not Japanese Terse. The style combo becomes visually active (enabled) but has no effect.
-
-**Prevention:** When adding Japanese styles, add a parallel style-mapping block for `locale == "ja"` in `SetLanguage` and in the `ApplySettings` locale resolution block. Both locations contain the same routing logic and must both be updated. A grep for `effectiveLocale` will show all resolution sites.
-
-**Detection:** Set Japanese language, set style to Terse (if enabled for Japanese), verify phrase output is from the Terse provider. Then switch to English, verify English Terse, then back to Japanese Terse — verify state is preserved after the round-trip.
-
-**Phase:** Japanese providers phase.
+**Phase to address:**
+The phase implementing the distance-to-opacity calculation. Build hysteresis in from the start — retrofitting it later requires changing the fade state machine.
 
 ---
 
-### Pitfall 6: `CmbPhraseStyle.IsEnabled` Gate Not Updated for Japanese — Style Combo Stays Disabled
+### Pitfall 7: Wrong Coordinate Space in Proximity Distance Calculation
 
-**What goes wrong:** `PopulateControls` in SettingsWindow.xaml.cs currently disables `CmbPhraseStyle` when the active locale is any of `"fr"`, `"es"`, `"de"`, `"ja"`, `"pl"`. In v3.9, Japanese now has its own Terse/Poetic/Rude styles, so `"ja"` must not disable the combo. The same logic exists in `CmbPhraseLanguage_SelectionChanged`.
+**What goes wrong:**
+Proximity fade must detect the cursor at `FadeRadiusPx` pixels from the window edge before the cursor enters the window rect. This requires comparing `GetCursorPos` output (physical screen pixels, Win32) against the window bounds. The existing `GhostModeController` correctly uses `GetWindowRect` (physical pixels, Win32) for this comparison. If proximity distance code uses `Window.Left`, `Window.Top`, `Window.ActualWidth`, or `Window.ActualHeight` (WPF device-independent units, DIPs) instead of `GetWindowRect`, the comparison produces wrong distances on non-100% DPI screens. A configured 100px fade zone appears as 125px on a 125%-DPI display, or 200px on a 200%-DPI display.
 
-**Why it happens:** The disable condition was written as a flat list of non-English locales (`locale is "fr" or "es" or "de" or "ja" or "pl"`). When Japanese gets styles, `"ja"` must be removed from this list. There are at minimum two code sites: `PopulateControls` line 103 and `CmbPhraseLanguage_SelectionChanged` line 437.
+**Why it happens:**
+Win32 APIs return physical pixels. WPF layout properties return DIPs. On 96 DPI (100% scaling) they are identical — the bug is invisible during development. It only surfaces on non-100% DPI settings (very common on laptops with HiDPI screens).
 
-**Consequences:** The Style combo is grayed out when Japanese is active. User cannot select Japanese Terse/Poetic/Rude from the Settings window even though the providers exist. The tray menu has no style selection path, so this is the only UI entry point.
+**How to avoid:**
+Use exclusively `GetWindowRect` for the widget bounds in all proximity calculations, and compare against `GetCursorPos` exclusively. Both are in physical pixels and are DPI-consistent. The `FadeRadiusPx` setting in `AppSettings` should store physical pixels, with the conversion from DIP units happening at the point of use via `PresentationSource.CompositionTarget.TransformToDevice` if the slider label shows DIPs. Alternatively store DIPs and convert at comparison time — but be explicit and consistent.
 
-**Prevention:** Before adding Japanese providers, audit both disable sites. Update the condition to exclude `"ja"` from the list. Consider whether other non-English locales (fr/es/de/pl) should eventually support styles and leave a comment.
+**Warning signs:**
+- Fade starts at a different visual distance on a 150% DPI laptop vs. a 100% DPI desktop
+- Testing on the development machine (commonly 100% DPI) shows correct behavior; user reports the zone feels larger
+- Distance calculation uses `Window.Left` + `Window.ActualWidth` instead of `GetWindowRect` output
 
-**Detection:** Set language to Japanese → verify style combo is enabled. Set language to French → verify style combo is disabled.
-
-**Phase:** Japanese providers phase — must be done before any Japanese style can be selected.
-
----
-
-### Pitfall 7: `ApplySettings` Locale Resolution Block Not Updated to Handle `ja` + Style
-
-**What goes wrong:** `ApplySettings` contains a locale resolution block that duplicates the logic in `SetLanguage` (both are in MainWindow.xaml.cs, approximately lines 330–374). The `"ja"` branch in `ApplySettings` assigns `effectiveLocale = _currentPhraseLocale` without checking `_currentPhraseStyle`. The fix needed in `SetLanguage` (Pitfall 5) is not automatically reflected in `ApplySettings`.
-
-**Why it happens:** The resolution logic is intentionally duplicated: `SetLanguage` runs at runtime when the user changes language; the `ApplySettings` block runs at startup. Both must be kept in sync. The English style mapping is already duplicated in both places across ~20 lines. Adding Japanese style mapping requires updating both places.
-
-**Consequences:** The widget restores correctly to Japanese Terse after restart **only if** the `ApplySettings` block also handles the mapping. If only `SetLanguage` is updated, users who save Japanese Terse, restart the app, and observe Classic Japanese have a silent settings-restoration bug.
-
-**Prevention:** When updating `SetLanguage` for Japanese styles, immediately search for the `ApplySettings` locale resolution block (search for `effectiveLocale` in MainWindow.xaml.cs) and apply the same mapping there. The two blocks should remain structurally identical.
-
-**Detection:** Set language to Japanese + Poetic → save → restart app → verify widget displays Japanese Poetic phrasing, not Classic Japanese. If it shows Classic, `ApplySettings` was not updated.
-
-**Phase:** Japanese providers phase.
+**Phase to address:**
+The phase implementing the proximity zone polling loop. The coordinate space must be decided at design time for this phase.
 
 ---
 
-### Pitfall 8: `_suppressEvents` Guard in `PopulateControls` — Style Combo Content Change While Suppressed Fires Event Anyway
+### Pitfall 8: Proximity Fade Running During Drag (Widget Goes Invisible Mid-Drag)
 
-**What goes wrong:** `CmbPhraseStyle` items are `ComboBoxItem` elements with `Content` strings (e.g., `"Classic"`, `"Terse"`, `"Poetic"`, `"Rude"`). If v3.9 needs to add Japanese-specific style items (e.g., displaying as `"Casual"` / `"Poetic"` / `"Brusque"` in Japanese locale, if localized labels are desired) by replacing the ComboBoxItem content dynamically during `PopulateControls`, the `_suppressEvents` guard prevents the `SelectionChanged` event from firing — which is correct. But if items are swapped at a time when `_suppressEvents = false`, the selection change during item replacement will fire the event unexpectedly.
+**What goes wrong:**
+`_isDragging` is set true during `DragMove()` and false after it returns. The contrast sampler freezes the display color during drag (via the `shouldSkip` predicate). Proximity fade, if not similarly paused, computes cursor distance on every 75ms tick. During drag the cursor is always on or very near the widget (the user is holding it). This puts the cursor inside the proximity zone or inside the widget rect — the fade-to-zero logic then begins fading the widget while the user is actively dragging it, making it disappear or become very dim mid-drag.
 
-**Why it happens:** `PopulateControls` runs under `_suppressEvents = true`. If item content is swapped in a separate method called outside that guard (e.g., in `CmbPhraseLanguage_SelectionChanged`), the guard is no longer active.
+**Why it happens:**
+The `_isDragging` flag was added to the contrast sampler's skip condition but is not automatically inherited by any new component. Each new component that modifies opacity must explicitly check `_isDragging`.
 
-**Consequences:** Spurious `PhraseStyleChanged` events with stale or default style values, causing a flicker of the wrong phrase style.
+**How to avoid:**
+The proximity fade tick handler must check `_isDragging` before computing or applying any opacity change. When `_isDragging` is true, freeze `this.Opacity` at `_windowOpacity` and return immediately. The same pattern as `_isDragging` in `ContrastRefreshController._shouldSkip`.
 
-**Prevention:** Keep style combo items as static ComboBoxItem elements. Use only `SelectedIndex` changes within `_suppressEvents` blocks, never dynamic item replacement. Map internal style keys to fixed indices. If Japanese styles need different display labels, use a separate label mechanism rather than mutating ComboBoxItem content at runtime.
+**Warning signs:**
+- Widget becomes semi-transparent or invisible while being dragged
+- After dropping the widget, opacity snaps rather than reflecting the cursor's new distance
+- User reports they "lose" the widget while dragging it
 
-**Detection:** Switch language to Japanese — verify the phrase style combo does not fire a `PhraseStyleChanged` event during the language switch. Set a breakpoint or log in the `PhraseStyleChanged` handler.
-
-**Phase:** Japanese providers phase.
-
----
-
-## Moderate Pitfalls
-
----
-
-### Pitfall 9: LCD Timer (`LcdClockView`) Ghost Mode Interaction — 1s Timer Fires While Widget Is Opacity=0
-
-**What goes wrong:** `LcdClockView` starts its internal 1-second `DispatcherTimer` when `IsVisible == true`. Ghost mode sets `Window.Opacity = 0` and applies `WS_EX_TRANSPARENT`, but does **not** set `LcdView.Visibility = Collapsed`. The timer continues firing, calling `UpdateTime()` every second, including during ghost mode.
-
-**Why it happens:** Ghost mode was designed for the phrase/dial/Nixie display modes where the 10s phrase timer already fires while ghost mode is active with no ill effects. The LCD timer fires 6× more frequently (every second) and performs layout-affecting work (swapping character assignments that trigger canvas redraws). The widget is invisible during ghost mode, so the work is wasted.
-
-**Consequences:** No visual artifact (the widget is invisible). No crash. However, the redraw cost persists during the entire ghost period. On machines with low GPU memory or resource-constrained environments, this is unnecessary overhead. More importantly, if `UpdateTime` has any side effects outside the Canvas (e.g., SizeToContent layout recalculation), it may cause the window size to recalculate while ghost mode is active, potentially interfering with the `GetWindowRect` polling used by `GhostModeController` to detect cursor departure.
-
-**Prevention:** The `ContrastRefreshController` uses a skip condition: `() => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging`. The LCD timer should consult the same condition. The cleanest approach is to add an early-return guard at the top of `LcdClockView.UpdateTime()` — or, since `LcdClockView` does not have access to the ghost mode state, pass a `Func<bool> shouldSkip` predicate into `LcdClockView` that `MainWindow` sets to `() => _ghostMode.IsActive`.
-
-**Detection:** Activate ghost mode → hover over the widget area → confirm via Debug.WriteLine or a tick counter that `UpdateTime` is not called during the ghost period. Given the widget is invisible, this pitfall may not surface as a user-visible bug but is worth addressing for correctness.
-
-**Phase:** LCD widget wiring phase — add the skip predicate when wiring `LcdView` in `ContentRendered`.
+**Phase to address:**
+The phase implementing the proximity fade tick handler. The `_isDragging` guard should be in the first working version of the handler.
 
 ---
 
-### Pitfall 10: Blinking Colon — `SevenSegmentDigit` Has No Blink State; Blink Must Be Driven from `LcdClockView`
+### Pitfall 9: ResetToDefaults Does Not Reset Fade Radius
 
-**What goes wrong:** `SevenSegmentDigit` with `Character = ':'` always renders the colon dots as lit. There is no blink state in `SevenSegmentDigit`. If the blinking colon feature (LCD-03) is implemented by toggling `Colon1.Character` between `':'` and `' '` at every `_timer.Tick`, the timer already fires every second — the colon will toggle on every second, which is correct for a standard blinking colon (on for 1s, off for 1s). **But** if the implementation mistakenly adds a separate blink timer with a 500ms interval alongside the existing 1s display timer, two timers will run simultaneously.
+**What goes wrong:**
+`ResetToDefaults()` is a manual enumeration of field resets. When `FadeRadiusPx` (or equivalent) is added to `AppSettings`, if it is not also added to `ResetToDefaults()` and `SettingsService.Defaults()`, users who set an extreme fade radius (e.g., 400px) cannot recover to the sensible default without manually deleting `settings.json`. This is a recurring pattern: any field added to `AppSettings` must be consciously added to all three of: init default, `SettingsService.Defaults()`, and `ResetToDefaults()`.
 
-**Why it happens:** The natural intuition for "blink every half second" is a 500ms timer. But a colon that is on for 1 second and off for 1 second (driven by the existing 1s tick via character toggling) is the correct behaviour and requires no additional timer.
+**Why it happens:**
+`ResetToDefaults()` is a manually maintained list in `MainWindow.xaml.cs`. There is no compiler-enforced link between adding an `AppSettings` field and adding its reset. The project has a history of this category of miss (e.g., `_currentPhraseStyle` and `_currentPhraseLocale` were missing from ResetToDefaults until v3.5 FIX-01).
 
-**Consequences of adding a 500ms timer:** Three concurrent DispatcherTimers in the application (10s phrase timer, stats timer, and 500ms blink timer) — adding unnecessary timer proliferation. The `IsBusyHint` on the WPF Dispatcher increases marginally, and the 500ms timer adds complexity without benefit.
+**How to avoid:**
+When adding `FadeRadiusPx` to `AppSettings`, immediately add:
+1. An `init` default at the field declaration in `AppSettings`
+2. An explicit value in `SettingsService.Defaults()`
+3. A `SettingsService.Validate()` guard (e.g., clamp to 0–300px range)
+4. A reset in `ResetToDefaults()` in `MainWindow.xaml.cs`
 
-**Prevention:** Implement colon blink as a state toggle inside `LcdClockView.UpdateTime()` using a `_colonVisible` bool that flips on each call. No separate timer is needed. Pseudocode:
+All four must be in the same commit.
 
-```csharp
-_colonVisible = !_colonVisible;
-Colon1.Character = _colonVisible ? ':' : ' ';
-if (ShowSeconds) Colon2.Character = _colonVisible ? ':' : ' ';
-```
+**Warning signs:**
+- After Reset to Defaults, proximity fade still uses the user's previous custom radius
+- `SettingsService.Defaults()` does not include `FadeRadiusPx`
+- The fade zone size after reset is 0 (C# double default) or the old value — never the intended default
 
-**Detection:** After implementing blink, verify only two timers exist in the process: the 10s phrase timer and the stats timer (plus the LCD view's own 1s timer, which is internal to `LcdClockView`). Grep for `new DispatcherTimer` across all files — the count should not increase from its current state.
-
-**Phase:** LCD blink implementation phase.
-
----
-
-### Pitfall 11: `AppSettings` JSON Round-Trip Test Does Not Cover LCD Fields — Silent Regression Risk
-
-**What goes wrong:** `STEST-01` in `SettingsServiceTests.cs` asserts that every `AppSettings` field survives a serialize/deserialize round-trip. `AppSettings` already contains `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize`. If STEST-01 was not updated when these fields were added (audit required), it does not assert them. Any JSON serialization regression on these fields would not be caught by the test suite.
-
-**Why it happens:** Init-property records in C# do not fail the round-trip test when a field is added but not asserted — they simply carry their default value silently.
-
-**Consequences:** A user who saves LCD preferences finds them reset to defaults on next launch, with no test failure surfacing the regression.
-
-**Prevention:** Audit `STEST-01` before the milestone begins. Confirm it asserts `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize`. If absent, add the assertions. Also add absent-field tests for each LCD field: confirm that a `settings.json` without `"LcdUse24Hr"` key deserializes to `false` (the init default).
-
-**Detection:** `dotnet test` passes but user reports LCD preferences not persisting. Absent-field tests would have caught this.
-
-**Phase:** LCD settings persistence phase.
+**Phase to address:**
+The phase that adds `FadeRadiusPx` to `AppSettings`.
 
 ---
 
-### Pitfall 12: `SettingsService.Validate()` Has No Guard for `LcdStyle` — Manually Edited `settings.json` Passes Bad Value
+### Pitfall 10: Settings Slider UX Confusion — Fade Radius vs. Opacity Slider
 
-**What goes wrong:** `SettingsService.Validate()` currently guards `StatsIntervalSeconds`, `Opacity`, and `AccentColor`. `LcdStyle` is persisted as a string (`"Dark"`, `"Paper"`, `"Silver"`). If a user manually edits `settings.json` to `"LcdStyle": "bogus"`, `ApplyLcdColors()` falls through the `if/else` chain to the `else // "Dark"` branch, applying Dark style silently. This is tolerable but inconsistent — the saved value is bogus but the rendered value is `"Dark"`.
+**What goes wrong:**
+A "Fade Zone" slider in Settings > Behavior sits near the existing Opacity slider in Settings > Appearance. Users conflate the two: they expect the fade zone slider to control minimum opacity at the closest approach. When the widget fades to fully invisible near them but the Opacity slider shows 75%, they conclude the Opacity slider is broken. Separately, users may interpret the Opacity slider as controlling the starting opacity of the fade, rather than the steady-state configured opacity when far away.
 
-**Prevention:** Add a guard in `Validate()`:
+**Why it happens:**
+Two controls that both affect "how visible is the widget" with different scopes are hard to distinguish without explicit labeling. The relationship — configured opacity is the maximum, proximity fade always goes to zero regardless — is not obvious from slider positions alone.
 
-```csharp
-if (s.LcdStyle is not ("Dark" or "Paper" or "Silver"))
-    s = s with { LcdStyle = "Dark" };
-```
+**How to avoid:**
+- Label the fade zone slider clearly: "Proximity Fade Zone (px)" with unit shown
+- Add a one-line description below the slider: "Widget fades to invisible when the cursor is within this distance"
+- Use "0 = disabled" as the left end of the slider to make the off state obvious
+- Do not expose a "minimum fade opacity" control — proximity fade always goes to zero (the click-through point). Anything above zero leaves a semi-visible widget that still captures mouse events until `WS_EX_TRANSPARENT` is applied, which confuses the state machine.
 
-This follows the existing `AccentColor` guard pattern.
+**Warning signs:**
+- User reports: "my opacity setting keeps resetting"
+- User confusion: "what's the difference between Opacity and Fade Zone?"
+- Support requests for a "fade to 50% instead of 0%" option
 
-**Phase:** LCD settings persistence phase.
-
----
-
-### Pitfall 13: `GetCurrentSettingsSnapshot()` Must Include `LcdSize` — Verify It Is Already Populated
-
-**What goes wrong:** `GetCurrentSettingsSnapshot()` currently includes `LcdSize = FontSizeToLcdSize(_currentFontSize)`. This was confirmed by source audit (MainWindow.xaml.cs line 419). However, if `LcdSize` were absent, opening the Settings window while LCD is active would populate the size control from the default init value (`LcdSize.Medium`) rather than the actual active size. This pitfall is a reminder to verify the snapshot is complete, not a confirmed gap.
-
-**Prevention:** Before writing any LCD Settings UI code, audit the full snapshot in `GetCurrentSettingsSnapshot()` against every `LcdXxx` field in `SettingsSnapshot`. Run: confirm `LcdUse24Hr = _lcdUse24Hr`, `LcdShowSeconds = _lcdShowSeconds`, `LcdStyle = _lcdStyle`, `LcdSize = FontSizeToLcdSize(_currentFontSize)` are all present.
-
-**Phase:** LCD Settings UI wiring phase.
+**Phase to address:**
+The phase adding the fade radius slider to SettingsWindow. Labels and description must ship with the control, not as a follow-up.
 
 ---
 
-### Pitfall 14: `ResetToDefaults` Does Not Reset LCD Options — Widget Restores to LCD After Reset
+## Technical Debt Patterns
 
-**What goes wrong:** `ResetToDefaults()` calls `SetClockType(ClockType.Phrase)` (confirmed in MainWindow.xaml.cs line 1202), which correctly resets the clock type. However, `_lcdUse24Hr`, `_lcdShowSeconds`, and `_lcdStyle` are also set in `ResetToDefaults()` (lines 1205–1207). If these lines are absent or if new LCD fields are added during v3.9 without updating `ResetToDefaults`, the reset state will carry stale LCD settings.
-
-**Prevention:** After adding any new `_lcdXxx` field (e.g., `_lcdSize` if it becomes independently tracked), add its reset line to `ResetToDefaults()` and verify the reset `AppSettings` `with` expression includes the field.
-
-**Detection:** Set LCD mode with 24hr on → tray "Reset to Defaults" → open Settings → switch to LCD → verify 24hr is off (reset to `false` default).
-
-**Phase:** LCD Settings UI wiring phase.
-
----
-
-### Pitfall 15: `PhraseWrapService.allowNatural` Guard Does Not Account for Japanese Locale
-
-**What goes wrong:** `ApplyPhraseWrap` guards natural pause wrapping with:
-
-```csharp
-bool allowNatural = PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal);
-```
-
-Japanese phrases (`"ja"`, `"ja-terse"`, `"ja-poetic"`, `"ja-rude"`) use Japanese CJK characters with no space boundaries. `PhraseWrapService.ComputeSplit` uses space-based splitting for natural pause. If a Japanese phrase somehow reaches the wrap path (it is short enough that it normally would not), natural pause wrap on a spaceless string would produce a null split and fall through to midpoint, which splits at a character boundary in the middle of a multi-byte Unicode grapheme cluster.
-
-**Why it happens:** CJK strings have no spaces. The `allowNatural` guard already prevents this for English-only providers. The new `"ja-"` prefix means the `StartsWith("en-")` guard correctly excludes Japanese — this pitfall is about verifying the guard covers `"ja-"` rather than adding a new guard.
-
-**Prevention:** Confirm by inspection that `StartsWith("en-")` returns `false` for `"ja"`, `"ja-terse"`, `"ja-poetic"`, `"ja-rude"` — it does. No code change needed. Document this as a known invariant in a comment in `ApplyPhraseWrap`.
-
-**Detection:** Set locale to Japanese Terse, enable phrase wrap. Verify the wrap is either absent (phrase is short enough not to wrap) or splits at a reasonable visual boundary.
-
-**Phase:** Japanese providers phase — verify, no change expected.
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Inline proximity distance calculation in the ghost restore timer tick instead of a separate `ProximityFadeController` | Faster initial implementation; fewer files | Ghost controller grows beyond single responsibility; distance logic cannot be unit tested in isolation | MVP only; extract before shipping if the logic is more than 20 lines |
+| `this.Opacity < _windowOpacity` as the "is fading" signal rather than a dedicated `_isProximityFading` bool | No new field needed | Other legitimate transient states (applying a theme, startup) also produce `Opacity < _windowOpacity`; skip predicates fire spuriously | Never — the explicit bool is trivially cheap and removes ambiguity |
+| Skip updating the `shouldSkip` predicate in `ContrastRefreshController` during initial fade implementation | Contrast code untouched | Feedback flicker during fade transitions; undoes the v3.6.2 fix | Never — must update in the same commit as fade |
+| Hardcode the jitter hysteresis band (10–15px) rather than making it configurable | One fewer slider | Band interacts with fade radius: 10px band on a 20px zone is 50% dead-band; acceptable at 200px zone. May need tuning for different fade radius values | Acceptable for v4.0; note as a future calibration point |
+| Reuse the 75ms `GhostModeController` timer for proximity polling | No new timer; existing proven loop | `GhostModeController` now does two things (proximity + click-through management); consider a `ProximityFadeController` that owns proximity and delegates to `GhostModeController` only for click-through | Acceptable if proximity logic is kept small; refactor if it grows |
 
 ---
 
-### Pitfall 16: `[DoNotParallelize]` on `PhraseEngineCoordinatorTests` Must Cover Japanese-Locale Tests
+## Integration Gotchas
 
-**What goes wrong:** `PhraseEngineCoordinatorTests` has `[DoNotParallelize]` applied because `PhraseEngine` uses static state (`_activeProvider`, `CurrentLocale`). Tests that exercise the new `"ja-terse"`, `"ja-poetic"`, `"ja-rude"` locale keys must be in `PhraseEngineCoordinatorTests` (or in a class that also has `[DoNotParallelize]`), not in a separate parallelizable test class.
-
-**Why it happens:** Adding new providers triggers the natural instinct to add new test classes for them. If those classes are placed in `MultilingualPhraseProviderTests` (which tests providers in isolation, not via the engine), they are safe to parallelize. But if they exercise `PhraseEngine.SetLocale` and `PhraseEngine.GetPhrase`, they must be in the non-parallelizable class.
-
-**Consequences:** Locale contamination between test methods. Flaky tests that pass in isolation and fail in parallel runs.
-
-**Prevention:** Provider unit tests (testing `JapaneseTersePhraseProvider.GetPhrase` directly, not through `PhraseEngine`) are safe in any class. Engine integration tests (testing `PhraseEngine.SetLocale("ja-terse")`) must go in `PhraseEngineCoordinatorTests` under `[DoNotParallelize]`.
-
-**Phase:** Japanese providers phase.
-
----
-
-## Minor Pitfalls
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| `GhostModeController.Restored` event | Keeping `this.Opacity = _windowOpacity` in the handler after adding fade | Change handler to initiate a fade-in; `GhostModeController` signals cursor exit, proximity fade drives the restore animation |
+| `ContrastRefreshController` `shouldSkip` predicate | Not adding proximity fade state to the skip lambda at `_contrast.Initialize(...)` | Add `|| _proximityFade.IsActive` (or `|| this.Opacity < _windowOpacity`) to the existing skip lambda |
+| `AppSettings.Opacity` field | Writing instantaneous fade opacity to `_windowOpacity` or serializing it to settings.json | `AppSettings.Opacity` is always the user's configured maximum; the fade tick only writes `this.Opacity`, never `_windowOpacity` |
+| `GetWindowRect` vs. `Window.Left/Top` | Using WPF DIPs for the window bounds in the proximity distance calculation | Use `GetWindowRect` (physical pixels) for bounds; `GetCursorPos` (physical pixels) for cursor; never mix coordinate spaces |
+| Opacity slider in SettingsWindow | Slider change fires `OpacityChanged` event → `SetOpacity()` → writes `_windowOpacity` and `this.Opacity`; if fade is active, the `this.Opacity` assignment creates a visible jump | Slider always writes `_windowOpacity`; let the next fade tick correct `this.Opacity` to the right fade-adjusted value. Or: if not currently fading, write `this.Opacity` immediately as well |
+| `_isDragging` flag | Not checking it in the proximity fade tick handler | Add `if (_isDragging) { this.Opacity = _windowOpacity; return; }` at the top of the fade tick handler, same pattern as contrast sampler |
 
 ---
 
-### Pitfall 17: 12-Hour LCD Display — Leading Space in Hour Digit
+## Performance Traps
 
-**What goes wrong:** `LcdTimeFormatHelper.FormatTime` in 12-hour mode uses `hourStr = h < 10 ? $" {h}" : $"{h}"` — a leading space for single-digit hours. `SevenSegmentDigit` with `Character = ' '` renders a blank digit (0x00 mask, all segments off). This is correct behaviour. The pitfall is assuming the space causes a layout shift: `SevenSegmentDigit` sets its own `Width` based on `_builtDigitW` and does not narrow for a blank character the way it narrows for `':'`. A leading blank digit has full digit width, keeping the clock display width stable between, say, `" 1:00"` and `"10:00"`. This is intentional and correct — do not "fix" it.
-
-**Prevention:** No code change needed. Document the intent in a comment so future developers do not inadvertently "optimize" the leading space to an empty string.
-
-**Phase:** Not a blocker — awareness only.
-
----
-
-### Pitfall 18: `SaveSettings()` Includes `LcdSize` Via `FontSizeToLcdSize` — Verify `LcdSize` Is Not Also Tracked as an Independent Field
-
-**What goes wrong:** `AppSettings.LcdSize` is saved as `FontSizeToLcdSize(_currentFontSize)` in `SaveSettings()`. There is no independent `_lcdSize` field in `MainWindow` — the size derives from font size. If during v3.9 work someone adds a separate `_lcdSize` field to MainWindow for fine-grained LCD sizing, they would create a discrepancy: `SaveSettings()` uses `FontSizeToLcdSize(_currentFontSize)` while `ApplySettings()` and `SetClockType()` use the new field.
-
-**Prevention:** Keep LCD size purely derived from font size. Do not add a separate `_lcdSize` field. The `LcdSize` enum in `AppSettings` and `SettingsSnapshot` exists for serialization and snapshot convenience, not as an independent dimension.
-
-**Phase:** Awareness only.
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Calling `SetWindowPos(SWP_FRAMECHANGED)` on every 75ms tick during fade | Per-tick compositor round-trip; subtle jitter | `SWP_FRAMECHANGED` is only needed when changing `WS_EX_TRANSPARENT`; never call it during opacity-only ticks | Immediately visible as compositor stutter; always avoid |
+| Calling `SaveSettings()` inside the fade tick handler | settings.json written at 13 Hz; excessive I/O | Save only on state transitions (fade start / ghost activation / ghost restore); never during continuous fade | Immediately visible as high disk I/O during mouse proximity |
+| Using `Math.Sqrt` for Euclidean distance on every 75ms tick | Negligible on modern CPUs at 75ms interval | Use squared-distance comparison to avoid `sqrt` for boundary checks; only compute true distance if displayed in UI | Not a real bottleneck at 75ms; only matters if interval drops to <10ms |
 
 ---
 
-## Phase-Specific Warnings
+## UX Pitfalls
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| LCD Settings UI — BtnLcd XAML + gating | `BtnLcd` added to XAML but `SetClockStyleButtonStates` not updated; LCD options row not gated on `ct == ClockType.Lcd` | Update `SetClockStyleButtonStates` atomically with XAML change; add LCD row gating in the same method alongside the Dial Face row gating |
-| LCD blinking colon | Separate 500ms blink timer added alongside existing 1s timer | Implement blink as a `_colonVisible` toggle inside `UpdateTime()` — no new timer |
-| LCD ghost mode interaction | 1s timer fires during ghost mode (wasted redraws, potential SizeToContent side effects) | Pass a skip predicate into `LcdClockView` from `MainWindow.ContentRendered` |
-| Japanese provider registration | Keys like `"ja-terse"` not registered; `PhraseEngine.SetLocale` returns false silently | Register keys in `_providers` first; verify `CurrentLocale` after `SetLocale` call |
-| Japanese style routing in `SetLanguage` | `"ja"` branch ignores `_currentPhraseStyle`; style combo stays disabled for Japanese | Update both `SetLanguage` and `ApplySettings` locale resolution blocks; remove `"ja"` from the disable-combo condition |
-| Japanese providers + `[DoNotParallelize]` | Engine integration tests not marked non-parallelizable; locale contamination | Provider tests (isolation) in any class; engine tests in `PhraseEngineCoordinatorTests` |
-| AppSettings round-trip test | LCD fields not asserted in `STEST-01` | Audit and add assertions before writing LCD persistence code |
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Fade zone larger than screen / 2 (extreme radius, e.g. 800px) | Widget is always fading; cursor is always within the zone; widget is never fully visible | Add a `SettingsService.Validate()` guard clamping `FadeRadiusPx` to a sane max (e.g., 300px); slider max in Settings UI enforces the same limit |
+| Fade enabled when Ghost Mode is disabled | User disables Ghost Mode expecting the widget to always be visible; proximity fade still fades it out | Proximity fade must be gated on `_ghostMode.IsEnabled`; when ghost mode is off, proximity fade is inoperative regardless of the fade radius setting |
+| Fade-in speed different from fade-out speed | Widget retreats quickly but returns slowly (or vice versa) — asymmetric feel | Use the same distance-to-opacity function for both directions; hysteresis band introduces intentional asymmetry only at the outer boundary, not in the fade rate |
+| No indication in Settings that fade is currently active | User does not understand why widget is semi-transparent when cursor is nearby | Label the slider with "0 = disabled"; the non-zero value is the affordance; a tooltip or description suffices — no status indicator needed |
+
+---
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] **Configured opacity preserved:** After a full proximity fade cycle (cursor approaches, widget goes ghost, cursor retreats, widget restores), verify `settings.json` still contains the user's original `Opacity` value — not 0.0 or any intermediate fade value.
+- [ ] **WS_EX_TRANSPARENT timing:** Verify via Spy++ (or equivalent) that `WS_EX_TRANSPARENT` is present in the window extended style only when `this.Opacity == 0.0` — never at 0.05, 0.1, etc.
+- [ ] **Drag immunity:** Verify full-opacity widget is maintained during drag. Slowly drag the widget toward a screen edge or another window; opacity must not change during the drag.
+- [ ] **Ctrl+Alt suppression:** Verify holding Ctrl+Alt while moving toward the widget suppresses all proximity fade — widget stays at `_windowOpacity`, backdrop and hover behaviors activate normally.
+- [ ] **Auto-contrast stability:** Enable Auto-Contrast, position the widget over an app window, then approach with the mouse. Verify no text color oscillation during the fade-out or fade-in transitions.
+- [ ] **Hysteresis at outer boundary:** Hold the cursor stationary at approximately the fade start distance. Verify the widget's opacity is stable for at least 5 seconds with no cursor movement.
+- [ ] **Ghost mode disabled:** Disable Ghost Mode via tray. Verify the widget remains fully opaque as the cursor approaches, regardless of the fade radius setting.
+- [ ] **High-DPI correctness:** On a 150% DPI display, verify the fade starts at the correct physical distance (configured radius in physical pixels, not DIPs). The fade zone should look the same size as on a 100% DPI display.
+- [ ] **ResetToDefaults:** After Reset to Defaults, verify `FadeRadiusPx` returns to the default value in both the Settings slider and `settings.json`.
+- [ ] **Validate() guard:** Manually edit `settings.json` to set `FadeRadiusPx` to -50 or 9999. Verify the app loads and clamps to the valid range without crashing.
+- [ ] **Symmetric fade:** Verify the fade-in (cursor retreating) feels visually symmetric with the fade-out (cursor approaching). No instant pop-in on exit.
+
+---
+
+## Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Configured opacity corrupted by fade writes | LOW | Delete `settings.json` or manually edit `Opacity` back to intended value; find and fix the `_windowOpacity` write in the fade path |
+| `WS_EX_TRANSPARENT` stuck on a partially-visible widget | MEDIUM | Widget is visible but click-through; user cannot interact; must kill process from Task Manager or find it in system tray and quit; fix by ensuring click-through is only applied at `Opacity == 0.0` |
+| Auto-contrast feedback flicker during fade | LOW | Disable Auto-Contrast from tray; add proximity state to `shouldSkip` predicate; re-enable |
+| Jitter at fade boundary | LOW | Increase hysteresis band in the distance calculation; no user-visible setting change needed |
+| Drag makes widget invisible | MEDIUM | User loses the widget mid-drag; must release mouse, move cursor away, wait for restore; fix by adding `_isDragging` guard to fade tick handler |
+| Extreme fade radius making widget always invisible | LOW | Open Settings > Behavior, slide Fade Zone to 0 (disabled); fix by adding `Validate()` guard |
+
+---
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Configured opacity corrupted (Pitfall 1) | Phase introducing fade tick handler | Confirm `_windowOpacity` is never written in fade path; confirm `settings.json` Opacity unchanged after fade cycle |
+| WS_EX_TRANSPARENT before Opacity=0 (Pitfall 2) | Phase implementing fade-to-zero at boundary | Spy++ confirms `WS_EX_TRANSPARENT` only present when `Opacity == 0.0` |
+| Snap restore instead of fade-in (Pitfall 3) | Phase implementing symmetric fade-in | `Restored` handler initiates fade-in; no instant opacity snap on cursor exit |
+| Auto-contrast flicker during fade (Pitfall 4) | Phase introducing proximity fade — same commit | No contrast oscillation with Auto-Contrast enabled during fade transitions |
+| Hover fast-refresh on proximity approach (Pitfall 5) | Phase adding proximity zone polling | `_isHoverFastRefresh` stays false during proximity approach without Ctrl+Alt |
+| Jitter at outer boundary (Pitfall 6) | Phase implementing distance-to-opacity calculation | Cursor held at fade start distance for 5s; opacity stable |
+| Wrong coordinate space (Pitfall 7) | Phase implementing proximity zone detection | Fade starts at correct physical distance on 150% DPI display |
+| Drag makes widget invisible (Pitfall 8) | Phase implementing proximity fade tick handler | Full-opacity maintained during drag; verified by dragging near proximity zone boundary |
+| ResetToDefaults missing fade radius (Pitfall 9) | Phase adding `FadeRadiusPx` to `AppSettings` | After Reset to Defaults, `FadeRadiusPx` is default in `settings.json` |
+| Settings slider UX confusion (Pitfall 10) | Phase adding fade radius slider to SettingsWindow | Labels and unit (px) present; "0 = disabled" on left end; description line present |
 
 ---
 
@@ -357,22 +349,15 @@ Japanese phrases (`"ja"`, `"ja-terse"`, `"ja-poetic"`, `"ja-rude"`) use Japanese
 
 | Source | Confidence |
 |--------|------------|
-| `FuzzyClock.App/ClockType.cs` — `ClockType.Lcd` confirmed as existing enum member | HIGH |
-| `FuzzyClock.App/AppSettings.cs` — `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize` confirmed present with init defaults | HIGH |
-| `FuzzyClock.App/SettingsSnapshot.cs` — same four fields confirmed present | HIGH |
-| `FuzzyClock.App/Controls/LcdClockView.xaml.cs` — 1s `DispatcherTimer` lifecycle via `IsVisibleChanged` confirmed; `_colonVisible` blink toggle not present | HIGH |
-| `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — no blink state; `Character = ' '` renders full-width blank digit | HIGH |
-| `FuzzyClock.App/SettingsWindow.xaml` — `BtnLcd` absent from clock style rail; no LCD options row present | HIGH |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` `SetClockStyleButtonStates` — three buttons only (`BtnPhrase`, `BtnDial`, `BtnNixie`); no `BtnLcd` | HIGH |
-| `FuzzyClock.App/MainWindow.xaml.cs` lines 330–374 — `ApplySettings` locale resolution block: `"ja"` branch uses `effectiveLocale = locale` without style mapping | HIGH |
-| `FuzzyClock.App/MainWindow.xaml.cs` lines 1397–1441 — `SetLanguage` `"ja"` branch same shortcut | HIGH |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` line 103 — `CmbPhraseStyle.IsEnabled = !isNonEnglish`; `"ja"` in the disable list | HIGH |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` line 437 — `CmbPhraseLanguage_SelectionChanged`: same `"ja"` disable condition | HIGH |
-| `FuzzyClock.Core/PhraseEngine.cs` — no `"ja-terse"`, `"ja-poetic"`, `"ja-rude"` keys in `_providers` dictionary | HIGH |
-| `FuzzyClock.App/GhostModeController.cs` — ghost mode sets `Window.Opacity = 0` + `WS_EX_TRANSPARENT`; does not collapse `LcdView` | HIGH |
-| `.planning/PROJECT.md` — active requirements LCD-01 through LCD-04, JA-01 through JA-03 | HIGH |
+| `FuzzyClock.App/GhostModeController.cs` — `Activate()`, `Restored` event, 75ms polling timer, `WS_EX_TRANSPARENT` application site | HIGH |
+| `FuzzyClock.App/ContrastRefreshController.cs` — `shouldSkip` predicate: `_ghostMode.IsActive \|\| _windowOpacity == 0.0 \|\| _isDragging`; 500ms sampling timer | HIGH |
+| `FuzzyClock.App/MainWindow.xaml.cs` — `_windowOpacity` field; `SetOpacity()`; `Restored` handler: `this.Opacity = _windowOpacity`; `_isDragging` flag; `Window_MouseEnter` ghost activation path | HIGH |
+| `FuzzyClock.App/AppSettings.cs` — `Opacity` init default 1.0; no `FadeRadiusPx` field yet | HIGH |
+| `FuzzyClock.App/SettingsService.cs` — `Validate()` guard patterns; `Defaults()` structure; `ResetToDefaults()` must-update sites | HIGH |
+| `.planning/PROJECT.md` decision log — `WS_EX_TRANSPARENT` invariant; synthetic MOUSELEAVE behavior; `GetCursorPos` polling rationale; `_isDragging` freeze pattern; hysteresis 4.5/5.5 for contrast (same pattern needed for distance boundary) | HIGH |
+| v3.6.2 pitfall history — SHELLDLL_DefView + DWM cloaked check required to prevent contrast feedback loop; partial transparency during fade creates the same sampling risk | HIGH |
 
 ---
 
-*Pitfalls research for: Fuzzy Clock v3.9 — LCD Clock + Japanese Styles*
-*Researched: 2026-03-23*
+*Pitfalls research for: WPF proximity fade on existing ghost mode (v4.0 Proximity Ghost Mode)*
+*Researched: 2026-03-27*

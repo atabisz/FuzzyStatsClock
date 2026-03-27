@@ -1,322 +1,280 @@
-# Feature Landscape: LCD Clock + Japanese Phrase Styles
+# Feature Research: Proximity Ghost Fade
 
-**Domain:** Desktop overlay widget — adding LCD 7-segment clock (fourth clock style) and Japanese Terse/Poetic/Rude phrase variants
-**Milestone:** v3.9
-**Researched:** 2026-03-23
-**Confidence:** HIGH (findings from direct codebase audit; no external research needed — all infrastructure already exists in-repo)
+**Domain:** Desktop overlay widget — proximity-based opacity fade extending existing ghost mode
+**Milestone:** v4.0
+**Researched:** 2026-03-27
+**Confidence:** HIGH (codebase audit + official WPF/Fluent docs; no speculative claims)
 
 ---
 
 ## What Is Already Built (Do Not Re-Implement)
 
-Before listing what to build, the existing infrastructure must be understood to avoid
-duplicating work.
-
-| Component | Status | Location |
-|-----------|--------|----------|
-| `SevenSegmentDigit` UserControl | Complete | `Controls/SevenSegmentDigit.xaml.cs` |
-| `SevenSegmentEncoder` (7-seg bitmasks for 0-9, colon, space) | Complete | `FuzzyClock.Core/SevenSegmentEncoder.cs` |
-| `LcdClockView` UserControl (HH:MM[:SS], Use24Hr, ShowSeconds, 1s timer) | Complete | `Controls/LcdClockView.xaml.cs` |
-| `LcdTimeFormatHelper.FormatTime()` | Complete | `LcdTimeFormatHelper.cs` |
-| `LcdSize` enum + `LcdSizeMap.ToSegmentHeight()` | Complete | `LcdSize.cs` |
-| `ClockType.Lcd` enum value | Complete | `ClockType.cs` |
-| `AppSettings.LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize` fields | Complete | `AppSettings.cs` |
-| `MainWindow.SetClockType(ClockType.Lcd)` + `ApplyLcdColors()` | Complete | `MainWindow.xaml.cs` |
-| Three `LcdStyle` color modes: Dark (accent-colored), Paper (sage green), Silver (neutral gray) | Complete | `MainWindow.xaml.cs` `ApplyLcdColors()` |
-| `SettingsWindow` events: `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` (declared as stubs) | Declared, not wired to UI | `SettingsWindow.xaml.cs` |
-| `JapanesePhraseProvider` (Classic, ja locale, all 12 buckets) | Complete | `FuzzyClock.Core/JapanesePhraseProvider.cs` |
-| `PhraseEngine` locale registry with `["ja"]` key | Complete | `FuzzyClock.Core/PhraseEngine.cs` |
-| `IPhraseProvider` interface (`GetPhrase`, `GetStructuredPhrase`, `GetSegmentKey`) | Complete | `FuzzyClock.Core/IPhraseProvider.cs` |
-| `SettingsWindow.CmbPhraseStyle` disabled for Japanese locale | Exists (as gate to relax) | `SettingsWindow.xaml.cs` line 103-104 |
+| Component | Status | Relevance to Proximity Fade |
+|-----------|--------|-----------------------------|
+| `GhostModeController` — 75ms polling via `GetCursorPos` + `GetWindowRect` | Complete | Core polling loop reuses directly for distance sampling |
+| `GhostModeController.IsCtrlAltHeld()` | Complete | Ctrl+Alt suppression applies unchanged to proximity fade |
+| `GhostModeController.IsEnabled` | Complete | Ghost tray toggle gates proximity fade (off = no fade) |
+| `Window_MouseEnter` ghost activation path | Complete | Must be replaced/extended — proximity fade makes MouseEnter obsolete as the trigger |
+| `AppSettings` init-property record | Complete | New `GhostFadeRadiusPx` field follows existing pattern |
+| Settings > Behavior tab | Complete | Slider control lands here below `ChkGhostMode` |
+| `SettingsWindow.GhostModeChanged` event | Complete | New `GhostFadeRadiusChanged` event follows same pattern |
 
 ---
 
-## Table Stakes
+## Feature Landscape
 
-Features users expect from the LCD clock face and Japanese styles. Missing any of these
-makes the feature feel incomplete or broken.
+### Table Stakes (Users Expect These)
 
-### LCD Clock
+Features that must exist for the proximity fade to feel complete and correct. Missing any of these
+makes the behavior feel broken or inconsistent.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| LCD button in SettingsWindow Clock Style rail | LCD is a new clock mode; it must be selectable alongside Phrase/Dial/Nixie | LOW | Extend `BtnPhrase/BtnDial/BtnNixie` rail with `BtnLcd`; fire `ClockTypeChanged(ClockType.Lcd)` |
-| LCD settings section in SettingsWindow Appearance tab | 12/24h and seconds toggles are LCD-specific settings; user cannot configure without UI | LOW | Add a visibility-gated panel (visible only when Lcd selected); wire to the three stub events already declared |
-| 12-hour / 24-hour toggle in LCD settings | Clock convention varies by locale; 12h is default, 24h is needed for non-US users | LOW | `ChkLcd24Hr` checkbox wired to `LcdUse24HrChanged` event; already handled in MainWindow |
-| Optional seconds row toggleable in LCD settings | Seconds are distracting for a glanceable clock; must be off by default but user-accessible | LOW | `ChkLcdShowSeconds` checkbox wired to `LcdShowSecondsChanged`; already handled in MainWindow |
-| LCD style selector (Dark / Paper / Silver) | The three styles give the LCD a distinct look; Dark uses accent color; Paper and Silver are fixed palettes | LOW | 3-button segment rail or ComboBox wired to `LcdStyleChanged`; `ApplyLcdColors()` already handles all three |
-| 12-hour leading-space handling | 12-hour display uses a leading space for single-digit hours (` 3:45`) to prevent layout shift | LOW | Already implemented in `LcdTimeFormatHelper.FormatTime()`; `SevenSegmentEncoder.Encode(' ')` returns `0x00` (blank) |
-| Blinking colon (every second) | All real LCD clocks blink the colon separator; a static colon looks unfinished | MEDIUM | `LcdClockView` ticks every second; colon blink requires toggling `Colon1.Character` between `':'` and `' '` on odd/even seconds; seconds display colons do not blink |
-| LCD excluded from accent color application (Dark mode exception) | Dark mode intentionally uses accent color; Paper and Silver must NOT receive accent | LOW | `ApplyLcdColors()` in MainWindow already handles this correctly; accent applied only in Dark branch |
-| LCD size follows font size setting | User changes font size in Settings; LCD digits should scale proportionally | LOW | `LcdView.Size = FontSizeToLcdSize(s.FontSize)` already wired in `SetClockType()` and `ApplyFontSize()` |
-| Persist LCD settings across restarts | `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle` already in `AppSettings`; must round-trip through settings.json | LOW | Field storage done; requires `PopulateControls` to read and reflect values on open |
+| Opacity decreases as cursor nears the widget | The core behavior; without it the feature does not exist | MEDIUM | Distance = shortest distance from cursor point to widget RECT. Opacity fraction = `distance / fadeRadiusPx` clamped [0.0, 1.0]. Applied to `this.Opacity` scaled by configured widget opacity |
+| Fade continues to zero on cursor entry (no snap) | A discontinuity at the boundary would look like a bug — the fade must complete smoothly | LOW | When cursor is inside the RECT, distance = 0, opacity = 0. WS_EX_TRANSPARENT applied at the same moment opacity reaches zero |
+| Symmetric fade-back on retreat | Users expect the widget to re-appear the same way it disappeared; asymmetric would feel glitchy | LOW | Same distance formula on retreat. Remove WS_EX_TRANSPARENT before opacity rises above 0 (first non-zero tick) |
+| Ctrl+Alt suppresses proximity fade | Consistent with existing ghost mode override; users already know this gesture | LOW | `GhostModeController.IsCtrlAltHeld()` reuses without change; proximity sampling pauses when held |
+| Ghost mode tray toggle gates proximity fade | If Ghost Mode is off, proximity fade should also be off — they are the same feature family | LOW | `GhostModeController.IsEnabled` check already on proximity polling path |
+| Configurable fade radius slider in Settings > Behavior | User wants a Settings slider (stated requirement) | LOW | `Slider` control, range 20–200px, step 10px. Default 80px. Placed below `ChkGhostMode` in Behavior tab. Enabled only when `ChkGhostMode` is checked |
+| Radius persists across restarts | All settings persist; this one must too | LOW | `AppSettings.GhostFadeRadiusPx` init-property, `int`, default 80. `Validate()` clamps to [20, 200] |
+| Opacity update driven by existing 75ms polling timer | No new timer needed; `GhostModeController`'s timer already fires at 75ms | LOW | 75ms is 13 fps — smooth enough for a fade that spans hundreds of milliseconds; no perceptible stepping at this rate with a radius of 80px |
 
-### Japanese Phrase Styles
+### Differentiators (Competitive Advantage)
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Japanese Terse provider (ja-terse) | Matches the English Terse pattern — clipped, compact phrasing without elaboration | MEDIUM | New `JapaneseTersePhraseProvider` class; 12 buckets; same template system as `JapanesePhraseProvider`; register as `["ja-terse"]` in `PhraseEngine` |
-| Japanese Poetic provider (ja-poetic) | Matches the English Poetic pattern — imagery-based, atmospheric; Japanese has rich vocabulary for this | MEDIUM | New `JapanesePoeticPhraseProvider` class; multiple candidates per bucket; `Random.Shared` selection; register as `["ja-poetic"]` |
-| Japanese Rude provider (ja-rude) | Matches the English Rude pattern — blunt, dismissive, impatient | MEDIUM | New `JapaneseRudePhraseProvider` class; multiple candidates per bucket; register as `["ja-rude"]` |
-| Phrase style selector enabled for Japanese locale | Currently `CmbPhraseStyle.IsEnabled = false` when `ja` locale is active; styles must be accessible | LOW | Relax the gate in `PopulateControls` so `CmbPhraseStyle.IsEnabled = true` when locale is `"ja"` (or `"auto"` with Japanese UI culture) |
-| PhraseEngine routing for ja-terse / ja-poetic / ja-rude | `SetPhraseStyle()` / `SetLocale()` must map `(locale="ja", style="Terse")` to `["ja-terse"]` | LOW | `PhraseEngine` already uses locale keys; add `["ja-terse"]`, `["ja-poetic"]`, `["ja-rude"]` entries and update `SetPhraseStyle()` locale-style routing logic |
-| All 12 time buckets covered in each style | Missing buckets cause runtime exceptions; tests must verify exhaustive coverage | LOW | Follow the existing 12-bucket table (`UpperBound` 2/7/12/17/22/27/32/37/42/47/52/59) and special cases (正午 at 12:00, 真夜中 at 00:00) |
-| Unit tests for all three new providers | Existing `MultilingualPhraseProviderTests.cs` exhaustively covers all buckets; same pattern required | LOW | One `[TestClass]` per new provider; test all 12 buckets + noon + midnight special cases |
-
----
-
-## Differentiators
-
-Features that go beyond minimal correctness and give the implementation character.
-
-### LCD Clock
+Features that improve the feel without being strictly required by the stated spec.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Ghost segments (unlit segments visible at low opacity) | Real LCD displays show all 8-segment outlines faintly; without it the display looks flat | LOW | Already implemented in `SevenSegmentDigit.UpdateSegments()`: unlit segments use `_ghostBrush` (auto-computed as 15% of lit color, or explicit `GhostColor` for Paper/Silver styles) |
-| Hexagonal chamfer on segment polygons | Physical 7-segment displays have beveled segment ends; chamfered polygons convey depth | LOW | Already implemented in `SevenSegmentDigit.RebuildGeometry()` via `ch` parameter; `HorizontalSegment` and `VerticalSegment` helpers produce 6-point polygons |
-| Classic vs Bold segment styles | Classic = slender (calculator aesthetic); Bold = thick minimal-gap (Bodet station clock aesthetic); Paper/Silver use Bold | LOW | Already implemented via `SegmentStyle` dependency property; `SegmentStyle == "Bold"` branch in `RebuildGeometry()` |
-| Background panel per digit | Real LCD displays have a physical substrate behind each digit; `BgColor` property fills this | LOW | Already implemented via `_backgroundRect` in `SevenSegmentDigit` |
-| Blinking colon as liveness indicator | Static colon feels like a frozen screenshot; blink confirms the clock is running | MEDIUM | Requires odd/even second detection in `UpdateTime()`; toggle `Colon1.Character` between `':'` and `' '` |
+| Opacity proportional to distance (linear) | Linear is the simplest and most predictable curve; users can build a mental model of it ("further = brighter") | LOW | `opacity = (distance / radius) * _windowOpacity`. Linear is the right default choice here — no easing function is needed because the cursor velocity varies continuously and the animation is driven by position, not time |
+| Fade-out faster than fade-in (asymmetric speed using a floor on retreat rate) | Hiding quickly respects the user's intent to move away from the widget; revealing slowly is less startling | LOW | Achievable by capping the opacity increment per tick on the restore direction to `_windowOpacity * 0.08` per tick (roughly 750ms full fade-in at 75ms/tick) while allowing instant jumps downward. LOW priority — linear may be sufficient |
+| Slider label showing current value in pixels | Users adjusting a slider need to see the number to understand what they're setting | LOW | `TextBlock` bound to slider value next to the control. "80 px from edge" |
+| Slider enabled/disabled based on Ghost Mode checkbox state | Prevents confusion — if ghost mode is off the radius slider has no effect | LOW | `SldFadeRadius.IsEnabled = ChkGhostMode.IsChecked ?? false` in `PopulateControls` and in `ChkGhostMode_Changed` |
 
-### Japanese Phrase Styles
+### Anti-Features (Commonly Requested, Often Problematic)
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Terse: uses casual spoken registers (口語) | Japanese casual speech is distinctly shorter than written formal — matches the Terse intent precisely | MEDIUM | Use plain form verbs, contracted forms, particles omitted where natural in casual speech |
-| Terse: avoids kanji-heavy Sino-Japanese clock vocabulary | 一時 / 二時 etc. are formal; casual speech often uses `1時` (Arabic numerals + 時) or time-of-day words (朝, 昼, 夕) | MEDIUM | Mix Arabic numerals with `時` for compact notation in Terse |
-| Poetic: uses nature/season imagery (時候の挨拶 style) | Japanese has a deep tradition of seasonal time expressions (春暁, 払暁, 白夜); poetic phrases can reference atmospheric conditions | HIGH | Requires Japanese language knowledge; examples below; confidence LOW on naturalness — native review recommended |
-| Poetic: uses poetic register vocabulary (文語) | Literary Japanese uses classical forms (あけぼの for dawn, 夕暮れ for dusk) that feel genuinely evocative | HIGH | See phrase examples section below |
-| Rude: uses coarse/brusque register (rough speech, タメ口) | Japanese casual-rude phrasing is syntactically distinct from English rudeness; requires Japanese-specific vocabulary | HIGH | See phrase examples section below; confidence LOW — native review recommended |
-| Rude: uses dismissive sentence-final particles and forms | もう3時じゃん / いい加減〜だろ / とっくに〜 convey impatience in ways that feel authentically Japanese | HIGH | Examples below; do not translate English rude phrases literally |
-
----
-
-## Japanese Phrase Style Examples by Bucket
-
-These examples cover representative time buckets. Each row shows the Classic baseline
-and the three new style variants. Confidence: MEDIUM for Terse (structural patterns
-well-established), LOW for Poetic and Rude (cultural register nuance — native speaker
-review recommended before shipping).
-
-**Hour variables:** `{h}` = current hour (Sino-Japanese: 一時, 二時 ... 十二時);
-`{h1}` = next hour. Terse may use `{hn}` = Arabic numeral hour (1–12).
-
-### Bucket 0: On the hour (minute 0-2)
-
-| Style | 3:00 example | Pattern note |
-|-------|-------------|-------------|
-| Classic | `三時ちょうど` | Formal Sino-Japanese + ちょうど |
-| Terse | `3時` or `3時だ` | Arabic numeral, drop ちょうど |
-| Poetic | `三時の鐘が鳴る` / `三時の静けさ` | Bell metaphor, silence metaphor |
-| Rude | `もう3時じゃん` / `3時だけど？` | もう (already), じゃん (dismissive) |
-
-### Bucket 1: Five past (minute 3-7)
-
-| Style | 3:05 example | Pattern note |
-|-------|-------------|-------------|
-| Classic | `三時過ぎ` | hour + 過ぎ (past) |
-| Terse | `3時ちょい過ぎ` | ちょい (casual "a little") |
-| Poetic | `三時を少し越えた頃` | 頃 (around that time) |
-| Rude | `3時過ぎてるし` | してるし = exasperated "it's already past" |
-
-### Bucket 2: Ten past (minute 8-12)
-
-| Style | 3:10 example | Pattern note |
-|-------|-------------|-------------|
-| Classic | `三時十分過ぎ` | hour + 十分過ぎ |
-| Terse | `3時10分` | Bare time, no elaboration |
-| Poetic | `三時を十分ほど過ぎた` | ほど = approximately |
-| Rude | `3時10分にもなるのに` | にもなる = "has gotten to be" (impatient) |
-
-### Bucket 3: Quarter past (minute 13-17)
-
-| Style | 3:15 example | Pattern note |
-|-------|-------------|-------------|
-| Classic | `三時十五分` | Bare time |
-| Terse | `3時15分` | Arabic numerals only |
-| Poetic | `三時の四半後` | 四半 = quarter, archaic feel |
-| Rude | `とっくに3時過ぎだろ` | とっくに = "long since" |
-
-### Bucket 6: Half past (minute 28-32)
-
-| Style | 3:30 example | Pattern note |
-|-------|-------------|-------------|
-| Classic | `三時半` | Standard half-hour form |
-| Terse | `3時半` | Same — half-hour is already short |
-| Poetic | `夜の折り返し地点、三時半` | 折り返し地点 = turnaround point |
-| Rude | `3時半か、まだ半分か` | まだ半分か = "still only halfway" |
-
-### Bucket 10: Ten to (minute 48-52)
-
-| Style | 2:50 → "nearly 3" example | Pattern note |
-|-------|---------------------------|-------------|
-| Classic | `もうすぐ三時` | Standard "soon three" |
-| Terse | `3時まであと少し` | あと少し = a little more |
-| Poetic | `三時の気配がしてきた` | 気配 = presence/sense, evocative |
-| Rude | `まだ3時じゃないの？早くなれよ` | 早くなれよ = "hurry up and arrive" |
-
-### Special: Noon (12:00)
-
-| Style | Example | Note |
-|-------|---------|------|
-| Classic | `正午` | Standard noon word |
-| Terse | `正午` | Same — no shorter form exists |
-| Poetic | `お天道様が頂点に立つ` | Sun at zenith; poetic |
-| Rude | `もう昼か` | もう (already), か (resigned) |
-
-### Special: Midnight (00:00)
-
-| Style | Example | Note |
-|-------|---------|------|
-| Classic | `真夜中` | Standard midnight word |
-| Terse | `真夜中` | Same — no shorter form |
-| Poetic | `丑三つ時` | Classical: witching hour (2-2:30 AM), acceptable at midnight |
-| Rude | `こんな時間まで何してんの` | "What are you doing at this hour" |
-
----
-
-## Anti-Features
-
-Features to explicitly not build in this milestone.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Blinking colon in seconds display | The seconds digits already convey time movement; a blinking colon in the seconds position creates visual noise without benefit | Blink only `Colon1` (hours/minutes separator); keep `Colon2` (minutes/seconds separator) static lit |
-| AM/PM indicator on LCD face | AM/PM adds a rendered label element that doesn't fit the minimal 7-segment aesthetic; the widget is a glanceable overlay, not an alarm clock | Omit; 12/24h toggle is sufficient |
-| Custom LCD color palette separate from accent color | Three preset styles (Dark/Paper/Silver) already cover the design space; a fourth custom palette adds settings complexity without clear value | Dark mode reuses the existing accent color — the user's full color picker already covers custom LCD colors |
-| Translating English Rude/Poetic phrases word-for-word into Japanese | Direct translation produces unnatural Japanese; the styles must be re-authored in idiomatic Japanese registers | Author each Japanese style bucket independently using Japanese-appropriate register vocabulary |
-| Japanese Terse/Poetic/Rude covering time-of-day periods (morning/afternoon) | Time-of-day labels (朝/昼/夕/夜) would require a day-quadrant lookup in addition to the minute-bucket system; adds significant complexity | Use the same 12-bucket/minute-based system as Classic; rely on clock context for time-of-day orientation |
-| LCD-specific tray menu items | The tray menu already handles clock type switching via `_lcdClockItem`; adding LCD sub-items to the tray for 12/24h or seconds would duplicate the SettingsWindow UI | LCD configuration lives entirely in SettingsWindow > Appearance > LCD Settings panel |
-| Digit animation (segment crossfade) on LCD | Animated segment transitions require per-segment opacity tweens on every second tick — high rendering cost for a background widget | Instant segment state flip on tick (current implementation) |
-| NixieSizeMap rename / unification with LcdSizeMap | Both enums use the same `LcdSize` type but `NixieClockView` uses `NixieSizeMap.ToDigitHeight()` while `LcdClockView` uses `LcdSizeMap.ToSegmentHeight()`; renaming would require migration | Leave both maps as-is; they produce different pixel values appropriate to their respective digit geometries |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Time-based animation (DoubleAnimation / Storyboard) for the fade | WPF has built-in animation; it seems like the obvious tool | Proximity fade is position-driven, not time-driven. A Storyboard running to a fixed endpoint is wrong when the cursor can reverse direction mid-animation. A WPF animation that is cancelled and restarted every 75ms produces FillBehavior artifacts and fights with direct Opacity assignment. The existing ghost mode sets `this.Opacity = 0.0` directly — this pattern must continue | Direct assignment of `this.Opacity` in the polling tick, computed from current cursor distance each frame |
+| Separate "fade speed" slider alongside the radius slider | Separating speed from radius sounds like more control | Two independent controls create confusing interactions (fast fade at small radius = invisible widget that disappears instantly; slow fade at large radius = widget that barely reaches zero before being entered). Speed and radius are coupled by the physics of cursor movement | One radius slider is sufficient; speed is implicitly controlled by how quickly the cursor moves through the zone |
+| Fade to a non-zero minimum opacity (instead of zero) | "So the widget stays slightly visible even when hovered" | This breaks the core ghost-mode contract — the widget must become fully invisible and click-through on cursor entry. A non-zero minimum would block clicks to windows beneath | Fade must reach zero at boundary crossing. WS_EX_TRANSPARENT is what prevents click-blocking, not reduced opacity alone |
+| Activating WS_EX_TRANSPARENT at a threshold before the widget reaches zero opacity | "Make it click-through earlier so it's less surprising" | WS_EX_TRANSPARENT at non-zero opacity would make a semi-transparent but uninteractable widget — users would see it but clicks would pass through to the desktop. Confusing. | Apply WS_EX_TRANSPARENT only when opacity reaches exactly zero (on boundary crossing), exactly as the current ghost mode does |
+| Proximity fade when ghost mode tray toggle is off | "Let the fade work even without ghost mode" | Ghost mode and proximity fade are the same feature — proximity fade is the gradient version of snap-invisible ghost mode. Separating them creates two settings that interact in confusing ways | Proximity fade is strictly a sub-feature of ghost mode; off = off |
+| Round distance metric (Euclidean to nearest corner) vs. rectangular distance | Euclidean feels more natural for circular fade zones | The widget is a rectangle. Rectangular distance (clamp-to-RECT then measure delta) produces a rectangular fade zone that matches the widget shape, which is more predictable. Euclidean distance produces an elliptical zone that is wider at corners — counterintuitive | Use rectangular distance (already implemented in `GhostModeController` logic — extend it to return distance instead of a boolean) |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[LCD Settings UI in SettingsWindow]
-    requires: BtnLcd added to Clock Style rail in SettingsWindow.xaml
-    requires: LCD settings panel (ChkLcd24Hr, ChkLcdShowSeconds, LCD style selector) added to Appearance tab
-    requires: SetClockStyleButtonStates(ClockType) extended to handle Lcd, gate LCD panel visibility
-    requires: PopulateControls to read s.LcdUse24Hr, s.LcdShowSeconds, s.LcdStyle
-    events: LcdUse24HrChanged, LcdShowSecondsChanged, LcdStyleChanged already declared in SettingsWindow.xaml.cs
-    already handled: MainWindow.OpenSettings() subscribes to all three events; wires to _lcdUse24Hr/_lcdShowSeconds/_lcdStyle fields and LcdView
+[Proximity Fade Behavior]
+    requires: GhostModeController polling timer (already exists — 75ms)
+    requires: GetCursorPos + GetWindowRect P/Invoke (already exists in GhostModeController)
+    requires: AppSettings.GhostFadeRadiusPx (new field, int, default 80)
+    requires: GhostModeController refactored to return distance from cursor to RECT
+              (currently returns only bool — must expose int DistanceFromRect(POINT cursor, RECT rect))
+    requires: Opacity assignment on each polling tick (direct this.Opacity = computed value)
+    requires: WS_EX_TRANSPARENT applied only when distance == 0 (boundary crossed) — same as today
+    requires: WS_EX_TRANSPARENT removed when distance > 0 on retreat — NEW logic
 
-[Blinking colon]
-    requires: LcdClockView.UpdateTime() to toggle Colon1.Character on odd/even seconds
-    detect even/odd: DateTime.Now.Second % 2 == 0
-    no new timer needed: LcdClockView already ticks every second via its own DispatcherTimer
-    colon blank: Character = ' ' → SevenSegmentEncoder.Encode(' ') = 0x00 → all segments ghost
+    gated-by: GhostModeController.IsEnabled (GhostModeEnabled tray toggle)
+    suppressed-by: GhostModeController.IsCtrlAltHeld() — same as existing snap ghost
 
-[Japanese Terse/Poetic/Rude providers]
-    requires: JapaneseTersePhraseProvider, JapanesePoeticPhraseProvider, JapaneseRudePhraseProvider
-    register: ["ja-terse"], ["ja-poetic"], ["ja-rude"] in PhraseEngine._providers
-    routing: SetPhraseStyle("Terse") when CurrentLocale starts with "ja" → must route to "ja-terse"
-             (currently routes to "en-terse" — the guard "if locale !starts-with en- return" must be extended)
-    PhraseEngine.SetPhraseStyle() currently hard-codes English style keys; needs locale-aware dispatch
-    or: add a separate SetLocaleAndStyle(locale, style) method to PhraseEngine
+[Settings UI]
+    requires: Slider in Settings > Behavior tab below ChkGhostMode
+    requires: AppSettings.GhostFadeRadiusPx field
+    requires: SettingsWindow.GhostFadeRadiusChanged event (Action<int>)
+    requires: PopulateControls reads GhostFadeRadiusPx into slider
+    requires: SliderFadeRadius_ValueChanged fires GhostFadeRadiusChanged
+    requires: Slider IsEnabled = ChkGhostMode.IsChecked — prevents active slider when ghost is off
 
-[SettingsWindow phrase style gate]
-    currently: CmbPhraseStyle.IsEnabled = false when locale is "ja"
-    required change: enable CmbPhraseStyle for "ja" locale (styles now exist)
-    scope: PopulateControls isNonEnglish gate must exclude "ja" from the disabled set
-    keep disabled: "fr", "es", "de", "pl" (no style variants exist for those languages)
+[Window_MouseEnter refactor]
+    existing behavior: MouseEnter triggers instant ghost (opacity=0, WS_EX_TRANSPARENT)
+    new behavior: MouseEnter is NO LONGER the primary trigger for ghost activation
+    replacement: proximity polling detects distance < radius and begins fading BEFORE cursor enters
+    MouseEnter is still useful as a boundary-crossing signal (distance = 0 confirmation)
+    risk: existing ghost-mode snap tests still pass if MouseEnter still applies WS_EX_TRANSPARENT
+          at distance=0, but the Opacity=0 assignment moves to the polling tick
 
-[Unit tests]
-    JapaneseTersePhraseProvider: all 12 buckets + noon + midnight
-    JapanesePoeticPhraseProvider: all 12 buckets + noon + midnight (random selection — test that result is non-null/non-empty)
-    JapaneseRudePhraseProvider: all 12 buckets + noon + midnight
-    Pattern: follow MultilingualPhraseProviderTests.cs structure
-
-[PhraseEngine routing for Japanese styles]
-    Option A: Extend PhraseEngine.SetPhraseStyle() to check CurrentLocale and route ja+Terse → ja-terse
-    Option B: Add PhraseEngine.SetLocaleAndStyle(string locale, string style) that resolves the combined key
-    Option A is simpler and consistent with the existing "en-terse" / "en-poetic" / "en-rude" pattern
-    The existing SetPhraseStyle guard ("early return if !starts-with en-") must become locale-aware
+[Ctrl+Alt path in Window_MouseEnter — unchanged]
+    existing: if ctrlAltHeld OR !ghostEnabled → normal hover path (backdrop, fast refresh)
+    new: proximity fade polling also pauses when ctrlAltHeld
+    no change needed to the ctrlAlt branch in Window_MouseEnter
 ```
 
 ---
 
 ## MVP Definition
 
-### This Milestone Delivers (v3.9)
+### This Milestone Delivers (v4.0)
 
-Per PROJECT.md active requirements:
+Per PROJECT.md active requirements (v4.0 Proximity Ghost Mode):
 
-- [ ] LCD-01: LCD clock face (7-segment, WPF-drawn, accent-colored) — Surface LCD in Settings rail; verify LcdClockView is correctly activated
-- [ ] LCD-02: 12-hour / 24-hour toggle in Settings — LCD settings panel with ChkLcd24Hr
-- [ ] LCD-03: Blinking colon (every second) — Toggle Colon1 on odd/even seconds in LcdClockView.UpdateTime()
-- [ ] LCD-04: Optional seconds row, toggleable in Settings — ChkLcdShowSeconds in LCD settings panel
-- [ ] JA-01: Japanese Terse phrase style — JapaneseTersePhraseProvider registered as ja-terse
-- [ ] JA-02: Japanese Poetic phrase style — JapanesePoeticPhraseProvider registered as ja-poetic
-- [ ] JA-03: Japanese Rude phrase style — JapaneseRudePhraseProvider registered as ja-rude
+- [ ] PROX-01: Opacity decreases smoothly as cursor nears widget boundary — linear, proportional to distance / radius
+- [ ] PROX-02: Fade continues to zero on boundary crossing — no snap discontinuity
+- [ ] PROX-03: Opacity restores as cursor retreats — symmetric distance-proportional restore
+- [ ] PROX-04: WS_EX_TRANSPARENT applied on entry (distance = 0), removed on first non-zero-distance retreat tick
+- [ ] PROX-05: Ctrl+Alt held suppresses proximity fade — normal hover path activates instead
+- [ ] PROX-06: Ghost Mode tray toggle gates proximity fade — off = snap-invisible fallback or full disable
+- [ ] PROX-07: `AppSettings.GhostFadeRadiusPx` field (int, default 80, validate range 20–200)
+- [ ] PROX-08: Slider in Settings > Behavior tab: range 20–200px, step 10px, label showing current value
+- [ ] PROX-09: Slider gated on Ghost Mode checkbox (disabled when ghost is off)
+- [ ] PROX-10: `GhostFadeRadiusChanged` event in SettingsWindow; wired in MainWindow
 
 ### Deferred (Not This Milestone)
 
-- LCD digit crossfade animation — cosmetic, high rendering cost
-- Japanese time-of-day period labels (朝/昼/夕/夜) integrated into phrase display
-- Additional LCD styles beyond Dark/Paper/Silver
-- French/Spanish/German/Polish style variants
+- Asymmetric fade speed (fade-out faster than fade-in) — linear behavior is sufficient for v4.0
+- Fade zone shape options (rectangular vs radial) — rectangular matches widget shape; correct default
+- Multiple proximity zones (e.g., outer zone = 50% opacity, inner zone = begin fading to zero) — adds complexity without clear UX benefit
+- Per-axis fade (horizontal vs vertical proximity radius independent) — not requested; over-engineered
 
 ---
 
-## Complexity Assessment
+## Feature Prioritization Matrix
 
-### LCD Clock (Overall: LOW)
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Distance-proportional opacity on polling tick | HIGH | MEDIUM (refactor GhostModeController to expose distance) | P1 |
+| WS_EX_TRANSPARENT only at distance=0 | HIGH | LOW (move from MouseEnter to polling tick) | P1 |
+| Restore fade on retreat | HIGH | LOW (same formula, reverse direction, remove transparency) | P1 |
+| Configurable radius slider in Settings | HIGH | LOW (slider + new AppSettings field + event) | P1 |
+| Ctrl+Alt suppression | HIGH | LOW (existing check, no change) | P1 |
+| Ghost mode toggle gating | HIGH | LOW (existing check, no change) | P1 |
+| Slider enabled/disabled state vs Ghost Mode checkbox | MEDIUM | LOW (one IsEnabled binding) | P2 |
+| Slider label showing px value | MEDIUM | LOW (TextBlock next to Slider) | P2 |
+| AppSettings validation for radius range | MEDIUM | LOW (one guard in Validate()) | P2 |
 
-The rendering stack is fully pre-built and validated. `SevenSegmentDigit`, `LcdClockView`,
-`LcdTimeFormatHelper`, `LcdSizeMap`, and all MainWindow wiring exist and work.
-The work is:
-1. SettingsWindow XAML: add `BtnLcd` to the clock style rail, add the LCD settings panel
-2. SettingsWindow code-behind: extend `SetClockStyleButtonStates()`, `PopulateControls()`, add three click handlers
-3. `LcdClockView.UpdateTime()`: add one-line colon blink toggle
+---
 
-Blinking colon is MEDIUM only because it requires understanding that `Colon2` (seconds separator)
-must NOT blink while `Colon1` (HH:MM separator) must blink; also requires verifying that
-`SevenSegmentDigit` renders a blank cleanly (it does — `Encode(' ')` = `0x00`).
+## Implementation Complexity Assessment
 
-### Japanese Phrase Styles (Overall: MEDIUM)
+### Overall Milestone Complexity: MEDIUM
 
-Infrastructure is fully built. Adding three providers requires:
-1. Authoring phrase content for each style across all 12 buckets + noon + midnight
-2. Extending `PhraseEngine.SetPhraseStyle()` to be locale-aware
-3. Relaxing the SettingsWindow `isNonEnglish` gate for Japanese
-4. Writing unit tests for all three providers
+**Why MEDIUM:** The rendering and polling infrastructure is fully built. The primary work is:
 
-The highest uncertainty is phrase naturalness for Poetic and Rude registers.
-Japanese Terse is the most straightforward (casual contracted forms have clear patterns).
-Japanese Poetic requires cultural knowledge of classical/evocative vocabulary.
-Japanese Rude requires knowledge of coarse registers — タメ口, sentence-final particles
-like じゃん/だろ/か, and constructions like もう/とっくに/まだ.
+1. Refactoring `GhostModeController`: the polling timer tick currently computes a boolean
+   (cursor inside/outside RECT). It must instead compute an `int distancePx` (shortest distance
+   from cursor to widget RECT, 0 when inside). This is a small arithmetic change — clamp cursor
+   X to [Left, Right] and Y to [Top, Bottom], then measure delta.
 
-**Native speaker review is recommended before shipping Poetic and Rude phrases.**
-Terse is lower risk and can be validated mechanically.
+2. Replacing `Window_MouseEnter` as the ghost trigger: the polling loop now owns fade onset.
+   MouseEnter becomes redundant for ghost activation; it retains the Ctrl+Alt hover path.
+   This is the highest-risk change because it restructures a validated interaction. The existing
+   `GHOST-01` through `GHOST-03` and `CTRLALT-01` / `CTRLALT-02` tests must continue to pass.
+
+3. Opacity assignment: `this.Opacity = (distancePx / (double)_fadeRadiusPx) * _windowOpacity`
+   on each polling tick. Clamp the final value to [0.0, _windowOpacity]. Direct assignment —
+   no DoubleAnimation, no Storyboard.
+
+4. Transparency timing: `WS_EX_TRANSPARENT` is applied when `distancePx == 0` (cursor inside
+   RECT) and removed when `distancePx > 0` on the next tick after exit. The existing
+   `GhostModeController.Activate()` / removal path refactors to handle this.
+
+5. Settings UI: one Slider element in SettingsWindow.xaml, one new event, one new AppSettings
+   field, one Validate() guard.
+
+**Key risk:** The transition from "MouseEnter triggers ghost instantly" to "polling loop drives
+fade before cursor entry" must preserve the `ctrlAltHeld` bypass path. The bypass must still
+activate the normal hover backdrop and fast-refresh on cursor entry — but now the polling loop
+may have already started fading opacity before MouseEnter fires. The bypass path must reset
+opacity back to `_windowOpacity` when it takes over.
+
+---
+
+## Radius Range and UX Reference Values
+
+Based on analysis of the widget footprint, typical desktop resolution, and cursor movement speed:
+
+| Radius | UX Character | Appropriate For |
+|--------|-------------|-----------------|
+| 20 px | Very short fade zone — almost like the current snap behavior with a brief transition | Users who want ghost mode but dislike the current abrupt snap |
+| 50 px | Noticeable fade starts about one cursor-width before widget edge | Default feel |
+| 80 px | Fade begins well before cursor reaches widget — forgiving, easy to approach | Recommended default (PROJECT.md confirmed: user wants a slider, not a fixed value) |
+| 120 px | Wide zone — widget becomes noticeably dim at moderate cursor approach distance | Users who work near the widget frequently and want maximum warning time |
+| 200 px | Maximum — widget is already at ~50% opacity when cursor is 200px away | Specialist use; not suitable as default |
+
+**Recommended default: 80px.** This gives roughly 0.5–1 seconds of fade time at normal cursor
+movement speed (~100–150px/s when deliberately approaching a target), which matches the
+Microsoft Fluent "ControlNormalAnimationDuration" of 250ms for a 30px zone. The human
+perception threshold for "I can see it fading" is approximately 50ms, which the 75ms polling
+tick satisfies.
+
+---
+
+## Opacity Curve: Linear vs Easing
+
+**Recommendation: Linear.** Confidence: HIGH.
+
+For time-driven animations (object enters scene on a fixed timeline), easing functions are
+appropriate. WPF provides QuadraticEase, CubicEase, SineEase, ExponentialEase for these cases
+(confirmed in official WPF easing docs).
+
+For position-driven proximity fade, the "animation" is not running on a clock — it is
+recomputed each polling tick from cursor position. Applying a easing curve to a position-driven
+value is unusual and produces unpredictable results when the cursor reverses direction. Linear
+is the correct choice because:
+
+- The user's cursor position is the independent variable, not time
+- Linear means "opacity = distance / radius" — a rule the user can easily learn and predict
+- Any perceived smoothness comes from the 75ms polling cadence, not from a curve shape
+- Non-linear would make the widget appear to resist fading near the edge (easeIn) or lurch
+  toward invisible (easeOut) — neither behavior is intuitive for a proximity effect
+
+---
+
+## Dependency on Existing Ghost Mode
+
+The proximity fade feature is a direct extension of the existing ghost mode infrastructure. It
+does not replace ghost mode — it replaces the *trigger mechanism* (from MouseEnter snap to
+polling-based gradual fade) while keeping the same *outcome* (widget invisible and click-through
+when cursor is on it).
+
+**What must be preserved:**
+- `WS_EX_TRANSPARENT` is still applied when cursor is on the widget (distance = 0)
+- `WS_EX_TRANSPARENT` is still removed on cursor exit
+- Ctrl+Alt bypass still activates normal hover (backdrop, fast-refresh, drag)
+- Ghost Mode tray toggle still disables the entire behavior
+- The restored event from `GhostModeController` still fires so `Window_MouseLeave` handler
+  can clean up backdrop and timer state
+
+**What changes:**
+- `GhostModeController` polling tick computes distance, not just a boolean
+- Opacity is set continuously by the polling tick (not just once in MouseEnter)
+- MouseEnter no longer applies `Opacity=0` / calls `_ghostMode.Activate()` on the ghost path
+  (these happen in the polling tick when distance reaches 0)
+- A new `_fadeRadiusPx` field on `GhostModeController` (or passed per-tick from MainWindow)
 
 ---
 
 ## Sources
 
-- Direct codebase audit (2026-03-23): HIGH confidence for all structural findings
-  - `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — segment geometry, ghost, bitmask rendering
-  - `FuzzyClock.App/Controls/LcdClockView.xaml.cs` — time update loop, Use24Hr/ShowSeconds/Size/Style DPs
-  - `FuzzyClock.App/LcdTimeFormatHelper.cs` — 12/24h formatting, leading-space behavior
-  - `FuzzyClock.Core/SevenSegmentEncoder.cs` — supported characters, bitmask values
-  - `FuzzyClock.App/AppSettings.cs` — LcdUse24Hr/LcdShowSeconds/LcdStyle/LcdSize field status
-  - `FuzzyClock.App/MainWindow.xaml.cs` — SetClockType(Lcd), ApplyLcdColors(), style modes
-  - `FuzzyClock.App/SettingsWindow.xaml.cs` + `.xaml` — stub events, missing LCD panel, phrase style gate
-  - `FuzzyClock.Core/JapanesePhraseProvider.cs` — Classic ja bucket structure and HourWords
-  - `FuzzyClock.Core/PhraseEngine.cs` — provider registry, SetLocale, SetPhraseStyle routing
-  - `.planning/PROJECT.md` — active requirements LCD-01..LCD-04, JA-01..JA-03
+- Direct codebase audit (2026-03-27): HIGH confidence for all integration points
+  - `FuzzyClock.App/GhostModeController.cs` — polling timer, distance check, P/Invoke pattern
+  - `FuzzyClock.App/MainWindow.xaml.cs` — `Window_MouseEnter`, ghost activation, Ctrl+Alt path
+  - `FuzzyClock.App/AppSettings.cs` — init-property record pattern for new field
+  - `FuzzyClock.App/SettingsWindow.xaml` — Behavior tab layout, existing slider patterns
+  - `.planning/PROJECT.md` — v4.0 milestone goals, existing validated requirements
 
-- Japanese phrase style assessment: MEDIUM confidence for Terse; LOW confidence for Poetic/Rude
-  - Terse patterns: well-established casual Japanese spoken forms; Arabic numeral + 時 usage confirmed
-  - Poetic vocabulary (丑三つ時, 鐘が鳴る, 気配, 折り返し地点): literature-based; plausible but requires review
-  - Rude register (じゃん, だろ, もう, とっくに, まだ): confirmed as authentic dismissive/impatient markers in
-    contemporary Japanese casual speech; specific phrase combinations require native review
+- WPF Animation docs (official, HIGH confidence):
+  - Animation Overview: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/animation-overview
+  - Easing Functions: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/easing-functions
+  - Conclusion: DoubleAnimation is appropriate for time-driven fade; direct Opacity assignment
+    is correct for position-driven proximity fade (easing does not apply)
+
+- Microsoft Fluent Design motion timing (official, HIGH confidence):
+  - https://learn.microsoft.com/en-us/windows/apps/design/motion/timing-and-easing
+  - ControlNormalAnimationDuration = 250ms; ControlFastAnimationDuration = 167ms
+  - Exit easing = accelerate (cubic-bezier 1,0,1,1); Enter easing = decelerate (cubic-bezier 0,0,0,1)
+  - These are reference values for timed animations; proximity fade is position-driven so
+    these curves do not apply directly, but the 250ms norm validates that a 75ms polling tick
+    over an 80px zone produces appropriately fast perceived response
+
+- Rainmeter documentation (MEDIUM confidence — no proximity fade feature exists):
+  - https://docs.rainmeter.net/manual/mouse-actions/
+  - Conclusion: Rainmeter handles MouseOver/MouseLeave as discrete events only; no proximity
+    fade primitives exist in the ecosystem. This feature must be custom-built (already the case
+    with FuzzyClock's ghost mode). No reference implementation to compare against.
 
 ---
 
-*Feature landscape for: FuzzyStatsClock v3.9 — LCD Clock + Japanese Phrase Styles*
-*Researched: 2026-03-23*
+*Feature landscape for: FuzzyStatsClock v4.0 — Proximity Ghost Fade*
+*Researched: 2026-03-27*

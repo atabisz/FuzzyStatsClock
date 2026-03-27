@@ -1,299 +1,299 @@
-# Technology Stack
+# Stack Research
 
-**Project:** FuzzyStatsClock v3.9 — LCD Clock + Japanese Styles
-**Researched:** 2026-03-23
-**Scope:** Net-new stack changes only for LCD 7-segment UI wiring, colon blink, and Japanese phrase style variants. The validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, DispatcherTimer, UseWindowsForms=true) is unchanged. Confidence: HIGH — all claims verified by direct source audit.
-
----
-
-## What Already Exists (Do Not Re-Implement)
-
-These items are complete and require only wiring or extension, not creation:
-
-| Component | Location | State |
-|-----------|----------|-------|
-| `SevenSegmentDigit` UserControl | `FuzzyClock.App/Controls/SevenSegmentDigit.xaml(.cs)` | Complete — Polygon-based segments, colon dot rectangles, `LitColor`/`GhostColor`/`BgColor`/`SegmentHeight`/`SegmentStyle` DPs |
-| `LcdClockView` UserControl | `FuzzyClock.App/Controls/LcdClockView.xaml(.cs)` | Complete — 8 digit slots (D0–D5 + Colon1/2), 1s `DispatcherTimer`, `Use24Hr`/`ShowSeconds`/`LitColor`/`BgColor`/`GhostColor`/`Size`/`SegmentStyle` DPs, `IsVisibleChanged` lifecycle |
-| `SevenSegmentEncoder` | `FuzzyClock.Core/SevenSegmentEncoder.cs` | Complete — bitmask table for `'0'–'9'`, `' '`, `':'` sentinel (0x80) |
-| `LcdTimeFormatHelper` | `FuzzyClock.App/LcdTimeFormatHelper.cs` | Complete — `FormatTime(DateTime, bool use24Hr, bool showSeconds)` returning 5-char or 8-char string |
-| `LcdSize` enum + `LcdSizeMap` | `FuzzyClock.App/LcdSize.cs` | Complete — `Small=32px`, `Medium=48px`, `Large=64px` segment heights |
-| `ClockType` enum | `FuzzyClock.App/ClockType.cs` | Complete — `Phrase / Dial / Lcd / Nixie` |
-| `AppSettings` LCD fields | `FuzzyClock.App/AppSettings.cs` | Complete — `LcdUse24Hr bool`, `LcdShowSeconds bool`, `LcdStyle string`, `LcdSize LcdSize` |
-| `SettingsSnapshot` LCD fields | `FuzzyClock.App/SettingsSnapshot.cs` | Complete — same four LCD fields present |
-| `MainWindow` LCD event handlers | `FuzzyClock.App/MainWindow.xaml.cs` | Complete — `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` subscriptions wired in `OpenSettings()` |
-| `SettingsWindow` LCD event declarations | `FuzzyClock.App/SettingsWindow.xaml.cs` | Events declared: `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` — no XAML controls fire them yet |
-| `JapanesePhraseProvider` (Classic) | `FuzzyClock.Core/JapanesePhraseProvider.cs` | Complete — 12-bucket template system with `{h}`/`{h1}` hour-word substitution, registered as `["ja"]` |
-| `IPhraseProvider` interface | `FuzzyClock.Core/IPhraseProvider.cs` | Stable — `GetPhrase`, `GetStructuredPhrase`, `GetSegmentKey` |
-| `PhraseEngine` registry | `FuzzyClock.Core/PhraseEngine.cs` | Complete — `SetLocale(string)` lookup; add new keys without interface changes |
+**Domain:** WPF desktop overlay — proximity-based opacity fade (v4.0 Proximity Ghost Mode)
+**Researched:** 2026-03-27
+**Confidence:** HIGH — all findings grounded in existing validated project code and Win32/WPF BCL APIs
 
 ---
 
-## What Is Missing (Net-New Work for v3.9)
+## Summary Statement
 
-### Gap 1: Colon Blink — Missing from `LcdClockView`
-
-`LcdClockView.UpdateTime()` always assigns `Colon1.Character = ':'`. The `SevenSegmentDigit` colon character renders both dots as lit. There is no mechanism to toggle the colon off on odd seconds.
-
-**What to add:**
-
-`SevenSegmentDigit` needs an `IsLit` dependency property (bool, default `true`). When `IsLit = false` on a colon digit, `UpdateSegments()` renders both dots with `_ghostBrush` instead of `_litBrush`. No structural change to `SevenSegmentDigit` geometry is needed — only the brush selection in `UpdateSegments()` is gated.
-
-`LcdClockView.UpdateTime()` needs to toggle `Colon1.IsLit = (DateTime.Now.Second % 2 == 0)` on each 1s tick. The existing `_timer` at 1s cadence is the correct driver — no new timer is needed.
-
-**Why this approach:**
-- The `_timer` is already a `DispatcherTimer` at 1s; adding a second timer would be redundant.
-- `IsLit` is a cleaner abstraction than toggling `Character` between `':'` and `' '`, because `' '` renders a ghost-colored background block that shifts the digit's rendered width (the colon slot narrows to `_builtColonW = digitW * 0.30` for `':'`; assigning `' '` would expand it back to full `digitW`, causing layout jitter).
-- `IsLit = false` keeps the narrow colon width and renders ghost dots — visually correct LCD blink without layout shift.
-
-| Type | Assembly | Change |
-|------|----------|--------|
-| `SevenSegmentDigit` | `FuzzyClock.App` | Add `IsLit` DP (bool, default true); gate dot brush in `UpdateSegments()` |
-| `LcdClockView` | `FuzzyClock.App` | Toggle `Colon1.IsLit` in `UpdateTime()` based on `DateTime.Now.Second % 2` |
-
-**NuGet needed:** None.
-
----
-
-### Gap 2: LCD Settings UI — Missing from `SettingsWindow`
-
-`SettingsWindow.xaml` has no `BtnLcd` button in the Clock Style rail (only `BtnPhrase`, `BtnDial`, `BtnNixie`). `SetClockStyleButtonStates(ClockType ct)` does not handle `ClockType.Lcd`. There are no XAML controls for `LcdUse24Hr`, `LcdShowSeconds`, or `LcdStyle`.
-
-**What to add:**
-
-1. **`BtnLcd` in the Clock Style rail** — same `SegmentButtonStyle` as the three existing buttons. Add `BtnLcd_Click` handler that calls `SetClockStyleButtonStates(ClockType.Lcd)` and fires `ClockTypeChanged?.Invoke(ClockType.Lcd)`.
-
-2. **`SetClockStyleButtonStates` update** — add `BtnLcd.Tag = ct == ClockType.Lcd ? "selected" : null;` alongside the existing three assignments.
-
-3. **LCD Face settings row** (visibility-gated to `ClockType.Lcd`, same pattern as Dial Face row) containing:
-   - `ChkLcd24Hr` — CheckBox bound to `LcdUse24HrChanged`
-   - `ChkLcdShowSeconds` — CheckBox bound to `LcdShowSecondsChanged`
-   - `CmbLcdStyle` — ComboBox with items `Dark / Paper / Silver`, bound to `LcdStyleChanged`
-
-4. **`PopulateControls` additions** — set `ChkLcd24Hr.IsChecked`, `ChkLcdShowSeconds.IsChecked`, `CmbLcdStyle.SelectedIndex` from `SettingsSnapshot` fields; set LCD Face row visibility via `SetClockStyleButtonStates`.
-
-**Visibility gating pattern** (mirrors Dial Face row, already in `SetClockStyleButtonStates`):
-```csharp
-LcdFaceRow.Visibility = ct == ClockType.Lcd ? Visibility.Visible : Visibility.Collapsed;
-```
-
-| File | Change Type | What Changes |
-|------|-------------|--------------|
-| `SettingsWindow.xaml` | XAML addition | `BtnLcd` button; `LcdFaceRow` Grid row with checkboxes + combo |
-| `SettingsWindow.xaml.cs` | Code addition | `BtnLcd_Click`; `SetClockStyleButtonStates` extension; `PopulateControls` LCD section; checkbox/combo handlers |
-
-**NuGet needed:** None.
-
----
-
-### Gap 3: Japanese Phrase Style Variants — Missing from `PhraseEngine` and `SettingsWindow`
-
-`PhraseEngine._providers` contains only `["ja"]` (Classic). There is no `["ja-terse"]`, `["ja-poetic"]`, or `["ja-rude"]`. `SettingsWindow.PopulateControls` sets `CmbPhraseStyle.IsEnabled = false` when Japanese locale is active, blocking style selection.
-
-**What to add:**
-
-1. **Three new provider classes in `FuzzyClock.Core`:**
-   - `JapaneseTersePhraseProvider` — clipped, casual phrasing (e.g. `三時`, `三時ちょい過ぎ`) registered as `"ja-terse"`
-   - `JapanesePoeticPhraseProvider` — atmospheric imagery (e.g. `夜が更けて三時`) registered as `"ja-poetic"`
-   - `JapaneseRudePhraseProvider` — brusque, impatient phrasing (e.g. `もう三時じゃないか`) registered as `"ja-rude"`
-
-   Each implements `IPhraseProvider` with the same three methods. The `{h}`/`{h1}` template substitution pattern from `JapanesePhraseProvider` is the correct structural model. `GetSegmentKey` returns `GetPhrase(dt)` (same stable-bucket idiom as all other providers).
-
-2. **`PhraseEngine` registry additions:**
-   ```csharp
-   ["ja-terse"]  = new JapaneseTersePhraseProvider(),
-   ["ja-poetic"] = new JapanesePoeticPhraseProvider(),
-   ["ja-rude"]   = new JapaneseRudePhraseProvider(),
-   ```
-
-3. **`SettingsWindow` style selector enablement for Japanese:**
-
-   `PopulateControls` currently sets `CmbPhraseStyle.IsEnabled = !isNonEnglish`. This must be relaxed: when `PhraseLocale == "ja"` (or auto-detected Japanese), `CmbPhraseStyle.IsEnabled = true` and the combo items remain the same (`Classic / Terse / Poetic / Rude`).
-
-4. **`MainWindow` locale routing update:**
-
-   `SetPhraseStyle()` currently has a guard `if (!CurrentLocale.StartsWith("en-")) return;`. This must be extended to also allow `ja-*` routing:
-   ```csharp
-   // Before (English-only):
-   if (!CurrentLocale.StartsWith("en-")) return;
-
-   // After (English + Japanese):
-   bool isJa = CurrentLocale.StartsWith("ja");
-   string prefix = isJa ? "ja" : "en";
-   PhraseEngine.SetLocale($"{prefix}-{style.ToLower()}");
-   ```
-
-   The `SetPhraseLocale()` path that resolves `"ja"` base locale must remain the entry point for locale switching; style is a sub-key layered on top.
-
-| File | Change Type | What Changes |
-|------|-------------|--------------|
-| `FuzzyClock.Core/JapaneseTersePhraseProvider.cs` | New file | `IPhraseProvider` implementation, `"ja-terse"` provider |
-| `FuzzyClock.Core/JapanesePoeticPhraseProvider.cs` | New file | `IPhraseProvider` implementation, `"ja-poetic"` provider |
-| `FuzzyClock.Core/JapaneseRudePhraseProvider.cs` | New file | `IPhraseProvider` implementation, `"ja-rude"` provider |
-| `FuzzyClock.Core/PhraseEngine.cs` | Registry addition | Three new `["ja-*"]` entries in `_providers` |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` | Logic change | `CmbPhraseStyle.IsEnabled = true` when locale is `"ja"`; `PopulateControls` style index mapping unchanged |
-| `FuzzyClock.App/MainWindow.xaml.cs` | Logic change | `SetPhraseStyle()` guard extended to route `ja-terse/poetic/rude` |
-
-**NuGet needed:** None.
+No new libraries or frameworks are needed. The proximity fade is implementable entirely from APIs
+the project already uses: the existing `GetCursorPos` + `GetWindowRect` P/Invokes already declared
+in `GhostModeController`, the existing 75ms `DispatcherTimer`, and direct assignment to
+`Window.Opacity`. The existing `GhostModeController` is extended in-place rather than replaced.
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies (unchanged from v3.8)
+### Core Technologies
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| .NET 10 WPF | net10.0-windows | UI framework — all controls, XAML, DispatcherTimer | Already validated; transparent overlay, UserControls, Settings window |
-| C# 13 | .NET 10 SDK | Language | `init`-property records, pattern matching, collection expressions |
-| System.Text.Json | .NET 10 BCL | Settings serialization | Already validated; handles `AppSettings` init-property record natively |
-| MSTest | 4.0.1 (existing) | Test framework — 299 tests currently passing | Already validated; CI gate enforced |
-| WPF `Polygon` / `Rectangle` / `Canvas` | System.Windows.Shapes / System.Windows.Controls | 7-segment rendering | Already in use via `SevenSegmentDigit` |
-| `DispatcherTimer` | System.Windows.Threading | Per-second tick for LCD colon blink | Already in use in `LcdClockView` at 1s; no new timer needed |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `GetCursorPos` + `GetWindowRect` (user32.dll) | Win32 (stable since XP) | Distance calculation every 75ms tick | Already declared in `GhostModeController`. The only reliable source for cursor and window coordinates when `WS_EX_TRANSPARENT` is active — WPF `Mouse.GetPosition` stops working under click-through transparency (validated in project history, key decision logged in PROJECT.md). |
+| `DispatcherTimer` (WPF BCL) | .NET 10 | Drive proximity polling and opacity steps | Already exists at 75ms in `GhostModeController._restoreTimer`. Repurpose the same timer for both proximity fade and the existing exit detection; no second timer needed. 75ms = ~13 fps for the fade — visually smooth for the ambient use case. |
+| `Window.Opacity` (WPF) | .NET 10 | Apply computed fade value directly | Already used by ghost mode (`this.Opacity = 0.0` / `this.Opacity = _windowOpacity`). Direct assignment on every tick is correct and sufficient — no animation framework needed (see Alternatives section). |
+| `Math.Clamp` (.NET BCL) | .NET 10 | Clamp computed opacity to [0.0, 1.0] | Zero-cost utility. Prevents floating-point edge cases from producing out-of-range opacity values. |
 
-### Types Added (no new packages)
+### Supporting Libraries
 
-| Type | Assembly | Purpose |
-|------|----------|---------|
-| `SevenSegmentDigit.IsLit` DP | `FuzzyClock.App` | Colon blink toggle — ghost vs lit dots |
-| `JapaneseTersePhraseProvider` | `FuzzyClock.Core` | `"ja-terse"` registry entry |
-| `JapanesePoeticPhraseProvider` | `FuzzyClock.Core` | `"ja-poetic"` registry entry |
-| `JapaneseRudePhraseProvider` | `FuzzyClock.Core` | `"ja-rude"` registry entry |
+None needed. All required functionality is in the .NET BCL and Win32 APIs already used by the project.
 
-**Zero new NuGet packages. Zero csproj changes.**
+| Library | Status | Why Not Needed |
+|---------|--------|----------------|
+| `System.Windows.Media.Animation` (Storyboard / DoubleAnimation) | Available in WPF but NOT recommended | Cannot reliably synchronize `WS_EX_TRANSPARENT` at exact `Opacity==0`; seizes DP ownership away from `_windowOpacity` field (see Alternatives) |
+| Any third-party easing/animation library | Not applicable | Over-engineering for a distance-to-opacity mapping computed per-tick |
 
----
+### Development Tools
 
-## Files to Change
-
-| File | Change Type | What Changes |
-|------|-------------|--------------|
-| `Controls/SevenSegmentDigit.xaml.cs` | DP addition | Add `IsLit` bool DP; gate colon dot brush on `IsLit` in `UpdateSegments()` |
-| `Controls/LcdClockView.xaml.cs` | Logic addition | Toggle `Colon1.IsLit` on each `UpdateTime()` tick based on `second % 2` |
-| `SettingsWindow.xaml` | XAML addition | `BtnLcd` in Clock Style rail; `LcdFaceRow` with `ChkLcd24Hr`, `ChkLcdShowSeconds`, `CmbLcdStyle` |
-| `SettingsWindow.xaml.cs` | Code additions | `BtnLcd_Click`; extend `SetClockStyleButtonStates`; `PopulateControls` LCD section; checkbox/combo handlers for three LCD settings; enable `CmbPhraseStyle` for Japanese locale |
-| `FuzzyClock.Core/JapaneseTersePhraseProvider.cs` | New file | Terse Japanese `IPhraseProvider` |
-| `FuzzyClock.Core/JapanesePoeticPhraseProvider.cs` | New file | Poetic Japanese `IPhraseProvider` |
-| `FuzzyClock.Core/JapaneseRudePhraseProvider.cs` | New file | Rude Japanese `IPhraseProvider` |
-| `FuzzyClock.Core/PhraseEngine.cs` | Registry addition | Add `["ja-terse"]`, `["ja-poetic"]`, `["ja-rude"]` entries |
-| `FuzzyClock.App/MainWindow.xaml.cs` | Logic change | Extend `SetPhraseStyle()` guard to route Japanese sub-styles |
+No additions needed. Existing MSTest suite, CI pipeline, and dotnet build are sufficient.
 
 ---
 
-## Key Integration Points
+## Distance-from-Rect Calculation
 
-### Colon Blink — `IsLit` DP on `SevenSegmentDigit`
+The fade depends on the cursor's distance to the nearest edge of the window RECT, not inside/outside.
+Both `GetCursorPos` and `GetWindowRect` return physical screen pixels — no DPI conversion is needed.
 
-`SevenSegmentDigit.UpdateSegments()` currently selects `_litBrush` for the colon dots unconditionally when `Character == ':'`. The change:
-
-```csharp
-// In UpdateSegments(), colon branch:
-_dot1.Fill = IsLit ? _litBrush : _ghostBrush;
-_dot2.Fill = IsLit ? _litBrush : _ghostBrush;
-```
-
-`LcdClockView.UpdateTime()` drives the toggle:
+**Euclidean clamped formula:**
 
 ```csharp
-Colon1.IsLit = (DateTime.Now.Second % 2 == 0);
-// Colon2 (seconds separator) blinks in sync if seconds row is visible
-if (ShowSeconds) Colon2.IsLit = Colon1.IsLit;
-```
-
-The existing 1s `DispatcherTimer` already calls `UpdateTime()` on each tick — no cadence change needed.
-
-### Japanese Style Routing — `SetPhraseStyle()` in `MainWindow`
-
-The existing routing for English:
-```csharp
-// Existing:
-private void SetPhraseStyle(string style)
+// cursor: POINT from GetCursorPos
+// rect:   RECT  from GetWindowRect (physical pixels)
+// Returns pixels from cursor to nearest rect edge.
+// Returns 0 when cursor is inside or touching the rect.
+static int DistanceToRect(POINT cursor, RECT rect)
 {
-    if (!PhraseEngine.CurrentLocale.StartsWith("en-")) return;
-    PhraseEngine.SetLocale($"en-{style.ToLower()}");
-    ...
+    int dx = Math.Max(0, Math.Max(rect.Left - cursor.X, cursor.X - rect.Right));
+    int dy = Math.Max(0, Math.Max(rect.Top  - cursor.Y, cursor.Y - rect.Bottom));
+    return (int)Math.Sqrt(dx * dx + dy * dy);
 }
 ```
 
-The locale key convention for Japanese is `ja-terse` / `ja-poetic` / `ja-rude` — parallel to `en-terse` / `en-poetic` / `en-rude`. The style string values (`"Classic"`, `"Terse"`, `"Poetic"`, `"Rude"`) come from `AppSettings.PhraseStyle` unchanged.
+This uses Euclidean distance, producing a rounded-corner proximity zone that matches the natural
+mental model of "distance from widget edge." Chebyshev (max of dx, dy) is a valid alternative that
+produces a rectangular zone; no architectural difference either way.
 
-The base locale `"ja"` registered in `PhraseEngine` maps to Classic. When style is `"Classic"` for Japanese, `SetLocale("ja")` is correct. When style is `"Terse"`, `SetLocale("ja-terse")` is correct.
-
-### Japanese Style — `SettingsWindow` Enablement
-
-`CmbPhraseStyle` currently has four items (index 0–3: Classic/Terse/Poetic/Rude). The index mapping is locale-independent. No new combo items are needed. The only change is removing the `isNonEnglish` guard for Japanese:
+**Opacity mapping (linear interpolation):**
 
 ```csharp
-// Current logic (blocks style for ALL non-English):
-bool isNonEnglish = nonEnglishActive || (s.PhraseLocale is "fr" or "es" or "de" or "ja" or "pl");
-CmbPhraseStyle.IsEnabled = !isNonEnglish;
-
-// Updated logic (blocks style for non-English EXCEPT Japanese):
-bool styleAllowed = !nonEnglishActive
-    || uiLang == "ja"
-    || s.PhraseLocale == "ja";
-CmbPhraseStyle.IsEnabled = styleAllowed
-    && !(s.PhraseLocale is "fr" or "es" or "de" or "pl")
-    && !(nonEnglishActive && uiLang is "fr" or "es" or "de" or "pl");
+// proximityRadiusPx: user-configured fade start distance in physical pixels
+// distance:          result of DistanceToRect above
+// configuredOpacity: _windowOpacity (the user's saved opacity setting)
+double FadeOpacity(int distance, int proximityRadiusPx, double configuredOpacity)
+{
+    if (distance >= proximityRadiusPx) return configuredOpacity;   // outside fade zone
+    if (distance <= 0)                 return 0.0;                  // inside window (ghost)
+    double t = (double)distance / proximityRadiusPx;               // 0.0 at edge, 1.0 at radius
+    return Math.Clamp(t * configuredOpacity, 0.0, configuredOpacity);
+}
 ```
 
-A simpler equivalent: disable only when active locale is in `{fr, es, de, pl}` (the four without style variants).
-
-### `AppSettings.PhraseStyle` — No Change
-
-`PhraseStyle` stores `"Classic"` / `"Terse"` / `"Poetic"` / `"Rude"` regardless of locale. The routing logic in `MainWindow` applies the style key to the active locale prefix (`en-` or `ja-`). No new settings field is needed for Japanese style — the existing field is reused.
+Linear (`t`) is the correct default for a subtle ambient fade. A quadratic ease-out (`t * t`) can be
+added later as a one-line swap inside `FadeOpacity` with no architectural implications.
 
 ---
 
-## What NOT to Add
+## Timer Strategy: Manual Stepping vs WPF Storyboard/DoubleAnimation
 
-| Do Not Add | Why | What to Use Instead |
-|------------|-----|---------------------|
-| Any NuGet package | Zero new packages needed | Existing BCL + WPF types |
-| New `DispatcherTimer` for colon blink | `LcdClockView` already has a 1s timer | Toggle `IsLit` inside the existing `UpdateTime()` call |
-| New `LcdStyle` setting for blink on/off | Blink is a standard LCD behavior — not a user preference for this milestone | Always blink when LCD clock is active |
-| New `PhraseStyle` settings field for Japanese | `AppSettings.PhraseStyle` string is locale-independent | Route same value through `ja-` prefix in `SetPhraseStyle()` |
-| `LcdSize` in `AppSettings` | Already documented as derived-from-FontSize; already absent from persistence | Derive at runtime via `FontSizeToLcdSize()` |
-| Separate `Action<bool>? LcdColonBlinkChanged` event | Blink has no toggle in this milestone | Always blink |
-| `LcdSizeChanged` event on `SettingsWindow` | Size is driven by `FontSizeChanged` via `FontSizeToLcdSize()` | No separate event; `ApplyFontSize()` already sets `LcdView.Size` |
-| New Japanese provider base class | Three Japanese variant providers are small (12 buckets each); shared base adds indirection with no benefit | Duplicate the `{h}`/`{h1}` pattern directly in each class |
+**Recommendation: manual stepping via the existing 75ms DispatcherTimer. Do NOT use Storyboard.**
+
+### Why NOT Storyboard / DoubleAnimation
+
+1. **WS_EX_TRANSPARENT synchronization is impossible.** WS_EX_TRANSPARENT must be applied at
+   exactly `Opacity == 0.0` and removed the moment `Opacity > 0.0`. `DoubleAnimation` runs
+   asynchronously; the only completion callback (`Completed`) fires at the *end* of the animation,
+   not at intermediate values. Applying WS_EX_TRANSPARENT at the right moment requires the exact
+   per-tick opacity knowledge that polling already provides.
+
+2. **Directional reversal mid-fade.** When the cursor retreats before fade-out completes, the fade
+   must reverse immediately. Cancelling a running `DoubleAnimation` and starting a reverse requires:
+   (a) `BeginAnimation(OpacityProperty, null)` to release DP ownership, (b) read `this.Opacity` for
+   the current mid-fade value, (c) start a new animation `From: current` with `_windowOpacity` as
+   the destination. These three steps still do not solve the WS_EX_TRANSPARENT synchronization
+   problem. The polling approach reverses in one line: `this.Opacity = FadeOpacity(distance, ...)`.
+
+3. **`_windowOpacity` field ownership.** The project invariant is that `_windowOpacity` is the
+   authoritative configured opacity and `this.Opacity` is always set from it. A running
+   `DoubleAnimation` seizes ownership of `Window.Opacity` via the WPF property system, making
+   `_windowOpacity` stale mid-animation. The contrast controller, drag freeze, and ghost restore
+   paths in `MainWindow` all reference `_windowOpacity` or set `this.Opacity` directly — all three
+   would need auditing for mid-animation correctness.
+
+4. **75ms is smooth enough.** A cursor moving at 300px/second (moderate desktop mouse speed) crosses
+   a 100px fade zone in ~330ms = ~4 ticks. Opacity changes by ~25% per tick — visible but not
+   jarring. At 100px/second there are ~13 ticks across the zone, providing smooth gradation.
+   This is appropriate for a subtle ambient desktop widget; film-quality animation is not the goal.
+
+### Why Manual Stepping Works Cleanly
+
+The existing `_restoreTimer.Tick` handler already reads `GetCursorPos` + `GetWindowRect` every 75ms.
+Extending that handler to compute distance, call `FadeOpacity`, assign `this.Opacity`, and manage
+the WS_EX_TRANSPARENT transition at `Opacity == 0.0` is a straightforward extension of existing
+logic. `DispatcherTimer.Tick` fires on the WPF UI thread — `Window.Opacity` can be assigned directly
+with no thread marshalling.
 
 ---
 
-## Confidence Assessment
+## Integration Points with the Existing 75ms Timer
 
-| Area | Confidence | Reason |
-|------|------------|--------|
-| LCD rendering infrastructure complete | HIGH | `SevenSegmentDigit`, `LcdClockView`, `SevenSegmentEncoder`, `LcdTimeFormatHelper`, `LcdSize` all verified by direct source audit |
-| Colon blink gap confirmed | HIGH | `LcdClockView.UpdateTime()` source-verified always-lit; no `IsLit` DP exists on `SevenSegmentDigit` |
-| LCD Settings UI gap confirmed | HIGH | `SettingsWindow.xaml` source-verified: only 3 clock style buttons (Phrase/Dial/Nixie); no LCD face controls |
-| Japanese style gap confirmed | HIGH | `PhraseEngine._providers` source-verified: only `["ja"]` key; `SettingsWindow` disables style for `"ja"` locale |
-| `IPhraseProvider` interface stable | HIGH | Interface source-verified; no changes needed for new providers |
-| Zero new NuGet packages | HIGH | All required types in BCL + WPF + existing project files — verified by source audit |
-| Japanese phrase content | LOW | Phrase vocabulary (Terse/Poetic/Rude Japanese) requires native speaker review; the structural pattern (`{h}`/`{h1}` bucket templates) is HIGH confidence |
+The current `GhostModeController._restoreTimer` has one mode today:
+
+| Mode | When Active | What Timer Does |
+|------|-------------|-----------------|
+| Exit detection | After `Activate()` (cursor inside, `WS_EX_TRANSPARENT` on, `Opacity == 0`) | Polls until cursor leaves HWND rect; fires `Restored` event; stops timer |
+
+With proximity fade, the timer needs to be always-on (or start when cursor approaches the proximity
+zone) and cover three states:
+
+| State | Condition | Timer Action |
+|-------|-----------|--------------|
+| Outside zone | `distance >= ProximityFadeRadiusPx` | Ensure `this.Opacity == _windowOpacity`; stop timer if no ghost active |
+| Proximity zone | `0 < distance < ProximityFadeRadiusPx` | `this.Opacity = FadeOpacity(distance, ...)`; ensure `WS_EX_TRANSPARENT` is OFF |
+| Inside window | `distance == 0` | Apply `WS_EX_TRANSPARENT`, `this.Opacity = 0`, set `_isGhostMode = true` |
+
+**Tick pseudocode:**
+
+```
+Tick:
+  if (!IsEnabled) return
+  GetCursorPos(out cursor); GetWindowRect(_hwnd, out rect)
+  distance = DistanceToRect(cursor, rect)
+
+  if (IsCtrlAltHeld()):
+    // Ctrl+Alt: suppress proximity and ghost; ensure fully opaque
+    if (_isGhostMode): remove WS_EX_TRANSPARENT, _isGhostMode=false, Restored?.Invoke()
+    this.Opacity = _windowOpacity
+    return
+
+  if (distance == 0):
+    // Cursor is inside; activate ghost if not already active
+    if (!_isGhostMode):
+      [synthetic hover cleanup — backdrop, stats timer, _isHoverFastRefresh]
+      apply WS_EX_TRANSPARENT, _isGhostMode = true, this.Opacity = 0
+  elif (distance < ProximityFadeRadiusPx):
+    // In proximity zone — apply fade
+    if (_isGhostMode):
+      remove WS_EX_TRANSPARENT, _isGhostMode = false, Restored?.Invoke()
+    this.Opacity = FadeOpacity(distance, ProximityFadeRadiusPx, _windowOpacity)
+  else:
+    // Outside zone — restore full opacity
+    if (_isGhostMode):
+      remove WS_EX_TRANSPARENT, _isGhostMode = false, Restored?.Invoke()
+    if (this.Opacity != _windowOpacity):
+      this.Opacity = _windowOpacity
+    // Optionally stop timer here to avoid polling overhead when cursor is far away
+```
+
+**Timer always-on vs start/stop:** Continuous polling at 75ms has negligible CPU impact (~two
+P/Invoke calls per tick at 13 Hz). Always-on after `Initialize()` avoids the start/stop edge cases.
+If start/stop is preferred, start on `Window_MouseEnter` (which fires before `WS_EX_TRANSPARENT`
+is active, so WPF mouse events still work) and stop when distance exceeds `ProximityFadeRadiusPx`
+for multiple consecutive ticks.
+
+The `Restored` event that clears backdrop in `MainWindow` continues to fire on the ghost→non-ghost
+transition, same as today. No change to the `Restored` handler in `MainWindow.ContentRendered` is
+needed.
+
+---
+
+## New AppSettings Fields
+
+Two new fields added to `AppSettings` (init-property record, JSON forward-compat pattern):
+
+```csharp
+public bool ProximityFadeEnabled  { get; init; } = true;
+public int  ProximityFadeRadiusPx { get; init; } = 100;
+```
+
+`ProximityFadeEnabled = true` is the correct default — proximity fade is the primary new behavior of
+this milestone. `ProximityFadeRadiusPx = 100` is a reasonable default (roughly one standard icon
+width on a 100% DPI display).
+
+**Validation guard in `SettingsService.Validate()`** (following the existing ladder-value guard
+pattern):
+
+```csharp
+if (loaded.ProximityFadeRadiusPx < 10 || loaded.ProximityFadeRadiusPx > 500)
+    loaded = loaded with { ProximityFadeRadiusPx = 100 };
+```
+
+The range 10–500 is permissive enough for the slider range (50–200px in Settings > Behavior) while
+guarding against manually edited invalid values.
+
+**Settings UI:** Slider in Settings > Behavior tab alongside the existing Ghost Mode toggle. Range
+50–200px, step 10. Label in physical pixels is fine because the value is stored and used in physical
+pixel space (matching the Win32 P/Invoke coordinate system).
+
+---
+
+## DPI Consideration
+
+`GetCursorPos` and `GetWindowRect` return physical screen pixels. `ProximityFadeRadiusPx` is stored
+in physical pixels consistently. No DPI conversion is needed within `GhostModeController`.
+
+At 150% DPI: 100 physical px = ~67 logical px = approximately one standard icon width. At 100% DPI:
+100 physical px = 100 logical px. The difference is perceptible but acceptable for an ambient fade
+radius set by a user-controlled slider.
+
+If per-DPI radius correction becomes a requirement, the conversion at the `GhostModeController`
+boundary is: `physicalPx = logicalPx * source.CompositionTarget.TransformToDevice.M11`. This is a
+one-line addition that does not affect the core design. Recommended to defer until explicitly
+requested.
+
+---
+
+## Ctrl+Alt Suppression
+
+The existing `IsCtrlAltHeld()` check in `Window_MouseEnter` suppresses ghost mode when the user
+holds Ctrl+Alt. The same check must suppress proximity fade. In the unified tick approach, checking
+`IsCtrlAltHeld()` at the top of the tick handler handles this automatically — both ghost and proximity
+fade are bypassed, and opacity is restored to `_windowOpacity`, consistent with the existing contract.
+
+---
+
+## Alternatives Considered
+
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Manual `this.Opacity` per 75ms tick | WPF `DoubleAnimation` on `Window.Opacity` | Cannot reliably synchronize `WS_EX_TRANSPARENT` at `Opacity==0`; mid-fade directional reversal requires three non-trivial steps; seizes ownership of the opacity DP away from `_windowOpacity` field |
+| Extend existing `GhostModeController._restoreTimer` | New separate `DispatcherTimer` for proximity | Two overlapping timers at 75ms both calling `GetCursorPos`/`GetWindowRect` is wasteful and introduces timing edge cases; one timer owns all ghost+proximity logic |
+| Euclidean distance for proximity zone | Chebyshev (max of dx, dy) | Both are correct; Euclidean produces a rounded-corner zone matching user mental model of "distance from widget"; Chebyshev is marginally cheaper (no sqrt). Either can be used; Euclidean is recommended. |
+| Store radius in physical pixels | Store radius in logical pixels | Physical pixels are consistent with the Win32 coordinate space already in use; no DPI query needed within `GhostModeController`; logical pixels require a `PresentationSource` call at the boundary |
+| Timer always-on after `Initialize()` | Start/stop timer on proximity entry/exit | Start/stop adds state management complexity; 75ms continuous at 13 Hz is negligible CPU overhead |
+
+---
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `Window.BeginAnimation(OpacityProperty, ...)` | Seizes WPF DP ownership; conflicts with direct `_windowOpacity` assignment; `WS_EX_TRANSPARENT` sync not achievable | Direct `this.Opacity = value` in `DispatcherTimer.Tick` |
+| `Storyboard` in XAML | Same DP ownership problem; XAML-driven animation cannot respond to per-tick proximity distance | Manual tick computation |
+| A second `DispatcherTimer` for fade stepping | Duplicates `GetCursorPos`/`GetWindowRect` already in existing timer | Extend existing `_restoreTimer` tick |
+| WPF `MouseMove` event for proximity detection | Not delivered when `WS_EX_TRANSPARENT` is active; misses the symmetric restore case | `GetCursorPos` polling already used |
+| `SetTimer` (Win32) on a background thread | Requires `Dispatcher.Invoke` to write `Window.Opacity`; unnecessary marshalling overhead | `DispatcherTimer` fires on WPF UI thread natively |
+
+---
+
+## Version Compatibility
+
+| Component | Version in Use | Notes |
+|-----------|---------------|-------|
+| `GetCursorPos` / `GetWindowRect` | Win32 (stable) | P/Invoke signatures already validated in project; no version concern |
+| `DispatcherTimer` | .NET 10 (WPF) | Already in use; no version concern |
+| `Window.Opacity` | .NET 10 (WPF) | Already in use; `double` 0.0–1.0 range |
+| `Math.Clamp` | .NET Core 2.0+ | Available in .NET 10; no concern |
+| `AppSettings` init-property record | Existing pattern | New fields JSON-deserialize to their init defaults when loading old settings.json — no migration needed |
 
 ---
 
 ## Sources
 
-All sources are the current codebase — verified by direct file inspection on 2026-03-23.
-
-- `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — segment rendering, colon dot logic, no `IsLit` DP confirmed
-- `FuzzyClock.App/Controls/LcdClockView.xaml.cs` — 1s DispatcherTimer, `UpdateTime()` always-lit colon confirmed
-- `FuzzyClock.App/Controls/LcdClockView.xaml` — 8 digit slot XAML structure confirmed
-- `FuzzyClock.Core/SevenSegmentEncoder.cs` — bitmask table confirmed; colon sentinel 0x80 confirmed
-- `FuzzyClock.App/LcdTimeFormatHelper.cs` — `FormatTime()` signature and 12/24hr logic confirmed
-- `FuzzyClock.App/LcdSize.cs` — `Small=32, Medium=48, Large=64` confirmed
-- `FuzzyClock.App/ClockType.cs` — `Phrase/Dial/Lcd/Nixie` confirmed complete
-- `FuzzyClock.App/AppSettings.cs` — LCD fields present; `LcdSize` absent from persistence confirmed
-- `FuzzyClock.App/SettingsSnapshot.cs` — LCD fields present confirmed
-- `FuzzyClock.App/SettingsWindow.xaml` — 3-button rail (no `BtnLcd`) confirmed; no LCD face controls confirmed
-- `FuzzyClock.App/SettingsWindow.xaml.cs` — LCD event declarations present; no handlers; `CmbPhraseStyle` disabled for `"ja"` locale confirmed
-- `FuzzyClock.App/MainWindow.xaml.cs` — LCD event subscriptions wired in `OpenSettings()`; `SetPhraseStyle()` English-only guard confirmed
-- `FuzzyClock.Core/PhraseEngine.cs` — `["ja"]` only; no `ja-terse/poetic/rude` entries confirmed
-- `FuzzyClock.Core/JapanesePhraseProvider.cs` — `{h}`/`{h1}` template pattern; 12 buckets confirmed
-- `FuzzyClock.Core/IPhraseProvider.cs` — interface signature confirmed stable
-- `.planning/PROJECT.md` — v3.9 requirements LCD-01 through LCD-04, JA-01 through JA-03 confirmed
+- `GhostModeController.cs` (project source, direct read) — existing P/Invoke declarations, 75ms timer,
+  `WS_EX_TRANSPARENT` synchronization pattern; HIGH confidence
+- `AppSettings.cs` + `SettingsService.cs` (project source, direct read) — init-property record pattern,
+  `Validate()` guard pattern for new fields; HIGH confidence
+- `MainWindow.xaml.cs` (project source, direct read) — `_windowOpacity` field, ghost activate/restore
+  flow, Ctrl+Alt check, contrast controller freeze guard that also reads `_windowOpacity`; HIGH confidence
+- WPF `DoubleAnimation` / `Storyboard` behavior — animated DP ownership and `BeginAnimation(null)`
+  detach behavior is well-established WPF animation system behavior; MEDIUM confidence (not verified
+  via Context7 since it is the non-recommended path; sufficient for rationale)
+- PROJECT.md key decisions (project source, direct read) — validated rationale for Win32 polling over
+  WPF mouse events under WS_EX_TRANSPARENT; HIGH confidence
 
 ---
-*Stack research for: FuzzyStatsClock v3.9 — LCD Clock + Japanese Styles*
-*Researched: 2026-03-23*
+
+*Stack research for: WPF proximity ghost mode fade (v4.0)*
+*Researched: 2026-03-27*
