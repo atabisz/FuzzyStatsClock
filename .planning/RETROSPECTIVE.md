@@ -4,6 +4,47 @@
 
 ---
 
+## Milestone: v3.9 — LCD Clock + Japanese Styles
+
+**Shipped:** 2026-03-27
+**Phases:** 5 (61–65) | **Plans:** 6
+
+### What Was Built
+- Three Japanese phrase style providers (`JapaneseTersePhraseProvider`, `JapanesePoeticPhraseProvider`, `JapaneseRudePhraseProvider`) added to FuzzyClock.Core, registered in PhraseEngine as `ja-classic`/`ja-terse`/`ja-poetic`/`ja-rude`; 37 new unit tests covering all 12-bucket + noon/midnight cases
+- `ResolveLocaleKey` helper extracted into MainWindow consolidating three duplicate locale-resolution switch expressions; Japanese phrase styles enabled in SettingsWindow phrase style combo
+- `BtnLcd` + collapsible `LcdOptionsPanel` (24-hour toggle, show-seconds toggle, Dark/Paper/Silver segment style selector) wired to Settings > Appearance tab via 5 event handlers to pre-existing MainWindow LCD hooks
+- `_colonVisible` bool field in `LcdClockView.UpdateTime()` drives Colon1 blink at 1 Hz using the existing 1s DispatcherTimer tick — no new timer
+- `LcdStyle` validation guard in `SettingsService.Validate()` resets unknown string values to `"Dark"` default; STEST-01 round-trip test extended to cover all 4 LCD fields
+- 352 MSTest tests (314 Core + 38 App), 0 failures
+
+### What Worked
+- **Pre-existing infrastructure paid off**: SevenSegmentDigit, LcdClockView, SevenSegmentEncoder, AppSettings LCD fields, and SettingsWindow LCD stub events were already in place from v3.3; Phases 63–65 were pure wiring with no new subsystem design
+- **Single-entry-point routing pattern** (ResolveLocaleKey): extracting the locale-key logic before adding Japanese style support meant all routing sites got the fix automatically — no per-site patching needed
+- **Small focused phases**: Phases 63/64/65 were each 1 plan and executed cleanly in single sessions; blinking colon (Phase 64) was 2 lines of code
+- **Test-first coverage for providers**: JA provider tests followed the exact same 4-method pattern as existing multilingual tests — low cognitive overhead
+
+### What Was Inefficient
+- Phase 61 had a worktree merge step (STATE.md conflict) that added friction; worktrees for independent subplans adds overhead when they share state files
+- The v3.9-ROADMAP.md archive was created at milestone start (as a planning artifact) and then needed manual correction at completion — the live ROADMAP.md Phase Details had plan lines as `[ ]` that were never updated as plans executed
+- Japanese Poetic/Rude phrase vocabulary marked provisional (low confidence); shipping provisional content accrues native-review debt that will recur each milestone
+
+### Patterns Established
+- LCD infrastructure pre-implemented in a prior milestone (v3.3) before the Settings UI exists; this makes the Settings wiring milestone fast and reliable — same pattern as Dial settings (v3.7→v3.8)
+- `ResolveLocaleKey` as single routing entry point: any new locale or style variant routes through one helper, eliminating per-site duplication
+- Phase 61 provider tests: direct provider instantiation (not PhraseEngine) for isolation tests; `[DoNotParallelize]` class for coordinator tests that touch static PhraseEngine
+
+### Key Lessons
+1. Pre-implementing backend infrastructure (rendering, AppSettings fields, event stubs) in an earlier milestone makes the Settings UI milestone mechanical — the pattern has now worked twice (Nixie/Dial settings, LCD settings)
+2. Keeping phases small and focused (1–2 plans each) allows single-session execution with minimal context setup — the blinking colon phase was a 2-line code change correctly scoped as its own phase
+3. Provisional phrase vocabulary (Japanese Poetic/Rude) ships faster than perfect vocabulary but incurs review debt — acceptable tradeoff for a personal widget, but should be noted in release notes
+
+### Cost Observations
+- Model mix: ~100% sonnet (balanced profile)
+- Sessions: ~6 sessions across 5 phases (2026-03-24 → 2026-03-27)
+- Notable: 4-day milestone for 5 phases; Phase 64 (blinking colon) was the fastest execution — sub-10-minute session
+
+---
+
 ## Milestone: v3.8 — Dial Settings
 
 **Shipped:** 2026-03-23

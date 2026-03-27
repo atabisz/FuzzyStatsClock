@@ -2,37 +2,25 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers), or as a Nixie tube clock face. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. Five built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers), a Nixie tube clock face, or a 7-segment LCD clock with blinking colon and optional seconds row. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. Five built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; Japanese locale supports four styles (Classic/Terse/Poetic/Rude); unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v3.9 LCD Clock + Japanese Styles
-
-**Goal:** Add a 7-segment LCD clock as the fourth clock style and add Terse/Poetic/Rude phrase personality variants for Japanese locale.
-
-**Target features:**
-- LCD clock face: WPF-drawn 7-segment digits, accent-colored, 12-hour or 24-hour switchable, blinking colon, optional toggleable seconds row
-- Japanese Terse: short, clipped casual phrasing
-- Japanese Poetic: atmospheric imagery-based phrasing
-- Japanese Rude: brusque / impatient phrasing
-
 ## Current State
 
-**v3.9 in progress: Phase 61 complete** — JapaneseTerse/Poetic/Rude providers + PhraseEngine registry; 314 tests pass (299 baseline + 15 new); Phase 62 (Routing Consolidation) next
+**v3.9 shipped: 2026-03-27** — LCD clock (7-segment, blinking colon, 12/24hr, optional seconds row, Dark/Paper/Silver styles) added as fourth clock style; Japanese Terse/Poetic/Rude phrase providers added; `ResolveLocaleKey` consolidates all locale routing; 352 MSTest tests (314 Core + 38 App) passing
 
-**v3.8 shipped: 2026-03-23** — Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) in Settings > Appearance with Dial-only visibility gating; `PopulateControls` + `_suppressEvents` guard pattern; 299 tests pass (262 Core + 37 App)
+**v3.8 shipped: 2026-03-23** — Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) in Settings > Appearance with Dial-only visibility gating
 
-**v3.7 shipped: 2026-03-23** — Nixie tube clock re-introduced as a selectable clock style; `ClockType` enum replaces `DialMode bool`; SettingsWindow 3-button Clock Style rail (Phrase/Dial/Nixie); `BackdropBorder` is sole hover backdrop; 0 build errors, 299 tests pass (262 Core + 37 App)
+**v3.7 shipped: 2026-03-23** — Nixie tube clock as third clock style; `ClockType` enum replaces `DialMode bool`; SettingsWindow 3-button Clock Style rail
 
-**v3.6.2 shipped: 2026-03-19** — `HasAppWindowBeneath` extended with `SHELLDLL_DefView` shell exclusion and `DwmGetWindowAttribute(DWMWA_CLOAKED)` check; AutoContrast and BackdropAlwaysVisible stable over desktops with icons and Windows 11 shell panels
-
-**v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping (midpoint/natural pause), dark-mode Settings window redesign, edge snapping, single-instance IPC
+**v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping, dark-mode Settings window, edge snapping, single-instance IPC
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
 
-299 MSTest tests (262 Core + 37 App) passing. CI gate enforced.
+352 MSTest tests (314 Core + 38 App) passing. CI gate enforced.
 
 ## Requirements
 
@@ -263,15 +251,26 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ DIAL-10: Settings > Appearance shows Hour Ticks, Minute Dots, and Hour Numbers checkboxes; visible only when Dial clock style is active, collapsed for Phrase/Nixie — v3.8
 - ✓ DIAL-11: Each checkbox reflects persisted value on open (PopulateControls); fires existing event through _suppressEvents guard on toggle; persists to settings.json and restores on restart — v3.8
 
+### Validated (v3.9)
+
+- ✓ LCD-01: User can select LCD clock style from Settings > Appearance Clock Style rail (BtnLcd added; Phrase/Dial/Nixie/LCD are four mutually exclusive buttons) — v3.9
+- ✓ LCD-02: User can toggle between 12-hour (H:MM) and 24-hour (HH:MM) in Settings when LCD is active; persists and restores on launch — v3.9
+- ✓ LCD-03: User can show or hide the seconds row (SS digits) in Settings when LCD is active; persists and restores on launch — v3.9
+- ✓ LCD-04: User can select LCD segment style (Dark/Paper/Silver) in Settings when LCD is active; persists and restores on launch — v3.9
+- ✓ LCD-05: LCD settings panel (24hr, seconds row, style) is visible only when LCD is the active clock style; collapsed for Phrase/Dial/Nixie — v3.9
+- ✓ LCD-06: LCD clock colon (between HH and MM digits) blinks on/off every second — v3.9
+- ✓ LCD-07: STEST-01 round-trip test covers all LCD AppSettings fields (LcdUse24Hr, LcdShowSeconds, LcdStyle, LcdSize) — v3.9
+- ✓ LCD-08: SettingsService.Validate() corrects invalid LcdStyle values to the Dark default — v3.9
+- ✓ JA-01: Japanese Terse phrase style covers all 12 five-minute buckets, noon, and midnight — v3.9
+- ✓ JA-02: Japanese Poetic phrase style covers all 12 five-minute buckets, noon, and midnight (provisional pending native review) — v3.9
+- ✓ JA-03: Japanese Rude phrase style covers all 12 five-minute buckets, noon, and midnight (provisional pending native review) — v3.9
+- ✓ JA-04: Phrase style selector in Settings is enabled when Japanese locale is active (all four styles: Classic/Terse/Poetic/Rude) — v3.9
+- ✓ JA-05: Selecting a Japanese phrase style persists to settings.json and is correctly restored on app restart (all routing sites updated via ResolveLocaleKey helper) — v3.9
+- ✓ JA-06: Unit tests for each Japanese style provider cover all 12 buckets plus noon and midnight cases — v3.9
+
 ### Active
 
-- [ ] **LCD-01**: LCD clock face (7-segment, WPF-drawn, accent-colored)
-- [ ] **LCD-02**: 12-hour / 24-hour toggle in Settings
-- [ ] **LCD-03**: Blinking colon (every second)
-- [ ] **LCD-04**: Optional seconds row, toggleable in Settings
-- ✓ **JA-01**: Japanese Terse phrase style (clipped casual phrasing) — v3.9 Phase 61
-- ✓ **JA-02**: Japanese Poetic phrase style (atmospheric imagery-based) — v3.9 Phase 61
-- ✓ **JA-03**: Japanese Rude phrase style (brusque / impatient) — v3.9 Phase 61
+(none — next milestone defines new requirements)
 
 ### Out of Scope
 
@@ -441,6 +440,11 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | ClockTypeChanged replaces DialModeChanged | Single Action<ClockType> event covers all current and future clock modes; no separate event per mode needed | ✓ Validated — wired via single subscription in MainWindow |
 | DialFaceLabel VerticalAlignment=Top (not Center) | Column 1 of the Dial Face row contains a multi-line StackPanel of checkboxes; Top alignment matches the Phrase Wrap row pattern for label/control pairs | ✓ Validated — label aligned correctly at all font sizes |
 | Visibility gating in SetClockStyleButtonStates (not a separate handler) | Both the open-time populate path and the button-click path call SetClockStyleButtonStates; centralizing gating there ensures Dial Face row hides/shows correctly in all cases | ✓ Validated — row visible on Dial, collapsed on Phrase/Nixie, at open-time and on style switch |
+| ResolveLocaleKey single entry point for locale+style routing | Three MainWindow sites (ApplySettings, SetLanguage, SetPhraseStyle) previously had duplicate locale-resolution switch expressions; extracting to a private helper eliminates drift risk and enables Japanese style variants without per-site changes | ✓ Validated — all three routing sites call ResolveLocaleKey; Japanese styles work at all sites |
+| SetPhraseStyle guard expanded to allow Japanese (removes fr/es/de/pl guard only) | English style selector was originally disabled for all non-English locales; Japanese-specific style providers make style selection meaningful for Japanese; guard updated to block fr/es/de/pl only | ✓ Validated — Japanese style combo enabled when Japanese locale active; French/Spanish/German/Polish still blocked |
+| LCD colon blink via _colonVisible field in LcdClockView (no new timer) | LcdClockView already has a 1s DispatcherTimer that calls UpdateTime(); toggling a _colonVisible bool inside that method uses the existing tick as the blink driver — zero additional timer overhead | ✓ Validated — Colon1 blinks at exactly 1 Hz; no new DispatcherTimer added |
+| LcdOptionsPanel visibility gating in SetClockStyleButtonStates (same pattern as Dial Face row) | Gating in the single SetClockStyleButtonStates method ensures the panel shows/hides correctly both at open-time and on style switch, matching the established pattern from Dial Face row — v3.8 | ✓ Validated — LCD options visible on LCD style, collapsed for Phrase/Dial/Nixie, in all code paths |
+| SettingsService.Validate() guards LcdStyle string against unknown values | LcdStyle is stored as a string enum name; corrupted or manually edited settings.json could contain an unrecognized value; Validate() resets to "Dark" default without throwing, matching the existing StatsIntervalSeconds/Opacity guard pattern | ✓ Validated — Validate_InvalidLcdStyle_ResetsToDark test passes; widget loads cleanly from corrupt settings |
 
 ## Evolution
 
@@ -460,4 +464,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-24 — Phase 61 complete: Japanese Phrase Providers (Terse/Poetic/Rude)*
+*Last updated: 2026-03-27 after v3.9 milestone — LCD Clock + Japanese Styles shipped*

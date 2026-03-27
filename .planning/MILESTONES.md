@@ -1,5 +1,19 @@
 # Milestones
 
+## v3.9 LCD Clock + Japanese Styles (Shipped: 2026-03-27)
+
+**Phases completed:** 5 phases, 6 plans, 14 tasks
+
+**Key accomplishments:**
+
+- Three Japanese phrase style providers added to FuzzyClock.Core: `JapaneseTersePhraseProvider` (clipped colloquial), `JapanesePoeticPhraseProvider` (atmospheric imagery), `JapaneseRudePhraseProvider` (blunt/impatient); registered in PhraseEngine as `ja-classic`/`ja-terse`/`ja-poetic`/`ja-rude`; 37 new unit tests covering all 12-bucket + noon/midnight cases
+- ResolveLocaleKey helper extracted into MainWindow, consolidating three duplicate locale-resolution switch expressions and enabling Japanese phrase style variants in SettingsWindow
+- LCD button and collapsible LcdOptionsPanel (24-hour, show-seconds, Dark/Paper/Silver style) added to Settings Appearance tab, wiring five event handlers to pre-existing MainWindow LCD hooks.
+- `_colonVisible` bool toggle in LcdClockView.UpdateTime() makes Colon1 blink at 1 Hz using the existing 1s DispatcherTimer tick — no new timer, two lines changed
+- LcdStyle validation guard in SettingsService.Validate() — unknown values (e.g. "Broken") reset to Dark default without throwing; 352 tests, 0 failures
+
+---
+
 ## v3.8 Dial Settings (Shipped: 2026-03-23)
 
 **Phases completed:** 1 phase, 1 plan
