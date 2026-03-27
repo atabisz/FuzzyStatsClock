@@ -105,6 +105,8 @@ internal sealed class GhostModeController : IDisposable
     /// </summary>
     private void OnTimerTick(object? sender, EventArgs e)
     {
+        if (!IsEnabled) return;   // PROX-09: no proximity computation when ghost mode is off
+
         // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
         // receiving mouse messages when WS_EX_TRANSPARENT is active.
         if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
