@@ -18,3 +18,4 @@ TestResults/
 
 # Claude tooling (GSD workflow, agents, commands)
 .claude/
+.superpowers/
