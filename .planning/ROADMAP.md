@@ -28,7 +28,8 @@
 - ✅ **v3.6.1 Contrast Flicker Fix** - Phase 57 (shipped 2026-03-19)
 - ✅ **v3.7 Nixie Clock** - Phases 58-59 (shipped 2026-03-23)
 - ✅ **v3.8 Dial Settings** - Phase 60 (shipped 2026-03-23)
-- 🔄 **v3.9 LCD Clock + Japanese Styles** - Phases 61-65 (in progress)
+- ✅ **v3.9 LCD Clock + Japanese Styles** - Phases 61-65 (shipped 2026-03-27)
+- 🔄 **v4.0 Proximity Ghost Mode** - Phase 66 (in progress)
 
 ## Phases
 
@@ -144,3 +145,27 @@ Plans:
 | 63. SettingsWindow LCD UI | 1/1 | Complete   | 2026-03-27 |
 | 64. Blinking Colon | 1/1 | Complete   | 2026-03-27 |
 | 65. Settings Persistence Hardening | 1/1 | Complete   | 2026-03-27 |
+
+### v4.0 Proximity Ghost Mode
+
+- [x] **Phase 66: AppSettings Foundation** - GhostFadeRadiusPx field, Defaults(), Validate() range guard, and 7 test methods (completed 2026-03-27)
+
+### Phase 66: AppSettings Foundation
+**Goal**: Add GhostFadeRadiusPx field to AppSettings with validation, defaults, and full test coverage — data model foundation for proximity ghost mode
+**Depends on**: Nothing (pure data model; no UI or behavioral dependencies)
+**Requirements**: PROX-12, PROX-08
+**Success Criteria** (what must be TRUE):
+  1. GhostFadeRadiusPx field serializes to JSON and deserializes back to the same value
+  2. Old settings.json files without GhostFadeRadiusPx deserialize to 80 (not 0)
+  3. Out-of-range values (-1, 999) are clamped to the default 80 by Validate() without throwing
+  4. In-range boundary values (20, 80, 200) survive Validate() unchanged
+  5. Defaults() returns GhostFadeRadiusPx = 80
+**Plans**: 1 plan
+Plans:
+- [x] 66-01-PLAN.md — Add GhostFadeRadiusPx to AppSettings and SettingsService; add 7 test methods
+
+## Progress Table (v4.0)
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 66. AppSettings Foundation | 1/1 | Complete | 2026-03-27 |
