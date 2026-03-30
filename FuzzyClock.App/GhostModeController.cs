@@ -18,6 +18,7 @@ internal sealed class GhostModeController : IDisposable
     private const uint SWP_NOMOVE        = 0x0002;
     private const uint SWP_NOZORDER      = 0x0004;
     private const uint SWP_FRAMECHANGED  = 0x0020;
+    private const uint LWA_ALPHA         = 0x00000002;
     private const int  VK_LCONTROL       = 0xA2;   // Left Ctrl only — avoids right-side ambiguity
     private const int  VK_LMENU          = 0xA4;   // Left Alt only — VK_MENU matches AltGr on EU keyboards
 
@@ -40,6 +41,9 @@ internal sealed class GhostModeController : IDisposable
 
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int X; public int Y; }
@@ -92,7 +96,7 @@ internal sealed class GhostModeController : IDisposable
     public void Initialize(IntPtr hwnd)
     {
         _hwnd = hwnd;
-        _restoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(75) };
+        _restoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _restoreTimer.Tick += OnTimerTick;
         _restoreTimer.Start();   // always-running from Initialize() until Dispose() (D-01)
     }
@@ -213,6 +217,18 @@ internal sealed class GhostModeController : IDisposable
         // Step 4: Normalize and clamp to [0.0, 1.0].
         double ratio = 1.0 - (double)distance / radiusPx;
         return Math.Clamp(ratio, 0.0, 1.0);
+    }
+
+    /// <summary>
+    /// Sets window alpha via SetLayeredWindowAttributes (DWM hardware compositing).
+    /// Bypasses WPF's software compositor — no full window re-render on every opacity change.
+    /// No-op if HWND is not yet available (before ContentRendered / Initialize()).
+    /// </summary>
+    public void SetWindowAlpha(double effectiveOpacity)
+    {
+        if (_hwnd == IntPtr.Zero) return;
+        byte alpha = (byte)Math.Clamp((int)(effectiveOpacity * 255), 0, 255);
+        SetLayeredWindowAttributes(_hwnd, 0, alpha, LWA_ALPHA);
     }
 
     public void Dispose() => _restoreTimer?.Stop();
