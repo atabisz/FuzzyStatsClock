@@ -158,18 +158,16 @@ public partial class MainWindow : Window
             _ghostMode.Restored += () =>
             {
                 _proximityRatio = 0.0;
-                _ghostMode.SetWindowAlpha(_windowOpacity);
+                this.Opacity = _windowOpacity;
                 if (!_backdropAlwaysVisible)
                     BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
             };
             _ghostMode.Initialize(new System.Windows.Interop.WindowInteropHelper(this).Handle);
-            this.Opacity = 1.0;                         // WPF stays at 1.0 — DWM handles compositing from here
-            _ghostMode.SetWindowAlpha(_windowOpacity);  // apply startup opacity via SetLayeredWindowAttributes
             _ghostMode.ProximityChanged = ratio =>
             {
                 _proximityRatio = ratio;
                 if (_isDragging) return;
-                _ghostMode.SetWindowAlpha(_windowOpacity * (1.0 - ratio));
+                this.Opacity = _windowOpacity * (1.0 - ratio);
             };
 
             // Tray icon
@@ -1318,7 +1316,7 @@ public partial class MainWindow : Window
     private void SetOpacity(double opacity)
     {
         _windowOpacity = opacity;
-        _ghostMode.SetWindowAlpha(opacity);
+        this.Opacity   = opacity;
         SaveSettings();
     }
 
@@ -1462,7 +1460,7 @@ public partial class MainWindow : Window
         // Math.Sign: exactly one 10% step per physical notch regardless of high-resolution wheel
         double step = Math.Sign(e.Delta) * 0.10;
         _windowOpacity = Math.Clamp(_windowOpacity + step, 0.10, 1.0);
-        _ghostMode.SetWindowAlpha(_windowOpacity);
+        this.Opacity = _windowOpacity;
         ClearActiveTheme();
         SaveSettings();
         e.Handled = true;  // prevent scroll leaking to desktop or windows below overlay
