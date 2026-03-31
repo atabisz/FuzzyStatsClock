@@ -35,19 +35,19 @@ Declared values (multiples of 4):
 |-------|-------|-------|
 | xs | 2px | Inter-row stat spacing (existing `Margin="0,2,0,0"` on stat rows) |
 | sm | 4px | Row-to-row section gaps (existing date/stats `Margin="0,4,0,0"`) |
-| md | 6px | Current clock content padding (existing `ContentBorder.Padding="6"`) |
-| lg | 8px | Stats bar height, tighter inter-element spacing |
-| xl | 12px | **NEW: Target backdrop padding for Phase 70** |
+| md | 6px | **Current only** — clock content padding (existing `ContentBorder.Padding="6"`) |
+| lg | 8px | Stats bar height, tighter inter-element spacing; **Phase 70 vertical gaps** |
+| xl | 12px | **Phase 70 TARGET: backdrop padding** |
 | 2xl | 16px | Alternative generous padding (deferred) |
 
-**Phase 70 Target:** Increase backdrop breathing room from 6px (md) to 12px (xl).
+**Phase 70 Target:** Increase backdrop breathing room from 6px (md) to 12px (xl). All Phase 70 target values are multiples of 4.
 
 ### Specific Changes
 
 | Element | Current | Phase 70 Target | Rationale |
 |---------|---------|-----------------|-----------|
 | ContentBorder.Padding | `6` | `12` | Clock content inner padding (doubles current value) |
-| DateText.Margin | `0,2,0,0` | `12,6,12,0` | Add left/right padding (12px), increase top gap (2→6px) |
+| DateText.Margin | `0,2,0,0` | `12,8,12,0` | Add left/right padding (12px), increase top gap (2→8px) |
 | StatsPanel.Margin | `0,4,0,0` | `12,8,12,12` | Add left/right/bottom padding (12px), increase top gap (4→8px) |
 
 **Exceptions:** None. All spacing uses WPF `Margin` and `Padding` properties with device-independent units (DIU, equivalent to 1/96 inch at 96 DPI).
@@ -108,7 +108,7 @@ Declared values (multiples of 4):
 | Component | File | Change |
 |-----------|------|--------|
 | ContentBorder | MainWindow.xaml:42-46 | `Padding="6"` → `Padding="12"` |
-| DateText | MainWindow.xaml:130-142 | `Margin="0,2,0,0"` → `Margin="12,6,12,0"` |
+| DateText | MainWindow.xaml:130-142 | `Margin="0,2,0,0"` → `Margin="12,8,12,0"` |
 | StatsPanel | MainWindow.xaml:149-153 | `Margin="0,4,0,0"` → `Margin="12,8,12,12"` |
 
 ### Affected Systems (No Code Changes Required)
@@ -129,7 +129,7 @@ Declared values (multiples of 4):
 
 ### State 1: Normal (backdrop visible)
 
-**Visual:** Clock content, date, and stats panel have 12px breathing room on all sides (left/right/bottom) and 6-8px vertical gaps between rows.
+**Visual:** Clock content, date, and stats panel have 12px breathing room on all sides (left/right/bottom) and 8px vertical gaps between rows.
 
 **Interaction:** No interaction changes — existing mouse hover, drag, scroll wheel, and ghost mode behaviors continue unchanged.
 
@@ -175,10 +175,10 @@ Declared values (multiples of 4):
 - New approximate width: 214-248px
 
 **Height growth:**
-- Date top margin: +4px (2→6px)
+- Date top margin: +6px (2→8px)
 - Stats top margin: +4px (4→8px)
 - Stats bottom margin: +12px (0→12px)
-- Total height increase: ~20px
+- Total height increase: ~22px
 
 **Impact on Features:**
 - Edge snapping: Still triggers within 8px of screen edges (threshold is relative to screen bounds, not window size — per RESEARCH.md Pitfall 2)
@@ -229,7 +229,7 @@ Declared values (multiples of 4):
 
 **Recommendation:** **12px for Phase 70.** This doubles the current 6px padding (conservative increase). If user testing shows 12px feels cramped, 16px can be a trivial XAML change (4 numeric values) in a follow-up phase or exposed as a user preference.
 
-**Rationale:** 12px is a safe starting point. 16px might feel too spacious on small screens (e.g., 1366x768 laptops). The change is reversible without code complexity.
+**Rationale:** 12px is a safe starting point. 16px might feel too spacious on small screens (e.g. 1366x768 laptops). The change is reversible without code complexity.
 
 ### Decision 2: Symmetric vs Asymmetric Bottom Padding
 
@@ -245,7 +245,7 @@ Declared values (multiples of 4):
 
 **Recommendation:** **Keep `Width="184"` unchanged** per RESEARCH.md Open Question 3. The width constraint prevents text-length jitter; left/right margins are EXTERNAL spacing concerns. These are independent.
 
-**Rationale:** Separation of concerns. If the stats panel feels too narrow after adding side margins, that's a separate layout tuning decision and can be adjusted in testing (e.g., increase to 200px).
+**Rationale:** Separation of concerns. If the stats panel feels too narrow after adding side margins, that's a separate layout tuning decision and can be adjusted in testing (e.g. increase to 200px).
 
 ---
 
