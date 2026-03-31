@@ -1,94 +1,164 @@
-# Roadmap: Fuzzy Clock
+# Roadmap: v4.1 Polish & Phrases
 
-## Milestones
+**Milestone:** v4.1 Polish & Phrases
+**Created:** 2026-03-31
+**Granularity:** Standard (5 phases)
+**Requirements:** 16 total (100% coverage)
 
-- ✅ **v1.0 MVP** - Phases 1-3 (shipped 2026-02-25)
-- ✅ **v1.1 Position + Font Size** - Phases 4-5 (shipped 2026-02-25)
-- ✅ **v1.2 System Stats** - Phases 6-9 (shipped 2026-02-26)
-- ✅ **v1.3 Individual Stat Visibility** - Phase 10 (shipped 2026-02-26)
-- ✅ **v1.4 PAG Stat Row** - Phase 11 (shipped 2026-02-26)
-- ✅ **v1.5 Hover Fast-Refresh** - Phase 12 (shipped 2026-02-26)
-- ✅ **v1.6 Dial Mode** - Phase 13 (shipped 2026-02-26)
-- ✅ **v1.7 Visual Polish** - Phase 14 (shipped 2026-02-26)
-- ✅ **v1.8 Dial Enhancement** - Phases 15-16 (shipped 2026-02-26)
-- ✅ **v1.9 Context-Aware Menus** - Phase 17 (shipped 2026-02-26)
-- ✅ **v2.0 Visual Identity** - Phases 18-21 (shipped 2026-02-27)
-- ✅ **v2.1 Uptime** - Phases 22-23 (shipped 2026-02-27)
-- ✅ **v2.2 System Tray** - Phase 24 (shipped 2026-03-02)
-- ✅ **v2.3 Ghost Mode** - Phases 25-27 (shipped 2026-03-02)
-- ✅ **v2.5 Unit Tests** - Phases 28-30 (shipped 2026-03-03)
-- ✅ **v2.6 Polish** - Phases 31-32 (shipped 2026-03-03)
-- ✅ **v2.7 Auto-Contrast** - Phase 33 (shipped 2026-03-03)
-- ✅ **v2.8 Uptime and Docs** - Phase 34 (shipped 2026-03-04)
-- ✅ **v2.9 Process Threshold** - Phase 35 (shipped 2026-03-05)
-- ✅ **v3.1 Quality + Battery** - Phases 37-40 (shipped 2026-03-08)
-- ✅ **v3.2 Expanded Experience** - Phases 41-47 (shipped 2026-03-09)
-- ✅ **v3.5 Phrase Wrap + Installer** - Phases 48-55 (shipped 2026-03-18)
-- ✅ **v3.6 Settings Appearance Compact** - Phase 56 (shipped 2026-03-18)
-- ✅ **v3.6.1 Contrast Flicker Fix** - Phase 57 (shipped 2026-03-19)
-- ✅ **v3.7 Nixie Clock** - Phases 58-59 (shipped 2026-03-23)
-- ✅ **v3.8 Dial Settings** - Phase 60 (shipped 2026-03-23)
-- ✅ **v3.9 LCD Clock + Japanese Styles** - Phases 61-65 (shipped 2026-03-27)
-- ✅ **v4.0 Proximity Ghost Mode** - Phases 66-69 (shipped 2026-03-27)
+## Vision
+
+Improve visual polish, expand phrase variety, and simplify settings by removing unused themes. This milestone refines the mature v4.0 codebase with zero new dependencies — all features leverage existing WPF primitives and established patterns.
 
 ## Phases
 
-<details>
-<summary>✅ Phases 1-57 — SHIPPED (see MILESTONES.md for details)</summary>
+- [ ] **Phase 70: Backdrop Padding** - Add visual breathing room around content with inner margins
+- [ ] **Phase 71: Stats Interval Slider** - Replace discrete 1s/3s/10s selector with continuous 0.5-10s slider
+- [ ] **Phase 72: Expand Phrase Providers** - Add 3-5 variations per bucket across all 9 non-novelty providers
+- [ ] **Phase 73: Deepen Jive/Pirate/Yoda** - Expand personality providers with authentic linguistic patterns
+- [ ] **Phase 74: Remove Named Themes** - Delete obsolete theme infrastructure with settings migration
 
-Phases 1-57 are complete. See `.planning/MILESTONES.md` for per-milestone summaries.
+## Phase Details
 
-</details>
+### Phase 70: Backdrop Padding
+**Goal:** Widget has generous visual breathing room around clock text, date, stats, and uptime content without breaking edge snapping, ghost mode, contrast sampling, or position clamping.
 
-<details>
-<summary>✅ v3.7 Nixie Clock (Phases 58-59) — SHIPPED 2026-03-23</summary>
+**Depends on:** Nothing (first phase)
 
-- [x] Phase 58: Data Model Foundation (1/1 plans) — completed 2026-03-19
-- [x] Phase 59: UI Wiring and Build Clean (1/1 plans) — completed 2026-03-23
+**Requirements:** VIS-01, VIS-02
 
-Full details: `.planning/milestones/v3.7-ROADMAP.md`
+**Success Criteria** (what must be TRUE):
+1. Backdrop has visibly larger padding (12-16px) around all content elements
+2. Padding uses inner margins on StackPanel children, NOT Border.Padding property
+3. Edge snapping still triggers within 8px of screen edges after drag
+4. Ghost mode hit-testing (GetWindowRect) works correctly with new dimensions
+5. Contrast sampling footprint matches visible backdrop area
 
-</details>
+**Plans:** TBD
 
-<details>
-<summary>✅ v3.8 Dial Settings (Phase 60) — SHIPPED 2026-03-23</summary>
+---
 
-- [x] Phase 60: Dial Decoration Settings UI (1/1 plans) — completed 2026-03-23
+### Phase 71: Stats Interval Slider
+**Goal:** Users can fine-tune stats update rate with continuous control instead of arbitrary ladder values.
 
-Full details: `.planning/milestones/v3.8-ROADMAP.md`
+**Depends on:** Nothing (independent of Phase 70)
 
-</details>
+**Requirements:** STAT-01, STAT-02, STAT-03, STAT-04
 
-<details>
-<summary>✅ v3.9 LCD Clock + Japanese Styles (Phases 61-65) — SHIPPED 2026-03-27</summary>
+**Success Criteria** (what must be TRUE):
+1. Settings > Stats tab shows a continuous slider (0.5-10.0s range) with value display
+2. Discrete 1s/3s/10s selector no longer exists in Settings
+3. Slider changes apply immediately to the live stats timer interval
+4. Stats interval persists as a decimal value (e.g. 2.3) to settings.json
+5. SettingsService.Validate() clamps interval to 0.5-10.0 range with Math.Round to 1 decimal place
 
-- [x] Phase 61: Japanese Phrase Providers (2/2 plans) — completed 2026-03-24
-- [x] Phase 62: Routing Consolidation (1/1 plans) — completed 2026-03-26
-- [x] Phase 63: SettingsWindow LCD UI (1/1 plans) — completed 2026-03-27
-- [x] Phase 64: Blinking Colon (1/1 plans) — completed 2026-03-27
-- [x] Phase 65: Settings Persistence Hardening (1/1 plans) — completed 2026-03-27
+**Plans:** TBD
 
-Full details: `.planning/milestones/v3.9-ROADMAP.md`
+---
 
-</details>
+### Phase 72: Expand Phrase Providers
+**Goal:** All non-novelty phrase providers have multiple variations per time bucket to reduce repetition.
 
-<details>
-<summary>✅ v4.0 Proximity Ghost Mode (Phases 66-69) — SHIPPED 2026-03-27</summary>
+**Depends on:** Nothing (pure content work, independent of other phases)
 
-- [x] Phase 66: AppSettings Foundation (1/1 plans) — completed 2026-03-27
-- [x] Phase 67: GhostModeController Extension (1/1 plans) — completed 2026-03-27
-- [x] Phase 68: MainWindow Wiring + Contrast Guard (1/1 plans) — completed 2026-03-27
-- [x] Phase 69: SettingsWindow UI (2/2 plans) — completed 2026-03-27
+**Requirements:** PHRASE-01, PHRASE-02, PHRASE-03
 
-Full details: `.planning/milestones/v4.0-ROADMAP.md`
+**Success Criteria** (what must be TRUE):
+1. Each of the 9 non-novelty providers (English Classic/Terse/Poetic/Rude, French, Spanish, German, Japanese, Polish) has at least 3 phrase candidates per bucket
+2. Phrases randomize within each bucket so consecutive same-bucket ticks can show different text
+3. Unit tests verify all 9 providers have complete coverage (12 buckets + noon + midnight = 14 cases each)
+4. Users notice phrase variety within the first week of use (no more than 2-3 identical phrases per day)
 
-</details>
+**Plans:** TBD
+
+---
+
+### Phase 73: Deepen Jive/Pirate/Yoda
+**Goal:** Novelty personality providers feel authentic and consistent, not gimmicky.
+
+**Depends on:** Nothing (can run in parallel with Phase 72)
+
+**Requirements:** PERS-01, PERS-02, PERS-03
+
+**Success Criteria** (what must be TRUE):
+1. Jive provider uses rhythmic, expressive AAVE-inspired phrasing consistently across all buckets
+2. Pirate provider uses nautical metaphors and seafaring language naturally in time expressions
+3. Yoda provider consistently applies OSV (Object-Subject-Verb) syntax inversion to phrases
+4. All three providers have at least 3 variations per bucket (same coverage as Phase 72)
+5. Human review confirms authenticity (no caricature or unreadable density)
+
+**Plans:** TBD
+
+---
+
+### Phase 74: Remove Named Themes
+**Goal:** Settings window is simpler with named themes removed; users with saved themes migrate cleanly to direct accent color control.
+
+**Depends on:** Phase 71 (requires stable AppSettings schema after StatsIntervalSeconds type change)
+
+**Requirements:** CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-04
+
+**Success Criteria** (what must be TRUE):
+1. Settings > Appearance no longer shows named themes (Midnight/Neon/Ghost/Warm/Terminal)
+2. ThemeDefinition record, BuiltInThemes registry, and ApplyNamedTheme() method deleted from codebase
+3. Users upgrading from v4.0 with a saved Theme field in settings.json see their current accent color preserved
+4. AppSettings.Theme field removed; SettingsService.Validate() no longer references themes
+5. Migration logic handles all 5 built-in theme names plus null/absent field cases
+
+**Plans:** TBD
+
+---
 
 ## Progress
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 66. AppSettings Foundation | v4.0 | 1/1 | Complete | 2026-03-27 |
-| 67. GhostModeController Extension | v4.0 | 1/1 | Complete | 2026-03-27 |
-| 68. MainWindow Wiring + Contrast Guard | v4.0 | 1/1 | Complete | 2026-03-27 |
-| 69. SettingsWindow UI | v4.0 | 2/2 | Complete | 2026-03-27 |
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 70. Backdrop Padding | 0/? | Not started | - |
+| 71. Stats Interval Slider | 0/? | Not started | - |
+| 72. Expand Phrase Providers | 0/? | Not started | - |
+| 73. Deepen Jive/Pirate/Yoda | 0/? | Not started | - |
+| 74. Remove Named Themes | 0/? | Not started | - |
+
+## Coverage Map
+
+| Requirement | Phase | Description |
+|-------------|-------|-------------|
+| VIS-01 | 70 | Backdrop padding visibly larger |
+| VIS-02 | 70 | Padding doesn't break layout assumptions |
+| STAT-01 | 71 | Continuous slider in Settings |
+| STAT-02 | 71 | Replaces discrete selector |
+| STAT-03 | 71 | Persists as decimal value |
+| STAT-04 | 71 | Validation clamps and rounds |
+| PHRASE-01 | 72 | 5+ candidates per bucket |
+| PHRASE-02 | 72 | Randomized selection |
+| PHRASE-03 | 72 | Unit test coverage |
+| PERS-01 | 73 | Jive linguistic patterns |
+| PERS-02 | 73 | Pirate nautical metaphors |
+| PERS-03 | 73 | Yoda OSV syntax |
+| CLEAN-01 | 74 | Themes removed from Settings |
+| CLEAN-02 | 74 | Theme code deleted |
+| CLEAN-03 | 74 | Migration preserves accent color |
+| CLEAN-04 | 74 | Theme field removed from AppSettings |
+
+**Coverage:** 16/16 requirements mapped (100%)
+
+## Dependencies
+
+```
+Phase 70: Backdrop Padding (independent)
+Phase 71: Stats Interval Slider (independent)
+Phase 72: Expand Phrase Providers (independent, can parallel with 73)
+Phase 73: Deepen Jive/Pirate/Yoda (independent, can parallel with 72)
+Phase 74: Remove Named Themes (depends on Phase 71 schema stability)
+```
+
+## Research Notes
+
+From research/SUMMARY.md:
+- **Critical Pitfall #1 (Phase 70):** Use inner margins on content, NOT Border.Padding (avoids GetWindowRect cascade at 5+ sites)
+- **Critical Pitfall #2 (Phase 71):** Add Math.Round(value, 1) in slider handler to prevent floating-point drift
+- **Critical Pitfall #3 (Phase 74):** Write Theme→AccentColor migration in Load() BEFORE deleting BuiltInThemes
+- **Moderate Pitfall #4 (Phases 72/73):** Add exhaustive 14-case test per provider before expansion work
+- **Moderate Pitfall #5 (Phase 73):** Human review every phrase; "dial it back" pass removes 30% of dialect markers
+
+---
+*Last updated: 2026-03-31*

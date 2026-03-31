@@ -60,28 +60,28 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIS-01 | — | Pending |
-| VIS-02 | — | Pending |
-| STAT-01 | — | Pending |
-| STAT-02 | — | Pending |
-| STAT-03 | — | Pending |
-| STAT-04 | — | Pending |
-| PHRASE-01 | — | Pending |
-| PHRASE-02 | — | Pending |
-| PHRASE-03 | — | Pending |
-| PERS-01 | — | Pending |
-| PERS-02 | — | Pending |
-| PERS-03 | — | Pending |
-| CLEAN-01 | — | Pending |
-| CLEAN-02 | — | Pending |
-| CLEAN-03 | — | Pending |
-| CLEAN-04 | — | Pending |
+| VIS-01 | Phase 70 | Pending |
+| VIS-02 | Phase 70 | Pending |
+| STAT-01 | Phase 71 | Pending |
+| STAT-02 | Phase 71 | Pending |
+| STAT-03 | Phase 71 | Pending |
+| STAT-04 | Phase 71 | Pending |
+| PHRASE-01 | Phase 72 | Pending |
+| PHRASE-02 | Phase 72 | Pending |
+| PHRASE-03 | Phase 72 | Pending |
+| PERS-01 | Phase 73 | Pending |
+| PERS-02 | Phase 73 | Pending |
+| PERS-03 | Phase 73 | Pending |
+| CLEAN-01 | Phase 74 | Pending |
+| CLEAN-02 | Phase 74 | Pending |
+| CLEAN-03 | Phase 74 | Pending |
+| CLEAN-04 | Phase 74 | Pending |
 
 **Coverage:**
 - v4.1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-31*
-*Last updated: 2026-03-31 after initial definition*
+*Last updated: 2026-03-31 after roadmap creation*
