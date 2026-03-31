@@ -1,0 +1,87 @@
+# Requirements: FuzzyStatsClock
+
+**Defined:** 2026-03-31
+**Core Value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
+
+## v4.1 Requirements
+
+Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
+
+### Visual Polish
+
+- [ ] **VIS-01**: Backdrop has visibly larger padding around clock text, date, stats, and uptime content
+- [ ] **VIS-02**: Backdrop padding does not break edge snapping, ghost mode hit testing, contrast sampling, or position clamping
+
+### Stats Controls
+
+- [ ] **STAT-01**: User can set stats update interval via a continuous slider (0.5–10.0s) in Settings > Stats tab
+- [ ] **STAT-02**: Stats interval slider replaces the discrete 1s/3s/10s selector in Settings
+- [ ] **STAT-03**: Stats interval persists as a decimal value to settings.json and restores on launch
+- [ ] **STAT-04**: SettingsService.Validate() clamps interval to 0.5–10.0 range with Math.Round to 1 decimal place
+
+### Phrase Variety
+
+- [ ] **PHRASE-01**: Each of the 10 English phrase providers has at least 5 phrase candidates per bucket (12 buckets + noon + midnight)
+- [ ] **PHRASE-02**: Phrase selection within a bucket is randomized so consecutive same-bucket ticks can show different text
+- [ ] **PHRASE-03**: Unit tests verify all providers have complete bucket coverage with minimum 5 candidates each
+
+### Personality Depth
+
+- [ ] **PERS-01**: Jive provider phrases lean into rhythmic, expressive AAVE-inspired phrasing
+- [ ] **PERS-02**: Pirate provider phrases use nautical metaphors and seafaring language
+- [ ] **PERS-03**: Yoda provider phrases consistently use OSV (Object-Subject-Verb) syntax inversion
+
+### Settings Cleanup
+
+- [ ] **CLEAN-01**: Named themes (Midnight/Neon/Ghost/Warm/Terminal) removed from Settings > Appearance
+- [ ] **CLEAN-02**: ThemeDefinition, BuiltInThemes registry, and ApplyNamedTheme() removed from codebase
+- [ ] **CLEAN-03**: Users with a saved Theme in settings.json are silently migrated to their current accent color on first v4.1 launch
+- [ ] **CLEAN-04**: AppSettings.Theme field removed; Validate() no longer references themes
+
+## Future Requirements
+
+### Non-English Phrase Expansion
+
+- **LANG-01**: French provider has 5+ phrase candidates per bucket
+- **LANG-02**: Spanish provider has 5+ phrase candidates per bucket
+- **LANG-03**: German provider has 5+ phrase candidates per bucket
+- **LANG-04**: Japanese providers have 5+ phrase candidates per bucket
+- **LANG-05**: Polish provider has 5+ phrase candidates per bucket
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Non-English phrase expansion | Requires native speaker review; deferred to future milestone |
+| Custom user-created themes | Named themes being removed; custom theme authoring adds complexity with little value |
+| Stats interval finer than 0.5s | DispatcherTimer overhead at sub-500ms; diminishing returns for widget use case |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| VIS-01 | — | Pending |
+| VIS-02 | — | Pending |
+| STAT-01 | — | Pending |
+| STAT-02 | — | Pending |
+| STAT-03 | — | Pending |
+| STAT-04 | — | Pending |
+| PHRASE-01 | — | Pending |
+| PHRASE-02 | — | Pending |
+| PHRASE-03 | — | Pending |
+| PERS-01 | — | Pending |
+| PERS-02 | — | Pending |
+| PERS-03 | — | Pending |
+| CLEAN-01 | — | Pending |
+| CLEAN-02 | — | Pending |
+| CLEAN-03 | — | Pending |
+| CLEAN-04 | — | Pending |
+
+**Coverage:**
+- v4.1 requirements: 16 total
+- Mapped to phases: 0
+- Unmapped: 16 ⚠️
+
+---
+*Requirements defined: 2026-03-31*
+*Last updated: 2026-03-31 after initial definition*
