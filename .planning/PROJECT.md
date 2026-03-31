@@ -288,7 +288,16 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ### Active
 
-(no active requirements — start next milestone with `/gsd:new-milestone`)
+## Current Milestone: v4.1 Polish & Phrases
+
+**Goal:** Improve visual polish, expand phrase variety, and simplify settings by removing unused themes.
+
+**Target features:**
+- Larger backdrop padding around clock text content
+- Stats update interval as a continuous slider (0.5–10s) replacing the discrete 1s/3s/10s selector
+- More phrase variations across all providers to reduce repetition
+- Expanded Jive/Pirate/Yoda phrases leaning harder into their personalities
+- Remove the 5 named themes (Midnight/Neon/Ghost/Warm/Terminal) from Settings
 
 ### Out of Scope
 
@@ -488,4 +497,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 — after v4.0 milestone (Proximity Ghost Mode)*
+*Last updated: 2026-03-31 — after v4.1 milestone start (Polish & Phrases)*
