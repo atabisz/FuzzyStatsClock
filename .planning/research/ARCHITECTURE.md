@@ -1,462 +1,568 @@
-# Architecture Patterns: Proximity Fade Integration
+# Architecture Integration — v4.1 Polish & Phrases
 
-**Domain:** Ghost mode extension — proximity-based opacity fade for v4.0
-**Researched:** 2026-03-27
-**Confidence:** HIGH — derived from direct source audit of production codebase (v3.9, 395 tests)
+**Project:** FuzzyClock v4.1
+**Researched:** 2026-03-31
+
+## Executive Summary
+
+The 5 features in v4.1 integrate cleanly with the existing architecture. No new architectural patterns are required — all features leverage established patterns:
+
+1. **Backdrop padding** — XAML-only change to `BackdropBorder.Padding`; zero code impact
+2. **Stats interval slider** — UI replacement with AppSettings field type change (int→double); existing Stop+set+Start timer pattern handles it
+3. **Phrase expansion** — pure additive to existing `IPhraseProvider` implementations; zero interface changes
+4. **Jive/Pirate/Yoda deepening** — same as phrase expansion; isolated to 3 provider classes
+5. **Theme removal** — deletion pass: remove BuiltInThemes registry, ThemeDefinition record, Settings UI panel, AppSettings.Theme field; add one-time JSON migration guard
+
+**Build order recommendation:** Backdrop padding → Phrase/style expansions (parallel) → Stats interval slider → Theme removal (migration requires AppSettings structure finalized).
+
+## Recommended Integration Patterns
+
+### 1. Backdrop Padding
+
+**Existing component:** `BackdropBorder` wrapping full `StackPanel` in `MainWindow.xaml`
+
+**Change type:** XAML-only property addition
+
+**Integration:**
+```xaml
+<Border x:Name="BackdropBorder"
+        Padding="12"
+        Background="{x:Null}">
+    <StackPanel>
+        <!-- existing phrase/dial/stats/uptime content -->
+    </StackPanel>
+</Border>
+```
+
+**Code impact:** None. `BackdropBorder` is already positioned correctly; `Padding` property just adds internal margin.
+
+**Dependencies:** None — standalone XAML change.
 
 ---
 
-## Recommended Architecture
+### 2. Stats Interval Slider
 
-**Extend `GhostModeController`** — not a new `ProximityFadeController`, not inline in `MainWindow`.
+**Existing components:**
+- `SettingsWindow.xaml` Stats tab with existing interval controls
+- `AppSettings.StatsIntervalSeconds` field (currently `int`)
+- `_statsIntervalSeconds` field in `MainWindow.xaml.cs`
+- `_statsTimer` DispatcherTimer with Stop+set+Start pattern established in v1.2
 
-All ghost-mode Win32 infrastructure (HWND caching, WS_EX_TRANSPARENT management, GetCursorPos/GetWindowRect polling, GetAsyncKeyState Ctrl+Alt detection) is already in `GhostModeController`. Proximity fade is a natural extension of the same polling loop: it uses the same cursor position data, the same RECT comparison, and the same cursor-exit detection. Splitting to a new class would duplicate the P/Invoke surface and the polling timer. Embedding the logic back in `MainWindow` would re-tangle what was already extracted.
+**Change type:** UI replacement + field type change + validation update
 
-The controller gets one new responsibility: on each polling tick, compute a `proximityRatio` float (0.0 when cursor is outside the fade zone, 1.0 when cursor is at or inside the widget boundary) and fire a new `ProximityChanged` event with that value. `MainWindow` applies `this.Opacity = _windowOpacity * (1.0 - proximityRatio)`.
+**Integration:**
+
+#### AppSettings
+```csharp
+public record AppSettings
+{
+    // Change from int to double
+    public double StatsIntervalSeconds { get; init; } = 3.0;  // was int = 3
+    // ... other fields unchanged
+}
+```
+
+#### SettingsService.Validate()
+```csharp
+if (settings.StatsIntervalSeconds < 0.5 || settings.StatsIntervalSeconds > 10.0)
+{
+    settings = settings with { StatsIntervalSeconds = 3.0 };
+}
+```
+
+#### SettingsWindow.xaml
+Replace existing interval controls (likely ComboBox or RadioButtons) with:
+```xaml
+<Slider x:Name="SldStatsInterval"
+        Minimum="0.5"
+        Maximum="10.0"
+        TickFrequency="0.1"
+        IsSnapToTickEnabled="False"
+        Value="{Binding StatsIntervalSeconds}"
+        ValueChanged="SldStatsInterval_ValueChanged"/>
+<TextBlock Text="{Binding ElementName=SldStatsInterval, Path=Value, StringFormat='{0:F1}s'}"/>
+```
+
+#### MainWindow.xaml.cs
+Change field type:
+```csharp
+private double _statsIntervalSeconds = 3.0;  // was int
+```
+
+Update timer application (existing Stop+set+Start pattern already handles double):
+```csharp
+_statsTimer.Stop();
+_statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
+_statsTimer.Start();
+```
+
+**Code impact:** Low — field type change propagates naturally; existing timer pattern already accepts `TimeSpan.FromSeconds(double)`.
+
+**Dependencies:**
+- Phrase/style expansions should ship first (no mutual dependency, but slider is user-facing polish)
+- Theme removal should ship last (AppSettings structure must be stable for migration)
+
+**Validation requirements:**
+- Test JSON deserialization of old int values into new double field (JSON auto-converts)
+- Test Validate() range guard (0.5–10.0)
+- Test slider → event → MainWindow timer update flow
+
+---
+
+### 3. Phrase Expansion
+
+**Existing components:**
+- `IPhraseProvider` interface with `GetPhrase(DateTime)` and `GetSegmentKey(DateTime)`
+- 9 provider classes in `FuzzyClock.Core/PhraseProviders/`
+- `PhraseEngine` static facade with `_providers` dictionary
+
+**Change type:** Additive content to existing provider implementations
+
+**Integration:**
+
+No interface changes. Expansion is isolated to individual provider class internals:
+
+#### Example: EnglishPhraseProvider
+```csharp
+private static readonly Dictionary<int, string[]> ClassicPhrases = new()
+{
+    { 0, new[] {
+        "just about {h} o'clock",
+        "practically {h} o'clock",
+        "{h} on the dot",
+        // ... add 5-10 more variations per bucket
+    }},
+    // ... repeat for all 12 buckets
+};
+```
+
+Each provider independently adds variations. Provider selection logic already randomizes within the candidate array — no PhraseEngine changes needed.
+
+**Code impact:** Zero outside the provider classes being expanded.
+
+**Dependencies:** None — pure content addition.
+
+**Validation requirements:**
+- All 12 buckets per provider have balanced candidate counts (no single-entry buckets)
+- GetSegmentKey() unchanged (stable bucket keys required for phrase persistence)
+- Unit tests cover at least one phrase from each new variation set
+
+---
+
+### 4. Jive/Pirate/Yoda Deepening
+
+**Existing components:**
+- `JivePhraseProvider`, `PiratePhraseProvider`, `YodaPhraseProvider` already exist (added post-v3.9)
+- Same `IPhraseProvider` interface as feature #3
+
+**Change type:** Content deepening within existing provider classes
+
+**Integration:**
+
+Identical to phrase expansion (feature #3) — purely additive content changes within the provider class internals. Example:
+
+#### JivePhraseProvider
+```csharp
+private static readonly Dictionary<int, string[]> JivePhrases = new()
+{
+    { 0, new[] {
+        "it be {h} o'clock, dig it",
+        "straight up {h}, baby",
+        "{h} on the nose, ya dig?",
+        // ... lean harder into Jive cadence/vocabulary
+    }},
+};
+```
+
+**Code impact:** Zero outside the 3 provider classes.
+
+**Dependencies:** None — pure content change.
+
+**Validation requirements:** Same as feature #3.
+
+---
+
+### 5. Theme Removal
+
+**Existing components:**
+- `ThemeDefinition` record in `FuzzyClock.App/`
+- `BuiltInThemes` static registry class
+- `AppSettings.Theme` field (string, nullable)
+- SettingsWindow Appearance tab theme UI controls
+- `ApplyNamedTheme()` method in MainWindow.xaml.cs
+
+**Change type:** Deletion pass + migration logic
+
+**Integration:**
+
+#### Step 1: AppSettings
+Remove `Theme` field:
+```csharp
+public record AppSettings
+{
+    // Delete this line:
+    // public string? Theme { get; init; } = null;
+
+    // All other fields remain
+}
+```
+
+#### Step 2: SettingsService Migration
+Add one-time migration in `Load()` before deserialization:
+```csharp
+public static AppSettings Load()
+{
+    // ... existing file read logic ...
+
+    using JsonDocument doc = JsonDocument.Parse(json);
+    JsonElement root = doc.RootElement;
+
+    // One-time migration: Theme → constituent settings
+    if (root.TryGetProperty("Theme", out JsonElement themeElement))
+    {
+        string? themeName = themeElement.GetString();
+        if (!string.IsNullOrEmpty(themeName) && BuiltInThemes.TryGet(themeName, out ThemeDefinition? theme))
+        {
+            // Inject theme's constituent values into JSON if those fields are absent
+            // Example pseudocode (actual implementation depends on how ThemeDefinition was structured):
+            // if (!root.HasProperty("AccentColor")) inject theme.AccentColor
+            // if (!root.HasProperty("Opacity")) inject theme.Opacity
+            // ... etc.
+        }
+    }
+
+    AppSettings settings = JsonSerializer.Deserialize<AppSettings>(json, _options)!;
+    // ... existing Validate() call ...
+}
+```
+
+**Note:** The exact migration logic depends on the `ThemeDefinition` record structure (not visible in PROJECT.md). Migration must:
+1. Read the `Theme` string field
+2. Look up the corresponding theme in `BuiltInThemes`
+3. Apply the theme's accent color, opacity, font size, clock type, and stats visibility to the loaded AppSettings **only if** those fields are absent in the JSON (backward compat)
+4. Remove the `Theme` field from the JSON so future saves are clean
+
+#### Step 3: MainWindow.xaml.cs
+Delete `ApplyNamedTheme()` method entirely. It's no longer called.
+
+#### Step 4: SettingsWindow.xaml
+Remove theme selector UI controls from Appearance tab (likely a ComboBox or RadioButton group).
+
+#### Step 5: Delete Files
+- `ThemeDefinition.cs`
+- `BuiltInThemes.cs`
+
+**Code impact:** Medium — deletion across multiple files; migration logic is the only new code.
+
+**Dependencies:**
+- Must ship **after** all AppSettings field changes are finalized (backdrop padding has zero field impact; stats interval slider changes StatsIntervalSeconds type)
+- Should be a dedicated phase (last in milestone) so migration can be tested in isolation
+
+**Validation requirements:**
+- Test users with `Theme: "Neon"` in old settings.json correctly receive Neon's constituent values on first load after upgrade
+- Test users with `Theme: null` in old settings.json are unaffected
+- Test users with no `Theme` field in old settings.json (v2.9 and earlier) are unaffected
+- Test that after migration, `Theme` field is **not** written back to settings.json on next save
 
 ---
 
 ## Component Boundaries
 
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `GhostModeController` | Win32 cursor polling, proximity ratio computation, WS_EX_TRANSPARENT management, Ctrl+Alt detection | `MainWindow` via `Restored` event + new `ProximityChanged` event |
-| `MainWindow` | Sets `this.Opacity` from proximity ratio; owns `_windowOpacity` (configured) and applies fade to `this.Opacity` (transient); routes Ctrl+Alt suppression; persists `ProximityFadeRadiusPx` | `GhostModeController`, `AppSettings`, `SettingsWindow` |
-| `AppSettings` | Stores `ProximityFadeRadiusPx` (int, pixels); default 0 (disables fade — snap-on-entry, existing behavior) | `SettingsService.Validate()` |
-| `SettingsWindow` | Slider in Behavior tab under Ghost Mode checkbox; fires `ProximityFadeRadiusChanged` event | `MainWindow.OpenSettings()` subscription |
-| `SettingsSnapshot` | Adds `ProximityFadeRadiusPx` for open-time population of SettingsWindow slider | `SettingsWindow` constructor |
-| `ContrastRefreshController` | Pause predicate extended to include `_ghostMode.ProximityRatio > 0.0f` to avoid sampling during fade | `MainWindow.ContentRendered` initialization |
+| Component | Responsibility | Modified By |
+|-----------|---------------|-------------|
+| `BackdropBorder` (XAML) | Visual padding around widget content | Feature #1 (XAML property) |
+| `AppSettings` record | Persisted settings schema | Feature #2 (type change), Feature #5 (field deletion) |
+| `SettingsService` | JSON I/O + validation | Feature #2 (validation update), Feature #5 (migration logic) |
+| `SettingsWindow` (XAML) | Settings UI | Feature #2 (slider replacement), Feature #5 (theme UI deletion) |
+| `MainWindow.xaml.cs` | _statsIntervalSeconds field, timer | Feature #2 (field type change) |
+| IPhraseProvider implementations | Phrase candidate arrays | Feature #3 (expansion), Feature #4 (deepening) |
+| `ThemeDefinition`, `BuiltInThemes` | Named theme registry | Feature #5 (deleted) |
 
 ---
 
-## Data Flow: Display Opacity vs Configured Opacity
+## Data Flow
 
-This is the most critical correctness concern in the entire feature.
+### Feature #1: Backdrop Padding
+**Flow:** User moves mouse over widget → WPF layout engine applies `BackdropBorder.Padding="12"` → content inset by 12px → backdrop appears larger.
 
-### Two Opacity Values — One Persisted, One Transient
-
-```
-_windowOpacity  — the user's configured opacity (e.g. 0.75)
-                  Written by: SetOpacity(), ApplySettings(), ResetToDefaults(), scroll wheel
-                  Persisted to: AppSettings.Opacity via SaveSettings()
-                  Never written by ghost, proximity, or fade logic
-
-this.Opacity    — the actual WPF window opacity (transient)
-                  Written by: proximity tick callback, Restored handler, SetOpacity(), ApplySettings()
-                  Never persisted; recomputed from _windowOpacity on every restore
-```
-
-`_windowOpacity` and `this.Opacity` are currently equal except during ghost state (where `this.Opacity == 0`). Proximity fade introduces a third state: `this.Opacity` is between `_windowOpacity` and 0 based on cursor distance.
-
-**The rule: `_windowOpacity` is never written from any fade or ghost path. Only `this.Opacity` changes during fade transitions.**
-
-### Lerp Formula
-
-```
-displayOpacity = lerp(_windowOpacity, 0.0, proximityRatio)
-               = _windowOpacity * (1.0 - proximityRatio)
-```
-
-Where `proximityRatio` (0.0–1.0) is computed entirely inside `GhostModeController`. `MainWindow`'s `ProximityChanged` handler is:
-
-```csharp
-_ghostMode.ProximityChanged += ratio =>
-{
-    if (_ghostMode.IsCtrlAltHeld() || !_ghostMode.IsEnabled) return;
-    this.Opacity = _windowOpacity * (1.0 - ratio);
-};
-```
-
-No intermediate field is needed in `MainWindow`. The controller owns the ratio; `MainWindow` computes the transient display opacity inline on each event.
+**No code involvement.**
 
 ---
 
-## GhostModeController Extension Pattern
+### Feature #2: Stats Interval Slider
+**Flow:**
+1. User drags slider in SettingsWindow
+2. `SldStatsInterval_ValueChanged` event fires
+3. `StatsIntervalChanged?.Invoke(newValue)` (double)
+4. MainWindow receives event → `_statsIntervalSeconds = newValue`
+5. Stop+set+Start timer pattern applies new interval
+6. On SettingsWindow close, persist via `SaveSettings()` (AppSettings with { StatsIntervalSeconds = _statsIntervalSeconds })
 
-### New surface on GhostModeController
+**Existing pattern:** Stop+set+Start already used for discrete 1s/3s/10s intervals; identical flow for continuous slider.
 
-**New property:** `public int ProximityFadeRadius { get; set; } = 0`
+---
 
-Set by `MainWindow` from `AppSettings.ProximityFadeRadiusPx` during `ApplySettings()` and `SetProximityFadeRadius()`. Zero means snap-on-entry (existing v3.9 behavior). This is the safe default — no behavioral change for users who have not configured a radius.
+### Feature #3 & #4: Phrase Expansion
+**Flow:**
+1. PhraseEngine.GetPhrase(DateTime.Now)
+2. Resolve provider from locale/style
+3. Provider.GetPhrase() selects random candidate from expanded array
+4. MainWindow renders phrase via PhraseText.Inlines
 
-**New property:** `public float ProximityRatio { get; private set; } = 0.0f`
+**No new data flow.** Content expansion is transparent to PhraseEngine and MainWindow.
 
-Holds the last emitted value. Readable by `MainWindow` for the ContrastRefreshController pause predicate (`_ghostMode.ProximityRatio > 0.0f`). Resets to `0.0f` when cursor exits the proximity zone entirely.
+---
 
-**New event:** `public event Action<float>? ProximityChanged`
+### Feature #5: Theme Removal
+**Flow (one-time migration):**
+1. User launches app after upgrade
+2. `SettingsService.Load()` detects `Theme` field in old JSON
+3. Look up theme in `BuiltInThemes` registry
+4. Inject theme's constituent values into AppSettings if fields absent
+5. Deserialize AppSettings (now with `Theme` field removed from record definition)
+6. Next `SaveSettings()` writes JSON without `Theme` field
 
-Fired on every polling tick when `ProximityRatio > 0.0f` (or when it transitions from non-zero to zero). `MainWindow` uses this to update `this.Opacity`.
+**Flow (steady state):** No theme application; users set accent/opacity/font/clock/stats individually via Settings UI.
 
-### Changes to the polling tick
+---
 
-The existing `_restoreTimer.Tick` handler:
+## Build Order Recommendation
 
-```
-if (!_isGhostMode) return;
-if cursor outside RECT → stop timer, remove WS_EX_TRANSPARENT, fire Restored
-```
+**Phase order considering dependencies:**
 
-Extended:
+### Phase 1: Backdrop Padding
+**Why first:** Zero code dependencies; XAML-only change; instant visual verification; sets visual foundation for the milestone.
 
-```
-if (!_isGhostMode):
-    if ProximityFadeRadius > 0:
-        compute dist = ChebyshevDist(cursor, rect)
-        compute ProximityRatio = clamp(1 - dist / ProximityFadeRadius, 0, 1)
-        if ProximityRatio changed:
-            fire ProximityChanged(ProximityRatio)
-        if ProximityRatio == 1.0 (cursor inside widget):
-            [pre-activation cleanup — see below]
-            Activate()   → apply WS_EX_TRANSPARENT
-            [caller sets this.Opacity = 0 via Activated event — see below]
-    return   ← polling continues while cursor is in proximity zone
+**Deliverable:** `BackdropBorder` in MainWindow.xaml has `Padding="12"`.
 
-if (!_isGhostMode && ProximityFadeRadius == 0): return  ← existing behavior
-```
+---
 
-### Ctrl+Alt suppression in the tick
+### Phase 2a: Phrase Expansion (parallel)
+**Why second:** No code dependencies; pure content; can run in parallel with Jive/Pirate/Yoda deepening.
 
-When `IsCtrlAltHeld()` is true, the tick should emit `ProximityRatio = 0.0f` and not advance toward ghost activation. The `Window_MouseEnter` handler already routes to the normal hover path when Ctrl+Alt is held — the polling tick must not override that with a proximity fade.
+**Deliverable:** All non-novelty providers (English Classic/Terse/Poetic/Rude, French, Spanish, German, Japanese, Polish) have 5-10 variations per bucket.
 
+---
+
+### Phase 2b: Jive/Pirate/Yoda Deepening (parallel)
+**Why second:** Same reasoning as 2a; zero mutual dependency with phrase expansion.
+
+**Deliverable:** Jive/Pirate/Yoda providers have expanded, personality-deeper candidate arrays.
+
+---
+
+### Phase 3: Stats Interval Slider
+**Why third:** AppSettings field type change must be stable before theme removal migration runs. No dependency on phrase changes.
+
+**Deliverable:**
+- `AppSettings.StatsIntervalSeconds` is `double` (was `int`)
+- SettingsWindow Stats tab has slider (0.5–10.0s, 0.1s step)
+- Validation guards range
+- JSON round-trip test passes
+- MainWindow timer accepts continuous values
+
+---
+
+### Phase 4: Theme Removal
+**Why last:** Requires AppSettings structure finalized (Phase 3 changed StatsIntervalSeconds type). Migration logic must handle old `Theme` field robustly.
+
+**Deliverable:**
+- `ThemeDefinition` and `BuiltInThemes` deleted
+- `AppSettings.Theme` field removed
+- SettingsWindow theme UI removed
+- Migration logic in `SettingsService.Load()` handles old JSON with `Theme` field
+- Test coverage: migration from each built-in theme name, null theme, absent theme field
+
+---
+
+## Architectural Notes
+
+### Patterns to Follow
+
+#### Stop+set+Start for Timer Interval Changes (Feature #2)
+Established in v1.2 (decision #356). Applies identically to continuous slider values:
 ```csharp
-if (IsCtrlAltHeld())
+private void OnStatsIntervalChanged(double newInterval)
 {
-    ProximityRatio = 0.0f;
-    ProximityChanged?.Invoke(0.0f);
-    return;
+    _statsIntervalSeconds = newInterval;
+    _statsTimer.Stop();
+    _statsTimer.Interval = TimeSpan.FromSeconds(newInterval);
+    _statsTimer.Start();
+    SaveSettings();  // persist immediately
 }
 ```
 
-### Pre-activation cleanup boundary
-
-When proximity fade drives the cursor crossing into the widget (ProximityRatio reaches 1.0), the same pre-activation cleanup that currently runs in `Window_MouseEnter` must still run:
-
-- Clear backdrop (if not `BackdropAlwaysVisible`)
-- Reset stats timer interval to configured rate
-- Set `_isHoverFastRefresh = false`
-
-These are `MainWindow` responsibilities. The cleanest approach: fire a dedicated `Activating` event (or reuse `ProximityChanged(1.0f)` with a check in `MainWindow`), and have `MainWindow` run the cleanup + then call `Activate()` and set `this.Opacity = 0`. The controller does not call `Activate()` directly from the tick — it emits the signal and MainWindow acts. This preserves the existing cleanup sequence without duplicating it in the controller.
-
-Alternatively, for zero-radius (existing behavior), `Window_MouseEnter` continues to handle all activation as today. Proximity-mode activation can be handled entirely in the polling tick's event callback in `MainWindow`.
-
-**Recommended:** Add an `Activating` event that fires when `ProximityRatio` first reaches 1.0. `MainWindow` subscribes to run pre-activation cleanup + `_ghostMode.Activate()` + `this.Opacity = 0`. `Window_MouseEnter` retains the zero-radius path unchanged.
-
-### Unchanged in GhostModeController
-
-- All P/Invoke declarations and structs
-- `_hwnd`, `_restoreTimer`, `_isGhostMode`
-- `IsEnabled`, `IsActive`, `Activate()`, `Dispose()` API surface
-- `IsCtrlAltHeld()` implementation
-- `Restored` event and its firing logic (cursor exits RECT while ghost is active)
-
----
-
-## Proximity Ratio Computation
-
-The controller has a `RECT` from `GetWindowRect` and `POINT` from `GetCursorPos`. Chebyshev distance (maximum of horizontal and vertical component distances) is recommended over Euclidean:
-
-- Aligns with the widget's rectangular shape — gives a square proximity zone, which is intuitive for a rectangular widget
-- Avoids `Math.Sqrt` on every 75ms tick
-- Simpler and equally correct for this use case
-
-```csharp
-static float ComputeProximityRatio(POINT cursor, RECT rect, int radius)
-{
-    // Distance from cursor to nearest rect edge (0 if cursor is inside rect)
-    int dx = Math.Max(0, Math.Max(rect.Left - cursor.X, cursor.X - rect.Right));
-    int dy = Math.Max(0, Math.Max(rect.Top  - cursor.Y, cursor.Y - rect.Bottom));
-    int dist = Math.Max(dx, dy);  // Chebyshev distance
-
-    if (radius == 0) return dist == 0 ? 1.0f : 0.0f;  // snap-on-entry (zero radius)
-    return Math.Clamp(1.0f - (float)dist / radius, 0.0f, 1.0f);
-}
-```
-
-This function is a pure static — extract it from the controller so it can be unit-tested without an HWND.
-
-Results:
-- Cursor inside widget (`dist == 0`) → `1.0` → ghost activation threshold
-- Cursor at exact proximity zone boundary (`dist == radius`) → `0.0` → no fade
-- Cursor beyond zone (`dist > radius`) → `0.0` → no fade
-- Cursor at midpoint of zone → `0.5` → `this.Opacity = _windowOpacity * 0.5`
-
----
-
-## Restore Path: No Changes Required
-
-The existing `Restored` handler in `MainWindow`:
-
-```csharp
-_ghostMode.Restored += () =>
-{
-    this.Opacity = _windowOpacity;
-    if (!_backdropAlwaysVisible)
-        BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
-};
-```
-
-This already sets `this.Opacity = _windowOpacity` (configured value). When the cursor retreats from the proximity zone while not in ghost state, the controller emits decreasing `ProximityRatio` values until `0.0`, then stops emitting. `MainWindow`'s handler computes `_windowOpacity * 1.0 = _windowOpacity` — the window returns to full configured opacity naturally.
-
-When the cursor retreats after having triggered ghost mode (cursor inside widget → ghost activated → cursor exits), the existing `Restored` event fires as before. No new restore path is needed.
-
-When `ProximityRatio` reaches 0.0 after being non-zero, reset `this.Opacity = _windowOpacity` in the `ProximityChanged` handler for the zero-ratio case to guarantee no float rounding artifact:
-
-```csharp
-_ghostMode.ProximityChanged += ratio =>
-{
-    if (_ghostMode.IsCtrlAltHeld() || !_ghostMode.IsEnabled) return;
-    this.Opacity = ratio == 0.0f ? _windowOpacity : _windowOpacity * (1.0 - ratio);
-};
-```
-
----
-
-## Settings Integration
-
-### AppSettings
-
-Add one field with safe JSON-forward-compat default:
-
-```csharp
-public int ProximityFadeRadiusPx { get; init; } = 0;
-```
-
-Default `0` disables proximity fade (existing snap behavior). Valid range: `[0, 200]`. The value `200` matches `ContrastSamplerService.MaxSampleDim` — a reasonable upper bound for a proximity zone.
-
-### SettingsService.Validate()
-
-```csharp
-// ProximityFadeRadiusPx guard — must be in [0, 200]
-if (loaded.ProximityFadeRadiusPx < 0 || loaded.ProximityFadeRadiusPx > 200)
-    loaded = loaded with { ProximityFadeRadiusPx = 0 };
-```
-
-### SettingsSnapshot
-
-```csharp
-public int ProximityFadeRadiusPx { get; init; } = 0;
-```
-
-### SettingsWindow
-
-Add `public event Action<int>? ProximityFadeRadiusChanged` to the event surface.
-
-Add in Behavior tab (under the Ghost Mode checkbox group, before or after it):
-
-```
-[ Fade Radius ]  [slider 0–200, step 10]  [value label: "N px"]
-```
-
-Follow the `BackdropOpacitySlider` pattern in the Appearance tab: label on the left, `Slider` + `TextBlock` on the right in a horizontal `StackPanel`. The slider is disabled when `Ghost Mode` is unchecked.
-
-```csharp
-private void ProximityFadeSlider_ValueChanged(...)
-{
-    if (_suppressEvents) return;
-    var val = (int)ProximityFadeSlider.Value;
-    ProximityFadeLabel.Text = $"{val}px";
-    ProximityFadeRadiusChanged?.Invoke(val);
-}
-```
-
-`PopulateControls`: `ProximityFadeSlider.Value = s.ProximityFadeRadiusPx`.
-
-### MainWindow wiring
-
-In `OpenSettings()`:
-```csharp
-_settingsWindow.ProximityFadeRadiusChanged += r => SetProximityFadeRadius(r);
-```
-
-New method:
-```csharp
-private void SetProximityFadeRadius(int radiusPx)
-{
-    _ghostMode.ProximityFadeRadius = radiusPx;
-    SaveSettings();
-}
-```
-
-In `ApplySettings()`:
-```csharp
-_ghostMode.ProximityFadeRadius = s.ProximityFadeRadiusPx;
-```
-
-In `ResetToDefaults()`:
-```csharp
-_ghostMode.ProximityFadeRadius = 0;
-```
-
-### ContrastRefreshController pause predicate
-
-Current (in `ContentRendered`):
-```csharp
-_contrast.Initialize(
-    this,
-    () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging,
-    ...);
-```
-
-Extended:
-```csharp
-() => _ghostMode.IsActive || _ghostMode.ProximityRatio > 0.0f || _windowOpacity == 0.0 || _isDragging
-```
-
-Pausing contrast sampling during proximity fade avoids unnecessary BitBlt overhead while the window is transitioning toward invisible.
-
----
-
-## Build Order
-
-Dependencies flow: AppSettings fields → GhostModeController logic → MainWindow wiring → SettingsWindow UI.
-
-### Phase 1: AppSettings + Validation + Tests
-
-**What:** Add `ProximityFadeRadiusPx` to `AppSettings`. Add guard to `SettingsService.Validate()`. Add round-trip test and absent-field/invalid-value tests to `FuzzyClock.App.Tests`.
-
-**Why first:** All subsequent phases read from this field. Zero behavioral change — default 0 is existing snap behavior.
-
-**Files:** `AppSettings.cs`, `SettingsService.cs`, test project.
-
-**Tests:** Extend STEST-01 round-trip to cover `ProximityFadeRadiusPx`. Add: absent-field defaults to 0; negative value clamped to 0; 201 clamped to 0 (or 200 — decide boundary in validate).
-
----
-
-### Phase 2: GhostModeController Extension + Unit Tests
-
-**What:** Add `ProximityFadeRadius`, `ProximityRatio`, `ProximityChanged`, and `Activating` events to `GhostModeController`. Extract `ComputeProximityRatio` as a pure static method. Extend the polling tick. Add Ctrl+Alt suppression in tick.
-
-**Why second:** The controller compiles and its pure logic tests in isolation. No UI changes yet. Zero regression risk to existing ghost behavior (zero-radius path unchanged).
-
-**Files:** `GhostModeController.cs`, test project.
-
-**Tests:** Unit tests for `ComputeProximityRatio(cursor, rect, radius)` covering: cursor inside RECT; cursor at zone boundary; cursor beyond zone; zero radius; Chebyshev corner vs cardinal edge cases.
-
----
-
-### Phase 3: MainWindow Wiring
-
-**What:** Subscribe to `_ghostMode.ProximityChanged` and `_ghostMode.Activating` in `ContentRendered`. Set `this.Opacity` from the ratio. Update ContrastRefreshController pause predicate. Add `SetProximityFadeRadius()`. Update `ApplySettings()` and `ResetToDefaults()`.
-
-**Why third:** Requires Phase 2 (controller events) and Phase 1 (settings field).
-
-**Files:** `MainWindow.xaml.cs`.
-
-**Critical invariant:** `_windowOpacity` must never be written from any proximity callback. Verify by auditing `SaveSettings()` — it reads `_windowOpacity`, not `this.Opacity`. The `_settings with { Opacity = _windowOpacity }` expression in `SaveSettings()` is the proof point.
-
----
-
-### Phase 4: SettingsWindow + SettingsSnapshot UI
-
-**What:** Add `ProximityFadeRadiusPx` to `SettingsSnapshot`. Add `ProximityFadeRadiusChanged` event to `SettingsWindow`. Add slider in Behavior tab. Wire in `OpenSettings()`. Update `PopulateControls`.
-
-**Why fourth:** Requires Phase 3 (MainWindow `SetProximityFadeRadius` method exists before wiring it).
-
-**Files:** `SettingsSnapshot.cs`, `SettingsWindow.xaml`, `SettingsWindow.xaml.cs`, `MainWindow.xaml.cs` (OpenSettings only).
-
-**XAML constraint:** The Behavior tab must accommodate the new slider row. Measure current tab height before adding. If constrained, the slider can be placed inline with the Ghost Mode label row.
-
----
-
-### Phase 5: Tests + Audit
-
-**What:** Full test run (395 tests + new ones). Manual verification: snap behavior at radius=0; fade behavior at radius=80; Ctrl+Alt suppression; opacity restore on cursor retreat; settings round-trip on restart; ResetToDefaults zeroes the radius.
-
-**Files:** Test project only.
+#### One-Time JSON Migration Pattern (Feature #5)
+Follows the v2.6 MonitorPositions migration pattern (decision #422):
+1. Pre-parse JSON with `JsonDocument` before deserializing into AppSettings
+2. Detect old schema field
+3. Migrate to new schema fields **only if** new fields are absent
+4. Deserialize into new AppSettings structure (old field not in record definition, so silently dropped)
+5. Next save writes clean JSON without old field
+
+**Critical:** Migration must be **additive-only** — never overwrite existing values. If user has already set AccentColor manually, do not overwrite with theme's accent color.
+
+#### IPhraseProvider Content Expansion (Features #3 & #4)
+Established in v3.2 (decision #440). Providers are isolated add-ons:
+- Interface unchanged
+- PhraseEngine facade unchanged
+- Candidate arrays inside provider classes expand independently
+- GetSegmentKey() must remain stable (bucket identity unchanged)
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Writing `_windowOpacity` from Proximity Tick
+### Feature #2: Do Not Use TickFrequency for Slider Snapping
+**Trap:** Setting `TickFrequency="0.5"` on Slider causes snapping to half-second increments, defeating the "continuous" goal.
 
-**What goes wrong:** Any code path that does `_windowOpacity = this.Opacity` after a fade tick, or reads `this.Opacity` to compute the next fade step.
-
-**Why it happens:** `this.Opacity` is now set to a transient fade value. A careless assignment back to `_windowOpacity` would corrupt the user's configured opacity — the next restore would restore to a partially-faded value.
-
-**Consequences:** User sees configured opacity slider "stuck" at a lower value after ghost interaction. Scroll wheel opacity would compute from wrong base. Settings JSON would save corrupted opacity.
-
-**Prevention:** `_windowOpacity` is only written by `SetOpacity()`, `ApplySettings()`, `ResetToDefaults()`, and the scroll wheel handler. None of these are in the proximity callback path. The `SaveSettings()` method reads `_windowOpacity`, never `this.Opacity`.
+**Prevention:** Set `IsSnapToTickEnabled="False"` explicitly. Allow free-form values between 0.5–10.0.
 
 ---
 
-### Anti-Pattern 2: Separate DispatcherTimer for Proximity
+### Feature #5: Do Not Overwrite Existing Settings in Migration
+**Trap:** If user has set AccentColor to custom value, and migration detects old `Theme: "Neon"`, naively applying Neon's AccentColor would overwrite the user's choice.
 
-**What goes wrong:** Adding a second `DispatcherTimer` (at 75ms or any interval) in MainWindow or in a new `ProximityFadeController` class.
+**Prevention:** Migration logic must check if each constituent field **already exists** in the JSON. Only inject theme values for **absent** fields.
 
-**Why it happens:** Temptation to separate the proximity concern from ghost mode restore detection.
+```csharp
+// Correct:
+if (!root.TryGetProperty("AccentColor", out _))
+{
+    // Field absent → inject theme's accent color
+}
 
-**Consequences:** Two timers polling `GetCursorPos` + `GetWindowRect` simultaneously. Race between them for determining what state the widget is in. Double the Win32 P/Invoke overhead. Two code paths that must stay in sync.
-
-**Prevention:** Extend the existing `_restoreTimer` tick in `GhostModeController`. Proximity polling and ghost restore detection are the same operation (read cursor, read RECT, determine state). One tick, one code path.
-
----
-
-### Anti-Pattern 3: Calling `Activate()` Directly From the Proximity Tick
-
-**What goes wrong:** When `ProximityRatio` reaches 1.0 in the tick, calling `_ghostMode.Activate()` directly inside the controller.
-
-**Why it happens:** The natural "cursor is inside widget, activate ghost" logic.
-
-**Consequences:** `Activate()` applies `WS_EX_TRANSPARENT`, which triggers a synthetic `WM_MOUSELEAVE`. The `Window_MouseEnter` cleanup (backdrop clear, stats timer reset, `_isHoverFastRefresh = false`) does not run. Backdrop and timer state are corrupted after the ghost activates.
-
-**Prevention:** Fire an `Activating` event from the controller tick when ratio reaches 1.0. `MainWindow`'s handler runs the pre-activation cleanup sequence and then calls `_ghostMode.Activate()` explicitly, exactly as the existing `Window_MouseEnter` ghost path does today.
+// Incorrect:
+// Always inject theme's accent color (overwrites user's custom choice)
+```
 
 ---
 
-### Anti-Pattern 4: Duplicating ProximityRatio State in MainWindow
+### Feature #3 & #4: Do Not Change GetSegmentKey() Logic
+**Trap:** Adding new buckets or changing bucket boundaries would invalidate `_lastSegmentKey` cache in MainWindow, causing phrases to change mid-bucket.
 
-**What goes wrong:** Adding a `_proximityRatio` field to `MainWindow` that mirrors the controller's internal state.
-
-**Why it happens:** Feeling that MainWindow needs to know "is fade active" for guard conditions.
-
-**Consequences:** Two sources of truth. If the controller's ratio and MainWindow's copy drift (e.g., an event is missed, or they are reset at different times), the ContrastRefreshController pause predicate may be wrong, or `_windowOpacity` restoration may fire at the wrong time.
-
-**Prevention:** Use `_ghostMode.ProximityRatio` (the read-only property on the controller) wherever MainWindow needs to check if a fade is in progress. No copy in MainWindow.
+**Prevention:** Expansion is **content-only**. Bucket structure (12 five-minute buckets per hour) is immutable. GetSegmentKey() returns the same key for the same DateTime regardless of candidate array size.
 
 ---
 
-### Anti-Pattern 5: Euclidean Distance for Proximity Zone
+## Testing Strategy
 
-**What goes wrong:** Using `Math.Sqrt(dx*dx + dy*dy)` as the distance metric.
+### Feature #1: Backdrop Padding
+**Test type:** Visual verification only (no code changes).
 
-**Why it happens:** Euclidean distance is mathematically "correct" for a circle.
-
-**Consequences:** The proximity zone becomes circular, which is inconsistent with the widget's rectangular shape. The user can stand precisely at a corner and be in the zone at a different distance than standing at an edge — counterintuitive. Also adds a `Math.Sqrt` call on every 75ms tick.
-
-**Prevention:** Use Chebyshev distance: `Math.Max(dx, dy)`. This gives a square zone, aligned with the widget rectangle, with no float-point computation beyond addition and comparison.
+**Verification:** Hover widget; backdrop should have visible padding around phrase/stats/uptime content.
 
 ---
 
-## Phase-Specific Warnings
+### Feature #2: Stats Interval Slider
+**Test type:** Unit + integration
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| AppSettings default | `ProximityFadeRadiusPx = 0` must be the JSON-absent default, not any non-zero value | Use `init` property with `= 0`; verify with absent-field test |
-| Validate() guard | Upper bound choice (200px) must be documented; if user manually edits to 201 it should clamp, not throw | Clamp to `[0, 200]` in Validate(); same pattern as existing guards |
-| Tick Ctrl+Alt path | Ctrl+Alt check in tick must fire `ProximityChanged(0.0f)` so MainWindow restores opacity | Do not just `return` silently — emit zero explicitly so MainWindow snaps back |
-| Opacity restore at ratio 0.0 | Float arithmetic `_windowOpacity * 1.0` should equal `_windowOpacity` but floating-point may differ by epsilon | Use `ratio == 0.0f ? _windowOpacity : ...` explicit branch |
-| SettingsWindow Behavior tab height | The new slider row adds ~40px; verify tab still scrolls or fits in 480x600 window | Measure tab content height before adding; collapse to a single row if tight |
-| SaveSettings() opacity field | `SaveSettings()` uses `_settings with { Opacity = _windowOpacity }` — must stay reading `_windowOpacity`, not `this.Opacity` | Add a code comment at the save site making this invariant explicit |
+**Unit tests (SettingsService):**
+- `Validate_StatsIntervalTooLow_ClampsTo3` — interval < 0.5 resets to 3.0
+- `Validate_StatsIntervalTooHigh_ClampsTo3` — interval > 10.0 resets to 3.0
+- `RoundTrip_StatsInterval_PreservesDoubleValue` — serialize 2.7 → deserialize → value == 2.7
+
+**Integration tests (MainWindow):**
+- Slider ValueChanged → timer interval updates within one tick
+- Slider at 0.5s → stats update every 500ms (observable via uptime process count)
+- Slider at 10.0s → stats update every 10s
+
+---
+
+### Feature #3 & #4: Phrase Expansion
+**Test type:** Coverage verification
+
+**Unit tests (per provider):**
+- All 12 buckets return a phrase
+- Each bucket has ≥5 candidates (prevents single-entry staleness)
+- GetSegmentKey() unchanged from baseline
+
+**Manual verification:**
+- Let widget run for 60 minutes; observe phrase variety increases
+
+---
+
+### Feature #5: Theme Removal
+**Test type:** Migration unit tests + integration
+
+**Migration tests (SettingsService):**
+- `Migrate_ThemeNeon_InjectsConstituentValues` — old JSON with `Theme: "Neon"` migrates to Neon's accent/opacity/font/clock/stats
+- `Migrate_ThemeWithExistingAccent_DoesNotOverwrite` — old JSON with `Theme: "Neon"` + `AccentColor: "#FF0000"` preserves red accent (does not overwrite with Neon's amber)
+- `Migrate_ThemeNull_NoChange` — old JSON with `Theme: null` deserializes normally
+- `Migrate_NoThemeField_NoChange` — old JSON without `Theme` field (v2.9 users) deserializes normally
+- `SaveAfterMigration_ThemeFieldAbsent` — after migration, SaveSettings() produces JSON without `Theme` field
+
+**Integration tests (MainWindow):**
+- Load settings.json with `Theme: "Ghost"` → widget should have Ghost's white accent, 50% opacity, 24pt font, Phrase mode, stats hidden
+- Save settings after load → JSON file has no `Theme` field
+
+---
+
+## Scalability Considerations
+
+| Feature | At 10 Phrase Variations | At 50 Phrase Variations | At 100 Phrase Variations |
+|---------|-------------------------|-------------------------|--------------------------|
+| Phrase Expansion | Negligible memory (<1KB per provider) | ~5KB per provider (still negligible) | ~10KB per provider (acceptable) |
+| GetPhrase() perf | O(1) dictionary + O(n) random select, n≤10 | O(1) + O(n), n≤50 | O(1) + O(n), n≤100 (still <1ms) |
+
+**Conclusion:** Phrase expansion scales trivially. Random.Next(array.Length) is O(1) for practical candidate counts.
+
+| Feature | At 1s Interval | At 0.5s Interval | At 10s Interval |
+|---------|----------------|------------------|-----------------|
+| Stats Slider | ~300 samples/5min | ~600 samples/5min | ~30 samples/5min |
+| Rolling avg memory | 180 floats (1m) + 900 (5m) + 2700 (15m) = ~15KB | 360 + 1800 + 5400 = ~30KB | 18 + 90 + 270 = ~1.5KB |
+
+**Conclusion:** 0.5s interval doubles memory for rolling averages but remains trivial (<30KB). No scalability concern.
+
+---
+
+## Migration Path for Existing Users
+
+### From v4.0 → v4.1
+
+**Backdrop padding:** No migration. XAML change is immediate.
+
+**Stats interval slider:** Old `StatsIntervalSeconds` values (1, 3, 10) deserialize into `double` field automatically. JSON auto-converts int→double. Validator accepts them (all within 0.5–10.0 range). **Zero migration needed.**
+
+**Phrase expansion:** No migration. Existing users see expanded phrases immediately. No settings changes.
+
+**Theme removal:** One-time migration on first launch:
+1. Detect `Theme` field in old settings.json
+2. If theme name recognized (Minimal/Neon/Ghost/Warm/Ocean), inject constituent values for **absent** fields only
+3. Remove `Theme` field from AppSettings record → next save produces clean JSON
+
+Users who never used themes (Theme: null or absent) are unaffected.
+
+---
+
+## Open Questions
+
+### Feature #2: Slider Precision
+**Question:** Should slider emit values rounded to nearest 0.1s, or allow free-form doubles?
+
+**Options:**
+1. Free-form (0.523s valid) — simpler code, no rounding logic
+2. Rounded to 0.1s (0.5s valid) — cleaner UI display
+
+**Recommendation:** Round to 0.1s for display clarity. Use `Math.Round(value, 1)` in ValueChanged handler before persisting.
+
+---
+
+### Feature #5: Theme Removal UX
+**Question:** Should Settings UI show a one-time notice when migrating from a theme?
+
+**Options:**
+1. Silent migration (no notice) — simpler, but users may not realize themes are gone
+2. One-time banner: "Named themes removed. Your current theme settings have been preserved." — more user-friendly
+
+**Recommendation:** Silent migration. Theme UI is already removed from Settings window; no need for a banner explaining something that's no longer visible.
 
 ---
 
 ## Sources
 
-All findings are HIGH confidence — derived from direct source audit of the production codebase. No external documentation was consulted.
+- `.planning/PROJECT.md` — full project context, milestone history, decision log
+- Existing codebase architecture inferred from PROJECT.md decision table (481 decisions logged)
+- Pattern analysis from v1.0–v4.0 milestone history
 
-| File audited | Key findings |
-|-------------|-------------|
-| `FuzzyClock.App/GhostModeController.cs` | Full class: P/Invokes, `_restoreTimer` (75ms), `Activate()`, `Restored` event, `IsCtrlAltHeld()`, `IsActive`, `IsEnabled` |
-| `FuzzyClock.App/MainWindow.xaml.cs` | `_windowOpacity` vs `this.Opacity` separation; `Window_MouseEnter` ghost path; `Restored` handler; ContrastRefreshController pause predicate; `_ghostMode.IsEnabled` and `IsCtrlAltHeld()` checks |
-| `FuzzyClock.App/AppSettings.cs` | All existing fields; `ProximityFadeRadiusPx` absent — new field needed |
-| `FuzzyClock.App/SettingsSnapshot.cs` | All existing fields; `ProximityFadeRadiusPx` absent — new field needed |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` | Event declaration pattern; `_suppressEvents` guard; `PopulateControls`; `BackdropOpacitySlider` pattern as UI reference |
-| `FuzzyClock.App/SettingsService.cs` | `Validate()` guard patterns (range clamp, string whitelist); `SaveSettings()` reads `_windowOpacity` field |
-| `FuzzyClock.App/ContrastSamplerService.cs` | `MaxSampleDim = 200` — used as upper bound rationale for `ProximityFadeRadiusPx` |
-| `.planning/PROJECT.md` | Validated decisions: WS_EX_TRANSPARENT synthetic MOUSELEAVE, Win32 polling rationale, VK_LMENU vs VK_MENU, pre-ghost cleanup order, opacity-as-display vs _windowOpacity-as-config |
-
----
-
-*Architecture research for: FuzzyClock v4.0 — Proximity Ghost Mode*
-*Researched: 2026-03-27*
+**Confidence:** HIGH — all integration points are established patterns with decision precedent in PROJECT.md.

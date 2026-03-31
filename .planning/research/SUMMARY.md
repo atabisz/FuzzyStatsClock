@@ -1,175 +1,230 @@
 # Project Research Summary
 
-**Project:** FuzzyStatsClock v4.0 — Proximity Ghost Mode
-**Domain:** WPF transparent desktop overlay — proximity-based opacity fade extending existing ghost mode
-**Researched:** 2026-03-27
+**Project:** FuzzyStatsClock v4.1 Polish & Phrases
+**Domain:** Desktop WPF widget enhancement (visual polish + content expansion)
+**Researched:** 2026-03-31
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v4.0 Proximity Ghost Mode is an in-place extension of the existing `GhostModeController` — not a new component, not a new timer, not a new framework. All infrastructure needed (Win32 P/Invokes, 75ms `DispatcherTimer`, `WS_EX_TRANSPARENT` management, Ctrl+Alt detection) already exists and is validated in production. The implementation adds one property (`ProximityFadeRadius`), one read-only float (`ProximityRatio`), and two events (`ProximityChanged`, `Activating`) to the existing controller, plus a pure-static `ComputeProximityRatio` function for unit testability. `MainWindow` applies the ratio to `this.Opacity` via a simple lerp on each `ProximityChanged` callback. The Settings UI adds a single Slider to the existing Behavior tab. No new NuGet packages, no new timers, no new Win32 P/Invoke declarations are required.
+FuzzyStatsClock v4.1 is a low-risk polish milestone that requires **zero new dependencies**. All five features (backdrop padding, continuous stats interval slider, phrase expansion, personality deepening, and theme removal) leverage existing WPF primitives and established codebase patterns. This is pure refinement work on a mature codebase (v4.0, 414 tests passing).
 
-The recommended approach is a position-driven, linearly-interpolated opacity fade computed via Chebyshev distance (rectangular proximity zone matching the widget's rectangular shape, no `sqrt` cost), assigned directly to `this.Opacity` on every 75ms tick. WPF animation APIs (`Storyboard`, `DoubleAnimation`) must not be used — they cannot reliably synchronize `WS_EX_TRANSPARENT` at exactly `Opacity == 0`, they seize ownership of the opacity dependency property away from `_windowOpacity`, and they cannot reverse mid-animation when the cursor retreats. The existing two-variable discipline (`_windowOpacity` = configured preference, `this.Opacity` = transient display value) is the central correctness invariant throughout every phase.
+The recommended approach is surgical: modify XAML properties for visual polish, expand content arrays for phrase variety, and delete obsolete theme infrastructure with one-time settings migration. No architectural changes. No new test surface beyond validation of expanded content coverage. The codebase already has the patterns needed (IPhraseProvider randomization, DispatcherTimer decimal intervals, System.Text.Json nullable field handling).
 
-The key risks concentrate around three interaction surfaces that have each caused multi-milestone regression histories in this project. First, the auto-contrast sampler's `shouldSkip` predicate must be extended to include proximity fading state in the same commit that introduces the fade — omitting this re-introduces the feedback flicker loop that required three separate fixes (v3.6, v3.6.1, v3.6.2). Second, `WS_EX_TRANSPARENT` must only be applied when `this.Opacity == 0.0` — never during the fade — or the widget becomes click-through while still visible and WPF stops delivering mouse events. Third, `_windowOpacity` must never be written from any fade callback — it is the configured preference that drives every opacity restore, save, and slider sync.
-
----
+The primary risk is **layout cascade from backdrop padding** — adding padding to the wrong Border element can break 66 decisions worth of GetWindowRect assumptions (edge snapping, ghost mode hit-testing, contrast sampling, position clamping). Mitigation: use inner margins instead of Border.Padding, and audit all 7 GetWindowRect call sites before implementation. Secondary risk is **floating-point precision** in stats interval slider requiring Math.Round() guards to prevent 3.0000000000000004 serialization. These are both preventable with disciplined execution.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new libraries or packages are needed. The entire feature is implementable from APIs already declared and validated in the project. The `AppSettings` init-property record pattern supports two new fields with zero migration risk — absent fields JSON-deserialize to their `init` defaults.
+**No stack changes.** All v4.1 features work with the existing validated stack: C# .NET 10, WPF built-in, System.Text.Json built-in.
 
 **Core technologies:**
-- `GetCursorPos` + `GetWindowRect` (Win32, user32.dll): cursor-to-rect distance polling — already declared in `GhostModeController`; the only reliable approach under `WS_EX_TRANSPARENT` (WPF `Mouse.GetPosition` stops working when click-through is active, validated in project history)
-- `DispatcherTimer` at 75ms (WPF BCL, .NET 10): drives proximity polling — already exists; extend the tick handler in-place; no second timer
-- `Window.Opacity` direct assignment (WPF, .NET 10): applies computed fade value — already used by ghost mode; no animation framework needed or appropriate
-- `Math.Clamp` (.NET BCL): guards the `[0.0, 1.0]` opacity range; zero-cost against floating-point edge cases
+- **WPF Border/Slider controls** — native to .NET 10, already used throughout codebase for BackdropBorder and OpacitySlider
+- **System.Text.Json** — handles nullable field migration, int→double widening automatically; already powers AppSettings persistence
+- **IPhraseProvider pattern** — established in v3.2, supports multi-candidate randomization natively via Random.Next
+
+**Critical insight:** v4.1 is content/polish work, not technical integration. The hard architectural decisions (transparent overlay, Win32 interop, phrase providers, settings persistence) were solved in v1.0–v3.9. This milestone reaps the benefit of a mature codebase.
+
+**Version requirements:** None. No NuGet packages, no .NET upgrade, no new Win32 APIs.
 
 ### Expected Features
 
-FEATURES.md defines 10 MVP requirements (PROX-01 through PROX-10).
-
 **Must have (table stakes):**
-- Opacity decreases proportionally as cursor approaches widget boundary (PROX-01) — core behavior; absent = feature does not exist
-- Fade reaches zero on boundary crossing with no snap discontinuity (PROX-02) — any discontinuity reads as a bug
-- Symmetric fade-in on cursor retreat using the same distance formula (PROX-03) — asymmetric restore is jarring
-- `WS_EX_TRANSPARENT` applied only at `distance == 0`, removed on first non-zero tick on retreat (PROX-04) — preserves the click-through contract
-- Ctrl+Alt held suppresses proximity fade; normal hover path activates instead (PROX-05) — existing gesture contract must be preserved
-- Ghost Mode tray toggle gates proximity fade; off = fully off (PROX-06) — proximity fade is a sub-feature of ghost mode
-- `AppSettings.GhostFadeRadiusPx` (int, default 80, valid range 20–200) with `Validate()` guard (PROX-07)
-- Slider in Settings > Behavior tab (range 20–200px, step 10px, value label showing px) (PROX-08)
-- Slider disabled when Ghost Mode checkbox is unchecked (PROX-09) — prevents confusing active control with no effect
-- `GhostFadeRadiusChanged` event declared in `SettingsWindow` and wired in `MainWindow.OpenSettings()` (PROX-10)
+- **Adequate backdrop padding** — Visual breathing room is fundamental UI design; tight backdrops feel cramped (LOW complexity: XAML property)
+- **Stats interval slider shows current value** — Continuous sliders need value feedback; without display, users guess (LOW complexity: TextBlock binding)
+- **2-3 phrase variants per time bucket** — Single-phrase-per-bucket creates robotic repetition users notice within days (MEDIUM complexity: 360+ phrases)
+- **Consistent voice personality** — Novelty styles must stay in character across all 12 buckets or they feel like gimmicks (MEDIUM complexity: linguistic rules)
 
-**Defer (v4.1+):**
-- Asymmetric fade speed (faster fade-out than fade-in) — linear is sufficient for v4.0
-- Fade zone shape options (rectangular vs radial) — rectangular matches widget shape and is the correct default
-- Multiple concentric proximity zones — no clear UX benefit over a single radius
-- Per-axis independent radii — not requested; over-engineered
+**Should have (competitive):**
+- **Generous backdrop padding (12-20px)** — Premium feel; mimics high-end design systems like Material (16dp) and Fluent (12-20px) (LOW complexity)
+- **Continuous interval slider (0.5–10s)** — Fine-grained control for power users; discrete ladder feels arbitrary (LOW complexity)
+- **5+ variants per bucket** — Rare repetition creates "Oh, I haven't seen that one before" surprise after weeks (HIGH complexity: 600+ phrases)
+- **Deep personality** — Feels authentic, not cosplay; users recommend the app for personalities alone (HIGH complexity: linguistic research)
+- **Named theme removal with clean UI** — Simplifies Settings window; users prefer direct control over presets (LOW complexity: deletion + migration)
+
+**Defer (v4.2+):**
+- **Deep personality (5+ variants, linguistic rules)** — Defer to validate foundational variety first; high effort for narrow benefit (3 of 10 providers)
+
+**Anti-features (explicitly avoid):**
+- Phrase variety toggle, per-provider variety count settings, phrase history/rotation algorithm, backdrop padding slider
+
+**MVP recommendation:** Prioritize backdrop padding → continuous stats slider → theme removal → phrase variety (3 variants minimum). Defer deep personality to v4.2.
 
 ### Architecture Approach
 
-Extend `GhostModeController` in-place rather than creating a new `ProximityFadeController`. All ghost-mode Win32 infrastructure is already there; splitting concerns into a new class would duplicate the P/Invoke surface and the polling timer. The controller emits a `float ProximityRatio` (0.0 = outside zone, 1.0 = inside widget) on each tick; `MainWindow` computes `this.Opacity = _windowOpacity * (1.0 - ratio)` inline. The `Activating` event (fired when ratio first reaches 1.0) lets `MainWindow` run the pre-activation cleanup sequence before calling `Activate()` — same as the existing `Window_MouseEnter` ghost path, just triggered from the polling loop.
+All five features integrate cleanly with existing patterns. No new architectural components required.
 
-**Major components:**
-1. `GhostModeController` — Win32 cursor polling, Chebyshev distance computation, proximity ratio emission, `WS_EX_TRANSPARENT` management, Ctrl+Alt detection; communicates to `MainWindow` via `ProximityChanged(float)` + `Activating` + existing `Restored` events
-2. `MainWindow` — owns `_windowOpacity` (configured, never written by fade) and `this.Opacity` (transient display); applies lerp from `ProximityChanged`; handles `Activating` for pre-activation cleanup; propagates `_isDragging` guard
-3. `AppSettings` + `SettingsService` — persists `ProximityFadeRadiusPx`; `Validate()` clamps to `[0, 200]`; `ResetToDefaults()` must include this field (all four: `init` default, `Defaults()`, `Validate()`, `ResetToDefaults()`)
-4. `SettingsWindow` + `SettingsSnapshot` — Slider in Behavior tab; `ProximityFadeRadiusChanged` event; `PopulateControls` reads from snapshot; slider gated on Ghost Mode checkbox
-5. `ContrastRefreshController` — pause predicate extended with `|| _ghostMode.ProximityRatio > 0.0f`; no other changes
+**Integration patterns:**
+1. **Backdrop padding:** XAML-only (Padding property on BackdropBorder) — **CRITICAL:** must use inner margins instead to avoid SizeToContent cascade breaking GetWindowRect assumptions (edge snap, ghost hit-test, contrast sampling, position clamp)
+2. **Stats interval slider:** UI replacement (ComboBox → Slider) + field type change (int → double) + validation update; existing Stop+set+Start timer pattern handles continuous values
+3. **Phrase expansion:** Pure additive content to IPhraseProvider implementations; no interface changes; isolated to provider class internals
+4. **Jive/Pirate/Yoda deepening:** Identical to phrase expansion (isolated content changes)
+5. **Theme removal:** Deletion pass (BuiltInThemes registry, ThemeDefinition record, Settings UI) + one-time JSON migration (Theme → AccentColor) following v2.6 MonitorPositions migration pattern
+
+**Major components touched:**
+1. **BackdropBorder (XAML)** — padding/margin adjustment for visual polish
+2. **AppSettings record** — StatsIntervalSeconds type change (int→double), Theme field deletion
+3. **SettingsService** — validation update, one-time migration logic
+4. **IPhraseProvider implementations** — candidate array expansion (9 providers × 12 buckets)
+5. **SettingsWindow (XAML)** — slider replacement, theme UI deletion
+
+**Build order (based on dependencies):**
+1. Backdrop Padding — zero dependencies, instant visual verification
+2. Phrase Expansion (parallel) + Jive/Pirate/Yoda Deepening (parallel) — zero mutual dependency
+3. Stats Interval Slider — AppSettings type change must stabilize before theme migration
+4. Theme Removal — requires AppSettings structure finalized; migration logic depends on stable schema
 
 ### Critical Pitfalls
 
-1. **Overwriting `_windowOpacity` from the fade path** — configured opacity is silently corrupted, persisted to `settings.json`, and surfaces as "my opacity keeps changing." Prevention: all fade writes go to `this.Opacity` only; `_windowOpacity` is only written by `SetOpacity()`, `ApplySettings()`, `PreviewMouseWheel`, and `ResetToDefaults()`.
+1. **SizeToContent Cascade on Backdrop Padding (CRITICAL)** — Adding Padding to BackdropBorder breaks GetWindowRect assumptions at 5+ integration points (edge snap, ghost hit-test, contrast sampling, position clamp, phrase wrap). **Prevention:** Use inner margins on StackPanel children, NOT Border.Padding; audit all 7 GetWindowRect call sites before implementation.
 
-2. **`WS_EX_TRANSPARENT` applied before `Opacity == 0.0`** — widget is click-through while still visible; WPF stops delivering mouse events; synthetic `WM_MOUSELEAVE` fires immediately and creates a spurious ghost-restore loop. Prevention: `Activate()` is called only from the `Activating` event handler in `MainWindow`, which fires only when `ProximityRatio` reaches exactly 1.0.
+2. **Int→Double Migration Without Rounding Guard (CRITICAL)** — Slider accumulates floating-point error (3.0000000000000004), causing UI desync and drift in rolling CPU averages over time. **Prevention:** Add Math.Round(value, 1) in slider handler + SettingsService.Validate(); use Math.Abs(x - 0.5) < 0.01 instead of x == 0.5 for equality checks.
 
-3. **Auto-contrast sampler running during fade** — `ContrastRefreshController.shouldSkip` predicate misses the partially-transparent state; mid-fade BitBlt samples a blended image including the widget's own dimmed rendering; re-introduces WCAG oscillation feedback (the bug fixed across v3.6, v3.6.1, v3.6.2). Prevention: extend the skip predicate to include `|| _ghostMode.ProximityRatio > 0.0f` in the same commit as the fade implementation; never defer.
+3. **Theme Removal Without Field Deletion Migration (CRITICAL)** — Existing settings.json with "Theme": "Ghost" silently loses user's theme color on v4.1 upgrade if no migration logic. **Prevention:** Write Theme→AccentColor migration in SettingsService.Load() BEFORE deleting BuiltInThemes registry; test with all 5 built-in theme names.
 
-4. **Proximity fade active during drag** — widget fades to invisible while user is dragging it; only recoverable by releasing the mouse. Prevention: add `if (_isDragging) { this.Opacity = _windowOpacity; return; }` at the top of the `ProximityChanged` callback, same pattern as the existing contrast sampler `_isDragging` guard.
+4. **Phrase Expansion Without Bucket Coverage Verification (MODERATE)** — Missing buckets cause runtime crashes at specific times of day (10:50, 3:20) that weren't manually tested. **Prevention:** Add exhaustive 14-case test per provider (12 buckets + noon + midnight) before expansion work begins.
 
-5. **Opacity jitter at the outer fade boundary** — continuous linear mapping amplifies 1–3px mouse input jitter into visible "breathing" when cursor is near the fade start distance. Prevention: apply a hardcoded 10–15px hysteresis band at the outer boundary (same pattern as `ContrastService` 4.5/5.5 WCAG thresholds); build it in from the start.
-
----
+5. **Authenticity Drift Into Caricature (MODERATE)** — Jive/Pirate/Yoda deepening can become unreadable parody if dialect markers are too dense. **Prevention:** Human review every phrase; read aloud; "dial it back" pass removes 30% of dialect markers; aim for rhythm/grammar patterns over lexical substitution.
 
 ## Implications for Roadmap
 
-Architecture.md prescribes a clean 4-phase build order plus a final test/audit phase. The dependency graph is strict: the `AppSettings` field must exist before the controller reads it; the controller events must be declared before `MainWindow` subscribes; the `MainWindow` wiring method must exist before `SettingsWindow` is wired to it. Each phase can be safely tested against the zero-radius fallback (existing snap behavior) to confirm non-regression.
+Based on research, suggested phase structure:
 
-### Phase 1: AppSettings + Validation + Tests
-**Rationale:** All subsequent phases depend on `ProximityFadeRadiusPx` existing in `AppSettings`. Zero behavioral change — default `0` preserves existing snap ghost behavior identically. Establishing the four-point checklist here prevents Pitfall 9 (ResetToDefaults missing the field), which has bitten this project before (v3.5 FIX-01).
-**Delivers:** New `AppSettings.ProximityFadeRadiusPx` field (`int`, default `0`); `SettingsService.Validate()` guard clamping to `[0, 200]`; `ResetToDefaults()` reset; round-trip test; absent-field default test; invalid-value clamp test.
-**Addresses:** PROX-07 (settings persistence); Pitfall 9 (ResetToDefaults coverage).
-**Avoids:** Settings.json incompatibility; silent defaults corruption on upgrade.
+### Phase 70: Backdrop Padding
+**Rationale:** Zero code dependencies; XAML-only change provides instant visual verification; sets visual foundation for milestone; must validate layout approach BEFORE phrase expansion (which increases window size variability).
 
-### Phase 2: GhostModeController Extension + Unit Tests
-**Rationale:** The controller is the pure computational core. Extracting `ComputeProximityRatio` as a static method enables isolation testing without an HWND. The zero-radius code path is left completely unchanged, so all existing `GHOST-01` through `CTRLALT-02` tests continue to pass. This phase establishes the event surface that all downstream phases rely on.
-**Delivers:** `ProximityFadeRadius` property; `ProximityRatio` read-only float; `ProximityChanged(float)` event; `Activating` event; extended polling tick with Ctrl+Alt suppression; `ComputeProximityRatio(POINT, RECT, int)` pure static; unit tests for the static covering cursor inside RECT, at zone boundary, beyond zone, zero radius, Chebyshev corner vs cardinal edge cases.
-**Uses:** Chebyshev distance formula (no `sqrt`); existing `GetCursorPos`/`GetWindowRect` P/Invokes; existing 75ms timer.
-**Avoids:** Pitfall 2 (`Activating` event ensures MainWindow runs cleanup before `Activate()`); Pitfall 7 (pure Win32 pixel space throughout — no WPF DIPs).
+**Delivers:** BackdropBorder with generous padding (12-16px) that doesn't break edge snapping, ghost mode, or contrast sampling.
 
-### Phase 3: MainWindow Wiring + Contrast Guard
-**Rationale:** Requires Phase 2 events and Phase 1 settings field. This phase carries the highest correctness risk and must be treated as atomic. The ContrastRefreshController predicate update is non-negotiable in this same phase — deferring it would ship a regression against the v3.6.2 fix. The `Restored` handler snap-restore behavior (Pitfall 3 / asymmetric fade-in) is resolved here.
-**Delivers:** `ProximityChanged` subscription (lerp opacity, `_isDragging` guard, `_windowOpacity` never written); `Activating` subscription (pre-activation cleanup + `Activate()` + `this.Opacity = 0`); `SetProximityFadeRadius()` method; `ApplySettings()` and `ResetToDefaults()` updates; ContrastRefreshController pause predicate extended with `|| _ghostMode.ProximityRatio > 0.0f`.
-**Avoids:** Pitfall 1 (`_windowOpacity` invariant); Pitfall 3 (symmetric fade-in — `Restored` handler initiates fade-in via `ProximityChanged`, not snap-opacity); Pitfall 4 (contrast guard in same commit); Pitfall 5 (hover fast-refresh gated on ghost enabled); Pitfall 8 (`_isDragging` guard at top of callback).
+**Addresses:** Table stakes "adequate backdrop padding" + competitive "generous padding (12-20px)" from FEATURES.md.
 
-### Phase 4: SettingsWindow UI
-**Rationale:** Requires Phase 3 (`SetProximityFadeRadius()` must exist before wiring). Behavior tab height must be confirmed before adding the slider row (~40px) — measure against the 480x600 window constraint established in v3.6. Follow the `BackdropOpacitySlider` pattern in the Appearance tab as the UI reference.
-**Delivers:** `ProximityFadeRadiusPx` in `SettingsSnapshot`; `ProximityFadeRadiusChanged` event in `SettingsWindow`; Slider in Behavior tab with px value label and description ("widget fades to invisible within this distance"); slider gated on Ghost Mode checkbox; `PopulateControls` update; `OpenSettings()` wiring.
-**Addresses:** PROX-08 (slider); PROX-09 (slider gating); PROX-10 (event wiring); Pitfall 10 (clear labeling, "0 = disabled" at left end, description line).
+**Avoids:** Critical Pitfall #1 (SizeToContent cascade) by using inner margins instead of Border.Padding; includes audit of all 7 GetWindowRect call sites.
 
-### Phase 5: End-to-End Tests + Audit
-**Rationale:** Full test run (395 existing + new proximity tests). Manual verification of the "Looks Done But Isn't" checklist from PITFALLS.md. Auto-contrast stability during fade is the highest-priority manual check given the v3.6 history.
-**Delivers:** All 10 PROX items verified; no regression to existing ghost-mode, contrast, drag, or settings behavior; hysteresis stability confirmed at 20px radius.
+**Research flag:** SKIP research-phase — well-documented WPF Border pattern; critical issue already identified in PITFALLS.md.
+
+---
+
+### Phase 71: Stats Interval Slider
+**Rationale:** Prepares AppSettings schema changes before theme removal migration runs; no dependency on phrase expansion; users already familiar with interval control (natural evolution from discrete ladder).
+
+**Delivers:** Slider with continuous 0.5–10s range, value display, AppSettings.StatsIntervalSeconds as double, range validation, JSON round-trip tested.
+
+**Uses:** WPF Slider (STACK.md notes existing OpacitySlider pattern), System.Text.Json int→double widening.
+
+**Addresses:** Table stakes "slider shows current value" + competitive "continuous interval slider" from FEATURES.md.
+
+**Avoids:** Critical Pitfall #2 (floating-point precision) via Math.Round() guards; Moderate Pitfall #6 (hover fast-refresh no-op) via ≤0.6s interval guard.
+
+**Research flag:** SKIP research-phase — existing OpacitySlider in SettingsWindow.xaml is identical pattern (decimal Minimum/Maximum/TickFrequency); no new WPF concepts.
+
+---
+
+### Phase 72: Expand All Phrase Providers
+**Rationale:** Pure content work with zero dependencies; can run in parallel with Phase 73 (Jive/Pirate/Yoda); establishes baseline variety (3-5 variants) before deepening personalities.
+
+**Delivers:** All 9 non-novelty providers (English Classic/Terse/Poetic/Rude, French, Spanish, German, Japanese, Polish) have 3-5 variations per bucket; exhaustive bucket coverage tests (14 cases × 9 = 126 tests).
+
+**Implements:** IPhraseProvider multi-candidate pattern (ARCHITECTURE.md notes existing Random.Next selection).
+
+**Addresses:** Table stakes "2-3 phrase variants per bucket" + competitive "5+ variants per bucket" from FEATURES.md.
+
+**Avoids:** Moderate Pitfall #4 (bucket coverage gaps) via exhaustive 14-case tests before expansion; Minor Pitfall #9 (segment key instability) via GetSegmentKey() audit.
+
+**Research flag:** SKIP research-phase for English providers (native speaker); FLAG for non-English providers (French/Spanish/German/Japanese/Polish may need native review for cultural appropriateness).
+
+---
+
+### Phase 73: Deepen Jive/Pirate/Yoda
+**Rationale:** Same reasoning as Phase 72; isolated to 3 providers; zero mutual dependency with main phrase expansion.
+
+**Delivers:** Jive/Pirate/Yoda providers have expanded, personality-deeper candidate arrays with linguistic rules applied consistently; human review checkpoint before commit.
+
+**Implements:** Same IPhraseProvider pattern as Phase 72.
+
+**Addresses:** Table stakes "consistent voice personality" + competitive "deep personality" from FEATURES.md.
+
+**Avoids:** Moderate Pitfall #5 (authenticity drift) via human review, "dial it back" pass, and Jive-specific cultural sensitivity guard (PITFALLS.md warns of AAVE caricature risk).
+
+**Research flag:** FLAG for linguistic research — Pirate (nautical time metaphors, ship bells), Jive (1970s AAVE patterns), Yoda (OSV syntax rules) need authoritative style guides, not just training data inference.
+
+---
+
+### Phase 74: Remove Named Themes
+**Rationale:** Must ship AFTER AppSettings structure finalized (Phase 71 changed StatsIntervalSeconds type); migration logic requires stable schema; deletion simplifies Settings UI before v4.2 planning.
+
+**Delivers:** ThemeDefinition/BuiltInThemes deleted, Theme field removed from AppSettings, Settings theme UI removed, migration logic handles old "Theme": "Ghost" JSON with constituent value injection for absent fields only.
+
+**Uses:** System.Text.Json nullable field handling (STACK.md confirms existing pattern), v2.6 MonitorPositions migration pattern (ARCHITECTURE.md).
+
+**Addresses:** Competitive "named theme removal with clean UI" from FEATURES.md.
+
+**Avoids:** Critical Pitfall #3 (theme removal without migration) via Theme→AccentColor migration in Load() before BuiltInThemes deletion; test coverage for all 5 built-in theme names + null + absent field.
+
+**Research flag:** SKIP research-phase — migration follows established v2.6 pattern (one-time JSON pre-parse, additive-only injection, clean save).
+
+---
 
 ### Phase Ordering Rationale
 
-- Settings field first because the zero default preserves all existing behavior while establishing the data model every other phase reads; round-trip tests confirm forward compatibility immediately.
-- Controller second because it is the pure-computation core with no UI dependency; `ComputeProximityRatio` unit tests run without HWND or WPF, confirming the distance formula before any opacity changes are live.
-- MainWindow third because the dangerous invariant violations (opacity corruption, contrast guard omission) all live here; shipping this phase also closes the snap-restore asymmetry before the UI exposes the feature.
-- SettingsWindow last because it only needs the wiring points Phase 3 establishes; XAML changes have zero effect on core correctness.
-- Every phase uses zero-radius as the unmodified fallback, so the existing test suite provides non-regression signals at every boundary.
+- **Backdrop padding first:** Sets visual foundation; validates layout approach before phrase expansion increases window size variability; no dependencies.
+- **Slider before theme removal:** AppSettings schema must stabilize before migration logic runs; slider changes StatsIntervalSeconds type.
+- **Phrase expansions parallel:** Zero mutual dependency between main providers and novelty providers; content work can be split across concurrent efforts.
+- **Theme removal last:** Requires stable AppSettings schema; dedicated phase for migration testing; cleanup before next milestone.
+
+**Dependency chain:** Phase 70 (independent) → Phase 71 (independent) → Phases 72 & 73 (parallel, independent) → Phase 74 (depends on Phase 71 schema stability).
+
+**Pitfall avoidance:** Backdrop padding validates layout assumptions early (Critical #1); slider includes rounding before phrase expansion adds load (Critical #2); theme migration completes before any v4.2 features touch AppSettings (Critical #3).
 
 ### Research Flags
 
-Phases with well-documented patterns (skip `/gsd:research-phase`):
-- **Phase 1 (AppSettings):** Standard init-property + `Validate()` pattern; identical to every prior settings field addition.
-- **Phase 4 (SettingsWindow):** Standard slider pattern; follow `BackdropOpacitySlider` in Appearance tab as direct reference.
-- **Phase 5 (Tests):** Standard MSTest suite; no new framework.
+**Phases needing deeper research during planning:**
+- **Phase 72 (Expand All Providers):** Non-English phrase expansion (French/Spanish/German/Japanese/Polish) needs native speaker review for cultural appropriateness — training data patterns are LOW confidence for non-English content.
+- **Phase 73 (Deepen Jive/Pirate/Yoda):** Linguistic research for dialect authenticity (Pirate nautical time metaphors, Jive AAVE patterns, Yoda OSV syntax rules) — PITFALLS.md flags these as training-derived, needs authoritative style guides.
 
-Phases warranting deliberate care but not full research:
-- **Phase 2 (GhostModeController):** The tick restructuring changes validated behavior; plan must explicitly confirm zero-radius path is untouched and include before/after test comparison.
-- **Phase 3 (MainWindow):** The highest concurrent invariant burden in one phase; plan should enumerate the four write-sites for `_windowOpacity` and confirm none are reachable from the new callback.
-
----
+**Phases with standard patterns (skip research-phase):**
+- **Phase 70 (Backdrop Padding):** Well-documented WPF Border.Padding pattern; critical pitfall already identified (use inner margins).
+- **Phase 71 (Stats Interval Slider):** Existing OpacitySlider in SettingsWindow.xaml is identical pattern (decimal Minimum/Maximum/TickFrequency).
+- **Phase 74 (Remove Themes):** Follows established v2.6 MonitorPositions migration pattern (one-time JSON pre-parse, additive-only injection).
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All APIs already in production use; avoidance of WPF animation APIs is grounded in the existing `WS_EX_TRANSPARENT` synchronization invariant, not speculation |
-| Features | HIGH | MVP requirements derived from PROJECT.md goals and direct codebase audit; official WPF animation + Fluent motion docs consulted and confirm the linear position-driven approach |
-| Architecture | HIGH | Derived from direct source audit of all affected files in the current production codebase (v3.9, 395 tests); no external documentation consulted — all findings from reading actual code |
-| Pitfalls | HIGH | Every pitfall is grounded in specific existing code paths; Pitfall 4 (auto-contrast) is directly backed by the v3.6–v3.6.2 fix history in this project |
+| Stack | **HIGH** | No new dependencies; all features use existing WPF primitives + System.Text.Json; validated patterns in codebase (OpacitySlider, BackdropBorder, IPhraseProvider) |
+| Features | **HIGH** | Table stakes/competitive split is clear from UX research; MVP recommendation prioritizes low-risk visual polish before high-effort content work |
+| Architecture | **HIGH** | All integration points are established patterns with decision precedent in PROJECT.md (481 decisions logged); no new architectural components |
+| Pitfalls | **HIGH** | Critical pitfalls identified with specific prevention strategies; sources are PROJECT.md context (66 GetWindowRect decisions, 7 phrase segment key decisions, 4 settings migration guards) |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **DPI label convention for slider:** `ProximityFadeRadiusPx` is stored in physical pixels to match the Win32 coordinate space. On 150% DPI, "100px" on the slider represents a smaller visual distance than a user naively expects. For v4.0, label as "px (screen pixels)" and defer per-DPI correction unless explicitly requested. The conversion formula (`physicalPx = logicalPx * PresentationSource.CompositionTarget.TransformToDevice.M11`) is documented in STACK.md if needed later.
+- **Backdrop padding visual design:** No spec for exact padding amount (8px? 12px? 16px?). Phase 70 needs a design decision before implementation.
 
-- **Hysteresis band magnitude:** PITFALLS.md recommends 10–15px hardcoded hysteresis at the outer boundary. The exact value is estimated from typical 1–3px device jitter, not validated against real hardware. Confirm during Phase 5 by holding the cursor at the fade start distance for 5+ seconds at the minimum (20px) radius — the most sensitive configuration. Adjust the constant if breathing is visible.
+- **Stats interval slider default value:** Should the default remain 3s, or shift to 1s now that 0.5s is available? Current AppSettings has `StatsIntervalSeconds = 3`, but continuous slider might benefit from 1s as the new "normal." UX decision needed.
 
-- **Behavior tab height:** ARCHITECTURE.md flags that adding a slider row (~40px) must be measured against the 480x600 SettingsWindow before Phase 4 XAML work begins. If the tab is constrained, a compact single-row layout (slider inline with Ghost Mode label) may be needed.
+- **Phrase expansion target count per provider:** "30 new phrases" is a rough milestone goal. Distribution across 10 providers needs planning: uniform 3/provider (30 total)? Prioritize personalities at 5/provider (50 total)? Defer French/Spanish/German/Japanese/Polish until native review?
 
----
+- **Theme migration: custom theme color handling:** If user picked "Ghost" theme but then changed opacity to 75%, does migration preserve the custom opacity or reset it to Ghost's default 50%? Migration logic must decide: inject theme values only for **absent** fields (preserves custom), or overwrite all fields (loses custom). ARCHITECTURE.md recommends additive-only, but needs explicit confirmation in Phase 74 planning.
+
+- **Non-English phrase expansion cultural review:** French/Spanish/German/Japanese/Polish phrase providers need native speaker validation for cultural appropriateness. FEATURES.md sources note LOW confidence for non-English content. Phase 72 should either defer non-English expansion or allocate time for external review.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- `FuzzyClock.App/GhostModeController.cs` — P/Invoke declarations, 75ms timer, `Activate()`, `Restored` event, `IsCtrlAltHeld()`, `WS_EX_TRANSPARENT` application site
-- `FuzzyClock.App/MainWindow.xaml.cs` — `_windowOpacity` / `this.Opacity` separation, `Window_MouseEnter` ghost path, `Restored` handler, ContrastRefreshController pause predicate, `_isDragging` flag, ghost activation cleanup sequence
-- `FuzzyClock.App/AppSettings.cs` + `SettingsService.cs` — init-property record pattern, `Validate()` guard patterns, `Defaults()`, `ResetToDefaults()` structure
-- `FuzzyClock.App/SettingsWindow.xaml.cs` + `SettingsWindow.xaml` — event declaration pattern, `_suppressEvents` guard, `PopulateControls`, `BackdropOpacitySlider` as UI reference
-- `FuzzyClock.App/ContrastRefreshController.cs` — `shouldSkip` predicate; 500ms sampling timer; `_isDragging` pattern
-- `FuzzyClock.App/ContrastSamplerService.cs` — `MaxSampleDim = 200` used as upper-bound rationale for radius validation
-- `.planning/PROJECT.md` — validated decisions: Win32 polling rationale under `WS_EX_TRANSPARENT`, synthetic MOUSELEAVE behavior, `VK_LMENU` vs `VK_MENU`, pre-ghost cleanup order, `_windowOpacity` as authoritative configured value
-- v3.6 / v3.6.1 / v3.6.2 project history — contrast feedback loop fix history; establishes why auto-contrast sampling during partial transparency is dangerous
+- **PROJECT.md** (481 decision entries) — WPF SizeToContent + GetWindowRect usage (66 decisions), DispatcherTimer patterns (7 decisions), settings migration guards (4 decisions), phrase providers (19 implementations)
+- **Existing v4.0 codebase** — BackdropBorder (v3.5 BDROP-01), OpacitySlider in SettingsWindow.xaml, IPhraseProvider interface (v3.2), SettingsService.Validate() (v2.5)
+- **WPF official documentation** (learn.microsoft.com/dotnet/desktop/wpf) — Border.Padding vs Margin semantics, Slider decimal properties (Minimum/Maximum/TickFrequency), IsSnapToTickEnabled behavior
+- **System.Text.Json official documentation** (learn.microsoft.com/dotnet/standard/serialization/system-text-json) — nullable field handling, int→double widening on deserialization
 
 ### Secondary (MEDIUM confidence)
+- **UX Research** (Nielsen Norman Group) — "Sliders work best when the specific value does not matter to the user" validates 0.5–10s continuous range (approximate values acceptable)
+- **Material Design / Fluent Design conventions** — backdrop padding norms (Material: 16dp standard, Fluent: 12-20px component padding)
 
-- WPF Animation Overview (official): https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/animation-overview — confirms `DoubleAnimation` DP ownership behavior; consulted for rationale for the non-recommended path only
-- WPF Easing Functions (official): https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/easing-functions — confirms easing is for time-driven animation; linear is correct for position-driven proximity fade
-- Microsoft Fluent motion timing (official): https://learn.microsoft.com/en-us/windows/apps/design/motion/timing-and-easing — `ControlNormalAnimationDuration = 250ms`; validates that 75ms polling over 80px produces an appropriately fast perceived response
-
-### Tertiary (MEDIUM confidence, informational only)
-
-- Rainmeter documentation: https://docs.rainmeter.net/manual/mouse-actions/ — confirms no proximity fade primitives exist in the desktop widget ecosystem; this feature is custom-built, not a pattern to copy from elsewhere
+### Tertiary (LOW confidence, flagged for validation)
+- **Phrase variety norms** — "novelty wears off after ~20 repetitions" (gamification research) suggests 3-5 variants minimum per bucket
+- **Linguistic rules** — Yoda syntax (OSV order), Pirate maritime vocabulary (ship bells, watch system), Jive AAVE patterns — derived from training data, not verified against authoritative style guides; needs Phase 73 linguistic research
 
 ---
-
-*Research completed: 2026-03-27*
+*Research completed: 2026-03-31*
 *Ready for roadmap: yes*

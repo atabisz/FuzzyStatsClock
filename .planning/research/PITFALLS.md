@@ -1,363 +1,322 @@
-# Pitfalls Research
+# Domain Pitfalls: v4.1 Polish & Phrases
 
-**Domain:** WPF transparent overlay — proximity fade added to existing ghost mode
-**Project:** Fuzzy Clock v4.0 Proximity Ghost Mode
-**Researched:** 2026-03-27
-**Confidence:** HIGH — all pitfalls derived from direct source audit of GhostModeController.cs, ContrastRefreshController.cs, MainWindow.xaml.cs, AppSettings.cs, SettingsService.cs, and the PROJECT.md decision log
-
----
+**Domain:** Adding backdrop padding, stats interval slider, phrase expansion, personality deepening, and theme removal to existing WPF desktop widget
+**Researched:** 2026-03-31
+**Confidence:** HIGH (based on existing PROJECT.md patterns + WPF knowledge)
 
 ## Critical Pitfalls
 
-Mistakes that cause data corruption, permanent opacity loss, invisible-but-interactive widgets, or silent regression of existing features.
+These mistakes can cause rewrites, data loss, or major regressions.
 
----
+### Pitfall 1: SizeToContent Cascade on Backdrop Padding Addition
+**What goes wrong:** Adding `Padding` to `BackdropBorder` (which wraps the entire widget StackPanel) breaks the established `SizeToContent=WidthAndHeight` layout invariant. Window recalculates size on every phrase change, but padding adds to the window footprint. Edge snapping calculations assume `GetWindowRect` reflects pure content bounds; padding shifts these bounds outward. Ghost mode `GetWindowRect` hit-testing becomes inaccurate (cursor-to-widget distance inflated by padding pixels). Contrast sampler `GetWindowRect` bbox now includes padding area where no widget content exists — samples wallpaper instead of widget-obscured region, breaking the "what's beneath me" semantic.
 
-### Pitfall 1: Overwriting the User's Configured Opacity With the Display Opacity
-
-**What goes wrong:**
-Proximity fade computes a "display opacity" (0.0 to `_windowOpacity`) and writes it to `this.Opacity` on every 75ms tick. If the fade code also writes `_windowOpacity`, the user's preference is silently overwritten. The next `SaveSettings()` call then persists the fade-reduced value. On next launch the widget is dimmer than the user set it.
-
-**Why it happens:**
-Every existing opacity-changing site in MainWindow (`SetOpacity()`, `ApplySettings()`, `PreviewMouseWheel_Handler`, `ResetToDefaults()`) writes `_windowOpacity` and `this.Opacity` together. A developer adding fade naturally follows that pattern and accidentally corrupts the persisted preference.
+**Why it happens:** `SizeToContent=WidthAndHeight` is not the same as CSS `width: fit-content`. WPF includes all `Padding`/`Margin` in the window's `ActualWidth`/`ActualHeight`. The existing system has 66 decision entries assuming `GetWindowRect` = content footprint with zero outer chrome. Adding padding invalidates this assumption at 5+ integration points (edge snap, clamp, ghost hit-test, contrast sampling, uptime row wrap width).
 
 **Consequences:**
-- `settings.json` `Opacity` field decreases silently over sessions
-- The opacity slider in Settings shows a lower value than the user set
-- The tray Opacity preset checkmarks become unchecked
-- Users report "my opacity keeps changing" — very hard to diagnose after the fact
+- Edge snapping: Widget snaps 8px away from screen edge instead of flush (padding treated as content)
+- Ghost mode: Proximity fade activates `N` px too early (where N = padding size)
+- Contrast sampler: Samples padding-area wallpaper pixels, triggering false contrast switches
+- Position clamping: Off-by-N-px drift on multi-monitor moves
+- Phrase wrapping: Wrap width calculation includes padding, causing premature wraps
 
-**How to avoid:**
-Enforce a strict two-variable discipline at the declaration site:
-- `_windowOpacity` = the user's configured preference. Only written by `SetOpacity()`, `ApplySettings()`, `PreviewMouseWheel`, `ResetToDefaults()`, and theme application. Never touched by proximity logic.
-- `this.Opacity` = the display value, set freely by fade.
+**Prevention:**
+1. **Do NOT add Padding to BackdropBorder.** Instead, add `Margin` to the *inner* StackPanel children (PhraseText, DateText, StatsPanel).
+2. If visual padding is required *outside* all content, add it via a nested Grid with fixed margins — not via the Border that determines window bounds.
+3. Before implementing, audit all 7 call sites of `GetWindowRect`:
+   - `SnapToEdge()` — edge proximity threshold
+   - `Clamp()` — screen bounds validation
+   - `GhostModeController.OnTimerTick()` — cursor-to-widget distance
+   - `ContrastSamplerService.SampleAverageColor()` — screen capture bbox
+   - `MainWindow.ContentRendered` — initial position clamp
+   - `MainWindow.OnPhraseTextSizeChanged` — phrase wrap width baseline
+   - Any Win32 `SetWindowPos` or `GetCursorPos` interaction
+4. Add a unit test that verifies `GetWindowRect.Width == ActualWidth` after layout — if padding is added, this invariant breaks.
 
-All fade writes go only to `this.Opacity`. All saves, slider sync, and opacity preset checkmarks read only from `_windowOpacity`. Add a comment at the `_windowOpacity` field declaration explicitly forbidding proximity code from writing it.
+**Detection:** After implementation, place widget flush against screen edge. If a gap appears, padding broke edge snap. Enable contrast mode, place over solid wallpaper — if text color oscillates, padding broke sampler bbox. Check proximity fade at exactly 80px cursor distance — if fade activates too early, padding inflated hit test.
 
-**Warning signs:**
-- `settings.json` Opacity field is below the value the user last set via the opacity slider
-- Opacity checkmark in tray or Settings shows a different level after a proximity fade cycle
-- `_windowOpacity != this.Opacity` is true at steady state when the cursor is far away (should never happen at rest)
-
-**Phase to address:**
-The phase introducing the fade tick handler. The two-variable discipline must be established before any fade writes are committed.
-
----
-
-### Pitfall 2: WS_EX_TRANSPARENT Applied Before Opacity Reaches Zero
-
-**What goes wrong:**
-Proximity fade drives `this.Opacity` down over time. If `WS_EX_TRANSPARENT` (click-through) is applied at any intermediate opacity value — even 0.1 — the widget becomes click-through while still visually present. The cursor passes through it but the widget is still visible on screen. More critically, once `WS_EX_TRANSPARENT` is set, WPF stops delivering mouse events to the window. The Ctrl+Alt modifier check (`GetAsyncKeyState` in `GhostModeController.IsCtrlAltHeld`) is unaffected, but `Window_MouseEnter` and `Window_MouseLeave` no longer fire. Any hover state cleanup that was meant to happen on entry is now lost.
-
-**Why it happens:**
-Developers conflate "fading out" with "going ghost". It is tempting to apply click-through early in the fade to create a smoother feel. But `WS_EX_TRANSPARENT` triggers the synthetic `WM_MOUSELEAVE` delivery immediately (the existing code already guards this), and the restore polling timer (`GhostModeController._restoreTimer`) starts looking for cursor exit — it will detect exit almost immediately because the synthetic leave happened, creating a spurious restore cycle.
-
-**How to avoid:**
-`WS_EX_TRANSPARENT` must only be applied when `this.Opacity == 0.0` — the same invariant as the existing snap-to-ghost. The proximity fade drives opacity; `GhostModeController.Activate()` is called only at the moment `this.Opacity` reaches exactly 0. This must be the only call site of `Activate()`.
-
-**Warning signs:**
-- Widget is partially visible but does not respond to right-click, drag, or Ctrl+Alt during a fade
-- `_ghostMode.IsActive` becomes true before `this.Opacity == 0.0` (check in debugger)
-- Ghost restore fires immediately after ghost activation during a fade (synthetic MOUSELEAVE loop)
-- User report: "the widget disappears instantly instead of fading"
-
-**Phase to address:**
-The phase implementing the fade-to-zero transition at the widget boundary. The `if (this.Opacity == 0.0) { _ghostMode.Activate(); }` gate must be explicit.
+**Phase assignment:** Phase 70 (Backdrop Padding) — this is the *first* integration pitfall to validate.
 
 ---
 
-### Pitfall 3: Ghost Restore Snaps Opacity Instead of Fading In
+### Pitfall 2: StatsIntervalSeconds Int→Double Migration Without Rounding Guard
+**What goes wrong:** Changing `StatsIntervalSeconds` from `int` to `double` in `AppSettings` causes existing `settings.json` files (containing `"StatsIntervalSeconds": 3`) to deserialize correctly (JSON int → C# double widens automatically). However, **slider UI updates** at 0.1s granularity can produce values like `3.0000000000000004` due to floating-point accumulation. When these values serialize back to JSON, they write as `3.0000000000000004`. On next load, `DispatcherTimer.Interval = TimeSpan.FromSeconds(3.0000000000000004)` is functionally identical to `3.0`, but `SettingsWindow` slider position sync fails — slider expects exact `3.0`, receives `3.0000000000000004`, and doesn't highlight the "3s" tick mark.
 
-**What goes wrong:**
-The `GhostModeController._restoreTimer` fires `Restored` when the cursor leaves the window rect. The `Restored` handler in `MainWindow` currently does `this.Opacity = _windowOpacity` — an instant snap. If proximity fade is supposed to provide a smooth fade-in as the cursor retreats, the `Restored` event fires first and snaps opacity to full, canceling the gradual fade-in. The result: instant pop-in on exit, gradual fade-out on approach. The experience is asymmetric and jarring.
+Worse: if `Validate()` has a `value < 0.5` guard but no rounding, users sliding to exactly `0.5` might save `0.4999999999999999`, which rounds down in UI display but passes validation. Timer starts at 499ms, not 500ms. Over 1 hour (7200 ticks), this drifts by ~7.2 seconds — rolling CPU averages desync from their labeled time windows.
 
-**Why it happens:**
-`GhostModeController` was designed for binary ghost mode. The `Restored` event is correct for that model. Adding fade does not automatically make the restore event fade-aware — it still fires and immediately assigns opacity.
+**Why it happens:** WPF `Slider` with `TickFrequency=0.1` accumulates floating-point error on drag. `System.Text.Json` serializes doubles with full precision (no implicit rounding). `DispatcherTimer` accepts sub-millisecond `TimeSpan` values but rounds internally to OS timer granularity (~15.6ms on Windows), hiding the issue until persistence.
 
-**How to avoid:**
-The `Restored` handler must transition the window into "fading-in" state rather than directly assigning `this.Opacity = _windowOpacity`. The `GhostModeController` still owns cursor-exit detection (that logic is sound and must not change). Its only responsibility changes from "snap opacity back" to "signal cursor has exited — start fade-in". The fade-in rate and opacity increments are owned by the proximity fade component.
+**Consequences:**
+- Settings UI shows no highlighted interval after restart (slider value != persisted value)
+- Hover fast-refresh (hardcoded 0.5s) interacts incorrectly if user sets interval to 0.5s (same interval, hover no-op path fires instead of switch path)
+- Rolling CPU averages drift over time if interval != exactly 0.5/1.0/3.0/10.0
+- JSON file becomes unreadable to humans (`3.0000000000000004` is confusing)
 
-**Warning signs:**
-- Widget pops to full visibility instantly when the cursor leaves, despite a smooth fade-out on approach
-- A fade-in timer or animation never actually increments opacity because the restore handler already set it to the target
+**Prevention:**
+1. Add `Math.Round(value, 1)` **before** assigning to `_settings.StatsIntervalSeconds` in slider change handler.
+2. Add `Math.Round(settings.StatsIntervalSeconds, 1)` in `SettingsService.Validate()` after range clamping.
+3. Add unit test: serialize `StatsIntervalSeconds=3.0` → deserialize → verify exactly `3.0` (not `3.0000000000000004`).
+4. Add unit test: slider drag to 0.5s → save → reload → slider position == 0.5s tick mark.
+5. Add guard in hover fast-refresh handler: `if (Math.Abs(_statsIntervalSeconds - 0.5) < 0.01)` instead of `if (_statsIntervalSeconds == 0.5)` — floating-point equality is unsafe.
 
-**Phase to address:**
-The phase implementing fade-in (symmetric restore). The `Restored` event handler in `MainWindow` must be updated to initiate a fade-in rather than assign opacity directly. This is a companion change to the fade-out implementation — both must ship together or the behavior is asymmetric.
+**Detection:** After implementation, set interval to 0.5s via slider, restart app. Check `settings.json` — if it says `0.5000000000000001` or `0.4999999999999999`, rounding guard is missing. Check SettingsWindow slider — if no tick mark is highlighted, deserialized value != UI value.
 
----
-
-### Pitfall 4: Auto-Contrast Sampler Runs During Fade (Feedback Flicker Regression)
-
-**What goes wrong:**
-`ContrastRefreshController` uses a `shouldSkip` predicate: `() => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging`. During a proximity fade, `_ghostMode.IsActive` is false (click-through has not been applied yet) and `_windowOpacity` is still the user's configured value (e.g., 1.0). The predicate returns false, so the contrast sampler runs its 500ms BitBlt. It captures the screen pixels under the widget — but because the widget is partially transparent, its own dimmed rendering bleeds into the sampled pixels. The sampler then makes a contrast decision based on a blended image that includes the widget's own content, potentially re-introducing the WCAG oscillation feedback loop that required three separate fixes in v3.6, v3.6.1, and v3.6.2.
-
-**Why it happens:**
-The `shouldSkip` predicate was designed for binary ghost (either fully hidden or fully visible). It does not account for the partially-transparent state introduced by proximity fade. The careful layered fixes in v3.6.2 (`SHELLDLL_DefView` + DWM cloaked check) target steady-state sampling over an empty desktop — they do not guard against transient mid-fade sampling.
-
-**How to avoid:**
-Extend the `shouldSkip` predicate to include the "fading" state. Expose an `IsProximityFading` bool from the proximity component and wire it into the predicate:
-
-```csharp
-// In ContrastRefreshController.Initialize():
-() => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging || _proximityFade.IsActive
-```
-
-Alternatively use `this.Opacity < _windowOpacity` as the skip signal: if the display opacity is below the configured value for any reason, skip sampling.
-
-**Warning signs:**
-- Auto-contrast text color oscillates (flickers between black/white and accent) only during proximity fade transitions
-- Disabling proximity fade makes the oscillation stop
-- The flicker is visible only during the fade-out or fade-in animation, not at steady state
-
-**Phase to address:**
-The phase introducing proximity fade. The `shouldSkip` predicate update must be in the same commit as the fade implementation — never deferred.
+**Phase assignment:** Phase 71 (Stats Interval Slider) — validate rounding before any UI testing.
 
 ---
 
-### Pitfall 5: Hover Fast-Refresh and Backdrop Activating During Proximity Approach
+### Pitfall 3: Theme Removal Without Field Deletion Migration
+**What goes wrong:** v3.2 added `AppSettings.Theme` as `string?` (stores theme name like `"Ghost"` or custom hex color like `"#FF00AAFF"`). Removing the theme feature means deleting `BuiltInThemes` static registry and `ApplyNamedTheme()` method. However, **existing `settings.json` files still contain `"Theme": "Ghost"`**. If `AppSettings` removes the `Theme` property entirely, deserialization silently ignores the field (System.Text.Json skips unknown fields by default). Widget loads with init-default accent color (White, `#FFFFFFFF`) instead of the user's selected theme color. User's previous "Ghost" theme (which set accent color to `#FFAAAAAA`) is lost.
 
-**What goes wrong:**
-`Window_MouseEnter` fires when the cursor crosses the window rect boundary. For the normal hover path (Ctrl+Alt or ghost disabled), `MouseEnter` activates the 0.5s fast stats refresh and shows the backdrop. Proximity fade fades the widget down before the cursor reaches the window boundary. If the fade radius is small, the cursor crosses the boundary before the widget is fully faded. `Window_MouseEnter` fires with the widget still partially visible. The ghost activation path inside `MouseEnter` cleans up hover state and calls `_ghostMode.Activate()` — this is correct. However if ghost mode is disabled but proximity fade is still somehow active, or if the Ctrl+Alt branch fires during an approach the user did not intend as an interaction, the hover behaviors (backdrop display, fast refresh) activate on a nearly-invisible widget.
+Worse: if any code still references `_settings.Theme` after the field is removed (e.g., forgot to delete a tray menu handler or SettingsWindow event wire), the app won't compile. If `Theme` field is kept but `BuiltInThemes` is removed, `ApplySettings()` tries to call `ApplyNamedTheme(settings.Theme)` which no longer exists — runtime `NullReferenceException` or compile error.
 
-**Why it happens:**
-`Window_MouseEnter` is tied to the window rect boundary, not the proximity zone. The proximity zone extends `FadeRadiusPx` beyond the window edge. Events that should only trigger on deliberate hover (backdrop, fast-refresh) can trigger at the boundary crossing which is deep into the fade animation.
+**Why it happens:** Settings schema evolution is not just "delete unused field." Theme was a *composite* setting — it atomically set accent color, opacity, font size, clock style, and stats visibility. Removing it requires migrating just the accent color piece (the only persisted artifact) back to `AccentColor` field. If both `Theme` and `AccentColor` exist in old settings.json, which wins? No migration logic = user loses data.
 
-**How to avoid:**
-The ghost activation path in `Window_MouseEnter` already suppresses fast-refresh by resetting timer interval before calling `_ghostMode.Activate()`. This path is safe. The risk is the Ctrl+Alt path: if the cursor reaches the widget boundary while it is nearly invisible and the user holds Ctrl+Alt (to interact), the backdrop appears on an almost-invisible widget. This is an acceptable edge case but document it. Proximity fade should be active only when ghost mode is enabled — so ghost disabled + proximity fade active should never be a reachable state.
+**Consequences:**
+- Users upgrading from v3.5 or v3.9 lose their theme color — widget resets to white accent on first v4.1 launch
+- SettingsWindow Appearance tab "Theme" card remains in XAML but has no code-behind event handlers (orphaned UI)
+- Tray menu has stale "Reset to Defaults" logic that sets `Theme = null` — field no longer exists, save fails
+- If `BuiltInThemes.GetAccentColor(themeName)` is deleted before migration runs, old settings.json with `"Theme": "Ghost"` has no way to resolve `"Ghost"` → `#FFAAAAAA` color
 
-**Warning signs:**
-- Stats start fast-refreshing at 0.5s when the cursor approaches (but has not yet entered) the widget
-- Backdrop appears before the cursor reaches the widget boundary
-- `_isHoverFastRefresh` is true during proximity approach without Ctrl+Alt being held
+**Prevention:**
+1. **Before deleting `BuiltInThemes`**, write a one-time migration in `SettingsService.Load()`:
+   ```csharp
+   // One-time migration: Theme → AccentColor (v4.1)
+   if (!string.IsNullOrWhiteSpace(settings.Theme) &&
+       settings.AccentColor == "#FFFFFFFF" /* init default, not user-set */)
+   {
+       if (settings.Theme.StartsWith("#"))
+       {
+           settings = settings with { AccentColor = settings.Theme };
+       }
+       else if (BuiltInThemes.TryGetAccentColor(settings.Theme, out var color))
+       {
+           settings = settings with { AccentColor = color };
+       }
+       // Clear Theme field after migration
+       settings = settings with { Theme = null };
+       // Persist immediately
+       Save(settings);
+   }
+   ```
+2. **Then** delete the `Theme` property from `AppSettings` in the same commit (after migration code is in place).
+3. Audit all code references to `settings.Theme` before deletion:
+   - `ApplyNamedTheme()`
+   - `ResetToDefaults()` — was setting `Theme = null`
+   - SettingsWindow `CmbTheme_SelectionChanged` event handler
+   - Tray menu (legacy from v2.2, likely already removed)
+4. Add unit test: old `settings.json` with `"Theme": "Ghost", "AccentColor": "#FFFFFFFF"` → Load → `AccentColor == "#FFAAAAAA"` (Ghost theme color).
+5. Add unit test: old `settings.json` with `"Theme": "#FF00AAFF", "AccentColor": "#FFFFFFFF"` → Load → `AccentColor == "#FF00AAFF"`.
 
-**Phase to address:**
-The phase adding proximity zone detection. Ensure proximity fade is gated on `_ghostMode.IsEnabled` — proximity fade without ghost mode enabled is meaningless and should not run.
+**Detection:** After implementation, manually create a v3.9 `settings.json` with `"Theme": "Ghost"`. Launch v4.1. If widget is white instead of gray, migration failed. Check `settings.json` after first launch — `"Theme"` field should be absent (or null).
 
----
-
-### Pitfall 6: Opacity Jitter at the Outer Fade Boundary
-
-**What goes wrong:**
-Proximity fade computes opacity as a function of cursor distance. At the outer boundary (where fade begins), small cursor movements from input device jitter cause opacity to oscillate: 0.97, 1.0, 0.98, 1.0. Each 75ms tick independently evaluates distance with no memory of the previous tick. The result is visible "breathing" — a subtle but noticeable flicker when the cursor is held stationary near the fade start distance.
-
-**Why it happens:**
-A linear or eased distance-to-opacity function is continuous and sensitive. Mouse jitter from standard input devices is typically 1–3 pixels. On a 100px fade zone, 2px of jitter produces 2% opacity change per tick — imperceptible. On a 20px fade zone, 2px of jitter is 10% opacity change — clearly visible. The narrower the fade zone, the worse the jitter amplification.
-
-**How to avoid:**
-Apply hysteresis at the outer boundary — the same pattern used by `ContrastService` (4.5/5.5 WCAG thresholds for contrast switching). Use two distances:
-- `FadeStartDistance` = where fade begins on approach (cursor moving inward)
-- `FullOpacityDistance` = `FadeStartDistance + hysteresisBand` = where full opacity is restored on retreat (cursor moving outward)
-
-Only begin fading when the cursor crosses `FadeStartDistance` inward; only restore full opacity when the cursor retreats past `FullOpacityDistance`. A hysteresis band of 10–15px absorbs normal mouse jitter. The band can be hardcoded (not user-configurable) since it is a jitter correction, not a preference.
-
-**Warning signs:**
-- Widget "breathes" (subtle opacity change) when cursor is held at approximately the fade start distance
-- Opacity changes without intentional cursor movement
-- Flicker is worse when the fade radius is set to a small value (20–30px)
-
-**Phase to address:**
-The phase implementing the distance-to-opacity calculation. Build hysteresis in from the start — retrofitting it later requires changing the fade state machine.
-
----
-
-### Pitfall 7: Wrong Coordinate Space in Proximity Distance Calculation
-
-**What goes wrong:**
-Proximity fade must detect the cursor at `FadeRadiusPx` pixels from the window edge before the cursor enters the window rect. This requires comparing `GetCursorPos` output (physical screen pixels, Win32) against the window bounds. The existing `GhostModeController` correctly uses `GetWindowRect` (physical pixels, Win32) for this comparison. If proximity distance code uses `Window.Left`, `Window.Top`, `Window.ActualWidth`, or `Window.ActualHeight` (WPF device-independent units, DIPs) instead of `GetWindowRect`, the comparison produces wrong distances on non-100% DPI screens. A configured 100px fade zone appears as 125px on a 125%-DPI display, or 200px on a 200%-DPI display.
-
-**Why it happens:**
-Win32 APIs return physical pixels. WPF layout properties return DIPs. On 96 DPI (100% scaling) they are identical — the bug is invisible during development. It only surfaces on non-100% DPI settings (very common on laptops with HiDPI screens).
-
-**How to avoid:**
-Use exclusively `GetWindowRect` for the widget bounds in all proximity calculations, and compare against `GetCursorPos` exclusively. Both are in physical pixels and are DPI-consistent. The `FadeRadiusPx` setting in `AppSettings` should store physical pixels, with the conversion from DIP units happening at the point of use via `PresentationSource.CompositionTarget.TransformToDevice` if the slider label shows DIPs. Alternatively store DIPs and convert at comparison time — but be explicit and consistent.
-
-**Warning signs:**
-- Fade starts at a different visual distance on a 150% DPI laptop vs. a 100% DPI desktop
-- Testing on the development machine (commonly 100% DPI) shows correct behavior; user reports the zone feels larger
-- Distance calculation uses `Window.Left` + `Window.ActualWidth` instead of `GetWindowRect` output
-
-**Phase to address:**
-The phase implementing the proximity zone polling loop. The coordinate space must be decided at design time for this phase.
+**Phase assignment:** Phase 74 (Remove Themes) — migration code MUST be in Load() before theme-related types are deleted.
 
 ---
 
-### Pitfall 8: Proximity Fade Running During Drag (Widget Goes Invisible Mid-Drag)
+## Moderate Pitfalls
 
-**What goes wrong:**
-`_isDragging` is set true during `DragMove()` and false after it returns. The contrast sampler freezes the display color during drag (via the `shouldSkip` predicate). Proximity fade, if not similarly paused, computes cursor distance on every 75ms tick. During drag the cursor is always on or very near the widget (the user is holding it). This puts the cursor inside the proximity zone or inside the widget rect — the fade-to-zero logic then begins fading the widget while the user is actively dragging it, making it disappear or become very dim mid-drag.
+These cause bugs or rework but are recoverable.
 
-**Why it happens:**
-The `_isDragging` flag was added to the contrast sampler's skip condition but is not automatically inherited by any new component. Each new component that modifies opacity must explicitly check `_isDragging`.
+### Pitfall 4: Phrase Expansion Without Bucket Coverage Verification
+**What goes wrong:** Adding 30 new phrases across 10 personality providers (Terse/Poetic/Rude/Jive/Pirate/Yoda/Shakespeare/ValleyGirl/Dwarf/Classic) without systematic bucket coverage checking can create gaps. Each provider must return a phrase for all **12 five-minute buckets + noon + midnight** = 14 cases per provider. If Jive provider adds phrases for buckets 0–9 but forgets buckets 10–11, `GetPhrase(DateTime)` throws `KeyNotFoundException` at 10:50–10:54 and 10:55–10:59. This is a **runtime crash at specific times of day** — untestable via ad-hoc manual testing (you'd have to wait until 10:50 to see the crash).
 
-**How to avoid:**
-The proximity fade tick handler must check `_isDragging` before computing or applying any opacity change. When `_isDragging` is true, freeze `this.Opacity` at `_windowOpacity` and return immediately. The same pattern as `_isDragging` in `ContrastRefreshController._shouldSkip`.
+Worse: if providers use random selection from candidate arrays (like `PoeticPhraseProvider`), one bucket might have 8 candidates while another has 1. Over time, users notice the 1-candidate bucket phrase repeats hourly while others feel fresh. Unbalanced expansion creates perceived repetition even though total phrase count increased.
 
-**Warning signs:**
-- Widget becomes semi-transparent or invisible while being dragged
-- After dropping the widget, opacity snaps rather than reflecting the cursor's new distance
-- User reports they "lose" the widget while dragging it
+**Why it happens:** Phrase expansion is fun creative work — developers add phrases opportunistically ("this would be funny at midnight!") without systematic bucket enumeration. Existing providers have exhaustive tests (`EnglishPhraseProviderTests` has `[DataRow(0), DataRow(1), ..., DataRow(11)]` for all buckets), but adding to 10 providers without updating tests means no coverage validation.
 
-**Phase to address:**
-The phase implementing the proximity fade tick handler. The `_isDragging` guard should be in the first working version of the handler.
+**Consequences:**
+- Runtime crashes at specific times of day (10:50, 3:20, etc.) that weren't manually tested
+- `GetSegmentKey()` returns correct key but `GetPhrase()` throws — violates interface contract
+- Users perceive some hours as "stale" (repeating phrases) while others feel varied
+- Unit test suites for providers drift out of sync with actual provider bucket coverage
 
----
+**Prevention:**
+1. **Before adding phrases**, enumerate all 14 cases per provider in a checklist (buckets 0–11, noon, midnight).
+2. Add at least **2 candidate phrases per bucket** for providers that use random selection — ensures variety.
+3. After expansion, run existing provider unit tests — if any `[DataRow(N)]` test fails, that bucket is missing.
+4. Add a **new unit test per provider**: exhaustive bucket coverage (call `GetPhrase()` for all 14 cases, assert no exception).
+5. For deepened providers (Jive/Pirate/Yoda), verify `GetSegmentKey()` still returns consistent keys after phrase array expansion (key based on bucket index, not phrase content).
 
-### Pitfall 9: ResetToDefaults Does Not Reset Fade Radius
+**Detection:** After implementation, create a test that loops through all 24 hours * 12 five-minute buckets = 288 time points. Call `GetPhrase()` for each provider at each time. If any throw, bucket coverage is incomplete. This test must be added in Phase 72/73.
 
-**What goes wrong:**
-`ResetToDefaults()` is a manual enumeration of field resets. When `FadeRadiusPx` (or equivalent) is added to `AppSettings`, if it is not also added to `ResetToDefaults()` and `SettingsService.Defaults()`, users who set an extreme fade radius (e.g., 400px) cannot recover to the sensible default without manually deleting `settings.json`. This is a recurring pattern: any field added to `AppSettings` must be consciously added to all three of: init default, `SettingsService.Defaults()`, and `ResetToDefaults()`.
-
-**Why it happens:**
-`ResetToDefaults()` is a manually maintained list in `MainWindow.xaml.cs`. There is no compiler-enforced link between adding an `AppSettings` field and adding its reset. The project has a history of this category of miss (e.g., `_currentPhraseStyle` and `_currentPhraseLocale` were missing from ResetToDefaults until v3.5 FIX-01).
-
-**How to avoid:**
-When adding `FadeRadiusPx` to `AppSettings`, immediately add:
-1. An `init` default at the field declaration in `AppSettings`
-2. An explicit value in `SettingsService.Defaults()`
-3. A `SettingsService.Validate()` guard (e.g., clamp to 0–300px range)
-4. A reset in `ResetToDefaults()` in `MainWindow.xaml.cs`
-
-All four must be in the same commit.
-
-**Warning signs:**
-- After Reset to Defaults, proximity fade still uses the user's previous custom radius
-- `SettingsService.Defaults()` does not include `FadeRadiusPx`
-- The fade zone size after reset is 0 (C# double default) or the old value — never the intended default
-
-**Phase to address:**
-The phase that adds `FadeRadiusPx` to `AppSettings`.
+**Phase assignment:** Phase 72 (Expand All Providers) and Phase 73 (Deepen Jive/Pirate/Yoda) — add exhaustive coverage test for each touched provider.
 
 ---
 
-### Pitfall 10: Settings Slider UX Confusion — Fade Radius vs. Opacity Slider
+### Pitfall 5: Jive/Pirate/Yoda Authenticity Drift Into Caricature
+**What goes wrong:** "Deepening" personalities means adding more phrases with stronger dialect features. Jive provider currently has phrases like `"It be round 'bout {time}"`. Deepening could produce `"Yo, it be mad {time}, ya dig?"` with slang density so high it becomes unreadable parody. This crosses from "fun dialect variant" into offensive caricature. Pirate phrases like `"Arrr, it be {time}, me hearty"` can drift into `"Shiver me timbers, 'tis {time}, ye scurvy dog!"` — fun at first, but repetitive and grating after 24 hours of use.
 
-**What goes wrong:**
-A "Fade Zone" slider in Settings > Behavior sits near the existing Opacity slider in Settings > Appearance. Users conflate the two: they expect the fade zone slider to control minimum opacity at the closest approach. When the widget fades to fully invisible near them but the Opacity slider shows 75%, they conclude the Opacity slider is broken. Separately, users may interpret the Opacity slider as controlling the starting opacity of the fade, rather than the steady-state configured opacity when far away.
+Yoda syntax is grammatically constrained (`"{time}, it is"`), but overloading with prepositions (`"Around {time}, the time now is, hmm"`) becomes word salad. Users enable novelty providers for charm, not frustration. If deepened phrases are too dense with dialect markers, users disable them and never re-enable.
 
-**Why it happens:**
-Two controls that both affect "how visible is the widget" with different scopes are hard to distinguish without explicit labeling. The relationship — configured opacity is the maximum, proximity fade always goes to zero regardless — is not obvious from slider positions alone.
+**Why it happens:** Dialect writing is entertaining for the implementer. Without user testing, it's easy to overshoot. AAVE/Jive in particular carries cultural/historical weight — caricature risks offensiveness. Pirate talk is campy fun but has diminishing returns. Yoda grammar is algorithmically tempting but human review is needed to avoid nonsense.
 
-**How to avoid:**
-- Label the fade zone slider clearly: "Proximity Fade Zone (px)" with unit shown
-- Add a one-line description below the slider: "Widget fades to invisible when the cursor is within this distance"
-- Use "0 = disabled" as the left end of the slider to make the off state obvious
-- Do not expose a "minimum fade opacity" control — proximity fade always goes to zero (the click-through point). Anything above zero leaves a semi-visible widget that still captures mouse events until `WS_EX_TRANSPARENT` is applied, which confuses the state machine.
+**Consequences:**
+- Users perceive Jive provider as mocking AAVE — offensive, not fun
+- Pirate/Yoda become one-note jokes — users disable after 1 hour of use
+- Novelty providers feel lower-quality than Classic — hurts app's polish reputation
+- GitHub issues complain about "try-hard" or "cringey" personalities
 
-**Warning signs:**
-- User reports: "my opacity setting keeps resetting"
-- User confusion: "what's the difference between Opacity and Fade Zone?"
-- Support requests for a "fade to 50% instead of 0%" option
+**Prevention:**
+1. **Human review every deepened phrase.** Read aloud. Does it sound natural for the dialect, or like a stereotype?
+2. For Jive: Limit slang density to 1–2 markers per phrase. Prefer rhythm/grammar patterns over lexical substitution.
+3. For Pirate: Avoid excessive `"Arrr"` and `"me hearty"`. Focus on nautical metaphors (`"three bells"` for 3:30).
+4. For Yoda: Test every phrase by reading it in Yoda's actual movie cadence. If it doesn't sound like something he'd say, revise.
+5. **Add a "dial it back" safety pass**: After writing all phrases, remove 30% of the dialect markers. Less is more.
+6. Consider adding a disclaimer in README: "Novelty phrase styles are for entertainment and not intended to represent real dialects."
 
-**Phase to address:**
-The phase adding the fade radius slider to SettingsWindow. Labels and description must ship with the control, not as a follow-up.
+**Detection:** After implementation, enable Jive provider and use the widget for 4 hours. Do the phrases feel charming or exhausting? Ask a second person to review phrases for offensiveness before committing.
 
----
-
-## Technical Debt Patterns
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Inline proximity distance calculation in the ghost restore timer tick instead of a separate `ProximityFadeController` | Faster initial implementation; fewer files | Ghost controller grows beyond single responsibility; distance logic cannot be unit tested in isolation | MVP only; extract before shipping if the logic is more than 20 lines |
-| `this.Opacity < _windowOpacity` as the "is fading" signal rather than a dedicated `_isProximityFading` bool | No new field needed | Other legitimate transient states (applying a theme, startup) also produce `Opacity < _windowOpacity`; skip predicates fire spuriously | Never — the explicit bool is trivially cheap and removes ambiguity |
-| Skip updating the `shouldSkip` predicate in `ContrastRefreshController` during initial fade implementation | Contrast code untouched | Feedback flicker during fade transitions; undoes the v3.6.2 fix | Never — must update in the same commit as fade |
-| Hardcode the jitter hysteresis band (10–15px) rather than making it configurable | One fewer slider | Band interacts with fade radius: 10px band on a 20px zone is 50% dead-band; acceptable at 200px zone. May need tuning for different fade radius values | Acceptable for v4.0; note as a future calibration point |
-| Reuse the 75ms `GhostModeController` timer for proximity polling | No new timer; existing proven loop | `GhostModeController` now does two things (proximity + click-through management); consider a `ProximityFadeController` that owns proximity and delegates to `GhostModeController` only for click-through | Acceptable if proximity logic is kept small; refactor if it grows |
+**Phase assignment:** Phase 73 (Deepen Jive/Pirate/Yoda) — human review checkpoint BEFORE commit.
 
 ---
 
-## Integration Gotchas
+### Pitfall 6: Hover Fast-Refresh Interaction With User-Configured 0.5s Interval
+**What goes wrong:** Hover fast-refresh is currently hardcoded to 0.5s. When stats panel is visible and mouse enters the widget, `Window_MouseEnter` sets `_statsTimer.Interval = TimeSpan.FromSeconds(0.5)`. When mouse leaves, `Window_MouseLeave` restores `_statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds)`. This works fine when `_statsIntervalSeconds` is 1s/3s/10s (discrete int values).
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| `GhostModeController.Restored` event | Keeping `this.Opacity = _windowOpacity` in the handler after adding fade | Change handler to initiate a fade-in; `GhostModeController` signals cursor exit, proximity fade drives the restore animation |
-| `ContrastRefreshController` `shouldSkip` predicate | Not adding proximity fade state to the skip lambda at `_contrast.Initialize(...)` | Add `|| _proximityFade.IsActive` (or `|| this.Opacity < _windowOpacity`) to the existing skip lambda |
-| `AppSettings.Opacity` field | Writing instantaneous fade opacity to `_windowOpacity` or serializing it to settings.json | `AppSettings.Opacity` is always the user's configured maximum; the fade tick only writes `this.Opacity`, never `_windowOpacity` |
-| `GetWindowRect` vs. `Window.Left/Top` | Using WPF DIPs for the window bounds in the proximity distance calculation | Use `GetWindowRect` (physical pixels) for bounds; `GetCursorPos` (physical pixels) for cursor; never mix coordinate spaces |
-| Opacity slider in SettingsWindow | Slider change fires `OpacityChanged` event → `SetOpacity()` → writes `_windowOpacity` and `this.Opacity`; if fade is active, the `this.Opacity` assignment creates a visible jump | Slider always writes `_windowOpacity`; let the next fade tick correct `this.Opacity` to the right fade-adjusted value. Or: if not currently fading, write `this.Opacity` immediately as well |
-| `_isDragging` flag | Not checking it in the proximity fade tick handler | Add `if (_isDragging) { this.Opacity = _windowOpacity; return; }` at the top of the fade tick handler, same pattern as contrast sampler |
+Phase 71 adds a continuous slider (0.5–10s). If user sets interval to exactly 0.5s, hover logic becomes a no-op: `Window_MouseEnter` sets interval to 0.5s (already 0.5s), `Window_MouseLeave` restores to 0.5s (already 0.5s). The `_isHoverFastRefresh` flag still toggles correctly, but the "this is a faster interval than normal" semantic is lost. Worse: if rolling CPU averages logic depends on `_isHoverFastRefresh` flag to skip buffer pushes during hover (decision 394), but the user's configured interval is already 0.5s, the flag is meaningless — buffer pushes should NOT be skipped, but the code skips them anyway.
 
----
+**Why it happens:** Hover fast-refresh was designed when stats interval was a 3-value enum (1/3/10). Making interval continuous invalidates the "0.5s is always faster than configured interval" assumption. If configured interval ≤ 0.5s, hover logic must switch to a different mode (no-op) or use a dynamic "faster than current" threshold (e.g., `min(configuredInterval * 0.5, 0.5)`).
 
-## Performance Traps
+**Consequences:**
+- Hover fast-refresh feels broken when user sets 0.5s interval (no visual speedup)
+- Rolling CPU averages corrupt if user sets 0.5s interval and hover logic skips buffer pushes (decision 394 guard misfires)
+- `_isHoverFastRefresh` flag no longer reliably indicates "faster than configured interval"
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Calling `SetWindowPos(SWP_FRAMECHANGED)` on every 75ms tick during fade | Per-tick compositor round-trip; subtle jitter | `SWP_FRAMECHANGED` is only needed when changing `WS_EX_TRANSPARENT`; never call it during opacity-only ticks | Immediately visible as compositor stutter; always avoid |
-| Calling `SaveSettings()` inside the fade tick handler | settings.json written at 13 Hz; excessive I/O | Save only on state transitions (fade start / ghost activation / ghost restore); never during continuous fade | Immediately visible as high disk I/O during mouse proximity |
-| Using `Math.Sqrt` for Euclidean distance on every 75ms tick | Negligible on modern CPUs at 75ms interval | Use squared-distance comparison to avoid `sqrt` for boundary checks; only compute true distance if displayed in UI | Not a real bottleneck at 75ms; only matters if interval drops to <10ms |
+**Prevention:**
+1. Add a guard in `Window_MouseEnter`:
+   ```csharp
+   if (_statsIntervalSeconds > 0.6) // Only speed up if configured interval is slower than 0.6s
+   {
+       _statsTimer.Interval = TimeSpan.FromSeconds(0.5);
+       _isHoverFastRefresh = true;
+   }
+   ```
+2. Update decision 394 comment: "hover fast-refresh gates buffer push" is conditional on `_isHoverFastRefresh == true` (not unconditional).
+3. Add unit test: simulate hover with configured interval = 0.5s → `_isHoverFastRefresh` should be `false`, timer interval unchanged.
+4. Consider adding visual feedback in SettingsWindow: if interval slider ≤ 0.6s, show a hint "Hover fast-refresh disabled (interval too fast)".
 
----
+**Detection:** After implementation, set stats interval to 0.5s via slider. Hover over widget. If stats flicker or averages show wrong values, hover guard is missing.
 
-## UX Pitfalls
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Fade zone larger than screen / 2 (extreme radius, e.g. 800px) | Widget is always fading; cursor is always within the zone; widget is never fully visible | Add a `SettingsService.Validate()` guard clamping `FadeRadiusPx` to a sane max (e.g., 300px); slider max in Settings UI enforces the same limit |
-| Fade enabled when Ghost Mode is disabled | User disables Ghost Mode expecting the widget to always be visible; proximity fade still fades it out | Proximity fade must be gated on `_ghostMode.IsEnabled`; when ghost mode is off, proximity fade is inoperative regardless of the fade radius setting |
-| Fade-in speed different from fade-out speed | Widget retreats quickly but returns slowly (or vice versa) — asymmetric feel | Use the same distance-to-opacity function for both directions; hysteresis band introduces intentional asymmetry only at the outer boundary, not in the fade rate |
-| No indication in Settings that fade is currently active | User does not understand why widget is semi-transparent when cursor is nearby | Label the slider with "0 = disabled"; the non-zero value is the affordance; a tooltip or description suffices — no status indicator needed |
+**Phase assignment:** Phase 71 (Stats Interval Slider) — hover guard must be in the same commit as slider implementation.
 
 ---
 
-## "Looks Done But Isn't" Checklist
+## Minor Pitfalls
 
-- [ ] **Configured opacity preserved:** After a full proximity fade cycle (cursor approaches, widget goes ghost, cursor retreats, widget restores), verify `settings.json` still contains the user's original `Opacity` value — not 0.0 or any intermediate fade value.
-- [ ] **WS_EX_TRANSPARENT timing:** Verify via Spy++ (or equivalent) that `WS_EX_TRANSPARENT` is present in the window extended style only when `this.Opacity == 0.0` — never at 0.05, 0.1, etc.
-- [ ] **Drag immunity:** Verify full-opacity widget is maintained during drag. Slowly drag the widget toward a screen edge or another window; opacity must not change during the drag.
-- [ ] **Ctrl+Alt suppression:** Verify holding Ctrl+Alt while moving toward the widget suppresses all proximity fade — widget stays at `_windowOpacity`, backdrop and hover behaviors activate normally.
-- [ ] **Auto-contrast stability:** Enable Auto-Contrast, position the widget over an app window, then approach with the mouse. Verify no text color oscillation during the fade-out or fade-in transitions.
-- [ ] **Hysteresis at outer boundary:** Hold the cursor stationary at approximately the fade start distance. Verify the widget's opacity is stable for at least 5 seconds with no cursor movement.
-- [ ] **Ghost mode disabled:** Disable Ghost Mode via tray. Verify the widget remains fully opaque as the cursor approaches, regardless of the fade radius setting.
-- [ ] **High-DPI correctness:** On a 150% DPI display, verify the fade starts at the correct physical distance (configured radius in physical pixels, not DIPs). The fade zone should look the same size as on a 100% DPI display.
-- [ ] **ResetToDefaults:** After Reset to Defaults, verify `FadeRadiusPx` returns to the default value in both the Settings slider and `settings.json`.
-- [ ] **Validate() guard:** Manually edit `settings.json` to set `FadeRadiusPx` to -50 or 9999. Verify the app loads and clamps to the valid range without crashing.
-- [ ] **Symmetric fade:** Verify the fade-in (cursor retreating) feels visually symmetric with the fade-out (cursor approaching). No instant pop-in on exit.
+These cause cosmetic issues or minor UX degradation.
 
----
+### Pitfall 7: Backdrop Padding Asymmetry Between Hover and Always-Visible Modes
+**What goes wrong:** `BackdropBorder.Opacity` is controlled by two code paths: hover mode (`Window_MouseEnter` sets opacity to 0x59/255 = ~35%) and always-visible mode (`BackdropAlwaysVisible` checkbox in Settings sets opacity to `BackdropOpacityPercent / 100.0`). If padding is added to `BackdropBorder`, the visual padding distance is the same in both modes. However, if padding is implemented via inner margins on StackPanel children, those margins always apply — the backdrop edge is always inset by N pixels. This feels wrong when `BackdropAlwaysVisible = true` at 100% opacity: users expect the backdrop to fill the entire window, but there's a transparent margin between backdrop edge and window edge.
 
-## Recovery Strategies
+**Why it happens:** Hover mode expects padding (visual breathing room). Always-visible mode at high opacity looks like a solid window — users expect no gap. Single implementation can't satisfy both expectations without mode-specific layout.
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Configured opacity corrupted by fade writes | LOW | Delete `settings.json` or manually edit `Opacity` back to intended value; find and fix the `_windowOpacity` write in the fade path |
-| `WS_EX_TRANSPARENT` stuck on a partially-visible widget | MEDIUM | Widget is visible but click-through; user cannot interact; must kill process from Task Manager or find it in system tray and quit; fix by ensuring click-through is only applied at `Opacity == 0.0` |
-| Auto-contrast feedback flicker during fade | LOW | Disable Auto-Contrast from tray; add proximity state to `shouldSkip` predicate; re-enable |
-| Jitter at fade boundary | LOW | Increase hysteresis band in the distance calculation; no user-visible setting change needed |
-| Drag makes widget invisible | MEDIUM | User loses the widget mid-drag; must release mouse, move cursor away, wait for restore; fix by adding `_isDragging` guard to fade tick handler |
-| Extreme fade radius making widget always invisible | LOW | Open Settings > Behavior, slide Fade Zone to 0 (disabled); fix by adding `Validate()` guard |
+**Consequences:**
+- Always-visible backdrop at 100% opacity looks like a "floating box" instead of a "window background"
+- User confusion: "Why is there a gap around my widget?"
+
+**Prevention:**
+1. Use conditional padding: `BackdropBorder.Padding = BackdropAlwaysVisible ? 0 : 8`.
+2. Or: always use inner margins, but document in UI that backdrop is intentionally inset.
+3. Test both hover mode and always-visible mode at 100% opacity during implementation.
+
+**Detection:** Enable `BackdropAlwaysVisible`, set opacity to 100%. If there's a transparent gap around the backdrop, padding is unconditional.
+
+**Phase assignment:** Phase 70 (Backdrop Padding) — test both modes during implementation.
 
 ---
 
-## Pitfall-to-Phase Mapping
+### Pitfall 8: Stats Interval Slider Tick Marks at Awkward Positions
+**What goes wrong:** WPF `Slider` with continuous range (0.5–10s) can place tick marks at arbitrary intervals. If `TickFrequency=0.1`, slider shows 95 tick marks (visual clutter). If `TickFrequency=1.0`, slider shows 10 tick marks, but 0.5s (the minimum) has no visible tick mark — users can't tell if they're at the minimum. If tick marks are at 1/2/3/4/5/6/7/8/9/10, the old discrete values (1/3/10) aren't visually emphasized — users who want "the old 3s setting" can't find it easily.
 
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Configured opacity corrupted (Pitfall 1) | Phase introducing fade tick handler | Confirm `_windowOpacity` is never written in fade path; confirm `settings.json` Opacity unchanged after fade cycle |
-| WS_EX_TRANSPARENT before Opacity=0 (Pitfall 2) | Phase implementing fade-to-zero at boundary | Spy++ confirms `WS_EX_TRANSPARENT` only present when `Opacity == 0.0` |
-| Snap restore instead of fade-in (Pitfall 3) | Phase implementing symmetric fade-in | `Restored` handler initiates fade-in; no instant opacity snap on cursor exit |
-| Auto-contrast flicker during fade (Pitfall 4) | Phase introducing proximity fade — same commit | No contrast oscillation with Auto-Contrast enabled during fade transitions |
-| Hover fast-refresh on proximity approach (Pitfall 5) | Phase adding proximity zone polling | `_isHoverFastRefresh` stays false during proximity approach without Ctrl+Alt |
-| Jitter at outer boundary (Pitfall 6) | Phase implementing distance-to-opacity calculation | Cursor held at fade start distance for 5s; opacity stable |
-| Wrong coordinate space (Pitfall 7) | Phase implementing proximity zone detection | Fade starts at correct physical distance on 150% DPI display |
-| Drag makes widget invisible (Pitfall 8) | Phase implementing proximity fade tick handler | Full-opacity maintained during drag; verified by dragging near proximity zone boundary |
-| ResetToDefaults missing fade radius (Pitfall 9) | Phase adding `FadeRadiusPx` to `AppSettings` | After Reset to Defaults, `FadeRadiusPx` is default in `settings.json` |
-| Settings slider UX confusion (Pitfall 10) | Phase adding fade radius slider to SettingsWindow | Labels and unit (px) present; "0 = disabled" on left end; description line present |
+**Why it happens:** Continuous sliders prioritize flexibility over discrete landmarks. Replacing a 3-button radio group with a slider loses the "these are the recommended values" affordance.
+
+**Consequences:**
+- Users drag slider to 2.7s when they meant 3s (no snap-to-grid)
+- 0.5s minimum is invisible on the slider track (no tick mark)
+- Slider feels imprecise compared to old 1/3/10 buttons
+
+**Prevention:**
+1. Use `TickPlacement="BottomRight"` and `TickFrequency=0.5` — shows 20 tick marks (0.5, 1.0, 1.5, ..., 10.0).
+2. Add `IsSnapToTickEnabled="True"` — slider snaps to 0.5s increments, preventing 2.73s values.
+3. Add labels below slider at 0.5s, 1s, 3s, 10s (the old discrete values + new minimum) — visual landmarks.
+4. Consider showing current value as text above slider thumb: `{Binding Value, StringFormat={}{0:F1}s}`.
+
+**Detection:** After implementation, drag slider thumb slowly. If it lands on values like 2.73s, snap-to-tick is disabled. If 0.5s endpoint is hard to target, tick marks are missing.
+
+**Phase assignment:** Phase 71 (Stats Interval Slider) — UI polish must be in the same commit as slider implementation.
 
 ---
+
+### Pitfall 9: GetSegmentKey Inconsistency After Phrase Array Reordering
+**What goes wrong:** `GetSegmentKey()` returns a stable identifier for each five-minute bucket so `MainWindow` can detect phrase changes without re-rendering unchanged text. Current implementation returns a string like `"bucket-0"` or `"noon"`. If phrase expansion involves reordering candidate arrays (e.g., moving "just after" phrases to the front of bucket-0 array for better random distribution), `GetSegmentKey()` still returns `"bucket-0"` — correct. However, if a provider mistakenly keys on phrase *content* instead of bucket *index* (e.g., returns `GetPhrase().GetHashCode().ToString()`), reordering the array changes the hash, and the segment key changes even though the time bucket didn't. Widget now re-renders on every 10s poll even when time is static (within the same 5-minute window).
+
+**Why it happens:** `GetSegmentKey()` implementation varies across providers. Some use bucket index (correct), some use template placeholders (correct), some might use phrase content (wrong). Phrase expansion might reveal latent bugs in segment key logic.
+
+**Consequences:**
+- Widget text flickers every 10s even when time hasn't crossed a 5-minute boundary
+- `_lastSegmentKey` cache in `MainWindow` becomes useless
+- Performance: phrase rendering + SizeToContent layout runs 6× more often than needed
+
+**Prevention:**
+1. Audit all 10 provider `GetSegmentKey()` implementations before phrase expansion.
+2. Verify each keys on **time bucket, not phrase content**.
+3. Add unit test per provider: call `GetSegmentKey(dt1)` and `GetSegmentKey(dt2)` where dt1 and dt2 are in the same bucket but different seconds → keys must be identical.
+4. Add unit test per provider: call `GetPhrase(dt)` multiple times for same `dt` → different phrases allowed (random selection), but `GetSegmentKey(dt)` must be identical every time.
+
+**Detection:** After implementation, watch widget for 60 seconds without crossing a 5-minute boundary. If text flickers, segment key is unstable.
+
+**Phase assignment:** Phase 72 (Expand All Providers) — add segment key stability test before expansion work begins.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Phase 70: Backdrop Padding | SizeToContent cascade (Critical #1) | Use inner margins, not Border.Padding; audit all GetWindowRect call sites |
+| Phase 71: Stats Interval Slider | Int→double migration without rounding (Critical #2); Hover fast-refresh no-op at 0.5s (Moderate #6) | Add Math.Round() in slider handler + Validate(); add hover guard for ≤0.6s intervals |
+| Phase 72: Expand All Providers | Bucket coverage gaps (Moderate #4); Segment key instability (Minor #9) | Add exhaustive 14-case test per provider; audit GetSegmentKey() before expansion |
+| Phase 73: Deepen Jive/Pirate/Yoda | Authenticity drift into caricature (Moderate #5) | Human review every phrase; "dial it back" pass removes 30% of dialect markers |
+| Phase 74: Remove Themes | Theme removal without migration (Critical #3) | Write Theme→AccentColor migration in Load() BEFORE deleting BuiltInThemes; add unit tests for old settings.json |
+
+## Integration Checklist (Run After All 5 Features Implemented)
+
+- [ ] Place widget flush against screen edge → no gap (backdrop padding didn't break edge snap)
+- [ ] Enable contrast mode, place over solid wallpaper → text color stable (backdrop padding didn't break sampler bbox)
+- [ ] Set stats interval to 0.5s via slider, hover over widget → stats don't flicker (hover guard works)
+- [ ] Set stats interval to 3.0s via slider, restart app → slider highlights 3s tick mark (rounding works)
+- [ ] Create v3.9 settings.json with `"Theme": "Ghost"`, launch v4.1 → widget is gray, not white (migration works)
+- [ ] Enable Jive provider, use for 4 hours → phrases feel charming, not exhausting (authenticity preserved)
+- [ ] Watch widget for 60 seconds without crossing 5-minute boundary → text doesn't flicker (segment key stable)
+- [ ] Loop through all 288 five-minute buckets across 24 hours, all 10 providers → no exceptions (bucket coverage complete)
+
+## Cross-Feature Interactions
+
+### Backdrop Padding + Stats Interval Slider
+If backdrop padding adds to window bounds, and user sets stats interval to 0.5s (fastest possible), and hover fast-refresh becomes a no-op, the backdrop flashes on hover but stats don't speed up. Confusing UX: "backdrop appeared, but nothing changed." Mitigation: hover guard (Moderate #6) prevents this by making backdrop hover also a no-op when interval ≤ 0.6s.
+
+### Theme Removal + Phrase Expansion
+If theme migration fails (Critical #3) and user's accent color resets to white, but phrase expansion adds 30 new phrases with complex wrapping, the new longer phrases are white-on-light-wallpaper and unreadable. User's first impression of v4.1 is "this update broke my widget." Mitigation: theme migration MUST be validated before phrase expansion testing begins.
+
+### Stats Interval Slider + Phrase Expansion
+If stats interval slider allows 0.5s but rolling CPU averages aren't tested at that interval, and phrase expansion increases `UpdatePhraseIfChanged()` layout cost, the combined load might exceed the 0.5s budget. Stats updates start dropping frames. Mitigation: performance test stats at 0.5s interval with longest possible phrase (stress case) before shipping.
 
 ## Sources
 
-| Source | Confidence |
-|--------|------------|
-| `FuzzyClock.App/GhostModeController.cs` — `Activate()`, `Restored` event, 75ms polling timer, `WS_EX_TRANSPARENT` application site | HIGH |
-| `FuzzyClock.App/ContrastRefreshController.cs` — `shouldSkip` predicate: `_ghostMode.IsActive \|\| _windowOpacity == 0.0 \|\| _isDragging`; 500ms sampling timer | HIGH |
-| `FuzzyClock.App/MainWindow.xaml.cs` — `_windowOpacity` field; `SetOpacity()`; `Restored` handler: `this.Opacity = _windowOpacity`; `_isDragging` flag; `Window_MouseEnter` ghost activation path | HIGH |
-| `FuzzyClock.App/AppSettings.cs` — `Opacity` init default 1.0; no `FadeRadiusPx` field yet | HIGH |
-| `FuzzyClock.App/SettingsService.cs` — `Validate()` guard patterns; `Defaults()` structure; `ResetToDefaults()` must-update sites | HIGH |
-| `.planning/PROJECT.md` decision log — `WS_EX_TRANSPARENT` invariant; synthetic MOUSELEAVE behavior; `GetCursorPos` polling rationale; `_isDragging` freeze pattern; hysteresis 4.5/5.5 for contrast (same pattern needed for distance boundary) | HIGH |
-| v3.6.2 pitfall history — SHELLDLL_DefView + DWM cloaked check required to prevent contrast feedback loop; partial transparency during fade creates the same sampling risk | HIGH |
+- **HIGH confidence:** FuzzyStatsClock PROJECT.md (481 decision entries covering WPF SizeToContent, DispatcherTimer, settings migration, phrase providers)
+- **HIGH confidence:** Existing v4.0 codebase patterns (66 decisions on GetWindowRect usage, 7 decisions on phrase segment keys, 4 decisions on settings migration guards)
+- **MEDIUM confidence:** WPF knowledge base (SizeToContent + Padding interaction, Slider tick frequency, DispatcherTimer minimum interval ~15ms, System.Text.Json double precision serialization)
+
+## Gaps to Address
+
+- **Backdrop padding visual design:** No spec for exact padding amount (8px? 12px? 16px?). Phase 70 needs a design decision.
+- **Stats interval slider default value:** Should the default remain 3s, or shift to 1s now that 0.5s is available? UX decision needed.
+- **Phrase expansion target count:** "30 new phrases" is a rough target. Per-provider distribution (3 per provider? 5 for personalities?) needs planning.
+- **Theme migration: what if user customized a named theme?** If user picked "Ghost" but then changed opacity to 75%, does migration preserve the opacity or reset it? Migration logic must decide.
 
 ---
 
-*Pitfalls research for: WPF proximity fade on existing ghost mode (v4.0 Proximity Ghost Mode)*
-*Researched: 2026-03-27*
+**Overall confidence:** HIGH for critical pitfalls (based on detailed PROJECT.md context), MEDIUM for moderate pitfalls (based on WPF patterns + inference), LOW for minor pitfalls (based on UX judgment, not technical certainty).
+
+**Recommended next step:** Validate backdrop padding approach (inner margins vs Border.Padding) with a prototype BEFORE planning Phase 70 tasks.
