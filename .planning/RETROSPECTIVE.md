@@ -275,6 +275,47 @@
 
 ---
 
+## Milestone: v4.1 — Polish & Phrases
+
+**Shipped:** 2026-04-02
+**Phases:** 5 (70–74) | **Plans:** 8
+
+### What Was Built
+- Backdrop padding increased to 12px on all content elements via XAML-only changes; WPF SizeToContent auto-propagated to all 5+ GetWindowRect dependents
+- Stats interval slider: `StatsIntervalSeconds` migrated from `int` to `double` (0.5–10.0s continuous); discrete 1s/3s/10s ComboBox replaced; backward-compatible JSON deserialization
+- EnglishPhraseProvider (Classic) expanded to 70 candidates (14 slots × 5); TersePhraseProvider expanded to 65 candidates (13 slots × 5) with British-idiom preservation
+- Jive provider: 1940s Harlem rhythmic AAVE phrasing; Pirate: authentic nautical metaphors (bells/watch/glass/mark, movie cliches removed); Yoda: strict OSV syntax inversion — 210 phrases across all three
+- Named theme system removed: ThemeDefinition.cs deleted, 325 lines removed across 6 files, Settings Appearance starts at Accent Color
+- 501 MSTest tests (433 Core + 68 App), 0 failures
+
+### What Worked
+- **Pure content phases (72, 73) parallelized cleanly**: no shared code, no merge conflicts, independent provider files — the PhraseEngine provider-per-file pattern enables parallel expansion
+- **XAML-only changes (Phase 70)**: SizeToContent propagation handled all downstream effects (edge snapping, ghost mode, contrast sampling) with zero C# code — the WPF layout pipeline is the right abstraction boundary
+- **JSON backward compatibility (Phase 71)**: System.Text.Json deserializes `int` → `double` seamlessly, so the type migration required no migration code
+- **Theme removal was surgical (Phase 74)**: because AccentColor was always persisted independently, the entire theme system was dead code — deletion was safe with no data loss risk
+
+### What Was Inefficient
+- Worktree merge conflicts on STATE.md continue to cause friction (Phase 74 required manual cherry-pick + conflict resolution vs. a clean merge)
+- The verifier incorrectly flagged a passing test as failing (ran in worktree with stale code) — required manual re-verification and VERIFICATION.md edits
+- SUMMARY.md `one_liner` field extraction failed for 6/8 plans — the frontmatter format varies between executor versions
+
+### Patterns Established
+- **Multi-candidate phrase pattern**: `string[][] _candidates` with `Random.Shared.Next(candidates.Length)` per bucket; stable `GetSegmentKey` returns bucket index (not phrase text) to avoid UI flicker
+- **Provider expansion test pattern**: exhaustive 14-slot coverage test + minimum-5-candidates-per-bucket test + British-idiom/authenticity assertion tests
+- **Theme removal as migration-free deletion**: when individual fields (AccentColor, Opacity, FontSize) are always persisted alongside a convenience aggregate (Theme), the aggregate can be deleted without migration code
+
+### Key Lessons
+1. Content-only phases (pure phrase expansion) are the fastest to plan and execute — zero architectural risk, zero cross-file dependencies
+2. Worktree-based execution adds merge overhead for planning docs (STATE.md, ROADMAP.md); consider inline execution for single-plan phases
+3. The verifier should run against the actual working tree, not a stale worktree snapshot — false positives waste time
+
+### Cost Observations
+- Model mix: ~100% sonnet (balanced profile, executor + verifier)
+- Sessions: 2 days (2026-04-01 → 2026-04-02); phases 70-73 executed on day 1, phase 74 on day 2
+- Notable: 25 files changed, +1,562 / -657 lines; net deletion milestone (theme removal offset phrase expansion)
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -288,6 +329,7 @@
 | v3.6.1 | 1 | 1 | Surgical single-file fix; Z-order walk pattern established |
 | v3.6.2 | 1 | 1 | Z-order walk extended: SHELLDLL_DefView + DWM cloaked check for Win11 |
 | v4.0 | 4 | 5 | TDD-first controller + gap closure cycle; IsEnabled gate pattern established |
+| v4.1 | 5 | 8 | Content-parallel phases; migration-free deletion; multi-candidate phrase pattern |
 
 ### Cumulative Quality
 
@@ -301,6 +343,7 @@
 | v3.6.2 | 274 | No new tests; existing suite confirmed no regression |
 | v3.9 | 414 | LCD + Japanese phrase styles; +140 tests covering providers and AppSettings |
 | v4.0 | 414 | Proximity fade; +19 new tests (ComputeProximityRatio × 12, AppSettings × 7) |
+| v4.1 | 501 | Phrase expansion + provider authenticity; +87 tests; theme code deleted (net negative LOC) |
 
 ### Top Lessons (Verified Across Milestones)
 

@@ -10,15 +10,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
-**v4.1 Phase 74 complete: 2026-04-02** — Removed named theme system (Midnight/Neon/Ghost/Warm/Terminal): deleted ThemeDefinition.cs, Theme field from AppSettings, ActiveTheme from SettingsSnapshot, theme card XAML and handlers from SettingsWindow, theme methods from MainWindow (325 lines removed). No migration needed — AccentColor always persisted individually; System.Text.Json ignores unknown keys. Settings Appearance tab now starts at Accent Color. 501 MSTest tests (433 Core + 68 App), 0 failures.
-
-**v4.1 Phase 73 complete: 2026-04-01** — Deepened Jive, Pirate, and Yoda personality providers with authentic linguistic patterns: Jive uses 1940s Harlem rhythmic AAVE phrasing (natural contractions, emphatic repetition, zero copula starts); Pirate uses authentic nautical metaphors (bells, watch, glass, mark — movie cliches removed); Yoda enforces strict OSV syntax inversion (zero SVO starts, declarative endings). All three expanded to 70 phrases each (14 slots × 5 candidates). 35 new authenticity tests; 501 MSTest tests (433 Core + 68 App), 0 failures.
-
-**v4.1 Phase 72 complete: 2026-04-01** — Expanded Classic and Terse phrase providers to multi-candidate buckets: EnglishPhraseProvider (Classic) now has 70 phrases (14 slots × 5 candidates), TersePhraseProvider has 65 phrases (13 slots × 5 candidates) with British-idiom preservation. Both use `Random.Shared.Next()` for runtime randomization and stable bucket-index `GetSegmentKey` (no UI flicker). 24 new tests added; 467 MSTest tests (399 Core + 68 App), 0 failures.
-
-**v4.1 Phase 71 complete: 2026-04-01** — Stats interval slider: replaced discrete 1s/3s/10s ComboBox with continuous 0.5–10.0s Slider in Settings > Stats; `StatsIntervalSeconds` migrated from `int` to `double` across full stack (AppSettings, SettingsService, SettingsSnapshot, SettingsWindow, MainWindow); default shifted from 3s to 2.0s; `Validate()` clamps 0.5–10.0 + `Math.Round(value, 1)`; backward-compatible JSON deserialization (int→double); 425 MSTest tests (357 Core + 68 App), 0 failures.
-
-**v4.1 Phase 70 complete: 2026-04-01** — Backdrop padding increased from 6px to 12px on all content elements (ContentBorder, DateText, StatsPanel) via XAML margin/padding changes only; WPF SizeToContent auto-propagates new dimensions to edge snapping, ghost mode, contrast sampling, and position clamping — zero C# code changes; 414 MSTest tests pass unchanged.
+**v4.1 shipped: 2026-04-02** — Polish & Phrases: 12px backdrop padding, continuous stats interval slider (0.5–10.0s), Classic/Terse providers expanded to 70/65 multi-candidate phrases, Jive/Pirate/Yoda providers deepened with authentic linguistic patterns (210 phrases), named theme system removed (325 lines deleted, Settings simplified)
 
 **v4.0 shipped: 2026-03-27** — Proximity Ghost Mode complete: `GhostFadeRadiusPx` field in `AppSettings`/`SettingsService` with range validation and 7 new tests; `ComputeProximityRatio` (Chebyshev distance, 12 TDD unit tests) + always-running `GhostModeController` timer with `ProximityChanged` event; `MainWindow` wired with `_proximityRatio` field, `_isDragging` guard, `IsEnabled` gate at controller top, legacy snap-to-ghost block deleted; Settings > Behavior fade radius slider (20–200px, default 80px) live-updates controller and persists; `ResetToDefaults()` restores to 80px; 414 MSTest tests (357 Core + 57 App), 0 failures. All 13/13 PROX requirements satisfied.
 
@@ -296,27 +288,32 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ PROX-12: AppSettings JSON round-trip test covers GhostFadeRadiusPx; absent-field test verifies 80px init default — v4.0
 - ✓ PROX-13: ComputeProximityRatio is a pure static method with unit tests covering all boundary conditions — v4.0
 
-### Validated (v4.1 Phase 70)
+### Validated (v4.1)
 
 - ✓ VIS-01: Backdrop has visibly larger padding (12px) around all content elements — v4.1
 - ✓ VIS-02: Padding uses inner margins; edge snapping, ghost mode, contrast sampling, position clamping all unaffected — v4.1
+- ✓ STAT-01: Continuous stats interval slider (0.5–10.0s) in Settings > Stats — v4.1
+- ✓ STAT-02: Discrete 1s/3s/10s selector replaced — v4.1
+- ✓ STAT-03: Stats interval persists as decimal value to settings.json — v4.1
+- ✓ STAT-04: Validate() clamps 0.5–10.0 with Math.Round to 1 decimal place — v4.1
+- ✓ PHRASE-01: 5+ phrase candidates per bucket for Classic and Terse providers — v4.1
+- ✓ PHRASE-02: Randomized selection within buckets — v4.1
+- ✓ PHRASE-03: Unit tests verify complete bucket coverage — v4.1
+- ✓ PERS-01: Jive provider uses rhythmic AAVE-inspired phrasing — v4.1
+- ✓ PERS-02: Pirate provider uses authentic nautical metaphors — v4.1
+- ✓ PERS-03: Yoda provider uses strict OSV syntax inversion — v4.1
+- ✓ CLEAN-01: Named themes removed from Settings > Appearance — v4.1
+- ✓ CLEAN-02: ThemeDefinition, BuiltInThemes, ApplyNamedTheme removed — v4.1
+- ✓ CLEAN-03: Settings migration via JSON ignore-unknown-keys — v4.1
+- ✓ CLEAN-04: AppSettings.Theme field removed — v4.1
 
 ### Active
 
-## Current Milestone: v4.1 Polish & Phrases
-
-**Goal:** Improve visual polish, expand phrase variety, and simplify settings by removing unused themes.
-
-**Target features:**
-- Larger backdrop padding around clock text content
-- Stats update interval as a continuous slider (0.5–10s) replacing the discrete 1s/3s/10s selector
-- More phrase variations across all providers to reduce repetition
-- Expanded Jive/Pirate/Yoda phrases leaning harder into their personalities
-- Removed the 5 named themes (Midnight/Neon/Ghost/Warm/Terminal) from Settings
+(None — between milestones)
 
 ### Out of Scope
 
-- User-created/saved themes — only built-in named presets; custom theme authoring is out of scope
+- User-created/saved themes — named themes removed in v4.1; custom theme authoring adds complexity with little value
 - 24-hour format — natural English implies 12-hour
 - Click-through / no interaction — incompatible with drag (kills DragMove() event delivery)
 - Arbitrary font size input — 3-step ladder is sufficient
@@ -512,4 +509,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 — after Phase 74 (Remove Named Themes) completion*
+*Last updated: 2026-04-02 — after v4.1 milestone (Polish & Phrases)*

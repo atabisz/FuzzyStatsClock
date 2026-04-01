@@ -1,5 +1,20 @@
 # Milestones
 
+## v4.1 Polish & Phrases (Shipped: 2026-04-01)
+
+**Phases completed:** 5 phases, 8 plans, 16 tasks
+
+**Key accomplishments:**
+
+- Backdrop padding increased to 12px around all widget content with automatic dimension propagation to edge snapping, ghost mode, contrast sampling, and position clamping
+- Stats interval slider: continuous 0.5–10.0s replaces discrete 1s/3s/10s selector; `StatsIntervalSeconds` migrated from int to double across full stack
+- Classic phrase provider expanded to 70 candidates (14 slots × 5 each); Terse expanded to 65 candidates (13 slots × 5 each) with British-idiom preservation
+- Jive/Pirate/Yoda personality providers deepened with authentic linguistic patterns: AAVE rhythmic phrasing, nautical metaphors (bells/watch/glass/mark), strict OSV syntax inversion — 210 phrases total
+- Named theme system removed (Midnight/Neon/Ghost/Warm/Terminal): 325 lines deleted, ThemeDefinition.cs deleted, Settings Appearance simplified to Accent Color first
+- 501 MSTest tests (433 Core + 68 App), 0 failures; 25 files changed, +1,562 / -657 lines
+
+---
+
 ## v4.0 Proximity Ghost Mode (Shipped: 2026-03-27)
 
 **Phases completed:** 4 phases, 5 plans, 9 tasks
