@@ -33,7 +33,10 @@ Improve visual polish, expand phrase variety, and simplify settings by removing 
 4. Ghost mode hit-testing (GetWindowRect) works correctly with new dimensions
 5. Contrast sampling footprint matches visible backdrop area
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 70-01-PLAN.md — Increase backdrop padding to 12px with visual verification
 
 ---
 
@@ -112,7 +115,7 @@ Improve visual polish, expand phrase variety, and simplify settings by removing 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 70. Backdrop Padding | 0/? | Not started | - |
+| 70. Backdrop Padding | 0/1 | Planned | - |
 | 71. Stats Interval Slider | 0/? | Not started | - |
 | 72. Expand Phrase Providers | 0/? | Not started | - |
 | 73. Deepen Jive/Pirate/Yoda | 0/? | Not started | - |
@@ -161,4 +164,4 @@ From research/SUMMARY.md:
 - **Moderate Pitfall #5 (Phase 73):** Human review every phrase; "dial it back" pass removes 30% of dialect markers
 
 ---
-*Last updated: 2026-03-31*
+*Last updated: 2026-04-01*
