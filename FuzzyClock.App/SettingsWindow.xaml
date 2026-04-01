@@ -451,15 +451,17 @@
                     <TextBlock Grid.Row="1" Grid.Column="0"
                                Text="Interval" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Margin="0,12,10,0"/>
-                    <ComboBox x:Name="CmbStatsInterval"
-                              Grid.Row="1" Grid.Column="1"
-                              Width="110" HorizontalAlignment="Left"
-                              Margin="0,12,0,0" VerticalAlignment="Center"
-                              SelectionChanged="CmbStatsInterval_SelectionChanged">
-                        <ComboBoxItem Content="1 second"/>
-                        <ComboBoxItem Content="3 seconds"/>
-                        <ComboBoxItem Content="10 seconds"/>
-                    </ComboBox>
+                    <StackPanel Grid.Row="1" Grid.Column="1"
+                                Orientation="Horizontal" Margin="0,12,0,0">
+                        <Slider x:Name="StatsIntervalSlider"
+                                Minimum="0.5" Maximum="10.0"
+                                SmallChange="0.1" LargeChange="1.0"
+                                TickFrequency="0.5" IsSnapToTickEnabled="False"
+                                Width="160" VerticalAlignment="Center"
+                                ValueChanged="StatsIntervalSlider_ValueChanged"/>
+                        <TextBlock x:Name="StatsIntervalLabel" Width="42"
+                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    </StackPanel>
 
                     <!-- Process Threshold -->
                     <TextBlock Grid.Row="2" Grid.Column="0"

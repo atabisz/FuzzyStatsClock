@@ -1181,6 +1181,9 @@ public partial class MainWindow : Window
         // Reset process count threshold to default (5%)
         SetProcessThreshold(5.0);
 
+        // Reset stats interval to default (2.0s)
+        SetStatsInterval(2.0);
+
         // Reset text style to Classic
         SetTextStyle("Classic");
 

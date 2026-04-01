@@ -38,7 +38,7 @@ public sealed partial class SettingsWindow : Window
     public event Action<bool>?   PagVisibleChanged;
     public event Action<bool>?   BatteryVisibleChanged;
     public event Action<bool>?   UptimeVisibleChanged;
-    public event Action<int>?    StatsIntervalChanged;
+    public event Action<double>? StatsIntervalChanged;
     public event Action<double>? ProcessThresholdChanged;
     public event Action<bool>?   ShowDateChanged;
     public event Action<string>? DateFormatChanged;
@@ -128,13 +128,9 @@ public sealed partial class SettingsWindow : Window
         ChkBattVisible.IsChecked   = s.BatteryVisible;
         ChkUptimeVisible.IsChecked = s.UptimeVisible;
 
-        // Update interval combo (0=1s, 1=3s, 2=10s)
-        CmbStatsInterval.SelectedIndex = s.StatsIntervalSeconds switch
-        {
-            1  => 0,
-            10 => 2,
-            _  => 1   // 3 seconds default
-        };
+        // Update interval slider
+        StatsIntervalSlider.Value = s.StatsIntervalSeconds;
+        StatsIntervalLabel.Text = $"{s.StatsIntervalSeconds:F1}s";
 
         // Process threshold radio buttons
         RbThresh2.IsChecked  = s.ProcessCountThreshold == 2.0;
@@ -516,13 +512,13 @@ public sealed partial class SettingsWindow : Window
         UptimeVisibleChanged?.Invoke(ChkUptimeVisible.IsChecked == true);
     }
 
-    // ── Stats interval combo ──────────────────────────────────────────────
-    private void CmbStatsInterval_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    // ── Stats interval slider ──────────────────────────────────────────────
+    private void StatsIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_suppressEvents) return;
-        int[] intervals = [1, 3, 10];
-        if (CmbStatsInterval.SelectedIndex >= 0 && CmbStatsInterval.SelectedIndex < intervals.Length)
-            StatsIntervalChanged?.Invoke(intervals[CmbStatsInterval.SelectedIndex]);
+        var val = Math.Round(e.NewValue, 1);
+        StatsIntervalLabel.Text = $"{val:F1}s";
+        StatsIntervalChanged?.Invoke(val);
     }
 
     // ── Process threshold radio buttons ───────────────────────────────────
