@@ -40,7 +40,6 @@ public record AppSettings
     public string PhraseLocale { get; init; } = "auto";     // "auto" = detect from CultureInfo.CurrentUICulture; or explicit "en"/"fr"/"es"/"de"/"ja"/"pl"
     public bool   ShowDate    { get; init; } = true;
     public string DateFormat  { get; init; } = "Short";   // "Short"|"Long"|"Numeric"|"ISO"
-    public string? Theme      { get; init; } = null;       // null = no named theme active; "Midnight"|"Neon"|"Ghost"|"Warm"|"Terminal"
     public int    BatteryAlertThresholdPercent { get; init; } = 20;
     public bool   PhraseWrapEnabled            { get; init; } = true;
     public string PhraseWrapStyle              { get; init; } = "midpoint";  // "midpoint" | "natural"

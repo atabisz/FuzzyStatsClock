@@ -55,7 +55,6 @@ public partial class MainWindow : Window
     private GhostModeController _ghostMode = null!;
     private ContrastRefreshController _contrast = new();
     private SettingsWindow? _settingsWindow;
-    private string? _currentTheme = null;  // null = no named theme active
     private bool   _phraseWrapEnabled = true;
     private string _phraseWrapStyle   = "midpoint";
     private string _currentRawPhrase  = "";
@@ -356,20 +355,6 @@ public partial class MainWindow : Window
             SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
         }
         // If s.ClockType == Dial, Lcd, or Nixie: phrase/split panels are already Collapsed by the ClockType block above
-
-        // Startup theme restore: set fields only — NEVER call ApplyTheme() here.
-        // _hourTickElements etc. are empty until ContentRendered; ApplyTheme() would be a no-op or throw.
-        // ContentRendered calls ApplyTheme() after InitDialDecorations().
-        if (s.Theme is not null && BuiltInThemes.TryGet(s.Theme) is { } savedTheme)
-        {
-            _currentTheme    = s.Theme;
-            _accentColor     = savedTheme.AccentColor;
-            _windowOpacity   = savedTheme.Opacity;
-            _currentFontSize = savedTheme.FontSize;
-            _clockType       = savedTheme.ClockType;
-            // StatsVisible already applied earlier from s.StatsVisible
-            // (the theme's StatsVisible was persisted to s.StatsVisible at save time)
-        }
     }
 
     private SettingsSnapshot GetCurrentSettingsSnapshot() => new SettingsSnapshot
@@ -400,7 +385,6 @@ public partial class MainWindow : Window
         GhostFadeRadiusPx      = _ghostMode.GhostFadeRadiusPx,
         AutoContrastEnabled    = _contrast.IsEnabled,
         AutoLaunchEnabled      = _autoLaunchEnabled,
-        ActiveTheme            = _currentTheme,
         PhraseWrapEnabled      = _phraseWrapEnabled,
         PhraseWrapStyle        = _phraseWrapStyle,
         BackdropAlwaysVisible  = _backdropAlwaysVisible,
@@ -418,10 +402,10 @@ public partial class MainWindow : Window
         }
         _settingsWindow = new SettingsWindow(GetCurrentSettingsSnapshot());
         _settingsWindow.Owner = this;
-        _settingsWindow.AccentColorChanged    += c => { ClearActiveTheme(); SetAccentColor(c); };
-        _settingsWindow.OpacityChanged        += o => { ClearActiveTheme(); SetOpacity(o); };
-        _settingsWindow.FontSizeChanged       += sz => { ClearActiveTheme(); ApplyFontSize(sz); SaveSettings(); };
-        _settingsWindow.ClockTypeChanged      += ct => { ClearActiveTheme(); SetClockType(ct); };
+        _settingsWindow.AccentColorChanged    += c => SetAccentColor(c);
+        _settingsWindow.OpacityChanged        += o => SetOpacity(o);
+        _settingsWindow.FontSizeChanged       += sz => { ApplyFontSize(sz); SaveSettings(); };
+        _settingsWindow.ClockTypeChanged      += ct => SetClockType(ct);
         _settingsWindow.LcdUse24HrChanged += use24 =>
         {
             _lcdUse24Hr = use24;
@@ -447,7 +431,7 @@ public partial class MainWindow : Window
         _settingsWindow.LanguageChanged       += locale => SetLanguage(locale);
         _settingsWindow.PhraseWrapEnabledChanged += enabled => SetPhraseWrapEnabled(enabled);
         _settingsWindow.PhraseWrapStyleChanged   += style   => SetPhraseWrapStyle(style);
-        _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
+        _settingsWindow.StatsVisibleChanged   += v => SetStatsVisible(v);
         _settingsWindow.CpuVisibleChanged     += v => SetStatRowVisible(CpuRow, v);
         _settingsWindow.GpuVisibleChanged     += v => SetStatRowVisible(GpuRow, v);
         _settingsWindow.MemVisibleChanged     += v => SetStatRowVisible(MemRow, v);
@@ -475,14 +459,6 @@ public partial class MainWindow : Window
         _settingsWindow.BatteryAlertThresholdChanged += t => SetBatteryAlertThreshold(t);
         _settingsWindow.BackdropAlwaysVisibleChanged += v => SetBackdropAlwaysVisible(v);
         _settingsWindow.BackdropOpacityPercentChanged += p => SetBackdropOpacityPercent(p);
-        _settingsWindow.ThemeSelected += name =>
-        {
-            if (BuiltInThemes.TryGet(name) is { } theme)
-            {
-                ApplyNamedTheme(theme);
-                _settingsWindow?.RefreshControls(GetCurrentSettingsSnapshot());
-            }
-        };
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
     }
@@ -544,7 +520,6 @@ public partial class MainWindow : Window
             PhraseLocale         = _currentPhraseLocale,
             ShowDate             = _showDate,
             DateFormat           = _dateFormat,
-            Theme                = _currentTheme,
             PhraseWrapEnabled    = _phraseWrapEnabled,
             PhraseWrapStyle      = _phraseWrapStyle,
             BackdropAlwaysVisible  = _backdropAlwaysVisible,
@@ -1193,10 +1168,6 @@ public partial class MainWindow : Window
         DateText.Visibility = Visibility.Visible;
         UpdateDateDisplay();
 
-        // Reset named theme: clear active theme so no card is highlighted after reset
-        _currentTheme = null;
-        _settingsWindow?.ClearActiveThemeCard();
-
         // Reset phrase locale to auto and phrase style to Classic.
         // Set _currentPhraseStyle directly — do NOT call SetPhraseStyle() which has a
         // non-English locale guard that would be a no-op on fr/es/de/ja/pl systems.
@@ -1214,35 +1185,6 @@ public partial class MainWindow : Window
         // but we need to save the new position too — call once more with final state)
         SaveSettings();
     }
-
-    private void ApplyNamedTheme(ThemeDefinition theme)
-    {
-        // Set _currentTheme BEFORE calling individual setters,
-        // so each intermediate SaveSettings() call persists the correct theme name.
-        _currentTheme = theme.Name;
-
-        // Apply all theme properties using existing setters.
-        // SetAccentColor, SetOpacity, SetClockType call SaveSettings() internally.
-        // ApplyFontSize and SetStatsVisible do NOT — the final SaveSettings() below covers them.
-        SetAccentColor(theme.AccentColor);
-        SetOpacity(theme.Opacity);
-        ApplyFontSize(theme.FontSize);
-        SetClockType(theme.ClockType);
-        SetStatsVisible(theme.StatsVisible);
-
-        // Final save to persist Theme field and any unsaved property changes.
-        SaveSettings();
-    }
-
-    private void ClearActiveTheme()
-    {
-        _currentTheme = null;
-        // Use null-conditional — window may be closed when a covered property changes
-        // (e.g., opacity scroll wheel while Settings window is not open).
-        _settingsWindow?.ClearActiveThemeCard();
-        // SaveSettings() will be called by the individual setter that triggered this — no call here.
-    }
-
 
     private void SetClockType(ClockType clockType)
     {
@@ -1464,7 +1406,6 @@ public partial class MainWindow : Window
         double step = Math.Sign(e.Delta) * 0.10;
         _windowOpacity = Math.Clamp(_windowOpacity + step, 0.10, 1.0);
         this.Opacity = _windowOpacity;
-        ClearActiveTheme();
         SaveSettings();
         e.Handled = true;  // prevent scroll leaking to desktop or windows below overlay
     }
