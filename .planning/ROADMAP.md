@@ -115,7 +115,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 70. Backdrop Padding | 1/1 | Complete   | 2026-04-01 |
+| 70. Backdrop Padding | 1/1 | Complete    | 2026-04-01 |
 | 71. Stats Interval Slider | 0/? | Not started | - |
 | 72. Expand Phrase Providers | 0/? | Not started | - |
 | 73. Deepen Jive/Pirate/Yoda | 0/? | Not started | - |
