@@ -74,7 +74,7 @@ public class JivePhraseProvider : IPhraseProvider
         ]),
         (37, [
             "gone half past {h}, daddy-o",
-            "just past the half, cat — dig",
+            "just past the half of {h}, cat — dig",
             "half past {h} and a tick — solid",
             "gone the half, alligator — that's {h}",
             "past the half of {h}, real gone",
