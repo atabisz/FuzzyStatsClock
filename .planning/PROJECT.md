@@ -10,6 +10,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v4.1 Phase 72 complete: 2026-04-01** — Expanded Classic and Terse phrase providers to multi-candidate buckets: EnglishPhraseProvider (Classic) now has 70 phrases (14 slots × 5 candidates), TersePhraseProvider has 65 phrases (13 slots × 5 candidates) with British-idiom preservation. Both use `Random.Shared.Next()` for runtime randomization and stable bucket-index `GetSegmentKey` (no UI flicker). 24 new tests added; 467 MSTest tests (399 Core + 68 App), 0 failures.
+
 **v4.1 Phase 71 complete: 2026-04-01** — Stats interval slider: replaced discrete 1s/3s/10s ComboBox with continuous 0.5–10.0s Slider in Settings > Stats; `StatsIntervalSeconds` migrated from `int` to `double` across full stack (AppSettings, SettingsService, SettingsSnapshot, SettingsWindow, MainWindow); default shifted from 3s to 2.0s; `Validate()` clamps 0.5–10.0 + `Math.Round(value, 1)`; backward-compatible JSON deserialization (int→double); 425 MSTest tests (357 Core + 68 App), 0 failures.
 
 **v4.1 Phase 70 complete: 2026-04-01** — Backdrop padding increased from 6px to 12px on all content elements (ContentBorder, DateText, StatsPanel) via XAML margin/padding changes only; WPF SizeToContent auto-propagates new dimensions to edge snapping, ghost mode, contrast sampling, and position clamping — zero C# code changes; 414 MSTest tests pass unchanged.
@@ -26,7 +28,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
 
-425 MSTest tests (357 Core + 68 App) passing. CI gate enforced.
+467 MSTest tests (399 Core + 68 App) passing. CI gate enforced.
 
 ## Requirements
 
