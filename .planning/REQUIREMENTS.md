@@ -21,9 +21,9 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 
 ### Phrase Variety
 
-- [ ] **PHRASE-01**: Each of the 10 English phrase providers has at least 5 phrase candidates per bucket (12 buckets + noon + midnight)
-- [ ] **PHRASE-02**: Phrase selection within a bucket is randomized so consecutive same-bucket ticks can show different text
-- [ ] **PHRASE-03**: Unit tests verify all providers have complete bucket coverage with minimum 5 candidates each
+- [x] **PHRASE-01**: Each of the 10 English phrase providers has at least 5 phrase candidates per bucket (12 buckets + noon + midnight)
+- [x] **PHRASE-02**: Phrase selection within a bucket is randomized so consecutive same-bucket ticks can show different text
+- [x] **PHRASE-03**: Unit tests verify all providers have complete bucket coverage with minimum 5 candidates each
 
 ### Personality Depth
 
@@ -66,9 +66,9 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 | STAT-02 | Phase 71 | Complete |
 | STAT-03 | Phase 71 | Complete |
 | STAT-04 | Phase 71 | Complete |
-| PHRASE-01 | Phase 72 | Pending |
-| PHRASE-02 | Phase 72 | Pending |
-| PHRASE-03 | Phase 72 | Pending |
+| PHRASE-01 | Phase 72 | Complete |
+| PHRASE-02 | Phase 72 | Complete |
+| PHRASE-03 | Phase 72 | Complete |
 | PERS-01 | Phase 73 | Pending |
 | PERS-02 | Phase 73 | Pending |
 | PERS-03 | Phase 73 | Pending |

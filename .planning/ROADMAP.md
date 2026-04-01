@@ -13,7 +13,7 @@ Improve visual polish, expand phrase variety, and simplify settings by removing 
 
 - [x] **Phase 70: Backdrop Padding** - Add visual breathing room around content with inner margins (completed 2026-04-01)
 - [x] **Phase 71: Stats Interval Slider** - Replace discrete 1s/3s/10s selector with continuous 0.5-10s slider (completed 2026-04-01)
-- [ ] **Phase 72: Expand Phrase Providers** - Add 5 variations per bucket for Classic and Terse English providers
+- [x] **Phase 72: Expand Phrase Providers** - Add 5 variations per bucket for Classic and Terse English providers (completed 2026-04-01)
 - [ ] **Phase 73: Deepen Jive/Pirate/Yoda** - Expand personality providers with authentic linguistic patterns
 - [ ] **Phase 74: Remove Named Themes** - Delete obsolete theme infrastructure with settings migration
 
@@ -75,7 +75,7 @@ Plans:
 4. GetSegmentKey returns stable bucket-index keys (not phrase text)
 5. Unit tests verify both providers have complete coverage with minimum 5 candidates each
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 72-01-PLAN.md — Expand EnglishPhraseProvider (Classic) to multi-candidate buckets + tests
@@ -125,7 +125,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 70. Backdrop Padding | 1/1 | Complete    | 2026-04-01 |
 | 71. Stats Interval Slider | 0/1 | Complete    | 2026-04-01 |
-| 72. Expand Phrase Providers | 0/2 | Planned | - |
+| 72. Expand Phrase Providers | 2/2 | Complete   | 2026-04-01 |
 | 73. Deepen Jive/Pirate/Yoda | 0/? | Not started | - |
 | 74. Remove Named Themes | 0/? | Not started | - |
 

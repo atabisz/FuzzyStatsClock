@@ -2,39 +2,39 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: milestone
-status: planning
-last_updated: "2026-04-01T07:36:55.705Z"
+status: executing
+last_updated: "2026-04-01T08:22:17.599Z"
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 40
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State: FuzzyStatsClock
 
 **Last updated:** 2026-04-01
 **Current milestone:** v4.1 Polish & Phrases
-**Status:** Ready to plan
+**Status:** Executing Phase 72
 
 ## Project Reference
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-**Current focus:** Phase 71 — stats-interval-slider
+**Current focus:** Phase 72 — expand-phrase-providers
 
 ## Current Position
 
-Phase: 72
-Plan: Not started
-**Status:** Phase 71 complete. Ready for Phase 72 (Phrase Expansion), Phase 73 (Deepen Novelty), or Phase 74 (Remove Themes)
-**Progress:** [████------] 40% (2 of 5 phases)
+Phase: 72 (expand-phrase-providers) — COMPLETE
+Plan: 2 of 2 (all plans complete)
+**Status:** Phase 72 complete (Classic + Terse providers expanded). Ready for Phase 73 (Deepen Novelty) or Phase 74 (Remove Themes)
+**Progress:** [██████████] 100% (4 of 4 plans complete in milestone)
 
 ## Performance Metrics
 
 **Velocity:** N/A (milestone start)
-**Test suite:** 414 MSTest tests (357 Core + 57 App), 0 failures (from v4.0)
+**Test suite:** 467 MSTest tests (399 Core + 68 App), 0 failures (expanded in Phase 72)
 **Technical debt:** Low (mature codebase with 481 decisions logged)
 
 ## Accumulated Context
