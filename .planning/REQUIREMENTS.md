@@ -9,8 +9,8 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 
 ### Visual Polish
 
-- [ ] **VIS-01**: Backdrop has visibly larger padding around clock text, date, stats, and uptime content
-- [ ] **VIS-02**: Backdrop padding does not break edge snapping, ghost mode hit testing, contrast sampling, or position clamping
+- [x] **VIS-01**: Backdrop has visibly larger padding around clock text, date, stats, and uptime content
+- [x] **VIS-02**: Backdrop padding does not break edge snapping, ghost mode hit testing, contrast sampling, or position clamping
 
 ### Stats Controls
 
@@ -60,8 +60,8 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIS-01 | Phase 70 | Pending |
-| VIS-02 | Phase 70 | Pending |
+| VIS-01 | Phase 70 | Complete |
+| VIS-02 | Phase 70 | Complete |
 | STAT-01 | Phase 71 | Pending |
 | STAT-02 | Phase 71 | Pending |
 | STAT-03 | Phase 71 | Pending |

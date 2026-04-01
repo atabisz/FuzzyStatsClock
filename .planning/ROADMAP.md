@@ -11,7 +11,7 @@ Improve visual polish, expand phrase variety, and simplify settings by removing 
 
 ## Phases
 
-- [ ] **Phase 70: Backdrop Padding** - Add visual breathing room around content with inner margins
+- [x] **Phase 70: Backdrop Padding** - Add visual breathing room around content with inner margins (completed 2026-04-01)
 - [ ] **Phase 71: Stats Interval Slider** - Replace discrete 1s/3s/10s selector with continuous 0.5-10s slider
 - [ ] **Phase 72: Expand Phrase Providers** - Add 3-5 variations per bucket across all 9 non-novelty providers
 - [ ] **Phase 73: Deepen Jive/Pirate/Yoda** - Expand personality providers with authentic linguistic patterns
@@ -33,10 +33,10 @@ Improve visual polish, expand phrase variety, and simplify settings by removing 
 4. Ghost mode hit-testing (GetWindowRect) works correctly with new dimensions
 5. Contrast sampling footprint matches visible backdrop area
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 70-01-PLAN.md — Increase backdrop padding to 12px with visual verification
+- [x] 70-01-PLAN.md — Increase backdrop padding to 12px with visual verification
 
 ---
 
@@ -115,7 +115,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 70. Backdrop Padding | 0/1 | Planned | - |
+| 70. Backdrop Padding | 1/1 | Complete   | 2026-04-01 |
 | 71. Stats Interval Slider | 0/? | Not started | - |
 | 72. Expand Phrase Providers | 0/? | Not started | - |
 | 73. Deepen Jive/Pirate/Yoda | 0/? | Not started | - |
