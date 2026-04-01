@@ -1,9 +1,9 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.1
-milestone_name: Polish & Phrases
-status: executing
-last_updated: "2026-04-01T07:27:00.000Z"
+milestone_name: milestone
+status: planning
+last_updated: "2026-04-01T07:36:55.705Z"
 progress:
   total_phases: 5
   completed_phases: 2
@@ -16,7 +16,7 @@ progress:
 
 **Last updated:** 2026-04-01
 **Current milestone:** v4.1 Polish & Phrases
-**Status:** Executing Phase 71
+**Status:** Ready to plan
 
 ## Project Reference
 
@@ -26,8 +26,8 @@ progress:
 
 ## Current Position
 
-Phase: 71 (stats-interval-slider) — COMPLETE
-Plan: 1 of 1 (complete)
+Phase: 72
+Plan: Not started
 **Status:** Phase 71 complete. Ready for Phase 72 (Phrase Expansion), Phase 73 (Deepen Novelty), or Phase 74 (Remove Themes)
 **Progress:** [████------] 40% (2 of 5 phases)
 
