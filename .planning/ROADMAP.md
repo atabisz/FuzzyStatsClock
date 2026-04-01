@@ -13,7 +13,7 @@ Improve visual polish, expand phrase variety, and simplify settings by removing 
 
 - [x] **Phase 70: Backdrop Padding** - Add visual breathing room around content with inner margins (completed 2026-04-01)
 - [x] **Phase 71: Stats Interval Slider** - Replace discrete 1s/3s/10s selector with continuous 0.5-10s slider (completed 2026-04-01)
-- [ ] **Phase 72: Expand Phrase Providers** - Add 3-5 variations per bucket across all 9 non-novelty providers
+- [ ] **Phase 72: Expand Phrase Providers** - Add 5 variations per bucket for Classic and Terse English providers
 - [ ] **Phase 73: Deepen Jive/Pirate/Yoda** - Expand personality providers with authentic linguistic patterns
 - [ ] **Phase 74: Remove Named Themes** - Delete obsolete theme infrastructure with settings migration
 
@@ -62,19 +62,24 @@ Plans:
 ---
 
 ### Phase 72: Expand Phrase Providers
-**Goal:** All non-novelty phrase providers have multiple variations per time bucket to reduce repetition.
+**Goal:** Classic and Terse English phrase providers have 5 phrase candidates per time bucket with randomized selection to reduce repetition.
 
 **Depends on:** Nothing (pure content work, independent of other phases)
 
 **Requirements:** PHRASE-01, PHRASE-02, PHRASE-03
 
 **Success Criteria** (what must be TRUE):
-1. Each of the 9 non-novelty providers (English Classic/Terse/Poetic/Rude, French, Spanish, German, Japanese, Polish) has at least 3 phrase candidates per bucket
-2. Phrases randomize within each bucket so consecutive same-bucket ticks can show different text
-3. Unit tests verify all 9 providers have complete coverage (12 buckets + noon + midnight = 14 cases each)
-4. Users notice phrase variety within the first week of use (no more than 2-3 identical phrases per day)
+1. EnglishPhraseProvider (Classic) has 5 candidates per bucket (12 buckets + noon + midnight = 14 slots)
+2. TersePhraseProvider has 5 candidates per bucket (11 buckets + noon + midnight = 13 slots)
+3. Phrases randomize within each bucket so consecutive same-bucket ticks can show different text
+4. GetSegmentKey returns stable bucket-index keys (not phrase text)
+5. Unit tests verify both providers have complete coverage with minimum 5 candidates each
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 72-01-PLAN.md — Expand EnglishPhraseProvider (Classic) to multi-candidate buckets + tests
+- [ ] 72-02-PLAN.md — Expand TersePhraseProvider to multi-candidate buckets + tests
 
 ---
 
@@ -120,7 +125,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 70. Backdrop Padding | 1/1 | Complete    | 2026-04-01 |
 | 71. Stats Interval Slider | 0/1 | Complete    | 2026-04-01 |
-| 72. Expand Phrase Providers | 0/? | Not started | - |
+| 72. Expand Phrase Providers | 0/2 | Planned | - |
 | 73. Deepen Jive/Pirate/Yoda | 0/? | Not started | - |
 | 74. Remove Named Themes | 0/? | Not started | - |
 
