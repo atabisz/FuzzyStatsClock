@@ -10,6 +10,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v4.1 Phase 74 complete: 2026-04-02** — Removed named theme system (Midnight/Neon/Ghost/Warm/Terminal): deleted ThemeDefinition.cs, Theme field from AppSettings, ActiveTheme from SettingsSnapshot, theme card XAML and handlers from SettingsWindow, theme methods from MainWindow (325 lines removed). No migration needed — AccentColor always persisted individually; System.Text.Json ignores unknown keys. Settings Appearance tab now starts at Accent Color. 501 MSTest tests (433 Core + 68 App), 0 failures.
+
 **v4.1 Phase 73 complete: 2026-04-01** — Deepened Jive, Pirate, and Yoda personality providers with authentic linguistic patterns: Jive uses 1940s Harlem rhythmic AAVE phrasing (natural contractions, emphatic repetition, zero copula starts); Pirate uses authentic nautical metaphors (bells, watch, glass, mark — movie cliches removed); Yoda enforces strict OSV syntax inversion (zero SVO starts, declarative endings). All three expanded to 70 phrases each (14 slots × 5 candidates). 35 new authenticity tests; 501 MSTest tests (433 Core + 68 App), 0 failures.
 
 **v4.1 Phase 72 complete: 2026-04-01** — Expanded Classic and Terse phrase providers to multi-candidate buckets: EnglishPhraseProvider (Classic) now has 70 phrases (14 slots × 5 candidates), TersePhraseProvider has 65 phrases (13 slots × 5 candidates) with British-idiom preservation. Both use `Random.Shared.Next()` for runtime randomization and stable bucket-index `GetSegmentKey` (no UI flicker). 24 new tests added; 467 MSTest tests (399 Core + 68 App), 0 failures.
@@ -510,4 +512,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 — after v4.1 milestone start (Polish & Phrases)*
+*Last updated: 2026-04-02 — after Phase 74 (Remove Named Themes) completion*
