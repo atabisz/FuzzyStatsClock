@@ -70,10 +70,10 @@ public class PiratePhraseProvider : IPhraseProvider
             "mid-watch past {h}, by the log",
         ]),
         (37, [
-            "just past the half bell, yarr",
+            "just past the half bell of {h}, yarr",
             "gone half past {h}, arr — hold course",
             "half past {h} and a tick, blimey",
-            "past the half-glass, steady on",
+            "past the half-glass of {h}, steady on",
             "beyond half past {h}, mark it",
         ]),
         (42, [
