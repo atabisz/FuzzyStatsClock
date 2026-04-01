@@ -3,7 +3,11 @@ namespace FuzzyClock.Core;
 /// <summary>
 /// Yoda-speak phrase provider (en-yoda).
 /// Inverted Star Wars syntax with characteristic affirmations: hmm, yes, mmm.
-/// Object-verb-subject ordering; declarative endings "it is", "we are".
+/// OSV syntax rules (strictly enforced):
+/// - Object-Verb-Subject: "{h} o'clock, it is" NOT "it is {h} o'clock"
+/// - No phrase starts with SVO: "it is", "it's", "we are", "we're"
+/// - Every phrase ends with declarative: "it is", "we are", "it has", "we have", "yes", "hmm", "mmm"
+/// - Affirmations (hmm, yes, mmm) as bookends only, never mid-sentence
 /// Multiple candidates per bucket; one chosen randomly at runtime.
 /// </summary>
 public class YodaPhraseProvider : IPhraseProvider
@@ -18,83 +22,117 @@ public class YodaPhraseProvider : IPhraseProvider
     [
         ( 2, [
             "{h} o'clock, it is",
-            "it is {h}, hmm",
-            "{h} — the hour, it is, yes",
-            "{h} o'clock, hmm, it is",
+            "the hour of {h}, upon us it is",
+            "{h}, the time shows, hmm",
+            "hmm, {h} o'clock it is, yes",
+            "{h} — struck, the hour has",
         ]),
         ( 7, [
-            "past {h}, just gone it is",
-            "just past {h} it is, hmm",
-            "barely past {h} — gone, it is",
-            "a tick past {h}, yes",
+            "just past {h}, it is",
+            "past {h}, just gone it has, hmm",
+            "barely past {h}, the clock shows, yes",
+            "a tick past {h}, we are",
+            "gone past {h}, it has, mmm",
         ]),
         (12, [
-            "ten past {h}, mmm",
-            "ten minutes past {h}, it is",
-            "ten past {h}, yes, hmm",
-            "ten past {h} it is, mmm",
+            "ten past {h}, it is, mmm",
+            "ten minutes past {h}, the time shows",
+            "ten past {h}, reached we have, yes",
+            "ten past {h} it is, hmm",
+            "past {h} by ten, it is",
         ]),
         (17, [
-            "quarter past {h}, yes",
-            "a quarter past {h}, it is",
-            "quarter past {h}, hmm",
-            "a quarter of the hour past {h}, yes",
+            "quarter past {h}, it is, yes",
+            "a quarter past {h}, reached we have",
+            "quarter past {h}, the time shows, hmm",
+            "a quarter of the hour past {h}, it is",
+            "past the quarter of {h}, we are, mmm",
         ]),
         (22, [
-            "past the quarter of {h}, it is",
             "twenty past {h}, it is",
-            "twenty past {h}, yes, hmm",
-            "gone the quarter of {h}, hmm",
+            "past the quarter of {h}, gone we have, hmm",
+            "twenty past {h}, the time reads, yes",
+            "gone twenty past {h}, it has",
+            "twenty past {h}, reached we have, mmm",
         ]),
         (27, [
             "near half past {h}, we are",
-            "almost half past {h}, yes",
-            "nigh on half past {h}, it is",
-            "near half past {h}, hmm",
+            "almost half past {h}, it is, yes",
+            "nigh on half past {h}, the clock shows",
+            "approaching half past {h}, we are, hmm",
+            "near the half of {h}, it is, mmm",
         ]),
         (32, [
-            "half past {h}, mmm",
-            "half past {h}, it is",
-            "the half hour of {h}, struck it has",
-            "half past {h}, hmm, yes",
+            "half past {h}, it is, mmm",
+            "the half hour of {h}, passed it has",
+            "hmm, half past {h} we are, yes",
+            "half past {h}, reached we have",
+            "gone the half of {h}, it has",
         ]),
         (37, [
-            "past the half, just",
+            "just past the half of {h}, we are",
+            "beyond half past {h}, it is, hmm",
+            "past the half, gone we have, yes",
+            "beyond the half of {h}, we are, mmm",
             "just past half past {h}, it is",
-            "beyond the half, we are",
-            "past the half, yes, we are",
         ]),
         (42, [
-            "quarter to {h1}, nearly",
             "near a quarter to {h1}, we are",
-            "almost quarter to {h1}, hmm",
-            "nearing quarter to {h1}, yes",
+            "almost quarter to {h1}, it is, hmm",
+            "nearing quarter to {h1}, we are, yes",
+            "close to quarter to {h1}, it is",
+            "approaching {h1}, we are, mmm",
         ]),
         (47, [
             "quarter to {h1}, it is",
-            "a quarter before {h1}, yes",
-            "quarter to {h1}, hmm, it is",
+            "a quarter before {h1}, reached we have, yes",
+            "quarter to {h1}, the time shows, hmm",
             "fifteen minutes to {h1}, it is",
+            "a quarter to {h1}, we are, mmm",
         ]),
         (52, [
-            "nearly {h1}, yes",
-            "ten to {h1}, it is",
-            "ten minutes to {h1}, hmm",
-            "nearly {h1} — close, we are",
+            "ten to {h1}, it is, yes",
+            "nearly {h1}, the hour approaches, hmm",
+            "ten minutes to {h1}, it is",
+            "close to {h1}, we are, mmm",
+            "nearing {h1}, it is, yes",
         ]),
         (59, [
-            "{h1} approaches",
-            "almost {h1} — near it is",
+            "almost {h1}, it is, hmm",
+            "near {h1}, the hour draws, yes",
             "five to {h1}, it is",
-            "almost {h1}, patience",
+            "approaching {h1}, we are, mmm",
+            "{h1}, almost upon us it is, yes",
         ]),
     ];
 
     public string GetPhrase(DateTime dt)
     {
         int totalMinutes = dt.Hour * 60 + dt.Minute;
-        if (totalMinutes == 720) return "noon it is, hmm";
-        if (totalMinutes == 0)   return "midnight, the dark hour, yes";
+
+        if (totalMinutes == 720)
+        {
+            string[] noonCandidates = [
+                "noon it is, hmm",
+                "the noon hour, upon us it is",
+                "hmm, high noon it is, yes",
+                "noon, arrived it has",
+                "the midday hour, reached we have",
+            ];
+            return noonCandidates[Random.Shared.Next(noonCandidates.Length)];
+        }
+
+        if (totalMinutes == 0)
+        {
+            string[] midnightCandidates = [
+                "midnight, the dark hour it is, yes",
+                "the witching hour, upon us it is",
+                "hmm, midnight it is",
+                "the deepest night, reached we have",
+                "midnight, arrived it has, mmm",
+            ];
+            return midnightCandidates[Random.Shared.Next(midnightCandidates.Length)];
+        }
 
         int minute = dt.Minute;
 
