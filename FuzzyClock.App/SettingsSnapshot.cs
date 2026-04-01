@@ -27,7 +27,7 @@ internal sealed record SettingsSnapshot
     public bool    PagVisible                            { get; init; }
     public bool    BatteryVisible                        { get; init; }
     public bool    UptimeVisible                         { get; init; }
-    public int     StatsIntervalSeconds                  { get; init; }
+    public double  StatsIntervalSeconds                  { get; init; }
     public double  ProcessCountThreshold                 { get; init; }
     public bool    ShowDate                              { get; init; }
     public string  DateFormat                            { get; init; } = "Short";

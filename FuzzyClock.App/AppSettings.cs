@@ -14,7 +14,7 @@ public record AppSettings
     public string LastActiveMonitor    { get; init; } = "";
     public int    FontSize             { get; init; } = 32;
     public bool   StatsVisible         { get; init; } = false;
-    public int    StatsIntervalSeconds { get; init; } = 3;
+    public double StatsIntervalSeconds { get; init; } = 2.0;
     public bool   CpuVisible           { get; init; } = true;
     public bool   GpuVisible           { get; init; } = true;
     public bool   MemVisible           { get; init; } = true;

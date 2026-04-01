@@ -27,7 +27,7 @@ public class AppSettingsTests
             LastActiveMonitor    = "dell u2720q",
             FontSize             = 24,
             StatsVisible         = true,
-            StatsIntervalSeconds = 5,
+            StatsIntervalSeconds = 2.5,
             CpuVisible           = false,
             GpuVisible           = false,
             MemVisible           = false,
@@ -60,7 +60,7 @@ public class AppSettingsTests
         Assert.AreEqual(200.5, result.MonitorPositions["dell u2720q"].Top,  0.0001,              "MonitorPositions Top");
         Assert.AreEqual(original.FontSize,             result.FontSize,                          "FontSize");
         Assert.AreEqual(original.StatsVisible,         result.StatsVisible,                      "StatsVisible");
-        Assert.AreEqual(original.StatsIntervalSeconds, result.StatsIntervalSeconds,               "StatsIntervalSeconds");
+        Assert.AreEqual(original.StatsIntervalSeconds, result.StatsIntervalSeconds, 0.0001,        "StatsIntervalSeconds");
         Assert.AreEqual(original.CpuVisible,           result.CpuVisible,                        "CpuVisible");
         Assert.AreEqual(original.GpuVisible,           result.GpuVisible,                        "GpuVisible");
         Assert.AreEqual(original.MemVisible,           result.MemVisible,                        "MemVisible");
@@ -213,6 +213,16 @@ public class AppSettingsTests
         var result = JsonSerializer.Deserialize<AppSettings>(json)!;
         Assert.AreEqual(80, result.GhostFadeRadiusPx,
             "GhostFadeRadiusPx should default to 80 when absent from JSON (init default), not 0");
+    }
+
+    [TestMethod]
+    public void Deserialize_IntegerStatsInterval_DeserializesToDouble()
+    {
+        // Simulate v4.0 settings.json with integer StatsIntervalSeconds
+        const string json = """{"StatsIntervalSeconds":3}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(3.0, result.StatsIntervalSeconds, 0.0001,
+            "Integer 3 in JSON should deserialize to double 3.0");
     }
 
 }

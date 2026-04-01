@@ -15,7 +15,7 @@ public partial class MainWindow : Window
     private DispatcherTimer _timer = null!;
     private DispatcherTimer _statsTimer = null!;
     private StatsService _statsService = null!;
-    private int _statsIntervalSeconds = 3;       // default matches AppSettings.StatsIntervalSeconds default
+    private double _statsIntervalSeconds = 2.0;  // default matches AppSettings.StatsIntervalSeconds default
     private double _processCountThreshold = 5.0; // default matches AppSettings.ProcessCountThresholdPercent default
     private bool _batteryAlertActive    = false;
     private int  _batteryAlertThreshold = 20;   // matches AppSettings.BatteryAlertThresholdPercent default
@@ -838,7 +838,7 @@ public partial class MainWindow : Window
         {
             _cpuSamples.Enqueue(_statsService.CpuPercent);
             // Trim to 15-minute window at current configured interval
-            int maxSamples = Math.Max(1, (15 * 60) / _statsIntervalSeconds);
+            int maxSamples = Math.Max(1, (int)((15 * 60) / _statsIntervalSeconds));
             while (_cpuSamples.Count > maxSamples) _cpuSamples.Dequeue();
         }
 
@@ -946,7 +946,7 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
-    private void SetStatsInterval(int seconds)
+    private void SetStatsInterval(double seconds)
     {
         _statsIntervalSeconds = seconds;
 

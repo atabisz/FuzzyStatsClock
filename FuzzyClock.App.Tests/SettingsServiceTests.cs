@@ -14,14 +14,60 @@ namespace FuzzyClock.App.Tests;
 [TestClass]
 public class SettingsServiceTests
 {
-    // STEST-03: StatsIntervalSeconds=0 is corrected to the safe default (3).
+    // STEST-03: StatsIntervalSeconds=0 is corrected to the safe default (2.0).
     // A zero interval causes the DispatcherTimer to fire at max rate (CPU spike).
     [TestMethod]
     public void Validate_ZeroStatsInterval_ReturnsDefault()
     {
         var input  = new AppSettings { StatsIntervalSeconds = 0 };
         var result = SettingsService.Validate(input);
-        Assert.AreEqual(3, result.StatsIntervalSeconds);
+        Assert.AreEqual(2.0, result.StatsIntervalSeconds, 0.0001);
+    }
+
+    [TestMethod]
+    public void Validate_StatsInterval_BelowMin_ReturnsDefault()
+    {
+        var input  = new AppSettings { StatsIntervalSeconds = 0.1 };
+        var result = SettingsService.Validate(input);
+        Assert.AreEqual(2.0, result.StatsIntervalSeconds, 0.0001);
+    }
+
+    [TestMethod]
+    public void Validate_StatsInterval_AboveMax_ReturnsDefault()
+    {
+        var input  = new AppSettings { StatsIntervalSeconds = 15.0 };
+        var result = SettingsService.Validate(input);
+        Assert.AreEqual(2.0, result.StatsIntervalSeconds, 0.0001);
+    }
+
+    [TestMethod]
+    [DataRow(0.5)]
+    [DataRow(2.0)]
+    [DataRow(5.5)]
+    [DataRow(10.0)]
+    public void Validate_StatsInterval_ValidValue_Preserved(double interval)
+    {
+        var input  = new AppSettings { StatsIntervalSeconds = interval };
+        var result = SettingsService.Validate(input);
+        Assert.AreEqual(interval, result.StatsIntervalSeconds, 0.0001);
+    }
+
+    [TestMethod]
+    [DataRow(2.567, 2.6)]
+    [DataRow(0.54, 0.5)]
+    [DataRow(9.99, 10.0)]
+    public void Validate_StatsInterval_RoundsPrecision(double input, double expected)
+    {
+        var s = new AppSettings { StatsIntervalSeconds = input };
+        var result = SettingsService.Validate(s);
+        Assert.AreEqual(expected, result.StatsIntervalSeconds, 0.0001);
+    }
+
+    [TestMethod]
+    public void Defaults_StatsIntervalSeconds_Is2()
+    {
+        var defaults = SettingsService.Defaults();
+        Assert.AreEqual(2.0, defaults.StatsIntervalSeconds, 0.0001);
     }
 
     // STEST-04: Opacity=0.0 is corrected to 1.0 — prevents invisible-widget regression.
