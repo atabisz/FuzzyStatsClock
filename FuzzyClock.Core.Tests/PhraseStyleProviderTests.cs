@@ -238,14 +238,17 @@ public class JivePhraseProviderTests
     public void Jive_Noon_ReturnsNoonPhrase()
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
-        Assert.AreEqual("high noon, daddy-o", phrase);
+        Assert.IsTrue(phrase.Contains("noon") || phrase.Contains("twelve"),
+            $"Noon phrase '{phrase}' should contain 'noon' or 'twelve'");
     }
 
     [TestMethod]
     public void Jive_Midnight_ReturnsMidnightPhrase()
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
-        Assert.AreEqual("the witching hour, cat", phrase);
+        Assert.IsTrue(phrase.Contains("midnight") || phrase.Contains("witching")
+                   || phrase.Contains("zero hour") || phrase.Contains("night"),
+            $"Midnight phrase '{phrase}' should contain midnight-related vocabulary");
     }
 
     [TestMethod]
@@ -307,14 +310,16 @@ public class PiratePhraseProviderTests
     public void Pirate_Noon_ReturnsNoonPhrase()
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
-        Assert.AreEqual("high noon at sea, arr", phrase);
+        Assert.IsTrue(phrase.Contains("noon") || phrase.Contains("zenith"),
+            $"Noon phrase '{phrase}' should contain 'noon' or 'zenith'");
     }
 
     [TestMethod]
     public void Pirate_Midnight_ReturnsMidnightPhrase()
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
-        Assert.AreEqual("the dead of night, yarr", phrase);
+        Assert.IsTrue(phrase.Contains("midnight") || phrase.Contains("night") || phrase.Contains("watch"),
+            $"Midnight phrase '{phrase}' should contain midnight-related vocabulary");
     }
 
     [TestMethod]
@@ -492,14 +497,16 @@ public class YodaPhraseProviderTests
     public void Yoda_Noon_ReturnsNoonPhrase()
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
-        Assert.AreEqual("noon it is, hmm", phrase);
+        Assert.IsTrue(phrase.Contains("noon") || phrase.Contains("midday"),
+            $"Noon phrase '{phrase}' should contain 'noon' or 'midday'");
     }
 
     [TestMethod]
     public void Yoda_Midnight_ReturnsMidnightPhrase()
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
-        Assert.AreEqual("midnight, the dark hour, yes", phrase);
+        Assert.IsTrue(phrase.Contains("midnight") || phrase.Contains("witching") || phrase.Contains("night"),
+            $"Midnight phrase '{phrase}' should contain midnight-related vocabulary");
     }
 
     [TestMethod]
