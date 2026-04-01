@@ -53,6 +53,9 @@ Plan: 2 of 2 (all plans complete)
 - **Phase 71-01:** Continuous slider (0.5-10.0s) replaces discrete ComboBox (1s/3s/10s)
 - **Phase 71-01:** Validation: range [0.5, 10.0], Math.Round(value, 1) for precision
 - **Phase 71-01:** ResetToDefaults now resets stats interval to 2.0s (was missing before)
+- **Phase 72-01:** EnglishPhraseProvider (Classic) expanded to 70 candidates (14 slots × 5 each)
+- **Phase 72-02:** TersePhraseProvider expanded to 65 candidates (13 slots × 5 each, British idiom)
+- **Phase 72-02:** GetSegmentKey changed from phrase-based to bucket-index based for stability across random selection
 
 ### Open Questions
 
@@ -78,14 +81,15 @@ None. All phases have clear requirements and established patterns.
 
 ### What Just Happened
 
-Phase 71-01 execution complete:
+Phase 72-02 execution complete:
 
-- Migrated StatsIntervalSeconds from int to double with 2.0s default
-- Replaced discrete ComboBox (1s/3s/10s) with continuous Slider (0.5-10.0s)
-- Added validation: range [0.5, 10.0], Math.Round(value, 1) for precision
-- Added 7 new tests (6 validation + 1 migration), updated 2 existing tests
-- All 425 tests pass (357 Core + 68 App)
-- Commits: b4eb003 (data layer), 42e1ab6 (UI slider)
+- Expanded TersePhraseProvider to 65 phrase candidates (13 slots × 5 each)
+- Added 11 new TersePhraseProviderExpandedTests covering all buckets, British idiom, segment key stability, randomization
+- Fixed 18 broken tests from Phase 72-01 (Classic provider randomization regression)
+- Updated PhraseEngineTests, SegmentKeyTests, PhraseStyleProviderTests to pattern-based assertions
+- All 467 tests pass (399 Core + 68 App)
+- Commits: 3b8901d (Terse expansion), d0440b0 (tests + regression fixes)
+- Phase 72 complete: Both Classic and Terse providers now have multi-candidate phrase variety
 
 ### Next Session Should Know
 
@@ -103,4 +107,4 @@ Phase 71-01 execution complete:
 - Config: mode=yolo, granularity=standard, research=true, commit_docs=true
 
 ---
-*State snapshot: 2026-04-01 after Phase 71-01 execution*
+*State snapshot: 2026-04-01 after Phase 72-02 execution*
