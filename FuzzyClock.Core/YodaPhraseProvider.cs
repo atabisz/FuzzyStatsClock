@@ -72,7 +72,7 @@ public class YodaPhraseProvider : IPhraseProvider
         (37, [
             "just past the half of {h}, we are",
             "beyond half past {h}, it is, hmm",
-            "past the half, gone we have, yes",
+            "past the half of {h}, gone we have, yes",
             "beyond the half of {h}, we are, mmm",
             "just past half past {h}, it is",
         ]),
