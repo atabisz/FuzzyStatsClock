@@ -43,7 +43,7 @@
                     Grid.Row="0"
                     Background="Transparent"
                     CornerRadius="5"
-                    Padding="6">
+                    Padding="12">
                 <Grid>
                     <!-- PhraseText: live phrase wired in Phase 3 via SetInitialPhrase() and
                          UpdatePhraseIfChanged(). Text is set in code-behind before Show(). -->
@@ -129,7 +129,7 @@
                  DropShadowEffect matches PhraseText/EmphasisText (locked decision: same shadow treatment). -->
             <TextBlock x:Name="DateText"
                        Grid.Row="1"
-                       Margin="0,2,0,0"
+                       Margin="12,8,12,0"
                        Visibility="Visible"
                        FontFamily="Segoe UI Light"
                        FontSize="26"
@@ -149,7 +149,7 @@
             <StackPanel x:Name="StatsPanel"
                         Grid.Row="2"
                         Width="184"
-                        Margin="0,4,0,0"
+                        Margin="12,8,12,12"
                         Visibility="Collapsed">
 
                 <!-- CPU row -->
