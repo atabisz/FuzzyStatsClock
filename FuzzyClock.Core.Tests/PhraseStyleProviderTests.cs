@@ -20,17 +20,20 @@ public class TersePhraseProviderTests
     }
 
     [TestMethod]
-    public void Terse_OnTheHour_ReturnsJustHourWord()
+    public void Terse_OnTheHour_ContainsHourWord()
     {
+        // With randomization, we check for patterns, not exact text
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 0, 0));
-        Assert.AreEqual("three", phrase);
+        Assert.IsTrue(phrase.Contains("three"), $"On-the-hour phrase '{phrase}' should contain 'three'");
     }
 
     [TestMethod]
-    public void Terse_QuarterPast_ReturnsQuarterPast()
+    public void Terse_QuarterPast_ContainsQuarterPast()
     {
+        // With randomization, we check for patterns, not exact text
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 15, 0));
-        Assert.AreEqual("quarter past three", phrase);
+        Assert.IsTrue(phrase.Contains("quarter") && phrase.Contains("three"),
+            $"Quarter past phrase '{phrase}' should contain 'quarter' and 'three'");
     }
 
     [TestMethod]
@@ -38,7 +41,8 @@ public class TersePhraseProviderTests
     {
         // British "half four" means half past three (3:30)
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 3, 30, 0));
-        Assert.AreEqual("half four", phrase);
+        Assert.IsTrue(phrase.Contains("four"), $"Half-hour phrase '{phrase}' should contain 'four' (British idiom)");
+        Assert.IsFalse(phrase.Contains("three"), $"Half-hour phrase '{phrase}' should not contain 'three'");
     }
 
     [TestMethod]
@@ -46,7 +50,7 @@ public class TersePhraseProviderTests
     {
         var (qualifier, emphasis) = _provider.GetStructuredPhrase(new DateTime(2024, 1, 1, 3, 30, 0));
         Assert.AreEqual("", qualifier);
-        Assert.AreEqual("half four", emphasis);
+        Assert.IsTrue(emphasis.Contains("four"), $"Emphasis '{emphasis}' should contain 'four' (British half-hour idiom)");
     }
 }
 
