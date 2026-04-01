@@ -10,6 +10,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v4.1 Phase 70 complete: 2026-04-01** — Backdrop padding increased from 6px to 12px on all content elements (ContentBorder, DateText, StatsPanel) via XAML margin/padding changes only; WPF SizeToContent auto-propagates new dimensions to edge snapping, ghost mode, contrast sampling, and position clamping — zero C# code changes; 414 MSTest tests pass unchanged.
+
 **v4.0 shipped: 2026-03-27** — Proximity Ghost Mode complete: `GhostFadeRadiusPx` field in `AppSettings`/`SettingsService` with range validation and 7 new tests; `ComputeProximityRatio` (Chebyshev distance, 12 TDD unit tests) + always-running `GhostModeController` timer with `ProximityChanged` event; `MainWindow` wired with `_proximityRatio` field, `_isDragging` guard, `IsEnabled` gate at controller top, legacy snap-to-ghost block deleted; Settings > Behavior fade radius slider (20–200px, default 80px) live-updates controller and persists; `ResetToDefaults()` restores to 80px; 414 MSTest tests (357 Core + 57 App), 0 failures. All 13/13 PROX requirements satisfied.
 
 **v3.9 shipped: 2026-03-27** — LCD clock (7-segment, blinking colon, 12/24hr, optional seconds row, Dark/Paper/Silver styles) added as fourth clock style; Japanese Terse/Poetic/Rude phrase providers added; `ResolveLocaleKey` consolidates all locale routing; 395 MSTest tests (357 Core + 38 App) passing (includes Jive/Pirate/Dwarf/ValleyGirl/Yoda/Shakespeare phrase styles added post-milestone)
@@ -285,6 +287,11 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ PROX-11: Auto-contrast sampler skips sampling while widget is in proximity fade state (prevents WCAG flicker feedback loop) — v4.0
 - ✓ PROX-12: AppSettings JSON round-trip test covers GhostFadeRadiusPx; absent-field test verifies 80px init default — v4.0
 - ✓ PROX-13: ComputeProximityRatio is a pure static method with unit tests covering all boundary conditions — v4.0
+
+### Validated (v4.1 Phase 70)
+
+- ✓ VIS-01: Backdrop has visibly larger padding (12px) around all content elements — v4.1
+- ✓ VIS-02: Padding uses inner margins; edge snapping, ghost mode, contrast sampling, position clamping all unaffected — v4.1
 
 ### Active
 
