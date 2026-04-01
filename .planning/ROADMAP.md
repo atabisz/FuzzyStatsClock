@@ -97,7 +97,12 @@ Plans:
 4. All three providers have at least 3 variations per bucket (same coverage as Phase 72)
 5. Human review confirms authenticity (no caricature or unreadable density)
 
-**Plans:** TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 73-01-PLAN.md — Deepen Jive provider with authentic AAVE-inspired phrasing + tests
+- [ ] 73-02-PLAN.md — Deepen Pirate provider with authentic nautical metaphors + tests
+- [ ] 73-03-PLAN.md — Deepen Yoda provider with strict OSV syntax + fix broken exact-match tests
 
 ---
 
@@ -126,7 +131,7 @@ Plans:
 | 70. Backdrop Padding | 1/1 | Complete    | 2026-04-01 |
 | 71. Stats Interval Slider | 0/1 | Complete    | 2026-04-01 |
 | 72. Expand Phrase Providers | 2/2 | Complete    | 2026-04-01 |
-| 73. Deepen Jive/Pirate/Yoda | 0/? | Not started | - |
+| 73. Deepen Jive/Pirate/Yoda | 0/3 | Planned     | - |
 | 74. Remove Named Themes | 0/? | Not started | - |
 
 ## Coverage Map
