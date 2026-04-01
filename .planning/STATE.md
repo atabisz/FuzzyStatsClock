@@ -27,8 +27,8 @@ progress:
 ## Current Position
 
 Phase: 73 (deepen-jive-pirate-yoda) — EXECUTING
-Plan: 1 of 3
-**Status:** Phase 72 complete (Classic + Terse providers expanded). Ready for Phase 73 (Deepen Novelty) or Phase 74 (Remove Themes)
+Plan: 2 of 3 (plan 73-02 complete)
+**Status:** Phase 73 in progress — Pirate provider expanded (plan 02), Jive (plan 01) and Yoda (plan 03) remaining
 **Progress:** [████████░░] 83%
 
 ## Performance Metrics
@@ -56,6 +56,9 @@ Plan: 1 of 3
 - **Phase 72-01:** EnglishPhraseProvider (Classic) expanded to 70 candidates (14 slots × 5 each)
 - **Phase 72-02:** TersePhraseProvider expanded to 65 candidates (13 slots × 5 each, British idiom)
 - **Phase 72-02:** GetSegmentKey changed from phrase-based to bucket-index based for stability across random selection
+- **Phase 73-02:** PiratePhraseProvider expanded to 70 candidates with authentic nautical language
+- **Phase 73-02:** Removed movie cliches ("shiver me timbers", "it's X o'clock") in favor of maritime terms (bells, watch, glass, mark, course, bearing, trim, log, strike)
+- **Phase 73-02:** All 14 slots (12 buckets + noon + midnight) expanded to 5 candidates each for consistent variety
 
 ### Open Questions
 

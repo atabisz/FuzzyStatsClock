@@ -131,7 +131,7 @@ Plans:
 | 70. Backdrop Padding | 1/1 | Complete    | 2026-04-01 |
 | 71. Stats Interval Slider | 0/1 | Complete    | 2026-04-01 |
 | 72. Expand Phrase Providers | 2/2 | Complete    | 2026-04-01 |
-| 73. Deepen Jive/Pirate/Yoda | 1/3 | In Progress|  |
+| 73. Deepen Jive/Pirate/Yoda | 2/3 | In Progress|  |
 | 74. Remove Named Themes | 0/? | Not started | - |
 
 ## Coverage Map
