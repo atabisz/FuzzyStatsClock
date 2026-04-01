@@ -6,6 +6,12 @@ namespace FuzzyClock.Core;
 /// Original Handbook of Harlem Jive (1944): daddy-o, cat, gate, alligator, solid, dig,
 /// hep cat, real gone, in the groove, blow your wig, righteous, all reet, copacetic, tick.
 /// Multiple candidates per bucket; one chosen randomly at runtime.
+///
+/// Authenticity rules:
+/// - Natural contractions: comin', blowin', hittin' (NOT standard English gerunds)
+/// - Emphatic repetition: "solid, solid", "real gone, real gone"
+/// - Organic vocabulary: integrated into phrasing, not appended to standard English
+/// - No phrase starts with "it's" or "it is" (AAVE copula-dropping preference)
 /// </summary>
 public class JivePhraseProvider : IPhraseProvider
 {
@@ -18,84 +24,118 @@ public class JivePhraseProvider : IPhraseProvider
     private static readonly (int UpperBound, string[] Candidates)[] Buckets =
     [
         ( 2, [
-            "solid {h} o'clock, daddy-o",
-            "that's {h} on the nose, cat",
-            "straight-up {h} — dig it",
-            "all reet, it's {h}, hep cat",
+            "{h} on the nose, cat",
+            "solid {h}, daddy-o — solid",
+            "the clock's blowin' {h}, dig it",
+            "{h} sharp, hep cat — all reet",
+            "that's {h} right now, real gone",
         ]),
         ( 7, [
             "just past {h}, daddy-o",
-            "a tick past {h}, cat",
-            "barely gone {h} — you hip?",
-            "five past {h}, dig it",
+            "a tick past {h}, cat — dig",
+            "barely gone {h}, you hip?",
+            "five past {h}, in the groove",
+            "gone {h} a tick, hep cat — solid",
         ]),
         (12, [
-            "ten past {h}, solid",
-            "ten past {h}, righteous",
-            "ten past {h}, in the groove",
-            "ten past {h} — latch on, cat",
+            "ten past {h}, solid — real solid",
+            "ten past {h}, righteous and true",
+            "ten past {h}, in the groove, cat",
+            "ten past {h} — latch on, daddy-o",
+            "gone ten past {h}, dig it",
         ]),
         (17, [
             "quarter past {h}, hep cat",
-            "quarter past {h}, real gone",
-            "a quarter past {h} — solid",
-            "quarter past {h} — dig it, daddy-o",
+            "quarter past {h}, real gone — dig",
+            "a quarter past {h} — solid, solid",
+            "quarter past {h}, daddy-o — righteous",
+            "gone a quarter past {h}, cat",
         ]),
         (22, [
-            "twenty past {h}, solid",
             "twenty past {h}, you hip?",
-            "twenty past {h}, daddy-o",
+            "twenty past {h}, daddy-o — solid",
             "twenty past {h} — copacetic, cat",
+            "gone twenty past {h}, all reet",
+            "twenty past {h}, in the groove, dig",
         ]),
         (27, [
             "near half past {h}, blow your wig",
             "comin' up on half past {h}, daddy-o",
             "almost half past {h}, real gone",
             "twenty-five past {h} — dig it, cat",
+            "nigh on half past {h}, solid — solid",
         ]),
         (32, [
             "half past {h}, in the groove",
-            "half past {h}, solid",
-            "half past {h}, all reet",
-            "half past {h} — righteous, daddy-o",
+            "half past {h}, solid — real solid",
+            "half past {h}, all reet, daddy-o",
+            "half past {h} — righteous, cat",
+            "gone the half of {h}, dig it",
         ]),
         (37, [
             "gone half past {h}, daddy-o",
-            "just past half past {h}, cat",
-            "half past {h} and a tick — dig",
+            "just past the half, cat — dig",
+            "half past {h} and a tick — solid",
             "gone the half, alligator — that's {h}",
+            "past the half of {h}, real gone",
         ]),
         (42, [
             "almost quarter to {h1}, dig it",
             "comin' up on quarter to {h1}, daddy-o",
             "near the quarter to {h1}, cat",
-            "twenty to {h1} — solid",
+            "twenty to {h1} — solid, hep cat",
+            "nigh on quarter to {h1}, blow your wig",
         ]),
         (47, [
-            "quarter to {h1}, solid",
+            "quarter to {h1}, solid — dig it",
             "a quarter before {h1}, hep cat",
             "quarter to {h1} — blow your wig",
-            "fifteen to {h1} — dig it, daddy-o",
+            "fifteen to {h1}, daddy-o — righteous",
+            "quarter to {h1}, all reet, cat",
         ]),
         (52, [
             "ten to {h1}, blow your wig",
-            "nearly {h1}, daddy-o",
-            "ten to {h1} — real gone",
-            "ten to {h1}, cat — solid",
+            "nearly {h1}, daddy-o — real gone",
+            "ten to {h1}, cat — solid, solid",
+            "ten to {h1} — copacetic, hep cat",
+            "comin' up on {h1}, dig it",
         ]),
         (59, [
-            "almost {h1}, daddy-o",
-            "nearly {h1}, cat",
-            "five to {h1} — solid, hep cat",
+            "almost {h1}, daddy-o — real gone",
+            "nearly {h1}, cat — dig it",
+            "five to {h1}, solid, hep cat",
             "comin' up on {h1} — blow your wig",
+            "{h1} comin' round the bend, all reet",
         ]),
     ];
 
     public string GetPhrase(DateTime dt)
     {
         int totalMinutes = dt.Hour * 60 + dt.Minute;
-        if (totalMinutes == 720) return "high noon, daddy-o";
-        if (totalMinutes == 0)   return "the witching hour, cat";
+
+        if (totalMinutes == 720)
+        {
+            string[] noonCandidates = [
+                "high noon, daddy-o",
+                "noon on the dot, cat — solid",
+                "twelve sharp, dig it — real gone",
+                "high noon, hep cat — all reet",
+                "noon straight up, daddy-o — righteous",
+            ];
+            return noonCandidates[Random.Shared.Next(noonCandidates.Length)];
+        }
+
+        if (totalMinutes == 0)
+        {
+            string[] midnightCandidates = [
+                "the witching hour, cat",
+                "midnight, daddy-o — real gone",
+                "the zero hour, dig it",
+                "dead of night, hep cat — solid",
+                "midnight on the nose, alligator",
+            ];
+            return midnightCandidates[Random.Shared.Next(midnightCandidates.Length)];
+        }
 
         int minute = dt.Minute;
 
