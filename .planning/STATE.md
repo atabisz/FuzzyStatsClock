@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: milestone
-status: planning
-last_updated: "2026-04-01T09:07:40.939Z"
+status: completed
+last_updated: "2026-04-01T23:04:08.919Z"
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
+  completed_phases: 5
+  total_plans: 8
+  completed_plans: 8
   percent: 83
 ---
 
@@ -16,13 +16,13 @@ progress:
 
 **Last updated:** 2026-04-01
 **Current milestone:** v4.1 Polish & Phrases
-**Status:** Ready to plan
+**Status:** Milestone complete
 
 ## Project Reference
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-**Current focus:** Phase 73 — deepen-jive-pirate-yoda
+**Current focus:** Phase 74 — remove-named-themes
 
 ## Current Position
 

@@ -15,7 +15,7 @@ Improve visual polish, expand phrase variety, and simplify settings by removing 
 - [x] **Phase 71: Stats Interval Slider** - Replace discrete 1s/3s/10s selector with continuous 0.5-10s slider (completed 2026-04-01)
 - [x] **Phase 72: Expand Phrase Providers** - Add 5 variations per bucket for Classic and Terse English providers (completed 2026-04-01)
 - [x] **Phase 73: Deepen Jive/Pirate/Yoda** - Expand personality providers with authentic linguistic patterns (completed 2026-04-01)
-- [ ] **Phase 74: Remove Named Themes** - Delete obsolete theme infrastructure with settings migration
+- [x] **Phase 74: Remove Named Themes** - Delete obsolete theme infrastructure with settings migration (completed 2026-04-01)
 
 ## Phase Details
 
@@ -120,7 +120,7 @@ Plans:
 4. AppSettings.Theme field removed; SettingsService.Validate() no longer references themes
 5. Migration logic handles all 5 built-in theme names plus null/absent field cases
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 74-01-PLAN.md — Delete theme infrastructure (XAML, code-behind, data model) + update PROJECT.md
@@ -135,7 +135,7 @@ Plans:
 | 71. Stats Interval Slider | 0/1 | Complete    | 2026-04-01 |
 | 72. Expand Phrase Providers | 2/2 | Complete    | 2026-04-01 |
 | 73. Deepen Jive/Pirate/Yoda | 2/3 | Complete    | 2026-04-01 |
-| 74. Remove Named Themes | 0/1 | Not started | - |
+| 74. Remove Named Themes | 0/1 | Complete    | 2026-04-01 |
 
 ## Coverage Map
 

@@ -33,10 +33,10 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 
 ### Settings Cleanup
 
-- [ ] **CLEAN-01**: Named themes (Midnight/Neon/Ghost/Warm/Terminal) removed from Settings > Appearance
-- [ ] **CLEAN-02**: ThemeDefinition, BuiltInThemes registry, and ApplyNamedTheme() removed from codebase
-- [ ] **CLEAN-03**: Users with a saved Theme in settings.json are silently migrated to their current accent color on first v4.1 launch
-- [ ] **CLEAN-04**: AppSettings.Theme field removed; Validate() no longer references themes
+- [x] **CLEAN-01**: Named themes (Midnight/Neon/Ghost/Warm/Terminal) removed from Settings > Appearance
+- [x] **CLEAN-02**: ThemeDefinition, BuiltInThemes registry, and ApplyNamedTheme() removed from codebase
+- [x] **CLEAN-03**: Users with a saved Theme in settings.json are silently migrated to their current accent color on first v4.1 launch
+- [x] **CLEAN-04**: AppSettings.Theme field removed; Validate() no longer references themes
 
 ## Future Requirements
 
@@ -72,10 +72,10 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 | PERS-01 | Phase 73 | Complete |
 | PERS-02 | Phase 73 | Complete |
 | PERS-03 | Phase 73 | Complete |
-| CLEAN-01 | Phase 74 | Pending |
-| CLEAN-02 | Phase 74 | Pending |
-| CLEAN-03 | Phase 74 | Pending |
-| CLEAN-04 | Phase 74 | Pending |
+| CLEAN-01 | Phase 74 | Complete |
+| CLEAN-02 | Phase 74 | Complete |
+| CLEAN-03 | Phase 74 | Complete |
+| CLEAN-04 | Phase 74 | Complete |
 
 **Coverage:**
 - v4.1 requirements: 16 total
