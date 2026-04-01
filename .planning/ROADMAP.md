@@ -14,7 +14,7 @@ Improve visual polish, expand phrase variety, and simplify settings by removing 
 - [x] **Phase 70: Backdrop Padding** - Add visual breathing room around content with inner margins (completed 2026-04-01)
 - [x] **Phase 71: Stats Interval Slider** - Replace discrete 1s/3s/10s selector with continuous 0.5-10s slider (completed 2026-04-01)
 - [x] **Phase 72: Expand Phrase Providers** - Add 5 variations per bucket for Classic and Terse English providers (completed 2026-04-01)
-- [ ] **Phase 73: Deepen Jive/Pirate/Yoda** - Expand personality providers with authentic linguistic patterns
+- [x] **Phase 73: Deepen Jive/Pirate/Yoda** - Expand personality providers with authentic linguistic patterns (completed 2026-04-01)
 - [ ] **Phase 74: Remove Named Themes** - Delete obsolete theme infrastructure with settings migration
 
 ## Phase Details
@@ -97,7 +97,7 @@ Plans:
 4. All three providers have at least 3 variations per bucket (same coverage as Phase 72)
 5. Human review confirms authenticity (no caricature or unreadable density)
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 73-01-PLAN.md — Deepen Jive provider with authentic AAVE-inspired phrasing + tests
@@ -131,7 +131,7 @@ Plans:
 | 70. Backdrop Padding | 1/1 | Complete    | 2026-04-01 |
 | 71. Stats Interval Slider | 0/1 | Complete    | 2026-04-01 |
 | 72. Expand Phrase Providers | 2/2 | Complete    | 2026-04-01 |
-| 73. Deepen Jive/Pirate/Yoda | 2/3 | In Progress|  |
+| 73. Deepen Jive/Pirate/Yoda | 2/3 | Complete    | 2026-04-01 |
 | 74. Remove Named Themes | 0/? | Not started | - |
 
 ## Coverage Map
