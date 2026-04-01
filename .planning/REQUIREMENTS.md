@@ -29,7 +29,7 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 
 - [ ] **PERS-01**: Jive provider phrases lean into rhythmic, expressive AAVE-inspired phrasing
 - [ ] **PERS-02**: Pirate provider phrases use nautical metaphors and seafaring language
-- [ ] **PERS-03**: Yoda provider phrases consistently use OSV (Object-Subject-Verb) syntax inversion
+- [x] **PERS-03**: Yoda provider phrases consistently use OSV (Object-Subject-Verb) syntax inversion
 
 ### Settings Cleanup
 
@@ -71,7 +71,7 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 | PHRASE-03 | Phase 72 | Complete |
 | PERS-01 | Phase 73 | Pending |
 | PERS-02 | Phase 73 | Pending |
-| PERS-03 | Phase 73 | Pending |
+| PERS-03 | Phase 73 | Complete |
 | CLEAN-01 | Phase 74 | Pending |
 | CLEAN-02 | Phase 74 | Pending |
 | CLEAN-03 | Phase 74 | Pending |
