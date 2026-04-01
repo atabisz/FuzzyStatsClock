@@ -120,7 +120,10 @@ Plans:
 4. AppSettings.Theme field removed; SettingsService.Validate() no longer references themes
 5. Migration logic handles all 5 built-in theme names plus null/absent field cases
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 74-01-PLAN.md — Delete theme infrastructure (XAML, code-behind, data model) + update PROJECT.md
 
 ---
 
@@ -132,7 +135,7 @@ Plans:
 | 71. Stats Interval Slider | 0/1 | Complete    | 2026-04-01 |
 | 72. Expand Phrase Providers | 2/2 | Complete    | 2026-04-01 |
 | 73. Deepen Jive/Pirate/Yoda | 2/3 | Complete    | 2026-04-01 |
-| 74. Remove Named Themes | 0/? | Not started | - |
+| 74. Remove Named Themes | 0/1 | Not started | - |
 
 ## Coverage Map
 
@@ -177,4 +180,4 @@ From research/SUMMARY.md:
 - **Moderate Pitfall #5 (Phase 73):** Human review every phrase; "dial it back" pass removes 30% of dialect markers
 
 ---
-*Last updated: 2026-04-01*
+*Last updated: 2026-04-02*
