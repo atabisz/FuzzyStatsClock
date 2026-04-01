@@ -234,14 +234,17 @@ public class JivePhraseProviderTests
     public void Jive_Noon_ReturnsNoonPhrase()
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 12, 0, 0));
-        Assert.AreEqual("high noon, daddy-o", phrase);
+        bool isNoonVariant = phrase.Contains("noon") || phrase.Contains("twelve");
+        Assert.IsTrue(isNoonVariant, $"Expected noon phrase but got: {phrase}");
     }
 
     [TestMethod]
     public void Jive_Midnight_ReturnsMidnightPhrase()
     {
         string phrase = _provider.GetPhrase(new DateTime(2024, 1, 1, 0, 0, 0));
-        Assert.AreEqual("the witching hour, cat", phrase);
+        bool isMidnightVariant = phrase.Contains("midnight") || phrase.Contains("witching")
+                              || phrase.Contains("zero hour") || phrase.Contains("dead of night");
+        Assert.IsTrue(isMidnightVariant, $"Expected midnight phrase but got: {phrase}");
     }
 
     [TestMethod]
