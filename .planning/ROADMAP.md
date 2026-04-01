@@ -54,7 +54,10 @@ Plans:
 4. Stats interval persists as a decimal value (e.g. 2.3) to settings.json
 5. SettingsService.Validate() clamps interval to 0.5-10.0 range with Math.Round to 1 decimal place
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 71-01-PLAN.md — Data layer int-to-double migration + UI slider replacement + MainWindow integration
 
 ---
 
@@ -116,7 +119,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 70. Backdrop Padding | 1/1 | Complete    | 2026-04-01 |
-| 71. Stats Interval Slider | 0/? | Not started | - |
+| 71. Stats Interval Slider | 0/1 | Planned | - |
 | 72. Expand Phrase Providers | 0/? | Not started | - |
 | 73. Deepen Jive/Pirate/Yoda | 0/? | Not started | - |
 | 74. Remove Named Themes | 0/? | Not started | - |
