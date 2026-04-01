@@ -1,35 +1,35 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.1
-milestone_name: milestone
-status: planning
-last_updated: "2026-04-01T06:38:38.913Z"
+milestone_name: Polish & Phrases
+status: executing
+last_updated: "2026-04-01T07:27:00.000Z"
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 100
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State: FuzzyStatsClock
 
 **Last updated:** 2026-04-01
 **Current milestone:** v4.1 Polish & Phrases
-**Status:** Ready to plan
+**Status:** Executing Phase 71
 
 ## Project Reference
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-**Current focus:** Phase 70 — backdrop-padding
+**Current focus:** Phase 71 — stats-interval-slider
 
 ## Current Position
 
-Phase: 71
-Plan: Not started
-**Status:** Phase 70 complete. Ready for Phase 71 (Settings Window Polish) or Phase 72 (Phrase Expansion)
-**Progress:** [██████████] 100%
+Phase: 71 (stats-interval-slider) — COMPLETE
+Plan: 1 of 1 (complete)
+**Status:** Phase 71 complete. Ready for Phase 72 (Phrase Expansion), Phase 73 (Deepen Novelty), or Phase 74 (Remove Themes)
+**Progress:** [████------] 40% (2 of 5 phases)
 
 ## Performance Metrics
 
@@ -49,11 +49,15 @@ Plan: Not started
 - **Phase 70-01:** Added horizontal margins (12px) to DateText and StatsPanel for alignment with ContentBorder
 - **Phase 70-01:** Increased vertical gaps to 8px (from 2px and 4px) between clock/date/stats
 - **Phase 70-01:** No C# code changes required — WPF SizeToContent propagates new dimensions automatically
+- **Phase 71-01:** StatsIntervalSeconds migrated from int to double with 2.0s default (was 3s)
+- **Phase 71-01:** Continuous slider (0.5-10.0s) replaces discrete ComboBox (1s/3s/10s)
+- **Phase 71-01:** Validation: range [0.5, 10.0], Math.Round(value, 1) for precision
+- **Phase 71-01:** ResetToDefaults now resets stats interval to 2.0s (was missing before)
 
 ### Open Questions
 
 1. ~~**Backdrop padding amount:** Research suggests 12-16px; needs design decision in Phase 70 planning~~ RESOLVED: 12px selected and implemented in Phase 70-01
-2. **Stats slider default:** Keep 3s default or shift to 1s now that 0.5s is available?
+2. ~~**Stats slider default:** Keep 3s default or shift to 1s now that 0.5s is available?~~ RESOLVED: 2.0s chosen as practical midpoint (Phase 71-01)
 3. **Phrase expansion targets:** Uniform 3/provider (27 total) or prioritize personalities at 5/provider?
 4. **Non-English expansion:** Defer French/Spanish/German/Japanese/Polish until native review? (flagged in research)
 5. **Theme migration scope:** Inject theme values only for absent fields (preserves custom) or overwrite all fields?
@@ -74,13 +78,14 @@ None. All phases have clear requirements and established patterns.
 
 ### What Just Happened
 
-Phase 70-01 execution complete:
+Phase 71-01 execution complete:
 
-- Increased backdrop padding from 6px to 12px on all content elements
-- Updated ContentBorder Padding, DateText Margin, and StatsPanel Margin in MainWindow.xaml
-- User visually verified padding appearance and confirmed no regressions
-- All 414 tests pass unchanged
-- All interacting systems (edge snapping, ghost mode, contrast sampling, position clamping, per-monitor memory) work correctly with new dimensions
+- Migrated StatsIntervalSeconds from int to double with 2.0s default
+- Replaced discrete ComboBox (1s/3s/10s) with continuous Slider (0.5-10.0s)
+- Added validation: range [0.5, 10.0], Math.Round(value, 1) for precision
+- Added 7 new tests (6 validation + 1 migration), updated 2 existing tests
+- All 425 tests pass (357 Core + 68 App)
+- Commits: b4eb003 (data layer), 42e1ab6 (UI slider)
 
 ### Next Session Should Know
 
@@ -98,4 +103,4 @@ Phase 70-01 execution complete:
 - Config: mode=yolo, granularity=standard, research=true, commit_docs=true
 
 ---
-*State snapshot: 2026-04-01 after Phase 70-01 execution*
+*State snapshot: 2026-04-01 after Phase 71-01 execution*

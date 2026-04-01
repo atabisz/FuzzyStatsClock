@@ -14,10 +14,10 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 
 ### Stats Controls
 
-- [ ] **STAT-01**: User can set stats update interval via a continuous slider (0.5–10.0s) in Settings > Stats tab
-- [ ] **STAT-02**: Stats interval slider replaces the discrete 1s/3s/10s selector in Settings
-- [ ] **STAT-03**: Stats interval persists as a decimal value to settings.json and restores on launch
-- [ ] **STAT-04**: SettingsService.Validate() clamps interval to 0.5–10.0 range with Math.Round to 1 decimal place
+- [x] **STAT-01**: User can set stats update interval via a continuous slider (0.5–10.0s) in Settings > Stats tab
+- [x] **STAT-02**: Stats interval slider replaces the discrete 1s/3s/10s selector in Settings
+- [x] **STAT-03**: Stats interval persists as a decimal value to settings.json and restores on launch
+- [x] **STAT-04**: SettingsService.Validate() clamps interval to 0.5–10.0 range with Math.Round to 1 decimal place
 
 ### Phrase Variety
 
@@ -62,10 +62,10 @@ Requirements for milestone v4.1 Polish & Phrases. Each maps to roadmap phases.
 |-------------|-------|--------|
 | VIS-01 | Phase 70 | Complete |
 | VIS-02 | Phase 70 | Complete |
-| STAT-01 | Phase 71 | Pending |
-| STAT-02 | Phase 71 | Pending |
-| STAT-03 | Phase 71 | Pending |
-| STAT-04 | Phase 71 | Pending |
+| STAT-01 | Phase 71 | Complete |
+| STAT-02 | Phase 71 | Complete |
+| STAT-03 | Phase 71 | Complete |
+| STAT-04 | Phase 71 | Complete |
 | PHRASE-01 | Phase 72 | Pending |
 | PHRASE-02 | Phase 72 | Pending |
 | PHRASE-03 | Phase 72 | Pending |
