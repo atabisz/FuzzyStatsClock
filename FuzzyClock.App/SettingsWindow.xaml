@@ -277,32 +277,6 @@
 
                 </Grid>
 
-                <!-- Backdrop -->
-                <TextBlock Text="Backdrop" FontWeight="SemiBold" Margin="0,8,0,4"/>
-                <CheckBox x:Name="ChkBackdropAlwaysVisible"
-                          Content="Always visible (not just on hover)"
-                          Margin="0,0,0,6"
-                          Checked="ChkBackdropAlwaysVisible_Changed"
-                          Unchecked="ChkBackdropAlwaysVisible_Changed"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="90"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Opacity"
-                               VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Slider x:Name="BackdropOpacitySlider"
-                                Minimum="10" Maximum="100"
-                                SmallChange="5" LargeChange="10"
-                                TickFrequency="5" IsSnapToTickEnabled="True"
-                                Width="160" VerticalAlignment="Center"
-                                ValueChanged="BackdropOpacitySlider_ValueChanged"/>
-                        <TextBlock x:Name="BackdropOpacityLabel" Width="36"
-                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
-                    </StackPanel>
-                </Grid>
-
             </StackPanel>
             </ScrollViewer>
         </TabItem>

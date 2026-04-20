@@ -52,8 +52,6 @@ public sealed partial class SettingsWindow : Window
     public event Action<string>? LanguageChanged;
     public event Action<bool>?   PhraseWrapEnabledChanged;
     public event Action<string>? PhraseWrapStyleChanged;
-    public event Action<bool>?   BackdropAlwaysVisibleChanged;
-    public event Action<int>?    BackdropOpacityPercentChanged;
     public event Action<int>?    GhostFadeRadiusPxChanged;
 
     // ─────────────────────────────────────────────────────────────────────
@@ -191,11 +189,6 @@ public sealed partial class SettingsWindow : Window
             "Silver" => 2,
             _        => 0,   // "Dark" is default
         };
-
-        // Backdrop controls
-        BackdropOpacitySlider.Value = s.BackdropOpacityPercent;
-        BackdropOpacityLabel.Text = $"{s.BackdropOpacityPercent}%";
-        ChkBackdropAlwaysVisible.IsChecked = s.BackdropAlwaysVisible;
 
         // Accent swatch selection ring
         var ac = s.AccentColor;
@@ -579,21 +572,6 @@ public sealed partial class SettingsWindow : Window
         if (_suppressEvents) return;
         if (CmbLcdStyle.SelectedItem is ComboBoxItem item)
             LcdStyleChanged?.Invoke((string)item.Content);
-    }
-
-    // ── Backdrop controls ─────────────────────────────────────────────────
-    private void ChkBackdropAlwaysVisible_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        BackdropAlwaysVisibleChanged?.Invoke(ChkBackdropAlwaysVisible.IsChecked == true);
-    }
-
-    private void BackdropOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_suppressEvents) return;
-        var val = (int)BackdropOpacitySlider.Value;
-        BackdropOpacityLabel.Text = $"{val}%";
-        BackdropOpacityPercentChanged?.Invoke(val);
     }
 
     private void GhostFadeRadiusSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

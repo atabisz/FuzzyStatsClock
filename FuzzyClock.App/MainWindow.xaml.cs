@@ -231,9 +231,6 @@ public partial class MainWindow : Window
         _batteryAlertThreshold = s.BatteryAlertThresholdPercent;
         _phraseWrapEnabled = s.PhraseWrapEnabled;
         _phraseWrapStyle   = s.PhraseWrapStyle;
-        _backdropAlwaysVisible  = s.BackdropAlwaysVisible;
-        _backdropOpacityPercent = s.BackdropOpacityPercent;
-        ApplyBackdropState();
 
         // Apply stats visibility directly (NOT via SetStatsVisible — that calls UpdateLayout()+Clamp()
         // which are unsafe before Show(), where ActualHeight is 0).
@@ -389,8 +386,6 @@ public partial class MainWindow : Window
         AutoLaunchEnabled      = _autoLaunchEnabled,
         PhraseWrapEnabled      = _phraseWrapEnabled,
         PhraseWrapStyle        = _phraseWrapStyle,
-        BackdropAlwaysVisible  = _backdropAlwaysVisible,
-        BackdropOpacityPercent = _backdropOpacityPercent,
     };
 
     private void OpenSettings()
@@ -461,8 +456,6 @@ public partial class MainWindow : Window
             SaveSettings();
         };
         _settingsWindow.BatteryAlertThresholdChanged += t => SetBatteryAlertThreshold(t);
-        _settingsWindow.BackdropAlwaysVisibleChanged += v => SetBackdropAlwaysVisible(v);
-        _settingsWindow.BackdropOpacityPercentChanged += p => SetBackdropOpacityPercent(p);
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
     }
@@ -526,8 +519,6 @@ public partial class MainWindow : Window
             DateFormat           = _dateFormat,
             PhraseWrapEnabled    = _phraseWrapEnabled,
             PhraseWrapStyle      = _phraseWrapStyle,
-            BackdropAlwaysVisible  = _backdropAlwaysVisible,
-            BackdropOpacityPercent = _backdropOpacityPercent,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -971,24 +962,6 @@ public partial class MainWindow : Window
             BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
     }
 
-    private void SetBackdropAlwaysVisible(bool value)
-    {
-        _backdropAlwaysVisible = value;
-        ApplyBackdropState();
-        SaveSettings();
-    }
-
-    private void SetBackdropOpacityPercent(int percent)
-    {
-        _backdropOpacityPercent = percent;
-        if (_backdropAlwaysVisible || _isHoverFastRefresh)
-        {
-            var alpha = BackdropAlpha();
-            BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
-        }
-        SaveSettings();
-    }
 
     private void SetBatteryAlertThreshold(int threshold)
     {
@@ -1278,7 +1251,12 @@ public partial class MainWindow : Window
     private void SetOpacity(double opacity)
     {
         _windowOpacity = opacity;
-        this.Opacity   = opacity;
+        // Apply proximity fade only when settings window is closed
+        // (settings window open means user is actively adjusting opacity)
+        if (_settingsWindow?.IsVisible == true)
+            this.Opacity = _windowOpacity;
+        else
+            this.Opacity = _windowOpacity * (1.0 - _proximityRatio);
         SaveSettings();
     }
 
