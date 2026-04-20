@@ -22,6 +22,9 @@ public sealed partial class SettingsWindow : Window
     // ── Per-setting events ────────────────────────────────────────────────
     public event Action<Color>?  AccentColorChanged;
     public event Action<double>? OpacityChanged;
+
+    // Direct callback for opacity (fallback if event doesn't work)
+    public Action<double>? OpacityCallback { get; set; }
     public event Action<int>?    FontSizeChanged;
     public event Action<ClockType>? ClockTypeChanged;
     public event Action<bool>?   LcdUse24HrChanged;
@@ -74,6 +77,13 @@ public sealed partial class SettingsWindow : Window
     }
 
     // ── Populate ──────────────────────────────────────────────────────────
+    internal void RefreshControls(SettingsSnapshot s)
+    {
+        _suppressEvents = true;
+        PopulateControls(s);
+        _suppressEvents = false;
+    }
+
     private void PopulateControls(SettingsSnapshot s)
     {
         // Opacity
@@ -303,6 +313,7 @@ public sealed partial class SettingsWindow : Window
         double v = Math.Round(e.NewValue, 2);
         OpacityLabel.Text = $"{(int)(v * 100)}%";
         OpacityChanged?.Invoke(v);
+        OpacityCallback?.Invoke(v);
     }
 
     // ── Font size buttons ─────────────────────────────────────────────────

@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     // Bounded by trim logic in UpdateUptimeDisplay(). Max 900 entries at 1s interval (~3.5KB).
     private Dictionary<int, TimeSpan> _prevProcTimes = new();
     private DateTime _prevProcSample = DateTime.MinValue;
+    private readonly HashSet<int> _inaccessiblePids = new();  // PIDs that throw access-denied — skip on future ticks
     // StatsPanel.Width(184) - label column(35) - text column(36) = 113
     private const double StatsBarTrackWidth = 113.0;
     // Distance from screen working-area edge that triggers post-DragMove snapping.
@@ -166,6 +167,7 @@ public partial class MainWindow : Window
             {
                 _proximityRatio = ratio;
                 if (_isDragging) return;
+                if (_settingsWindow?.IsVisible == true) return;  // don't adjust opacity while settings window is open
                 this.Opacity = _windowOpacity * (1.0 - ratio);
             };
 
@@ -325,7 +327,7 @@ public partial class MainWindow : Window
         // Apply date display directly (safe before Show — no timer yet)
         _showDate   = s.ShowDate;
         _dateFormat = s.DateFormat;
-        DateText.Visibility = s.ShowDate ? Visibility.Visible : Visibility.Collapsed;
+        DateBorder.Visibility = s.ShowDate ? Visibility.Visible : Visibility.Collapsed;
         DateText.Text = DateFormatter.Format(s.DateFormat, DateTime.Now);
         _currentDateText = DateText.Text;
 
@@ -398,12 +400,14 @@ public partial class MainWindow : Window
         if (_settingsWindow is { IsVisible: true })
         {
             _settingsWindow.Activate();
+            _settingsWindow.RefreshControls(GetCurrentSettingsSnapshot());
             return;
         }
         _settingsWindow = new SettingsWindow(GetCurrentSettingsSnapshot());
         _settingsWindow.Owner = this;
         _settingsWindow.AccentColorChanged    += c => SetAccentColor(c);
         _settingsWindow.OpacityChanged        += o => SetOpacity(o);
+        _settingsWindow.OpacityCallback = o => SetOpacity(o);  // Direct callback fallback
         _settingsWindow.FontSizeChanged       += sz => { ApplyFontSize(sz); SaveSettings(); };
         _settingsWindow.ClockTypeChanged      += ct => SetClockType(ct);
         _settingsWindow.LcdUse24HrChanged += use24 =>
@@ -691,7 +695,7 @@ public partial class MainWindow : Window
 
     private void UpdateDateDisplay()
     {
-        if (DateText.Visibility != Visibility.Visible) return;
+        if (DateBorder.Visibility != Visibility.Visible) return;
         var text = DateFormatter.Format(_dateFormat, DateTime.Now);
         if (text == _currentDateText) return;  // no change (same day)
         DateText.Text = text;
@@ -701,7 +705,7 @@ public partial class MainWindow : Window
     private void SetDateVisible(bool visible)
     {
         _showDate = visible;
-        DateText.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        DateBorder.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         SaveSettings();
     }
 
@@ -841,6 +845,11 @@ public partial class MainWindow : Window
         {
             try
             {
+                // Skip PIDs we know are inaccessible (prevents repeated access-denied exceptions).
+                if (_inaccessiblePids.Contains(p.Id)) continue;
+
+                // TotalProcessorTime throws Win32Exception (Access Denied) for protected system processes.
+                // Cache the PID in _inaccessiblePids so we skip it on future ticks.
                 var cpuTime = p.TotalProcessorTime;
                 newProcTimes[p.Id] = cpuTime;
                 if (elapsedMs > 0 && _prevProcTimes.TryGetValue(p.Id, out var prev))
@@ -850,7 +859,15 @@ public partial class MainWindow : Window
                     if (pct >= _processCountThreshold) procCount++;
                 }
             }
-            catch { /* process exited or access denied — skip */ }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // Access denied — add to blocklist so we don't retry this PID.
+                _inaccessiblePids.Add(p.Id);
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Process exited during enumeration — safe to skip, will be gone next tick.
+            }
             finally { p.Dispose(); }
         }
         _prevProcTimes = newProcTimes;
@@ -1165,7 +1182,7 @@ public partial class MainWindow : Window
         // Reset date display: show in Short format
         _showDate   = true;
         _dateFormat = "Short";
-        DateText.Visibility = Visibility.Visible;
+        DateBorder.Visibility = Visibility.Visible;
         UpdateDateDisplay();
 
         // Reset phrase locale to auto and phrase style to Classic.
