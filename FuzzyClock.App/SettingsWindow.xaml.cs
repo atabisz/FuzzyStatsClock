@@ -60,7 +60,7 @@ public sealed partial class SettingsWindow : Window
         _suppressEvents = true;
         InitializeComponent();
 
-        // Restore within-session position
+        // Restore within-session position with monitor validation
         if (!double.IsNaN(_savedLeft))
         {
             WindowStartupLocation = WindowStartupLocation.Manual;
@@ -70,6 +70,42 @@ public sealed partial class SettingsWindow : Window
 
         PopulateControls(snapshot);
         _suppressEvents = false;
+
+        // After first layout pass, validate position is on a connected monitor
+        ContentRendered += (_, _) =>
+        {
+            if (!double.IsNaN(_savedLeft))
+            {
+                // Check if saved position is still visible on any connected screen
+                var screens = System.Windows.Forms.Screen.AllScreens;
+                bool isVisible = false;
+                foreach (var screen in screens)
+                {
+                    var bounds = screen.WorkingArea;
+                    // Check if window center is within this screen's bounds
+                    double centerX = Left + ActualWidth / 2;
+                    double centerY = Top + ActualHeight / 2;
+                    if (centerX >= bounds.Left && centerX <= bounds.Right &&
+                        centerY >= bounds.Top && centerY <= bounds.Bottom)
+                    {
+                        isVisible = true;
+                        break;
+                    }
+                }
+
+                // If off-screen, re-center on primary screen
+                if (!isVisible)
+                {
+                    var primary = System.Windows.Forms.Screen.PrimaryScreen!;
+                    var wa = primary.WorkingArea;
+                    Left = wa.Left + (wa.Width - ActualWidth) / 2;
+                    Top = wa.Top + (wa.Height - ActualHeight) / 2;
+                    // Update saved position so it doesn't keep trying the bad position
+                    _savedLeft = Left;
+                    _savedTop = Top;
+                }
+            }
+        };
 
         Closing += (_, _) => { _savedLeft = Left; _savedTop = Top; };
     }
