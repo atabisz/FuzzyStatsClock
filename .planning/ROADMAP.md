@@ -169,7 +169,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 75. Hardware Discovery Spike + TemperatureService | 2/2 | Complete    | 2026-05-04 |
 | 76. AppSettings + TemperatureFormatter Tests | 1/1 | Complete    | 2026-05-04 |
-| 77. Right-Click Menu on Widget | 1/1 | Complete   | 2026-05-04 |
+| 77. Right-Click Menu on Widget | 1/1 | Complete    | 2026-05-04 |
 | 78. Temps Tab in Settings | 0/0 | Not started | - |
 | 79. Temps Line on Widget | 0/0 | Not started | - |
 | 80. Release & Compliance | 0/0 | Not started | - |
