@@ -1,230 +1,236 @@
-# Project Research Summary
+# Project Research Summary — v4.2 Temps & Menu
 
-**Project:** FuzzyStatsClock v4.1 Polish & Phrases
-**Domain:** Desktop WPF widget enhancement (visual polish + content expansion)
-**Researched:** 2026-03-31
-**Confidence:** HIGH
+**Project:** FuzzyStatsClock v4.2 (Temps & Menu milestone)
+**Domain:** Windows WPF transparent desktop widget — adding hardware temperature monitoring (LibreHardwareMonitorLib) and a right-click context menu on the widget surface
+**Researched:** 2026-05-04
+**Confidence:** HIGH on stack + architecture; MEDIUM-HIGH on features; HIGH on pitfalls (with one critical gating uncertainty on PawnIO availability)
 
 ## Executive Summary
 
-FuzzyStatsClock v4.1 is a low-risk polish milestone that requires **zero new dependencies**. All five features (backdrop padding, continuous stats interval slider, phrase expansion, personality deepening, and theme removal) leverage existing WPF primitives and established codebase patterns. This is pure refinement work on a mature codebase (v4.0, 414 tests passing).
+v4.2 is a **low-architectural-risk, medium-deployment-risk** milestone that extends the existing v4.1 widget with (1) a `TemperatureService` reading CPU/GPU/Motherboard/NVMe temperatures via LibreHardwareMonitorLib 0.9.6 (MPL-2.0), (2) a 4th "Temps" tab in `SettingsWindow`, (3) a compact `TempsText` line rendered inside the existing `StatsPanel` below Uptime, and (4) a right-click handler on the root Grid that reuses the existing tray `ContextMenuStrip` via `Show(Point)`. All four features sit cleanly on top of patterns established in v2.1 (StatsService async-init + `-1f` sentinel), v3.2 (SettingsSnapshot + `Action<bool>?` events + capability gating), v3.5 (dark-mode Settings + installer), and v4.0 (proximity-fade gating). No new runtime patterns are required — this is almost entirely a mechanical replication of existing discipline.
 
-The recommended approach is surgical: modify XAML properties for visual polish, expand content arrays for phrase variety, and delete obsolete theme infrastructure with one-time settings migration. No architectural changes. No new test surface beyond validation of expanded content coverage. The codebase already has the patterns needed (IPhraseProvider randomization, DispatcherTimer decimal intervals, System.Text.Json nullable field handling).
+The recommended stack addition is **LibreHardwareMonitorLib 0.9.6 only** (pinned, not "latest"), referenced from `FuzzyClock.App` only. LHM 0.9.6 is the first release in the project's eligibility window because (a) older versions bundle WinRing0 which is on the Windows Vulnerable Driver Blocklist and flagged by Defender as `HackTool:Win32/Winring0` on Win11 24H2 default settings — shipping it will break the installer for real users; (b) 0.9.6 replaces WinRing0 with PawnIO, a separate signed driver that is *not* bundled and requires one-time admin install. The project's per-user no-UAC installer invariant means we **cannot** ship PawnIO. LHM 0.9.6 gracefully degrades to `null` sensor values when PawnIO is absent, so we can honor the "N/A with no UAC" milestone invariant — but only if the Hardware Discovery spike (below) empirically confirms that enough sensors survive without PawnIO on a clean Win11 24H2 VM to justify the feature. **This is the single gating uncertainty** and is resolved in Phase 1.
 
-The primary risk is **layout cascade from backdrop padding** — adding padding to the wrong Border element can break 66 decisions worth of GetWindowRect assumptions (edge snapping, ghost mode hit-testing, contrast sampling, position clamping). Mitigation: use inner margins instead of Border.Padding, and audit all 7 GetWindowRect call sites before implementation. Secondary risk is **floating-point precision** in stats interval slider requiring Math.Round() guards to prevent 3.0000000000000004 serialization. These are both preventable with disciplined execution.
+The top risks, in priority order: (1) **WinRing0/Defender** — must pin LHM >=0.9.6 and add a CI grep gate that fails on any `WinRing0*.sys` in the publish output; (2) **Defender/SmartScreen reputation reset** — test every release on a clean Win11 24H2 VM; keep the installer filename stable; keep PawnIO out of our installer; (3) **LHM lifecycle and threading** — wrap `Computer.Open()` in `Task.Run` with a 3s timeout, keep a singleton `Computer` for the process, call `Update()` on a background thread (or carefully on the existing stats tick with a single-entry lock), and dispose via a three-tier cleanup path (OnClosing + SessionEnding + ProcessExit). (4) **MPL-2.0 attribution** — ship `THIRD-PARTY-NOTICES.md` in the installer; non-negotiable, trivial to do.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**No stack changes.** All v4.1 features work with the existing validated stack: C# .NET 10, WPF built-in, System.Text.Json built-in.
+Only one new runtime dependency. Everything else reuses existing technology.
 
 **Core technologies:**
-- **WPF Border/Slider controls** — native to .NET 10, already used throughout codebase for BackdropBorder and OpacitySlider
-- **System.Text.Json** — handles nullable field migration, int→double widening automatically; already powers AppSettings persistence
-- **IPhraseProvider pattern** — established in v3.2, supports multi-candidate randomization natively via Random.Next
+- **LibreHardwareMonitorLib 0.9.6** (pinned, MPL-2.0) — temperature sensor readings for CPU package / GPU / Motherboard / NVMe — chosen because it is the only actively maintained .NET sensor library, ships an explicit `net10.0` TFM, and replaces the CVE-listed WinRing0 driver with PawnIO. **Pin exact version** in `FuzzyClock.App.csproj`; never upgrade without re-running the discovery spike.
+- **Existing WinForms `ContextMenuStrip`** (in-box, already referenced via `UseWindowsForms=true`) — the single canonical menu for both tray and widget RMB. `ToolStripDropDown.Show(Point screenLocation)` is the stable API.
+- **Existing PDH `System.Diagnostics.PerformanceCounter`**, `System.Text.Json`, Inno Setup 6, MSTest 4.0.1 — all unchanged.
 
-**Critical insight:** v4.1 is content/polish work, not technical integration. The hard architectural decisions (transparent overlay, Win32 interop, phrase providers, settings persistence) were solved in v1.0–v3.9. This milestone reaps the benefit of a mature codebase.
+**Layering decision (unanimous across STACK + ARCHITECTURE + PITFALLS):** `TemperatureService` lives in `FuzzyClock.App` (Windows-specific, pinvokes, WMI). `FuzzyClock.Core` stays pure `net10.0`. A `TemperatureFormatter` (compact-line string composition) can optionally live in Core as a pure static for unit testing. **Enforcement:** add a CI grep gate that fails if `FuzzyClock.Core/` contains the string `LibreHardwareMonitor`.
 
-**Version requirements:** None. No NuGet packages, no .NET upgrade, no new Win32 APIs.
+**Installer changes:** switch `FuzzyClock.iss` `[Files]` from single-file `FuzzyClock.exe` to a glob that picks up LHM + transitive DLLs (`HidSharp`, `DiskInfoToolkit`, `RAMSPDToolkit-NDD`, `Mono.Posix.NETStandard`, `System.IO.Ports`, `System.Management`, `System.Threading.AccessControl`). Add `licenses/LICENSE-LHM.txt` (verbatim MPL-2.0) and `THIRD-PARTY-NOTICES.md` entries. Do NOT bundle WinRing0 / PawnIO / any `.sys` file.
 
 ### Expected Features
 
+Scope is pinned by PROJECT.md to three buckets; research confirms the pinning is correct and identifies the right defaults/conventions.
+
 **Must have (table stakes):**
-- **Adequate backdrop padding** — Visual breathing room is fundamental UI design; tight backdrops feel cramped (LOW complexity: XAML property)
-- **Stats interval slider shows current value** — Continuous sliders need value feedback; without display, users guess (LOW complexity: TextBlock binding)
-- **2-3 phrase variants per time bucket** — Single-phrase-per-bucket creates robotic repetition users notice within days (MEDIUM complexity: 360+ phrases)
-- **Consistent voice personality** — Novelty styles must stay in character across all 12 buckets or they feel like gimmicks (MEDIUM complexity: linguistic rules)
+- Right-click opens a context menu on the widget itself (universal Windows convention since Windows 95)
+- Per-sensor visibility toggles (CPU / GPU / Motherboard / NVMe) via checkboxes mirroring the existing stats-row pattern (v1.3+)
+- Graceful N/A for unavailable sensors — disabled checkbox + "N/A" label in Settings, silent omission from the widget line
+- Celsius with degree symbol, integer precision (`52°` not `52.3°C`) — global convention
+- 1–10 s update cadence bound to the existing stats timer (v4.1)
+- Friendly sensor labels (`CPU`, `GPU`, `Mobo`, `NVMe`) — never raw LHM names like `Tctl/Tdie`
+- No UAC prompt — LHM silently skips admin-required sensors
 
-**Should have (competitive):**
-- **Generous backdrop padding (12-20px)** — Premium feel; mimics high-end design systems like Material (16dp) and Fluent (12-20px) (LOW complexity)
-- **Continuous interval slider (0.5–10s)** — Fine-grained control for power users; discrete ladder feels arbitrary (LOW complexity)
-- **5+ variants per bucket** — Rare repetition creates "Oh, I haven't seen that one before" surprise after weeks (HIGH complexity: 600+ phrases)
-- **Deep personality** — Feels authentic, not cosplay; users recommend the app for personalities alone (HIGH complexity: linguistic research)
-- **Named theme removal with clean UI** — Simplifies Settings window; users prefer direct control over presets (LOW complexity: deletion + migration)
+**Should have (differentiators):**
+- Right-click menu is **byte-for-byte identical to the tray menu** (same `ContextMenuStrip` instance) — zero duplication, automatic parity on all future tray changes
+- Curated 4-sensor list (not a raw LHM sensor tree) — matches the project's "readable at a glance" value
+- Compact inline format (`CPU 52°  GPU 61°  NVMe 38°`) matching the existing `UptimeText` styling
+- Hot-swap tolerance — re-resolve sensors every tick, hide gracefully when a drive/GPU disappears
+- Right-click suppressed during drag
 
-**Defer (v4.2+):**
-- **Deep personality (5+ variants, linguistic rules)** — Defer to validate foundational variety first; high effort for narrow benefit (3 of 10 providers)
+**Defer / Anti-features (explicitly rejected):**
+- Fahrenheit toggle (doubles test matrix, Celsius is unambiguous; v4.3+ if ever)
+- Per-core CPU temps (violates glanceability; 16 cores × 4 digits blows the horizontal budget)
+- Temperature thresholds / alerts (out of scope per PROJECT.md)
+- Free-form sensor picker (exposes raw LHM names, per-machine instability)
+- Drag-to-reorder sensors (fixed CPU/GPU/Mobo/NVMe order matches existing stat-row discipline)
+- Fan speeds / voltages / clocks in the same line (v4.2 is temperatures only — one bite per milestone)
+- Sensor graph / sparkline (its own milestone if ever)
+- Elevate-on-demand button (violates per-user no-UAC invariant)
 
-**Anti-features (explicitly avoid):**
-- Phrase variety toggle, per-provider variety count settings, phrase history/rotation algorithm, backdrop padding slider
-
-**MVP recommendation:** Prioritize backdrop padding → continuous stats slider → theme removal → phrase variety (3 variants minimum). Defer deep personality to v4.2.
+**Default sensor visibility (recommendation):** `TempsLineVisible=false` (master OFF — opt-in feature that changes widget height; mirrors v3.0 ShowDate default), `TempCpuVisible=true`, `TempGpuVisible=true`, `TempNvmeVisible=true` (commonly available + wanted), `TempMoboVisible=false` (often absent on consumer boards; often requires PawnIO; noisy EC/chipset readings when present).
 
 ### Architecture Approach
 
-All five features integrate cleanly with existing patterns. No new architectural components required.
+No new architectural patterns required. The milestone is a mechanical extension of v3.2's Settings window + v2.1's StatsService pattern.
 
-**Integration patterns:**
-1. **Backdrop padding:** XAML-only (Padding property on BackdropBorder) — **CRITICAL:** must use inner margins instead to avoid SizeToContent cascade breaking GetWindowRect assumptions (edge snap, ghost hit-test, contrast sampling, position clamp)
-2. **Stats interval slider:** UI replacement (ComboBox → Slider) + field type change (int → double) + validation update; existing Stop+set+Start timer pattern handles continuous values
-3. **Phrase expansion:** Pure additive content to IPhraseProvider implementations; no interface changes; isolated to provider class internals
-4. **Jive/Pirate/Yoda deepening:** Identical to phrase expansion (isolated content changes)
-5. **Theme removal:** Deletion pass (BuiltInThemes registry, ThemeDefinition record, Settings UI) + one-time JSON migration (Theme → AccentColor) following v2.6 MonitorPositions migration pattern
-
-**Major components touched:**
-1. **BackdropBorder (XAML)** — padding/margin adjustment for visual polish
-2. **AppSettings record** — StatsIntervalSeconds type change (int→double), Theme field deletion
-3. **SettingsService** — validation update, one-time migration logic
-4. **IPhraseProvider implementations** — candidate array expansion (9 providers × 12 buckets)
-5. **SettingsWindow (XAML)** — slider replacement, theme UI deletion
-
-**Build order (based on dependencies):**
-1. Backdrop Padding — zero dependencies, instant visual verification
-2. Phrase Expansion (parallel) + Jive/Pirate/Yoda Deepening (parallel) — zero mutual dependency
-3. Stats Interval Slider — AppSettings type change must stabilize before theme migration
-4. Theme Removal — requires AppSettings structure finalized; migration logic depends on stable schema
+**Major components (all new code in `FuzzyClock.App` except the optional formatter):**
+1. **`TemperatureService` (new, App)** — wraps a singleton LHM `Computer`; async cold-start via `Task.Run(Initialize)`; exposes `float? CpuTempC/GpuTempC/MoboTempC/NvmeTempC` using `-1f` sentinel for unavailable; `IsReady` gate; `IDisposable` calling `Computer.Close()`; refreshed from the existing stats timer tick (or a dedicated background thread — see Pitfall 3 discussion below). Mirrors `StatsService` exactly.
+2. **`TemperatureFormatter` (optional, Core)** — pure static, `Format(IEnumerable<float?>, visibility)` → `"CPU 52°  GPU 61°  NVMe 38°"`. Skips `-1f` sentinels, pure-logic unit-testable.
+3. **`AppSettings` additions** — 5 new explicit `bool` init-properties (never a `Dictionary<string,bool>`; matches v1.3/v3.0/v3.1 discipline) with the defaults listed above.
+4. **`SettingsSnapshot` additions** — 5 persisted bools + 4 runtime capability flags (`TempsServiceAvailable`, `TempCpuAvailable`, `TempGpuAvailable`, `TempMoboAvailable`, `TempNvmeAvailable`). UI gates enabled/disabled state on capability; persists only the preference. Matches v3.2 phrase-style-per-locale gating pattern.
+5. **`SettingsWindow` Temps tab (4th tab)** — ordering: Appearance → Stats → **Temps** → Behavior. Master toggle + 4 checkboxes + unavailable-fallback text. 5 new `event Action<bool>?` fields, identical shape to 15+ existing events.
+6. **`MainWindow` integration** — `_temperatureService` field; 5 event handlers; `UpdateTempsDisplay()` called after `UpdateStatsDisplay()` in the existing stats tick; `TempsText` TextBlock appended inside `StatsPanel` after `UptimeText` (inherits `StatsVisible` auto-hide, matches `UptimeText` styling).
+7. **`TrayMenuBuilder` change** — one line: expose the existing `ContextMenuStrip` as a public property so `MainWindow` can `.Show(Point)` it from the right-click handler. No duplicate menu.
 
 ### Critical Pitfalls
 
-1. **SizeToContent Cascade on Backdrop Padding (CRITICAL)** — Adding Padding to BackdropBorder breaks GetWindowRect assumptions at 5+ integration points (edge snap, ghost hit-test, contrast sampling, position clamp, phrase wrap). **Prevention:** Use inner margins on StackPanel children, NOT Border.Padding; audit all 7 GetWindowRect call sites before implementation.
+From PITFALLS research, in priority order:
 
-2. **Int→Double Migration Without Rounding Guard (CRITICAL)** — Slider accumulates floating-point error (3.0000000000000004), causing UI desync and drift in rolling CPU averages over time. **Prevention:** Add Math.Round(value, 1) in slider handler + SettingsService.Validate(); use Math.Abs(x - 0.5) < 0.01 instead of x == 0.5 for equality checks.
-
-3. **Theme Removal Without Field Deletion Migration (CRITICAL)** — Existing settings.json with "Theme": "Ghost" silently loses user's theme color on v4.1 upgrade if no migration logic. **Prevention:** Write Theme→AccentColor migration in SettingsService.Load() BEFORE deleting BuiltInThemes registry; test with all 5 built-in theme names.
-
-4. **Phrase Expansion Without Bucket Coverage Verification (MODERATE)** — Missing buckets cause runtime crashes at specific times of day (10:50, 3:20) that weren't manually tested. **Prevention:** Add exhaustive 14-case test per provider (12 buckets + noon + midnight) before expansion work begins.
-
-5. **Authenticity Drift Into Caricature (MODERATE)** — Jive/Pirate/Yoda deepening can become unreadable parody if dialect markers are too dense. **Prevention:** Human review every phrase; read aloud; "dial it back" pass removes 30% of dialect markers; aim for rhythm/grammar patterns over lexical substitution.
+1. **Do NOT ship LHM < 0.9.6 (WinRing0 bundled)** — Defender quarantines the installer on Win11 24H2 default; Microsoft Vulnerable Driver Blocklist blocks the driver. Pin `0.9.6`, CI grep gate on `WinRing0*.sys` in publish, test every release on a clean Win11 24H2 VM. **Prevented in Phase 1.**
+2. **PawnIO is NOT bundled in LHM 0.9.6** — it's a separate signed driver requiring one-time admin install. Our installer cannot install it. LHM gracefully returns `null` for PawnIO-dependent sensors (CPU package, motherboard, SMBus DIMM), but GPU (NVAPI/ADL), NVMe (Windows Storage API), and battery work without it. The milestone's "graceful N/A" invariant is satisfiable only if the discovery spike confirms which sensors survive without PawnIO. **Resolved in Phase 1 spike; if spike shows most sensors N/A on clean VMs, fall back to a scope reduction or document "install PawnIO for full coverage" as optional polish — never prompt for UAC from the widget itself.**
+3. **LHM `Update()` is slow and not thread-safe** — 40–200 ms on some hardware, can block for seconds on Ryzen 10h/certain Intel chipsets. Never call on UI thread during hover fast-refresh (0.5 s). Use a dedicated background thread OR run on the existing stats tick with a single-entry lock + minimum 2 s refresh interval (decoupled from hover cadence). Prevented in **Phase 1 (TempService)**.
+4. **`Computer.Close()` missing on log-off/kill** — orphaned driver handle slows next launch, breaks v3.5's 500 ms single-instance IPC. Three-tier dispose: `OnClosing` + `SessionEnding` + `AppDomain.ProcessExit` with `Interlocked` guard. `Task.Run(Computer.Open)` with 3 s timeout. **Phase 1.**
+5. **Layering violation** — don't put LHM in `FuzzyClock.Core`. CI grep gate for `LibreHardwareMonitor` under `FuzzyClock.Core/`. **Phase 1.**
+6. **RMB DPI bugs + GC lifetime + focus/activation** — pitfall research recommends building a WPF `ContextMenu` (shared menu-model projected to both WinForms tray and WPF widget). This is the safer path on high-DPI multi-monitor setups but doubles menu code. **Recommendation: start with the low-risk WinForms `Show(Point)` reuse** (per STACK + FEATURES + ARCHITECTURE) because `Window.PointToScreen(Point)` is DPI-correct on .NET 10 PerMonitorV2, the menu is a singleton via `NotifyIcon.ContextMenuStrip` (no GC risk — the instance is rooted by the tray icon for the process lifetime), and Win32 transparency passes RMB through under ghost mode (no focus guard needed). **If** manual testing at 100%/150%/200% scaling uncovers placement bugs in Phase 3, pivot to the WPF menu-model projection approach at that point — do not over-engineer up front. Document the tradeoff and the pivot trigger in the phase plan.
+7. **Installer missing LHM DLLs** — switch `[Files]` to glob; add a clean-VM smoke test to CI. **Phase 6.**
+8. **SmartScreen reputation reset** — keep installer filename stable (`FuzzyClockSetup-X.Y.Z.exe`); do not change `AppId` GUID; do not bundle PawnIO; submit to Microsoft file-submission portal pre-release. **Phase 6.**
+9. **MPL-2.0 attribution missing** — ship `THIRD-PARTY-NOTICES.md` in the installer. Non-negotiable, trivial. **Phase 6.**
+10. **Right-click during proximity fade** — pin `_proximityRatio` while menu is open; mirror the existing "suppress proximity during drag" pattern from v4.0. **Phase 3.**
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+### Recommended Phase Structure — 6 Phases
 
-### Phase 70: Backdrop Padding
-**Rationale:** Zero code dependencies; XAML-only change provides instant visual verification; sets visual foundation for milestone; must validate layout approach BEFORE phrase expansion (which increases window size variability).
+The architecture research suggested 8 phases (one per artifact type) and the pitfalls research suggested 5 (with a spike gate). The middle ground is **6 phases with the spike inline**: the spike is not a standalone phase but the first deliverable of Phase 1, producing the go/no-go data that informs Phase 1's own service design. This keeps velocity without sacrificing the safety gate.
 
-**Delivers:** BackdropBorder with generous padding (12-16px) that doesn't break edge snapping, ghost mode, or contrast sampling.
+#### Phase 1: Hardware Discovery Spike + TemperatureService
+**Rationale:** The PawnIO availability question is gating and must be answered before committing UI surface. Collapsing the spike into Phase 1 means the spike's outcome directly shapes the service contract (which `float?` properties are realistically populated on a no-UAC system). Combining them also prevents the spike's output from being a disposable throwaway.
+**Delivers:**
+  - Written spike report in the phase plan documenting sensor availability on a clean Win11 24H2 VM with and without PawnIO installed
+  - Go/no-go decision recorded (and if no-go, milestone scope reduction, e.g., GPU-only)
+  - `TemperatureService` in `FuzzyClock.App` — singleton `Computer`, `Task.Run(Initialize)` with 3 s timeout, `-1f` sentinels, `IsReady` gate, three-tier `Dispose`, background refresh with single-entry lock OR cached values behind `_statsTimer.Tick` with a ≥2 s minimum
+  - `ITempSource` abstraction + `FakeTempSource` for tests (enables hardware-free unit testing)
+  - CI grep gate: `WinRing0*.sys` absent from publish/; `LibreHardwareMonitor` absent from `FuzzyClock.Core/`
+  - MSTest coverage for service lifecycle, sentinel fallback, sensor resolution priority chain
+**Addresses (features):** N/A fallback invariant, no-UAC invariant, hot-swap tolerance, sensor priority resolution
+**Avoids (pitfalls):** 1 (WinRing0 bundling), 2 (PawnIO assumption), 3 (Update cadence/threading), 4 (Close() missing), 5 (layering violation), 13 (hardware-touching tests)
 
-**Addresses:** Table stakes "adequate backdrop padding" + competitive "generous padding (12-20px)" from FEATURES.md.
+#### Phase 2: AppSettings + SettingsSnapshot expansion
+**Rationale:** All downstream UI depends on the persistence + snapshot contract; build it once, test it once, then write UI against a stable shape.
+**Delivers:**
+  - 5 new `bool` init-properties on `AppSettings` with defaults as researched
+  - 5 persisted fields + 4 capability flags on `SettingsSnapshot`
+  - `SettingsService.Validate()` untouched (bools self-validate)
+  - STEST round-trip + absent-field tests for the 5 new bools (backward-compat with v4.1 JSON)
+**Addresses:** Persistence, upgrade safety, capability-gating foundation
+**Avoids (pitfalls):** Schema drift, default-false upgrade surprises
 
-**Avoids:** Critical Pitfall #1 (SizeToContent cascade) by using inner margins instead of Border.Padding; includes audit of all 7 GetWindowRect call sites.
+#### Phase 3: Right-Click Menu on Widget
+**Rationale:** **Fully parallelizable** with Phases 1, 2, 4, 5 — touches only `TrayMenuBuilder.cs` (one property), `MainWindow.xaml` (one attribute), and `MainWindow.xaml.cs` (one handler). Schedule it to unblock early user-visible wins while Phase 1/2 are still in flight.
+**Delivers:**
+  - `TrayMenuBuilder.ContextMenu` public property
+  - `Grid_MouseRightButtonUp` handler using `PointToScreen()` + `ContextMenuStrip.Show(Point)`
+  - `_isDragging` guard; `_proximityRatio` freeze while menu is open (mirroring v4.0 drag-pause pattern); RMB naturally suppressed at `Opacity=0`/`WS_EX_TRANSPARENT` by Win32 routing
+  - Manual DPI validation checklist at 100%/150%/200% and multi-monitor mixed-DPI; documented pivot trigger to WPF-menu-model approach if bugs surface
+**Addresses (features):** RMB menu byte-for-byte parity with tray, single source of truth
+**Avoids (pitfalls):** 6 (DPI placement), 7 (menu GC — singleton via NotifyIcon.ContextMenuStrip), 8 (focus/Topmost), 9 (faded RMB)
 
-**Research flag:** SKIP research-phase — well-documented WPF Border pattern; critical issue already identified in PITFALLS.md.
+#### Phase 4: Settings Temps Tab UI
+**Rationale:** Requires Phase 1 (TemperatureService capabilities) and Phase 2 (snapshot shape). The tab + 5 checkboxes + availability-gated Content labels + 5 `Action<bool>?` events.
+**Delivers:**
+  - 4th TabItem "Temps" in SettingsWindow between Stats and Behavior
+  - 5 checkboxes with capability gating (`IsEnabled = snapshot.TempsServiceAvailable && snapshot.TempXxxAvailable`)
+  - "(N/A)" suffix on disabled checkbox labels
+  - 5 `event Action<bool>?` fields with `_suppressEvents` guard on populate
+  - `ResetToDefaults()` resets the 5 new bools
+**Addresses (features):** Per-sensor visibility UX, unavailable-fallback affordance
+**Avoids (pitfalls):** User confusion on all-N/A systems
 
----
+#### Phase 5: MainWindow integration + TempsText rendering
+**Rationale:** Final wiring — pulls Phases 1, 2, 4 together. Widget now renders the compact line.
+**Delivers:**
+  - `_temperatureService` field in MainWindow; disposed in `OnClosing`
+  - 5 event handlers wired when Settings window opens
+  - `TempsText` TextBlock inside `StatsPanel` after `UptimeText`, styled identical to `UptimeText` (accent color, FontSize=11, Opacity=0.7)
+  - `UpdateTempsDisplay()` called after `UpdateStatsDisplay()` in `_statsTimer.Tick`
+  - Compact format: `CPU 52°  GPU 61°  NVMe 38°`, 2-space separator, enabled+non-sentinel sensors only, degree-symbol-only (no `C`), integer precision
+  - Auto-collapse when master off OR all 4 sensors unchecked/unavailable (mirrors v1.4 STAT-13 + v3.1 BATT-04)
+  - Edge-snap + contrast-sampler re-clamp verified (widget grows by one row when temps enabled)
+**Addresses (features):** Compact inline line, hot-swap tolerance, auto-collapse parity
+**Avoids (pitfalls):** Timer coordination, stat-row layout regressions
 
-### Phase 71: Stats Interval Slider
-**Rationale:** Prepares AppSettings schema changes before theme removal migration runs; no dependency on phrase expansion; users already familiar with interval control (natural evolution from discrete ladder).
-
-**Delivers:** Slider with continuous 0.5–10s range, value display, AppSettings.StatsIntervalSeconds as double, range validation, JSON round-trip tested.
-
-**Uses:** WPF Slider (STACK.md notes existing OpacitySlider pattern), System.Text.Json int→double widening.
-
-**Addresses:** Table stakes "slider shows current value" + competitive "continuous interval slider" from FEATURES.md.
-
-**Avoids:** Critical Pitfall #2 (floating-point precision) via Math.Round() guards; Moderate Pitfall #6 (hover fast-refresh no-op) via ≤0.6s interval guard.
-
-**Research flag:** SKIP research-phase — existing OpacitySlider in SettingsWindow.xaml is identical pattern (decimal Minimum/Maximum/TickFrequency); no new WPF concepts.
-
----
-
-### Phase 72: Expand All Phrase Providers
-**Rationale:** Pure content work with zero dependencies; can run in parallel with Phase 73 (Jive/Pirate/Yoda); establishes baseline variety (3-5 variants) before deepening personalities.
-
-**Delivers:** All 9 non-novelty providers (English Classic/Terse/Poetic/Rude, French, Spanish, German, Japanese, Polish) have 3-5 variations per bucket; exhaustive bucket coverage tests (14 cases × 9 = 126 tests).
-
-**Implements:** IPhraseProvider multi-candidate pattern (ARCHITECTURE.md notes existing Random.Next selection).
-
-**Addresses:** Table stakes "2-3 phrase variants per bucket" + competitive "5+ variants per bucket" from FEATURES.md.
-
-**Avoids:** Moderate Pitfall #4 (bucket coverage gaps) via exhaustive 14-case tests before expansion; Minor Pitfall #9 (segment key instability) via GetSegmentKey() audit.
-
-**Research flag:** SKIP research-phase for English providers (native speaker); FLAG for non-English providers (French/Spanish/German/Japanese/Polish may need native review for cultural appropriateness).
-
----
-
-### Phase 73: Deepen Jive/Pirate/Yoda
-**Rationale:** Same reasoning as Phase 72; isolated to 3 providers; zero mutual dependency with main phrase expansion.
-
-**Delivers:** Jive/Pirate/Yoda providers have expanded, personality-deeper candidate arrays with linguistic rules applied consistently; human review checkpoint before commit.
-
-**Implements:** Same IPhraseProvider pattern as Phase 72.
-
-**Addresses:** Table stakes "consistent voice personality" + competitive "deep personality" from FEATURES.md.
-
-**Avoids:** Moderate Pitfall #5 (authenticity drift) via human review, "dial it back" pass, and Jive-specific cultural sensitivity guard (PITFALLS.md warns of AAVE caricature risk).
-
-**Research flag:** FLAG for linguistic research — Pirate (nautical time metaphors, ship bells), Jive (1970s AAVE patterns), Yoda (OSV syntax rules) need authoritative style guides, not just training data inference.
-
----
-
-### Phase 74: Remove Named Themes
-**Rationale:** Must ship AFTER AppSettings structure finalized (Phase 71 changed StatsIntervalSeconds type); migration logic requires stable schema; deletion simplifies Settings UI before v4.2 planning.
-
-**Delivers:** ThemeDefinition/BuiltInThemes deleted, Theme field removed from AppSettings, Settings theme UI removed, migration logic handles old "Theme": "Ghost" JSON with constituent value injection for absent fields only.
-
-**Uses:** System.Text.Json nullable field handling (STACK.md confirms existing pattern), v2.6 MonitorPositions migration pattern (ARCHITECTURE.md).
-
-**Addresses:** Competitive "named theme removal with clean UI" from FEATURES.md.
-
-**Avoids:** Critical Pitfall #3 (theme removal without migration) via Theme→AccentColor migration in Load() before BuiltInThemes deletion; test coverage for all 5 built-in theme names + null + absent field.
-
-**Research flag:** SKIP research-phase — migration follows established v2.6 pattern (one-time JSON pre-parse, additive-only injection, clean save).
-
----
+#### Phase 6: Installer + MPL compliance + release verification
+**Rationale:** Cross-cutting release plumbing; must run last because it validates the integrated artifact.
+**Delivers:**
+  - `FuzzyClock.iss` `[Files]` switched to glob `Source: "{#SourceDir}\*"; ... Flags: ignoreversion recursesubdirs createallsubdirs`
+  - `THIRD-PARTY-NOTICES.md` in repo root; shipped in `[Files]`; optional "Open Licenses" link in Settings
+  - `licenses/LICENSE-LHM.txt` (verbatim MPL-2.0) in installer
+  - CI smoke test: clean Win11 24H2 VM install (manual checklist documented in release workflow)
+  - SmartScreen submission via Microsoft file-submission portal
+  - CI grep gate green: no `WinRing0*.sys` in publish; no `LibreHardwareMonitor` in `FuzzyClock.Core/`
+  - README update: document "install PawnIO for full CPU/motherboard coverage" as optional power-user polish
+**Addresses (features):** License compliance, AV reputation, installer completeness
+**Avoids (pitfalls):** 10 (installer missing files), 11 (SmartScreen reset), 12 (MPL attribution)
 
 ### Phase Ordering Rationale
 
-- **Backdrop padding first:** Sets visual foundation; validates layout approach before phrase expansion increases window size variability; no dependencies.
-- **Slider before theme removal:** AppSettings schema must stabilize before migration logic runs; slider changes StatsIntervalSeconds type.
-- **Phrase expansions parallel:** Zero mutual dependency between main providers and novelty providers; content work can be split across concurrent efforts.
-- **Theme removal last:** Requires stable AppSettings schema; dedicated phase for migration testing; cleanup before next milestone.
-
-**Dependency chain:** Phase 70 (independent) → Phase 71 (independent) → Phases 72 & 73 (parallel, independent) → Phase 74 (depends on Phase 71 schema stability).
-
-**Pitfall avoidance:** Backdrop padding validates layout assumptions early (Critical #1); slider includes rounding before phrase expansion adds load (Critical #2); theme migration completes before any v4.2 features touch AppSettings (Critical #3).
+- **Phase 3 parallelizable with Phases 1/2** — RMB menu touches entirely different code from temperature plumbing. Schedule in parallel to unblock early user-visible value while the Phase 1 spike is in flight.
+- **Phase 1 is the critical path gate** — every downstream phase depends on its output (service contract + capability flags + go/no-go on PawnIO).
+- **Phase 2 before Phase 4** — UI binds to snapshot shape; stabilize the contract first.
+- **Phase 5 integrates 1 + 2 + 4** — must come after all three.
+- **Phase 6 last** — validates the integrated artifact; installer changes are one-shot and high-stakes.
 
 ### Research Flags
 
-**Phases needing deeper research during planning:**
-- **Phase 72 (Expand All Providers):** Non-English phrase expansion (French/Spanish/German/Japanese/Polish) needs native speaker review for cultural appropriateness — training data patterns are LOW confidence for non-English content.
-- **Phase 73 (Deepen Jive/Pirate/Yoda):** Linguistic research for dialect authenticity (Pirate nautical time metaphors, Jive AAVE patterns, Yoda OSV syntax rules) — PITFALLS.md flags these as training-derived, needs authoritative style guides.
+**Needs deeper research during planning (`/gsd:research-phase`):**
+- **Phase 1 (Hardware Discovery + TempService)** — the spike needs empirical data from a clean Win11 24H2 VM; no amount of desk research substitutes. Reserve time in the plan for VM setup, snapshot-before/snapshot-after, sensor enumeration with and without PawnIO, and a written report in the plan document. This is the single highest-risk phase in the milestone.
+- **Phase 3 (RMB Menu)** — manual DPI validation matrix (100% / 150% / 200% × single / multi-monitor × mixed-DPI); document a pivot plan to the WPF-menu-model approach if placement bugs surface during DPI testing. The STACK + ARCHITECTURE path is the recommended starting point, but the PITFALLS research flagged enough DPI/ContextMenuStrip-scaling history that a contingency is prudent.
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 70 (Backdrop Padding):** Well-documented WPF Border.Padding pattern; critical pitfall already identified (use inner margins).
-- **Phase 71 (Stats Interval Slider):** Existing OpacitySlider in SettingsWindow.xaml is identical pattern (decimal Minimum/Maximum/TickFrequency).
-- **Phase 74 (Remove Themes):** Follows established v2.6 MonitorPositions migration pattern (one-time JSON pre-parse, additive-only injection).
+**Standard patterns (skip research-phase, plan directly):**
+- **Phase 2 (AppSettings + SettingsSnapshot)** — pure mechanical replication of v3.0/v3.1/v3.2/v3.9 patterns
+- **Phase 4 (Settings Temps tab)** — mechanical replication of v3.2 SettingsWindow pattern with v3.9 LCD-style capability gating
+- **Phase 5 (MainWindow integration + TempsText)** — mechanical replication of v2.1 UptimeText + v1.2 StatsPanel patterns
+- **Phase 6 (Installer + release)** — extension of v3.5 Inno Setup pipeline; well-documented CI release flow
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | **HIGH** | No new dependencies; all features use existing WPF primitives + System.Text.Json; validated patterns in codebase (OpacitySlider, BackdropBorder, IPhraseProvider) |
-| Features | **HIGH** | Table stakes/competitive split is clear from UX research; MVP recommendation prioritizes low-risk visual polish before high-effort content work |
-| Architecture | **HIGH** | All integration points are established patterns with decision precedent in PROJECT.md (481 decisions logged); no new architectural components |
-| Pitfalls | **HIGH** | Critical pitfalls identified with specific prevention strategies; sources are PROJECT.md context (66 GetWindowRect decisions, 7 phrase segment key decisions, 4 settings migration guards) |
+| Stack | HIGH | Single new NuGet (LibreHardwareMonitorLib 0.9.6) with explicit `net10.0` TFM; existing WinForms `ContextMenuStrip` reuse is documented on Microsoft Learn; no speculative additions |
+| Features | MEDIUM-HIGH | LHM API surface is well-documented (HIGH); UX conventions (Celsius-only, friendly labels, compact format) are synthesized from HWiNFO/iStat Menus/Windows 11 Widgets (MEDIUM); exact LHM sensor `Name` strings per vendor ("CPU Package", "Core (Tctl/Tdie)") will need empirical confirmation during Phase 1 |
+| Architecture | HIGH | Every new component mirrors an existing pattern (StatsService, SettingsSnapshot, TrayMenuBuilder, UptimeText). Zero new patterns. No speculative interfaces |
+| Pitfalls | HIGH | WinRing0 blocklist, PawnIO separation, MPL-2.0 semantics, Defender/SmartScreen are all HIGH confidence with primary sources. Medium-confidence items (exact DPI failure modes, GC menu-lifetime behavior in Release) are flagged with mitigation paths |
 
-**Overall confidence:** HIGH
+**Overall confidence:** HIGH with one gating uncertainty (PawnIO availability on clean VMs), which is structurally resolved by Phase 1's inline spike.
 
 ### Gaps to Address
 
-- **Backdrop padding visual design:** No spec for exact padding amount (8px? 12px? 16px?). Phase 70 needs a design decision before implementation.
-
-- **Stats interval slider default value:** Should the default remain 3s, or shift to 1s now that 0.5s is available? Current AppSettings has `StatsIntervalSeconds = 3`, but continuous slider might benefit from 1s as the new "normal." UX decision needed.
-
-- **Phrase expansion target count per provider:** "30 new phrases" is a rough milestone goal. Distribution across 10 providers needs planning: uniform 3/provider (30 total)? Prioritize personalities at 5/provider (50 total)? Defer French/Spanish/German/Japanese/Polish until native review?
-
-- **Theme migration: custom theme color handling:** If user picked "Ghost" theme but then changed opacity to 75%, does migration preserve the custom opacity or reset it to Ghost's default 50%? Migration logic must decide: inject theme values only for **absent** fields (preserves custom), or overwrite all fields (loses custom). ARCHITECTURE.md recommends additive-only, but needs explicit confirmation in Phase 74 planning.
-
-- **Non-English phrase expansion cultural review:** French/Spanish/German/Japanese/Polish phrase providers need native speaker validation for cultural appropriateness. FEATURES.md sources note LOW confidence for non-English content. Phase 72 should either defer non-English expansion or allocate time for external review.
+- **PawnIO availability ground truth on clean Win11 24H2 VMs** — cannot be determined from research alone; Phase 1 spike produces the data. If the spike shows < 50% of CPU/Mobo sensors populated on a no-UAC system, the milestone scope should narrow to "GPU + NVMe only" and the Temps tab should render Mobo + CPU as disabled-with-N/A by default.
+- **Exact LHM sensor `Name` strings per vendor** — priority-ordered fallback chain with an any-`SensorType.Temperature` final fallback (per Sensor Resolution pseudocode in FEATURES.md) handles variance gracefully; verify against developer-machine output in Phase 1 and document any discovered variants in Phase 1's output.
+- **LHM `Update()` timing on real hardware** — dev-box timing is not representative. Phase 1 spike should also measure refresh latency and determine whether the existing `_statsTimer.Tick` with a single-entry lock is sufficient (simple) or whether a dedicated background thread is required (pitfall research's recommendation). The decision rule: if per-tick `Update()` exceeds 50 ms on the dev box, commit to the background-thread pattern; otherwise, piggyback the existing timer with the lock.
+- **RMB menu DPI behavior** — needs Phase 3 manual validation; pivot plan documented.
+- **Defender/SmartScreen behavior on v4.2 installer** — needs Phase 6 clean-VM validation before tagging the release.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- **PROJECT.md** (481 decision entries) — WPF SizeToContent + GetWindowRect usage (66 decisions), DispatcherTimer patterns (7 decisions), settings migration guards (4 decisions), phrase providers (19 implementations)
-- **Existing v4.0 codebase** — BackdropBorder (v3.5 BDROP-01), OpacitySlider in SettingsWindow.xaml, IPhraseProvider interface (v3.2), SettingsService.Validate() (v2.5)
-- **WPF official documentation** (learn.microsoft.com/dotnet/desktop/wpf) — Border.Padding vs Margin semantics, Slider decimal properties (Minimum/Maximum/TickFrequency), IsSnapToTickEnabled behavior
-- **System.Text.Json official documentation** (learn.microsoft.com/dotnet/standard/serialization/system-text-json) — nullable field handling, int→double widening on deserialization
+- **GitHub `LibreHardwareMonitor/LibreHardwareMonitor`** — 0.9.6 release, source tree (WinRing0 absence, PawnIO embeddings, `LibreHardwareMonitorLib.csproj`)
+- **GitHub `namazso/PawnIO`** — separate driver installation model, licensing
+- **Microsoft Learn** — `ToolStripDropDown.Show(Point)`, `Window.PointToScreen(Point)`, PerMonitorV2 DPI behavior
+- **Microsoft Learn — Vulnerable Driver Blocklist** — default-on since Win11 22H2 / KB5018483 (October 2022); harder to disable on 24H2
+- **Microsoft Q&A / Defender docs** — `HackTool:Win32/Winring0` / `VulnerableDriver:WinNT/Winring0` signatures
+- **Mozilla MPL-2.0 FAQ** — file-level copyleft; binary redistribution in closed-source apps is permitted with attribution
+- **NuGet.org** — `LibreHardwareMonitorLib` 0.9.6 TFM list, transitive deps
+- **Project local (`.planning/PROJECT.md`, `MEMORY.md`)** — all architectural invariants, key decisions, test counts, existing patterns
 
 ### Secondary (MEDIUM confidence)
-- **UX Research** (Nielsen Norman Group) — "Sliders work best when the specific value does not matter to the user" validates 0.5–10s continuous range (approximate values acceptable)
-- **Material Design / Fluent Design conventions** — backdrop padding norms (Material: 16dp standard, Fluent: 12-20px component padding)
+- Community and cross-product UX conventions (HWiNFO, iStat Menus, Rainmeter, Windows 11 Widgets) for sensor labels, compact formats, update cadence
+- `dotnet/winforms` issues #4898, #9063, #9258 — `ContextMenuStrip` DPI scaling history
+- LHM community issues #450, #2166, #1881, #2088, #1660 — PawnIO-absence behavior, threading crashes, memory-leak history
 
-### Tertiary (LOW confidence, flagged for validation)
-- **Phrase variety norms** — "novelty wears off after ~20 repetitions" (gamification research) suggests 3-5 variants minimum per bucket
-- **Linguistic rules** — Yoda syntax (OSV order), Pirate maritime vocabulary (ship bells, watch system), Jive AAVE patterns — derived from training data, not verified against authoritative style guides; needs Phase 73 linguistic research
+### Tertiary (LOW confidence — flagged for Phase 1 empirical validation)
+- Exact LHM sensor `Name` strings per hardware vendor (addressed by priority-fallback chain + final any-Temperature fallback)
+- Ryzen 5xxx `Tctl == Tdie` claim (doesn't affect UX regardless)
+- `Update()` timing on specific chipsets (addressed by Phase 1 measurement)
+- Rainmeter UX patterns (used only as counterpoint; never as a positive pattern to adopt)
+
+### Detailed research documents
+- `.planning/research/STACK.md` — full stack recommendations, install checklist, MPL compliance checklist
+- `.planning/research/FEATURES.md` — feature landscape, anti-features, sensor naming convention, sensor resolution pseudocode
+- `.planning/research/ARCHITECTURE.md` — component responsibilities, data flow diagrams, 6 architectural patterns + 7 anti-patterns, build order
+- `.planning/research/PITFALLS.md` — 13 critical pitfalls with mitigation strategies, "looks done but isn't" checklist, recovery strategies, 2026 kernel-driver landscape snapshot
 
 ---
-*Research completed: 2026-03-31*
+*Research completed: 2026-05-04*
 *Ready for roadmap: yes*
