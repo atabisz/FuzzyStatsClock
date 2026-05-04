@@ -141,6 +141,7 @@ public partial class MainWindow : Window
             {
                 UpdateStatsDisplay();    // calls _statsService.Refresh() internally — must run first
                 UpdateUptimeDisplay();   // reads CpuPercent after Refresh() already ran — never call Refresh() again here
+                UpdateTempsDisplay();    // v4.2 Phase 79 — temps line piggy-back (TEMP-LINE-05)
             };
             // Conditional timer start: ApplySettings() may have set StatsPanel to Visible
             // (restored from settings.json), but _statsTimer didn't exist then. Start it now
@@ -492,26 +493,31 @@ public partial class MainWindow : Window
         {
             _settings = _settings with { TempsLineVisible = v };
             SaveSettings();
+            UpdateTempsDisplay();   // v4.2 Phase 79 — immediate reflow (TEMP-TAB-05 SC5)
         };
         _settingsWindow.TempCpuVisibleChanged += v =>
         {
             _settings = _settings with { TempCpuVisible = v };
             SaveSettings();
+            UpdateTempsDisplay();
         };
         _settingsWindow.TempGpuVisibleChanged += v =>
         {
             _settings = _settings with { TempGpuVisible = v };
             SaveSettings();
+            UpdateTempsDisplay();
         };
         _settingsWindow.TempMoboVisibleChanged += v =>
         {
             _settings = _settings with { TempMoboVisible = v };
             SaveSettings();
+            UpdateTempsDisplay();
         };
         _settingsWindow.TempNvmeVisibleChanged += v =>
         {
             _settings = _settings with { TempNvmeVisible = v };
             SaveSettings();
+            UpdateTempsDisplay();
         };
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
@@ -927,6 +933,32 @@ public partial class MainWindow : Window
         // Prevents spurious TextBlock invalidation on every 1s tick.
         if (UptimeText.Text != newText)
             UptimeText.Text = newText;
+    }
+
+    // v4.2 Phase 79 — Temps line render path.
+    // Piggybacks on _statsTimer tick (TEMP-LINE-05) — no new DispatcherTimer.
+    // Null-conditional + -1f fallback mirrors GetCurrentSettingsSnapshot convention (Phase 78 D-01).
+    // Foreground is NOT touched here; that lives in ApplyTheme + ApplyDisplayColor per D-10.
+    private void UpdateTempsDisplay()
+    {
+        float cpu  = _temperatureService?.CpuTempC  ?? -1f;
+        float gpu  = _temperatureService?.GpuTempC  ?? -1f;
+        float mobo = _temperatureService?.MoboTempC ?? -1f;
+        float nvme = _temperatureService?.NvmeTempC ?? -1f;
+
+        string formatted = FuzzyClock.Core.TemperatureFormatter.Format(
+            cpu, gpu, mobo, nvme,
+            _settings.TempCpuVisible,
+            _settings.TempGpuVisible,
+            _settings.TempMoboVisible,
+            _settings.TempNvmeVisible);
+
+        // Text-before-Visibility ordering (79-UI-SPEC State Matrix "Transition ordering"):
+        // prevents a one-frame gap where a newly-visible TextBlock holds stale prior-tick text.
+        TempsText.Text = formatted;
+        TempsText.Visibility = (_settings.TempsLineVisible && formatted.Length > 0)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private static float ComputeAvg(Queue<float> q, int count)
@@ -1635,6 +1667,7 @@ public partial class MainWindow : Window
 
         // Uptime row text (accent color)
         UptimeText.Foreground = brush;
+        TempsText.Foreground  = brush;   // v4.2 Phase 79 — TEMP-LINE-06 (Phase 33 critical pattern)
 
         // Date text (dimmed accent — 55% alpha, same treatment as QualifierText)
         var dateBrush = new System.Windows.Media.SolidColorBrush(
@@ -1672,6 +1705,7 @@ public partial class MainWindow : Window
         CpuText.Foreground = brush; GpuText.Foreground = brush;
         MemText.Foreground = brush; PagText.Foreground = brush; BattText.Foreground = brush;
         UptimeText.Foreground = brush;
+        TempsText.Foreground  = brush;   // v4.2 Phase 79 — TEMP-LINE-06 (Phase 33 critical pattern)
 
         // Date text (dimmed display override — 55% alpha)
         var dateDisplayColor = System.Windows.Media.Color.FromArgb(0x8C, rgb.R, rgb.G, rgb.B);
