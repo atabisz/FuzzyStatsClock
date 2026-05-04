@@ -312,4 +312,53 @@ public class AppSettingsTests
         Assert.IsTrue(result.TempNvmeVisible);
     }
 
+    // ----- v4.2 Phase 78 SettingsSnapshot extension tests -----
+
+    [TestMethod]
+    public void SettingsSnapshot_AllTenNewFieldsAreInitSettable()
+    {
+        var snap = new SettingsSnapshot
+        {
+            TempsLineVisible   = true,
+            TempCpuVisible     = false,
+            TempGpuVisible     = false,
+            TempMoboVisible    = true,
+            TempNvmeVisible    = true,
+            CpuTempC           = 52f,
+            GpuTempC           = 61f,
+            MoboTempC          = -1f,
+            NvmeTempC          = 38f,
+            TempsServiceReady  = true,
+        };
+        Assert.IsTrue(snap.TempsLineVisible,   "TempsLineVisible should survive init");
+        Assert.IsFalse(snap.TempCpuVisible,    "TempCpuVisible should survive init");
+        Assert.IsFalse(snap.TempGpuVisible,    "TempGpuVisible should survive init");
+        Assert.IsTrue(snap.TempMoboVisible,    "TempMoboVisible should survive init");
+        Assert.IsTrue(snap.TempNvmeVisible,    "TempNvmeVisible should survive init");
+        Assert.AreEqual(52f, snap.CpuTempC,    "CpuTempC should survive init");
+        Assert.AreEqual(61f, snap.GpuTempC,    "GpuTempC should survive init");
+        Assert.AreEqual(-1f, snap.MoboTempC,   "MoboTempC should survive init (sentinel)");
+        Assert.AreEqual(38f, snap.NvmeTempC,   "NvmeTempC should survive init");
+        Assert.IsTrue(snap.TempsServiceReady,  "TempsServiceReady should survive init");
+    }
+
+    [TestMethod]
+    public void SettingsSnapshot_NewFieldsHaveZeroValueDefaults()
+    {
+        // SettingsSnapshot is a PROJECTION of current app state, not a config model.
+        // New fields default to C# type zero-values; MainWindow.GetCurrentSettingsSnapshot
+        // populates them from AppSettings + TemperatureService at open time (Phase 78-02).
+        var snap = new SettingsSnapshot();
+        Assert.IsFalse(snap.TempsLineVisible,   "TempsLineVisible default = bool default (false)");
+        Assert.IsFalse(snap.TempCpuVisible,     "TempCpuVisible default = bool default (false)");
+        Assert.IsFalse(snap.TempGpuVisible,     "TempGpuVisible default = bool default (false)");
+        Assert.IsFalse(snap.TempMoboVisible,    "TempMoboVisible default = bool default (false)");
+        Assert.IsFalse(snap.TempNvmeVisible,    "TempNvmeVisible default = bool default (false)");
+        Assert.AreEqual(0f, snap.CpuTempC,      "CpuTempC default = float default (0f)");
+        Assert.AreEqual(0f, snap.GpuTempC,      "GpuTempC default = float default (0f)");
+        Assert.AreEqual(0f, snap.MoboTempC,     "MoboTempC default = float default (0f)");
+        Assert.AreEqual(0f, snap.NvmeTempC,     "NvmeTempC default = float default (0f)");
+        Assert.IsFalse(snap.TempsServiceReady,  "TempsServiceReady default = bool default (false)");
+    }
+
 }
