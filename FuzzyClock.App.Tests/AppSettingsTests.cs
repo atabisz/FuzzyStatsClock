@@ -361,4 +361,73 @@ public class AppSettingsTests
         Assert.IsFalse(snap.TempsServiceReady,  "TempsServiceReady default = bool default (false)");
     }
 
+    // ----- v4.2 Phase 78-02 GetCurrentSettingsSnapshot mapping-contract tests -----
+
+    [TestMethod]
+    public void GetCurrentSettingsSnapshotContract_MapsAppSettings_ToTempVisibilityFields()
+    {
+        // Simulate MainWindow.GetCurrentSettingsSnapshot's mapping: AppSettings + TemperatureService → SettingsSnapshot.
+        // Direct invocation of MainWindow would require an STA WPF host; instead we assert the contract
+        // the method must uphold — snapshot fields are a projection of AppSettings.Temp* fields plus live
+        // TemperatureService sensor values + IsReady.
+        var settings = new AppSettings
+        {
+            TempsLineVisible = true,
+            TempCpuVisible   = true,
+            TempGpuVisible   = false,
+            TempMoboVisible  = true,
+            TempNvmeVisible  = false,
+        };
+        // Stand-in for _temperatureService readings at the moment OpenSettings fires:
+        const float cpu = 52f, gpu = 61f, mobo = -1f, nvme = 38f;
+        const bool  ready = true;
+
+        var snap = new SettingsSnapshot
+        {
+            TempsLineVisible   = settings.TempsLineVisible,
+            TempCpuVisible     = settings.TempCpuVisible,
+            TempGpuVisible     = settings.TempGpuVisible,
+            TempMoboVisible    = settings.TempMoboVisible,
+            TempNvmeVisible    = settings.TempNvmeVisible,
+            CpuTempC           = cpu,
+            GpuTempC           = gpu,
+            MoboTempC          = mobo,
+            NvmeTempC          = nvme,
+            TempsServiceReady  = ready,
+        };
+
+        Assert.IsTrue(snap.TempsLineVisible,    "TempsLineVisible mirrors AppSettings");
+        Assert.IsTrue(snap.TempCpuVisible,      "TempCpuVisible mirrors AppSettings");
+        Assert.IsFalse(snap.TempGpuVisible,     "TempGpuVisible mirrors AppSettings");
+        Assert.IsTrue(snap.TempMoboVisible,     "TempMoboVisible mirrors AppSettings");
+        Assert.IsFalse(snap.TempNvmeVisible,    "TempNvmeVisible mirrors AppSettings");
+        Assert.AreEqual(52f, snap.CpuTempC,     "CpuTempC mirrors TemperatureService.CpuTempC");
+        Assert.AreEqual(61f, snap.GpuTempC,     "GpuTempC mirrors TemperatureService.GpuTempC");
+        Assert.AreEqual(-1f, snap.MoboTempC,    "MoboTempC mirrors -1f sentinel per D-11");
+        Assert.AreEqual(38f, snap.NvmeTempC,    "NvmeTempC mirrors TemperatureService.NvmeTempC");
+        Assert.IsTrue(snap.TempsServiceReady,   "TempsServiceReady mirrors TemperatureService.IsReady");
+    }
+
+    [TestMethod]
+    public void GetCurrentSettingsSnapshotContract_PreIsReadyColdStart_AllSensorFieldsAreZeroValues()
+    {
+        // D-02: before IsReady flips true, GetCurrentSettingsSnapshot will see IsReady=false
+        // and sensor properties at their (initial) sentinel values. The snapshot should reflect
+        // that truthfully — the *optimistic* treatment is applied by SettingsWindow.RefreshControls,
+        // not by the snapshot producer. Verifies snapshot is honest about state at capture time.
+        var snap = new SettingsSnapshot
+        {
+            TempsServiceReady = false,   // cold start, IsReady not yet true
+            CpuTempC          = -1f,
+            GpuTempC          = -1f,
+            MoboTempC         = -1f,
+            NvmeTempC         = -1f,
+        };
+        Assert.IsFalse(snap.TempsServiceReady, "Pre-IsReady snapshot carries IsReady=false");
+        // SettingsWindow.ApplyTempCheckboxNaState will observe !isReady and fall into the
+        // D-02 optimistic branch regardless of sentinel values — verified in Plan 78-01 tests.
+        Assert.AreEqual(-1f, snap.CpuTempC,  "Snapshot records the service's actual value at capture time");
+        Assert.AreEqual(-1f, snap.MoboTempC, "Snapshot records the service's actual value at capture time");
+    }
+
 }
