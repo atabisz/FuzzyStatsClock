@@ -487,6 +487,32 @@ public partial class MainWindow : Window
             SaveSettings();
         };
         _settingsWindow.BatteryAlertThresholdChanged += t => SetBatteryAlertThreshold(t);
+        // v4.2 Phase 78 — Temps tab persistence handlers (widget render wiring lands in Phase 79)
+        _settingsWindow.TempsLineVisibleChanged += v =>
+        {
+            _settings = _settings with { TempsLineVisible = v };
+            SaveSettings();
+        };
+        _settingsWindow.TempCpuVisibleChanged += v =>
+        {
+            _settings = _settings with { TempCpuVisible = v };
+            SaveSettings();
+        };
+        _settingsWindow.TempGpuVisibleChanged += v =>
+        {
+            _settings = _settings with { TempGpuVisible = v };
+            SaveSettings();
+        };
+        _settingsWindow.TempMoboVisibleChanged += v =>
+        {
+            _settings = _settings with { TempMoboVisible = v };
+            SaveSettings();
+        };
+        _settingsWindow.TempNvmeVisibleChanged += v =>
+        {
+            _settings = _settings with { TempNvmeVisible = v };
+            SaveSettings();
+        };
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
     }
@@ -1207,6 +1233,22 @@ public partial class MainWindow : Window
         _backdropOpacityPercent = 35;
         ApplyBackdropState();
         SetLanguage("auto");
+
+        // v4.2 Phase 78 — Reset Temps tab fields to documented defaults (TEMP-TAB-02 + TEMP-TAB-03)
+        _settings = _settings with
+        {
+            TempsLineVisible = false,   // master OFF
+            TempCpuVisible   = true,    // per-sensor ON
+            TempGpuVisible   = true,    // per-sensor ON
+            TempMoboVisible  = false,   // per-sensor OFF (PawnIO-gated)
+            TempNvmeVisible  = false,   // per-sensor OFF (TEMP-TAB-03 amendment 2026-05-04)
+        };
+        // If Settings window is open, refresh so the UI reflects the reset values
+        // AND re-evaluates N/A state via RefreshControls → PopulateControls → ApplyTempCheckboxNaState
+        if (_settingsWindow is { IsVisible: true })
+        {
+            _settingsWindow.RefreshControls(GetCurrentSettingsSnapshot());
+        }
 
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
