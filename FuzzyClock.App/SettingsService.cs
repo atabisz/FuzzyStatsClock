@@ -154,7 +154,12 @@ public static class SettingsService
         MonitorPositions = new Dictionary<string, MonitorPosition>(),
         LastActiveMonitor = "",
         BatteryAlertThresholdPercent = 20,
-        GhostFadeRadiusPx = 80
+        GhostFadeRadiusPx = 80,
+        TempsLineVisible = false,
+        TempCpuVisible   = true,
+        TempGpuVisible   = true,
+        TempMoboVisible  = false,
+        TempNvmeVisible  = false
     };
 
     /// <summary>

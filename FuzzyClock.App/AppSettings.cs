@@ -46,5 +46,12 @@ public record AppSettings
     public bool   BackdropAlwaysVisible        { get; init; } = false;
     public int    BackdropOpacityPercent       { get; init; } = 35;
     public int    GhostFadeRadiusPx            { get; init; } = 80;  // 20-200px; default 80px per PROX-06/PROX-07
+    // v4.2 — temperature line visibility (master toggle + per-sensor)
+    // Defaults per REQUIREMENTS.md TEMP-TAB-02/-03 (NVMe amended ON→OFF on 2026-05-04 commit b2163d1 post-spike).
+    public bool   TempsLineVisible             { get; init; } = false;   // master OFF
+    public bool   TempCpuVisible               { get; init; } = true;    // per-sensor ON
+    public bool   TempGpuVisible               { get; init; } = true;    // per-sensor ON
+    public bool   TempMoboVisible              { get; init; } = false;   // per-sensor OFF (PawnIO-gated)
+    public bool   TempNvmeVisible              { get; init; } = false;   // per-sensor OFF (spike amendment — NVMe not enumerated on baseline hardware)
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"
