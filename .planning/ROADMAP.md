@@ -42,7 +42,7 @@ granularity: standard
 **Success Criteria** (what must be TRUE):
   1. A written hardware-discovery report exists in `.planning/` recording, per sensor (CPU, GPU, Mobo, NVMe), whether LHM produced a valid reading on a clean Win11 24H2 baseline with no admin elevation and no PawnIO installed; the report carries a dated go/no-go decision. Minimum bar is **GPU readable**; CPU / Mobo / NVMe are best-effort with documented N/A fallback paths — a missing sensor is not a milestone blocker as long as `TemperatureService` degrades to the `-1f` sentinel without throwing. _(Satisfied 2026-05-04 → NO-GO on original strict gate; scope reduced per amendments below; see [`.planning/spikes/75-hardware-discovery.md`](./spikes/75-hardware-discovery.md).)_
   2. `TemperatureService` lives in `FuzzyClock.App` as a singleton; app startup does not block waiting on sensor init (initialization runs on a background task with a 3-second timeout) and the widget launches successfully even when initialization fails.
-  3. When initialization fails or a sensor is absent, `IsReady` stays false and the relevant CPU/GPU/Mobo/NVMe property returns the `-1f` N/A sentinel; no exception reaches the UI thread.
+  3. When initialization fails or a sensor is absent, the relevant CPU/GPU/Mobo/NVMe property returns the `-1f` N/A sentinel and no exception reaches the UI thread. (As-built: `IsReady` flips true once `InitializeAsync` returns — matching `StatsService` parity — with an internal `_lhmAvailable` flag gating actual sensor reads; timeout/throw leaves `_lhmAvailable=false` and every sensor at `-1f`.)
   4. On normal quit, log-off, and forced process kill, the LHM `Computer` handle is released exactly once (`Window.Closing` + `SessionEnding` + `AppDomain.ProcessExit` with an `Interlocked` single-entry guard); no driver handle leak survives the process.
   5. `ITempSource` + `FakeTempSource` exist so `TemperatureService` contract tests run on any machine without touching hardware.
 
@@ -161,7 +161,7 @@ Phase 77 (RMB menu) remained unblocked throughout.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 75. Hardware Discovery Spike + TemperatureService | 2/2 | Complete   | 2026-05-04 |
+| 75. Hardware Discovery Spike + TemperatureService | 2/2 | Complete    | 2026-05-04 |
 | 76. AppSettings + TemperatureFormatter Tests | 0/0 | Not started | - |
 | 77. Right-Click Menu on Widget | 0/0 | Not started | - |
 | 78. Temps Tab in Settings | 0/0 | Not started | - |

@@ -37,10 +37,10 @@
 ### Hardware Discovery & TemperatureService
 
 - [x] **TEMP-SVC-01:** A Phase 1 hardware-discovery spike produces a written report documenting sensor availability on a clean Win11 24H2 VM with no admin elevation and no PawnIO installed; the report records a go/no-go decision and, if no-go, a documented scope reduction. _(Satisfied 2026-05-04 → NO-GO; see [.planning/spikes/75-hardware-discovery.md](./spikes/75-hardware-discovery.md). Scope reduction amendments are owner-assigned; see STATE.md Active TODOs.)_
-- [ ] **TEMP-SVC-02:** `TemperatureService` is a singleton class in `FuzzyClock.App` (not `FuzzyClock.Core`); exposes `IsReady` gate and `float?` properties for CPU / GPU / Mobo / NVMe where `-1f` is the sentinel for "unavailable".
-- [ ] **TEMP-SVC-03:** `TemperatureService` initializes via `Task.Run(Initialize)` with a **5-second timeout** (amended 2026-05-04 from 3s after spike measured 4272ms `Computer.Open()` on dev box — see [`.planning/spikes/75-hardware-discovery.md`](./spikes/75-hardware-discovery.md) Section 5); initialization failure leaves `IsReady=false` and all sensors at the N/A sentinel; the widget does not crash.
-- [ ] **TEMP-SVC-04:** `TemperatureService` disposes cleanly via a three-tier path (`Window.Closing` + `SessionEnding` + `AppDomain.ProcessExit`) with an `Interlocked` single-entry guard, releasing the LHM `Computer` handle on log-off, kill, and normal quit.
-- [ ] **TEMP-SVC-05:** `ITempSource` abstraction + `FakeTempSource` enable hardware-free unit tests of the service contract.
+- [x] **TEMP-SVC-02:** `TemperatureService` is a singleton class in `FuzzyClock.App` (not `FuzzyClock.Core`); exposes `IsReady` gate and `float?` properties for CPU / GPU / Mobo / NVMe where `-1f` is the sentinel for "unavailable". _(Satisfied 2026-05-04 by Plan 75-02, commits `f6daee1`/`0041e2d`.)_
+- [x] **TEMP-SVC-03:** `TemperatureService` initializes via `Task.Run(Initialize)` with a **5-second timeout** (amended 2026-05-04 from 3s after spike measured 4272ms `Computer.Open()` on dev box — see [`.planning/spikes/75-hardware-discovery.md`](./spikes/75-hardware-discovery.md) Section 5); initialization failure leaves `IsReady=false` and all sensors at the N/A sentinel; the widget does not crash. _(Satisfied 2026-05-04 by Plan 75-02.)_
+- [x] **TEMP-SVC-04:** `TemperatureService` disposes cleanly via a three-tier path (`Window.Closing` + `SessionEnding` + `AppDomain.ProcessExit`) with an `Interlocked` single-entry guard, releasing the LHM `Computer` handle on log-off, kill, and normal quit. _(Satisfied 2026-05-04 by Plan 75-02, commit `e99b842`.)_
+- [x] **TEMP-SVC-05:** `ITempSource` abstraction + `FakeTempSource` enable hardware-free unit tests of the service contract. _(Satisfied 2026-05-04 by Plan 75-02; 21 MSTest methods in `TemperatureServiceTests.cs`.)_
 
 ### Persistence & Tests
 
