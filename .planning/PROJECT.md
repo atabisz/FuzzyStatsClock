@@ -309,7 +309,17 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ### Active
 
-(None — between milestones)
+## Current Milestone: v4.2 Temps & Menu
+
+**Goal:** Add system temperature monitoring to the stats line and make the tray menu available via right-click on the widget itself.
+
+**Target features:**
+
+- **Right-click menu on widget** — Reuse the existing tray ContextMenuStrip when the user right-clicks the widget; identical items, checkmarks, and behavior. Suppressed while proximity-faded/click-through (RMB requires Ghost Mode off or Ctrl+Alt held, matching existing hover/interaction invariants).
+- **Temps tab in Settings** — New 4th tab (Appearance / Stats / **Temps** / Behavior). Master "Show Temps Line" toggle plus per-sensor checkboxes (CPU package, GPU, Motherboard/System, NVMe/SSD); unavailable sensors disabled with "N/A" label.
+- **Temperature stats line** — Compact one-liner below uptime (`CPU 52°  GPU 61°  NVMe 38°`). Celsius only, accent-colored, refreshed on existing stats timer. Only shows checked sensors with valid readings.
+
+**Key context:** LibreHardwareMonitorLib (MPL-2.0) as data source with graceful no-elevation fallback (sensors needing admin render "N/A", no UAC prompt). No alerts/thresholds. Piggybacks existing stats timer.
 
 ### Out of Scope
 
@@ -509,4 +519,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 — after v4.1 milestone (Polish & Phrases)*
+*Last updated: 2026-05-04 — v4.2 Temps & Menu milestone started*
