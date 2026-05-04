@@ -23,7 +23,7 @@ granularity: standard
 - [x] **Phase 75: Hardware Discovery Spike + TemperatureService** — Prove sensor coverage on clean Win11 24H2 VM, then land the service singleton gated by the go/no-go decision. _(Plan 01 complete 2026-05-04 → NO-GO; Plan 02 blocked pending scope amendment.)_ (completed 2026-05-04)
 - [x] **Phase 76: AppSettings + TemperatureFormatter Tests** — Persist the five new temp-visibility bools and unit-test the pure formatter. (completed 2026-05-04)
 - [x] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards. (completed 2026-05-04)
-- [ ] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes.
+- [x] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes. (completed 2026-05-04)
 - [ ] **Phase 79: Temps Line on Widget** — Compact accent-colored line below uptime, auto-reflowing on sensor availability.
 - [ ] **Phase 80: Release & Compliance** — Pin LHM 0.9.6, ship THIRD-PARTY-NOTICES, CI grep gates, installer DLL capture.
 
@@ -120,11 +120,11 @@ Plans:
   4. Toggling any of the five controls persists to `settings.json` immediately and restores on next launch; "Reset to Defaults" resets all five values back to their documented defaults.
   5. The master toggle gates the temps line on the widget live (see Phase 79); per-sensor toggles add or remove the corresponding sensor from the rendered line with no widget restart.
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 78-01-PLAN.md -- SettingsSnapshot 10-field extension + SettingsWindow XAML Temps tab + 5 events + 5 handlers + RefreshControls N/A logic (wave 1)
-- [ ] 78-02-PLAN.md -- MainWindow.GetCurrentSettingsSnapshot extension + 5 event subscriptions + ResetToDefaults extension + human-verify checkpoint (wave 2)
+- [x] 78-01-PLAN.md -- SettingsSnapshot 10-field extension + SettingsWindow XAML Temps tab + 5 events + 5 handlers + RefreshControls N/A logic (wave 1) — **DONE 2026-05-04**; 4 commits (`789bcf2` RED → `989b1d2` GREEN snapshot → `73493b2` XAML → `d220ba8` events+handlers); 552 MSTest green (+2)
+- [x] 78-02-PLAN.md -- MainWindow.GetCurrentSettingsSnapshot extension + 5 event subscriptions + ResetToDefaults extension + human-verify checkpoint (wave 2) — **DONE 2026-05-04**; 3 commits (`aee40f6` RED → `78ed7e1` GREEN snapshot-projection → `a09c65d` persistence+reset); 554 MSTest green (+2); 29/29 human-verify checklist approved
 
 ---
 
@@ -174,7 +174,7 @@ Plans:
 | 75. Hardware Discovery Spike + TemperatureService | 2/2 | Complete    | 2026-05-04 |
 | 76. AppSettings + TemperatureFormatter Tests | 1/1 | Complete    | 2026-05-04 |
 | 77. Right-Click Menu on Widget | 1/1 | Complete    | 2026-05-04 |
-| 78. Temps Tab in Settings | 0/0 | Not started | - |
+| 78. Temps Tab in Settings | 2/2 | Complete    | 2026-05-04 |
 | 79. Temps Line on Widget | 0/0 | Not started | - |
 | 80. Release & Compliance | 0/0 | Not started | - |
 

@@ -19,11 +19,11 @@
 
 ### Temps Tab (Settings window)
 
-- [ ] **TEMP-TAB-01:** A new "Temps" tab appears in the Settings window between the Stats and Behavior tabs (order: Appearance / Stats / Temps / Behavior).
-- [ ] **TEMP-TAB-02:** The Temps tab exposes a master "Show Temps Line" toggle; default OFF on fresh install and on upgrade from v4.1.
-- [ ] **TEMP-TAB-03:** The Temps tab exposes four per-sensor checkboxes — CPU, GPU, Mobo, NVMe — with defaults CPU=ON, GPU=ON, Mobo=OFF, **NVMe=OFF** (amended 2026-05-04 after spike found NVMe not enumerated on baseline hardware). Help text near the sensor group reads: _"CPU and NVMe readings may require elevated access or a helper driver (e.g. PawnIO) on some hardware; disabled checkboxes indicate the sensor is unavailable on this machine."_
-- [ ] **TEMP-TAB-04:** When a sensor is unavailable on the current hardware, its checkbox is disabled and its label is suffixed with " (N/A)"; no UAC prompt is issued at any time.
-- [ ] **TEMP-TAB-05:** All Temps tab settings persist to `settings.json` and restore on launch; `ResetToDefaults()` resets all five new values.
+- [x] **TEMP-TAB-01:** A new "Temps" tab appears in the Settings window between the Stats and Behavior tabs (order: Appearance / Stats / Temps / Behavior). _(Satisfied 2026-05-04 by Plan 78-01 commit `73493b2`; tab order verified Appearance=54 / Stats=285 / Temps=384 / Behavior=420; Checklist 1 passed.)_
+- [x] **TEMP-TAB-02:** The Temps tab exposes a master "Show Temps Line" toggle; default OFF on fresh install and on upgrade from v4.1. _(Satisfied 2026-05-04 by Plan 78-01 (UI) + Plan 78-02 (persistence + reset); default OFF verified via fresh-install Checklist 2; reset-to-defaults restores OFF via `TempsLineVisible = false` in ResetToDefaults.)_
+- [x] **TEMP-TAB-03:** The Temps tab exposes four per-sensor checkboxes — CPU, GPU, Mobo, NVMe — with defaults CPU=ON, GPU=ON, Mobo=OFF, **NVMe=OFF** (amended 2026-05-04 after spike found NVMe not enumerated on baseline hardware). Help text near the sensor group reads: _"CPU and NVMe readings may require elevated access or a helper driver (e.g. PawnIO) on some hardware; disabled checkboxes indicate the sensor is unavailable on this machine."_ _(Satisfied 2026-05-04 by Plan 78-01 commit `73493b2` (XAML) + Plan 78-02 ResetToDefaults; defaults verified via Checklist 3; help text verbatim per commit `d220ba8`.)_
+- [x] **TEMP-TAB-04:** When a sensor is unavailable on the current hardware, its checkbox is disabled and its label is suffixed with " (N/A)"; no UAC prompt is issued at any time. _(Satisfied 2026-05-04 by Plan 78-01 `ApplyTempCheckboxNaState` helper in commit `d220ba8`; verified on dev box — Mobo (N/A) + NVMe (N/A) disabled, GPU enabled; NO UAC prompt observed during Checklist 4.)_
+- [x] **TEMP-TAB-05:** All Temps tab settings persist to `settings.json` and restore on launch; `ResetToDefaults()` resets all five new values. _(Satisfied 2026-05-04 by Plan 78-02 commit `a09c65d`; 5 event subscriptions in OpenSettings each `_settings with { ... }; SaveSettings();`; ResetToDefaults resets all 5 fields + `RefreshControls` nudge; round-trip confirmed via `%LOCALAPPDATA%\FuzzyClock\settings.json` inspection at Checklist 5 item 21; reset confirmed at Checklist 6.)_
 
 ### Temps Stats Line (widget)
 
@@ -87,11 +87,11 @@ Every v4.2 REQ-ID maps to exactly one phase. 29/29 coverage (no orphans, no dupl
 | RMB-02 | Phase 77 | Pending |
 | RMB-03 | Phase 77 | Pending |
 | RMB-04 | Phase 77 | Pending |
-| TEMP-TAB-01 | Phase 78 | Pending |
-| TEMP-TAB-02 | Phase 78 | Pending |
-| TEMP-TAB-03 | Phase 78 | Pending |
-| TEMP-TAB-04 | Phase 78 | Pending |
-| TEMP-TAB-05 | Phase 78 | Pending |
+| TEMP-TAB-01 | Phase 78 | Complete (2026-05-04) |
+| TEMP-TAB-02 | Phase 78 | Complete (2026-05-04) |
+| TEMP-TAB-03 | Phase 78 | Complete (2026-05-04) |
+| TEMP-TAB-04 | Phase 78 | Complete (2026-05-04) |
+| TEMP-TAB-05 | Phase 78 | Complete (2026-05-04) |
 | TEMP-LINE-01 | Phase 79 | Pending |
 | TEMP-LINE-02 | Phase 79 | Pending |
 | TEMP-LINE-03 | Phase 79 | Pending |
