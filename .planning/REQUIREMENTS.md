@@ -27,12 +27,12 @@
 
 ### Temps Stats Line (widget)
 
-- [ ] **TEMP-LINE-01:** A new `TempsText` line renders inside `StatsPanel` directly below `UptimeText` when the master toggle is ON; auto-hides with the Stats panel (inherits `StatsVisible`).
-- [ ] **TEMP-LINE-02:** Format is a compact inline line with 2-space separator, integer Celsius, and `°` symbol only — e.g. `CPU 52°  GPU 61°  NVMe 38°`. No C/F suffix, no unit toggle.
-- [ ] **TEMP-LINE-03:** Friendly sensor labels only (`CPU`, `GPU`, `Mobo`, `NVMe`); raw LHM names (`Tctl/Tdie`, `Core #0`, etc.) are never displayed.
-- [ ] **TEMP-LINE-04:** Sensors that are checked but return no valid reading — specifically any sensor whose `TemperatureService` property equals the `-1f` N/A sentinel — are silently omitted from the line (hot-swap tolerance — e.g. removable NVMe disconnected mid-session, NVMe not enumerated on OEM hardware, or PawnIO-gated CPU sensor on an unelevated session all cause a segment drop + line reflow, not a crash). The formatter MUST treat `-1f` as "hide this segment" in every rendering path.
-- [ ] **TEMP-LINE-05:** Temperature refresh piggybacks on the existing stats timer tick; minimum 2-second effective refresh for LHM reads (single-entry lock prevents overlapping `Update()` calls during hover fast-refresh).
-- [ ] **TEMP-LINE-06:** The line inherits accent color like `UptimeText`; participates in auto-contrast sampling identically to existing widget text.
+- [x] **TEMP-LINE-01:** A new `TempsText` line renders inside `StatsPanel` directly below `UptimeText` when the master toggle is ON; auto-hides with the Stats panel (inherits `StatsVisible`). _(Satisfied 2026-05-04 by Plan 79-01 commit `5747390` (XAML) + `d3868fc` (code-behind); TempsText is 7th and final child of StatsPanel; human-verified live on dev hardware via Plan 79-02 Checklist 1–2.)_
+- [x] **TEMP-LINE-02:** Format is a compact inline line with 2-space separator, integer Celsius, and `°` symbol only — e.g. `CPU 52°  GPU 61°  NVMe 38°`. No C/F suffix, no unit toggle. _(Satisfied 2026-05-04 by Plan 79-01 commit `d3868fc` routing through Phase 76 `TemperatureFormatter.Format`; unit-locked by `Format_WithFakeTempSource_ProducesExpectedLine` asserting `"CPU 52°  GPU 61°  NVMe 38°"` exact; human-verified live via Plan 79-02 Checklist 5–7.)_
+- [x] **TEMP-LINE-03:** Friendly sensor labels only (`CPU`, `GPU`, `Mobo`, `NVMe`); raw LHM names (`Tctl/Tdie`, `Core #0`, etc.) are never displayed. _(Satisfied 2026-05-04 — formatter in Phase 76 hardcodes only friendly labels; human-verified live via Plan 79-02 Checklist 3 — on dev box only `GPU` label appears, no `Tctl/Tdie` / `Core #0` / `GPU Core` / `Hot Spot`.)_
+- [x] **TEMP-LINE-04:** Sensors that are checked but return no valid reading — specifically any sensor whose `TemperatureService` property equals the `-1f` N/A sentinel — are silently omitted from the line (hot-swap tolerance — e.g. removable NVMe disconnected mid-session, NVMe not enumerated on OEM hardware, or PawnIO-gated CPU sensor on an unelevated session all cause a segment drop + line reflow, not a crash). The formatter MUST treat `-1f` as "hide this segment" in every rendering path. _(Satisfied 2026-05-04 by Plan 79-01 commit `d3868fc`; D-03 empty-line suppression + `-1f` hide-segment verified live on dev box via Plan 79-02 Checklist 8 — dev-box PawnIO-free baseline renders as `GPU 51°` single segment with CPU / Mobo / NVMe correctly omitted, not placeholdered as `(N/A)`.)_
+- [x] **TEMP-LINE-05:** Temperature refresh piggybacks on the existing stats timer tick; minimum 2-second effective refresh for LHM reads (single-entry lock prevents overlapping `Update()` calls during hover fast-refresh). _(Satisfied 2026-05-04 by Plan 79-01 commit `d3868fc` — `UpdateTempsDisplay()` is final statement of existing `_statsTimer.Tick` lambda; no new DispatcherTimer introduced; human-verified live via Plan 79-02 Checklist 22 — hover fast-refresh 500ms propagates cleanly with no double-update, no CPU spike.)_
+- [x] **TEMP-LINE-06:** The line inherits accent color like `UptimeText`; participates in auto-contrast sampling identically to existing widget text. _(Satisfied 2026-05-04 by Plan 79-01 commit `d3868fc` — `TempsText.Foreground = brush;` landed in BOTH `ApplyTheme` AND `ApplyDisplayColor` per Phase 33 critical pattern; human-verified live via Plan 79-02 Checklist 17–21 — accent swap and auto-contrast bright→dark desktop move change UptimeText + TempsText in lockstep, never a one-tick lag.)_
 
 ### Hardware Discovery & TemperatureService
 
@@ -92,12 +92,12 @@ Every v4.2 REQ-ID maps to exactly one phase. 29/29 coverage (no orphans, no dupl
 | TEMP-TAB-03 | Phase 78 | Complete (2026-05-04) |
 | TEMP-TAB-04 | Phase 78 | Complete (2026-05-04) |
 | TEMP-TAB-05 | Phase 78 | Complete (2026-05-04) |
-| TEMP-LINE-01 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
-| TEMP-LINE-02 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
-| TEMP-LINE-03 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
-| TEMP-LINE-04 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
-| TEMP-LINE-05 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
-| TEMP-LINE-06 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
+| TEMP-LINE-01 | Phase 79 | Complete (2026-05-04) |
+| TEMP-LINE-02 | Phase 79 | Complete (2026-05-04) |
+| TEMP-LINE-03 | Phase 79 | Complete (2026-05-04) |
+| TEMP-LINE-04 | Phase 79 | Complete (2026-05-04) |
+| TEMP-LINE-05 | Phase 79 | Complete (2026-05-04) |
+| TEMP-LINE-06 | Phase 79 | Complete (2026-05-04) |
 | TEMP-SVC-01 | Phase 75 | Complete (NO-GO, 2026-05-04) |
 | TEMP-SVC-02 | Phase 75 | Complete |
 | TEMP-SVC-03 | Phase 75 | Complete |

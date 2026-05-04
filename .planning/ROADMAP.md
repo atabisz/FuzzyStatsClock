@@ -24,7 +24,7 @@ granularity: standard
 - [x] **Phase 76: AppSettings + TemperatureFormatter Tests** — Persist the five new temp-visibility bools and unit-test the pure formatter. (completed 2026-05-04)
 - [x] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards. (completed 2026-05-04)
 - [x] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes. (completed 2026-05-04)
-- [ ] **Phase 79: Temps Line on Widget** — Compact accent-colored line below uptime, auto-reflowing on sensor availability.
+- [x] **Phase 79: Temps Line on Widget** — Compact accent-colored line below uptime, auto-reflowing on sensor availability. (completed 2026-05-04)
 - [ ] **Phase 80: Release & Compliance** — Pin LHM 0.9.6, ship THIRD-PARTY-NOTICES, CI grep gates, installer DLL capture.
 
 ---
@@ -144,11 +144,11 @@ Plans:
   5. Temperature reads piggyback on the existing stats timer tick with a 2-second effective minimum for LHM reads (single-entry lock on `Update()` prevents overlapping calls during the 0.5s hover fast-refresh); no new `DispatcherTimer` is introduced.
   6. `TempsText` inherits the accent color like `UptimeText` and participates in auto-contrast sampling identically to the rest of the widget text.
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 79-01-PLAN.md -- TempsText TextBlock + UpdateTempsDisplay + timer/handler wiring + ApplyTheme/ApplyDisplayColor extension + TempsLineTests (wave 1)
-- [ ] 79-02-PLAN.md -- Human-verify checklist (22 items / 7 categories) on live dev hardware (wave 2)
+- [x] 79-01-PLAN.md -- TempsText TextBlock + UpdateTempsDisplay + timer/handler wiring + ApplyTheme/ApplyDisplayColor extension + TempsLineTests (wave 1) — **DONE 2026-05-04**; 3 commits (`97d424c` test RED → `5747390` XAML GREEN → `d3868fc` code-behind GREEN); 562 MSTest green (+8)
+- [x] 79-02-PLAN.md -- Human-verify checklist (22 items / 7 categories) on live dev hardware (wave 2) — **DONE 2026-05-04**; single metadata commit `docs(79-02): capture human-verify sign-off`; 22/22 approved; dev-box render confirmed as `GPU 51°` single segment per D-19
 
 ---
 
@@ -179,7 +179,7 @@ Plans:
 | 76. AppSettings + TemperatureFormatter Tests | 1/1 | Complete    | 2026-05-04 |
 | 77. Right-Click Menu on Widget | 1/1 | Complete    | 2026-05-04 |
 | 78. Temps Tab in Settings | 2/2 | Complete    | 2026-05-04 |
-| 79. Temps Line on Widget | 1/2 | In progress | - |
+| 79. Temps Line on Widget | 2/2 | Complete    | 2026-05-04 |
 | 80. Release & Compliance | 0/0 | Not started | - |
 
 ---
