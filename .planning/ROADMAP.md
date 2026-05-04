@@ -77,7 +77,10 @@ Phase 77 (RMB menu) remained unblocked throughout.
   3. `TemperatureFormatter` lives in `FuzzyClock.Core` with zero reference to `LibreHardwareMonitorLib`; unit tests cover all-sensors-present, partial-N/A, all-N/A-returns-empty, single-sensor, 2-space separator, `°` symbol, and integer rounding.
   4. The full MSTest suite (Core + App) reports 0 failures after the new fields and tests land; the post-Phase-75 baseline (522 tests: 433 Core + 89 App) is strictly exceeded. *(Amended 2026-05-04: original "501" figure was pre-Phase-75; actual baseline is 522 per STATE.md.)*
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 76-01-PLAN.md — AppSettings five-field extension + TemperatureFormatter in FuzzyClock.Core + persistence & pure-function tests (wave 1)
 
 ---
 
