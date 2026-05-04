@@ -54,6 +54,7 @@ public partial class MainWindow : Window
     private bool _autoLaunchEnabled = false;
     private bool _isDragging = false;   // true between DragMove() start and end — freezes display color
     private double _proximityRatio = 0.0;   // current proximity ratio from GhostModeController
+    private bool _menuOpen = false;         // true while the tray ContextMenuStrip is open via widget right-click — pins opacity (RMB-04) and prevents re-entrant Show() flicker
     private GhostModeController _ghostMode = null!;
     private ContrastRefreshController _contrast = new();
     private SettingsWindow? _settingsWindow;
@@ -177,6 +178,7 @@ public partial class MainWindow : Window
                 _proximityRatio = ratio;
                 if (_isDragging) return;
                 if (_settingsWindow?.IsVisible == true) return;  // don't adjust opacity while settings window is open
+                if (_menuOpen) return;                           // RMB-04: pin opacity while right-click menu is open
                 this.Opacity = _windowOpacity * (1.0 - ratio);
             };
 
@@ -199,6 +201,15 @@ public partial class MainWindow : Window
                 SetClockType    = ct => Dispatcher.Invoke(() => SetClockType(ct)),
             });
             _trayIcon = _trayMenu.Build(GetCurrentTrayState(), GetCurrentTrayState);
+
+            // RMB-04: pin _proximityRatio (via the ProximityChanged lambda's _menuOpen guard) while
+            // the tray ContextMenuStrip is open via a widget right-click. The Opening handler at
+            // TrayMenuBuilder.cs:90 (SyncCheckmarks) registered first; WinForms fires handlers in
+            // registration order so checkmark sync still runs before _menuOpen = true.
+            // Anti-flicker: the _menuOpen guard in Window_PreviewMouseRightButtonUp also prevents
+            // re-entrant Show() calls from rapid right-click spam (Pitfall 7).
+            _trayIcon.ContextMenuStrip!.Opening += (_, _) => _menuOpen = true;
+            _trayIcon.ContextMenuStrip!.Closed  += (_, _) => _menuOpen = false;
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
@@ -1418,6 +1429,35 @@ public partial class MainWindow : Window
         this.Opacity = _windowOpacity;
         SaveSettings();
         e.Handled = true;  // prevent scroll leaking to desktop or windows below overlay
+    }
+
+    /// <summary>
+    /// Opens the tray ContextMenuStrip at the cursor on widget right-click (button UP),
+    /// reusing the exact same menu instance the NotifyIcon uses (single source of truth for
+    /// items, checkmarks, enabled state, and click handlers — RMB-01).
+    /// </summary>
+    /// <remarks>
+    /// RMB-02: suppressed while dragging (DragMove() is a blocking modal loop, so in practice
+    /// this branch is belt-and-suspenders).
+    /// RMB-03: click-through is handled by WS_EX_TRANSPARENT at the Win32 layer — when ghost
+    /// is active without Ctrl+Alt held, this handler never fires because WPF doesn't receive
+    /// the mouse message. The RightClickMenuGate check here is defensive only.
+    /// The _menuOpen idempotence guard prevents visual flicker on rapid right-click spam
+    /// (Show() repositioning the already-open menu).
+    /// </remarks>
+    private void Window_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        // Idempotence: don't re-show an already-open menu.
+        if (_menuOpen) return;
+
+        // RMB-02 + RMB-03 predicate (pure, unit-tested via RightClickMenuGateTests).
+        if (!RightClickMenuGate.ShouldOpen(_isDragging, _ghostMode.IsActive, _ghostMode.IsCtrlAltHeld()))
+            return;
+
+        // RMB-01: show the exact ContextMenuStrip instance the tray NotifyIcon uses.
+        // Cursor.Position is screen coordinates per Microsoft docs — no PointToScreen needed.
+        _trayIcon.ContextMenuStrip!.Show(System.Windows.Forms.Cursor.Position);
+        e.Handled = true;
     }
 
     private void InitDialDecorations()

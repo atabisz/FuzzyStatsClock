@@ -14,7 +14,8 @@
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
-        PreviewMouseWheel="Window_PreviewMouseWheel">
+        PreviewMouseWheel="Window_PreviewMouseWheel"
+        PreviewMouseRightButtonUp="Window_PreviewMouseRightButtonUp">
 
     <!-- Background="#01000000": alpha=1, RGB=black — near-transparent but hit-testable.
          A fully transparent (alpha=0) background has no hit-test surface, causing mouse
