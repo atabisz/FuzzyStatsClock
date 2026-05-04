@@ -22,7 +22,7 @@ granularity: standard
 
 - [x] **Phase 75: Hardware Discovery Spike + TemperatureService** — Prove sensor coverage on clean Win11 24H2 VM, then land the service singleton gated by the go/no-go decision. _(Plan 01 complete 2026-05-04 → NO-GO; Plan 02 blocked pending scope amendment.)_ (completed 2026-05-04)
 - [x] **Phase 76: AppSettings + TemperatureFormatter Tests** — Persist the five new temp-visibility bools and unit-test the pure formatter. (completed 2026-05-04)
-- [ ] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards.
+- [x] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards. (completed 2026-05-04)
 - [ ] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes.
 - [ ] **Phase 79: Temps Line on Widget** — Compact accent-colored line below uptime, auto-reflowing on sensor availability.
 - [ ] **Phase 80: Release & Compliance** — Pin LHM 0.9.6, ship THIRD-PARTY-NOTICES, CI grep gates, installer DLL capture.
@@ -98,7 +98,7 @@ Plans:
   3. When Ghost Mode is active and Ctrl+Alt is not held, right-click is suppressed (the `WS_EX_TRANSPARENT` click-through path routes the click to whatever is below); holding Ctrl+Alt while proximity-faded restores interactivity and the menu opens normally.
   4. Opening the right-click menu freezes proximity fade: `_proximityRatio` is pinned and the widget holds its current opacity until the menu closes, after which normal fade behavior resumes.
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 77-01-PLAN.md — RightClickMenuGate pure helper + MainWindow PreviewMouseRightButtonUp wiring + Opening/Closed _menuOpen hooks + ProximityChanged guard (wave 1)
@@ -169,7 +169,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 75. Hardware Discovery Spike + TemperatureService | 2/2 | Complete    | 2026-05-04 |
 | 76. AppSettings + TemperatureFormatter Tests | 1/1 | Complete    | 2026-05-04 |
-| 77. Right-Click Menu on Widget | 0/0 | Not started | - |
+| 77. Right-Click Menu on Widget | 1/1 | Complete   | 2026-05-04 |
 | 78. Temps Tab in Settings | 0/0 | Not started | - |
 | 79. Temps Line on Widget | 0/0 | Not started | - |
 | 80. Release & Compliance | 0/0 | Not started | - |
