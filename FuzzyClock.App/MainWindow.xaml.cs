@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private DispatcherTimer _timer = null!;
     private DispatcherTimer _statsTimer = null!;
     private StatsService _statsService = null!;
+    private TemperatureService _temperatureService = null!;
     private double _statsIntervalSeconds = 2.0;  // default matches AppSettings.StatsIntervalSeconds default
     private double _processCountThreshold = 5.0; // default matches AppSettings.ProcessCountThresholdPercent default
     private bool _batteryAlertActive    = false;
@@ -123,6 +124,14 @@ public partial class MainWindow : Window
             // StatsService constructor starts Task.Run(Initialize) immediately; Refresh() is a safe
             // no-op until initialization completes (~6s PDH cold start).
             _statsService = new StatsService();
+            // TemperatureService constructor returns <100ms; init runs on a
+            // background Task and flips IsReady after Computer.Open() (up to 5s,
+            // per spike) or the init timeout fires. Three-tier dispose is wired
+            // into OnClosing (tier 1), App.SessionEnding (tier 2), and
+            // App.AppDomain.ProcessExit (tier 3); the Interlocked guard inside
+            // TemperatureService.Dispose ensures LHM's Computer.Close() runs
+            // exactly once across those three tiers.
+            _temperatureService = new TemperatureService();
             _statsTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(_statsIntervalSeconds)
@@ -1100,9 +1109,15 @@ public partial class MainWindow : Window
     {
         _statsTimer?.Stop();
         _statsService?.Dispose();
+        _temperatureService?.Dispose();   // tier 1 of three-tier dispose (D-15)
         SaveSettings();
         base.OnClosing(e);
     }
+
+    // External entry point for tiers 2 and 3 (SessionEnding + ProcessExit).
+    // The Interlocked guard inside TemperatureService.Dispose makes this safe
+    // to call multiple times from different tiers across the shutdown sequence.
+    internal void DisposeTemperatureService() => _temperatureService?.Dispose();
 
     private void ResetToDefaults()
     {
