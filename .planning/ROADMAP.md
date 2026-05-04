@@ -73,9 +73,9 @@ Phase 77 (RMB menu) remained unblocked throughout.
 
 **Success Criteria** (what must be TRUE):
   1. Loading the app after manually editing `settings.json` to set each of `TempsLineVisible`, `TempCpuVisible`, `TempGpuVisible`, `TempMoboVisible`, `TempNvmeVisible` to explicit values restores those exact values on next launch (JSON round-trip).
-  2. Loading the app against a v4.1-era `settings.json` that contains none of the five new fields results in the documented init defaults (`TempsLineVisible=false`, `TempCpuVisible=true`, `TempGpuVisible=true`, `TempMoboVisible=false`, `TempNvmeVisible=true`) with no exception.
+  2. Loading the app against a v4.1-era `settings.json` that contains none of the five new fields results in the documented init defaults (`TempsLineVisible=false`, `TempCpuVisible=true`, `TempGpuVisible=true`, `TempMoboVisible=false`, `TempNvmeVisible=false`) with no exception. *(Amended 2026-05-04: `TempNvmeVisible` default flipped ON→OFF per Phase 75 spike amendment to TEMP-TAB-03; NVMe unreliable on dev box.)*
   3. `TemperatureFormatter` lives in `FuzzyClock.Core` with zero reference to `LibreHardwareMonitorLib`; unit tests cover all-sensors-present, partial-N/A, all-N/A-returns-empty, single-sensor, 2-space separator, `°` symbol, and integer rounding.
-  4. The full MSTest suite (Core + App) reports 0 failures after the new fields and tests land; the v4.1 baseline (501 tests) is strictly exceeded.
+  4. The full MSTest suite (Core + App) reports 0 failures after the new fields and tests land; the post-Phase-75 baseline (522 tests: 433 Core + 89 App) is strictly exceeded. *(Amended 2026-05-04: original "501" figure was pre-Phase-75; actual baseline is 522 per STATE.md.)*
 
 **Plans:** TBD
 
