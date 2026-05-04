@@ -3,6 +3,20 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: milestone
 status: planning
+last_updated: "2026-05-04T13:30:00.000Z"
+last_activity: 2026-05-04 — Plan 79-01 shipped; TempsText rendering on widget; UpdateTempsDisplay wired into timer tick + 5 handlers + both ApplyX methods; 562 MSTest green (+8)
+progress:
+  total_phases: 6
+  completed_phases: 4
+  total_plans: 8
+  completed_plans: 8
+---
+
+---
+gsd_state_version: 1.0
+milestone: v4.2
+milestone_name: milestone
+status: planning
 last_updated: "2026-05-04T12:00:00.000Z"
 last_activity: 2026-05-04 — Phase 78 complete; Temps tab wired + persistence + N/A detection; 554 MSTest green
 progress:
@@ -58,26 +72,26 @@ progress:
 
 **Last updated:** 2026-05-04
 **Current milestone:** v4.2 Temps & Menu
-**Status:** Ready to plan
+**Status:** Phase 79 in progress (79-01 autonomous plan shipped; 79-02 human-verify pending)
 
 ## Project Reference
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-**Current focus:** Milestone v4.2 — Phases 75 + 76 + 77 + 78 complete (4/6). Next: Phase 79 (widget rendering of TempsText, consumes the persistence surface shipped in Phase 78).
+**Current focus:** Milestone v4.2 — Phases 75/76/77/78 complete (4/6), Phase 79 Plan 01 shipped (autonomous widget render). Next: Plan 79-02 (human-verify checkpoint on live hardware).
 
 ## Current Position
 
-Phase: 78 (Temps Tab in Settings) — COMPLETE
-Plan: 78-02 (`aee40f6` RED / `78ed7e1` GREEN snapshot / `a09c65d` persistence+reset) SHIPPED — 3 commits (Task 1 RED→GREEN + Task 2 wiring; Task 3 human-verify checkpoint 29/29 approved). Phase 78 total = 78-01 (4 commits) + 78-02 (3 commits) = 7 plan-level commits, plus 2 metadata commits (one per plan) = 9 total commits under Phase 78.
-Status: Settings window exposes Temps tab at index 2 (Appearance / Stats / Temps / Behavior). `SettingsSnapshot` +10 fields, `SettingsWindow.xaml` Temps tab with master gate + 4-sensor WrapPanel + muted help text, 5 `Action<bool>?` events + 5 `_Changed` handlers + `ApplyTempCheckboxNaState` private static N/A helper. `MainWindow.GetCurrentSettingsSnapshot` projects all 10 fields from `_settings.Temp*` + `_temperatureService?.*TempC ?? -1f` + `IsReady ?? false`. `OpenSettings` subscribes 5 events (each `_settings with { ... }; SaveSettings();`). `ResetToDefaults` resets all 5 Temp fields + conditionally calls `RefreshControls(GetCurrentSettingsSnapshot())` on any open Settings window. Human-verify 29/29 passed on dev hardware (Mobo/NVMe shown as "(N/A)" + disabled on PawnIO-free dev box; GPU enabled; persistence + reset round-trip confirmed via `%LOCALAPPDATA%\FuzzyClock\settings.json`). 554 MSTest green (445 Core + 109 App = 550 baseline + 4 new across Plans 78-01 + 78-02).
-Last activity: 2026-05-04 — Phase 78 complete; Temps tab wired + persistence + N/A detection; 554 MSTest green
+Phase: 79 (Temps Line on Widget) — Plan 01 COMPLETE
+Plan: 79-01 (`97d424c` RED / `5747390` GREEN XAML / `d3868fc` GREEN code-behind) SHIPPED — 3 atomic plan commits + metadata commit. Task 1 RED+GREEN split (test RED → TextBlock XAML GREEN), Task 2 single GREEN commit covering all 6 code-behind sites (UpdateTempsDisplay method + timer tick + 5 handler appends + 2 ApplyX Foreground lines), Task 3 metadata SUMMARY.md.
+Status: `TempsText` TextBlock is now the 7th and final child of StatsPanel (immediately below `UptimeText`, byte-for-byte clone of UptimeText styling). `private void UpdateTempsDisplay()` reads `_temperatureService?.XTempC ?? -1f` (×4) + `_settings.Temp*Visible` (×4), calls `FuzzyClock.Core.TemperatureFormatter.Format(...)`, sets `TempsText.Text = formatted;` then applies D-05 predicate `(_settings.TempsLineVisible && formatted.Length > 0) ? Visible : Collapsed`. Called from: (1) `_statsTimer.Tick` lambda tail (TEMP-LINE-05 piggyback — no new DispatcherTimer), (2) each of 5 Phase 78 event handlers immediately after `SaveSettings();` (TEMP-TAB-05 SC5 immediate reflow). `TempsText.Foreground = brush;` landed in BOTH `ApplyTheme` (line ~1637) AND `ApplyDisplayColor` (line ~1674) per Phase 33 critical pattern — automatic accent parity with UptimeText + automatic auto-contrast participation via ContrastRefreshController. 562 MSTest green (445 Core + 117 App = 554 baseline + 8 new in TempsLineTests: 6 DataRow truth-table cases encoding the D-05 predicate + 1 FakeTempSource formatter-consumption test asserting `"CPU 52°  GPU 61°  NVMe 38°"` exact + 1 all-suppressed empty-string test). REL-03 preserved (zero changes under FuzzyClock.Core/).
+Last activity: 2026-05-04 — Plan 79-01 shipped; TempsText rendering on widget; 562 MSTest green (+8)
 
 ## Performance Metrics
 
-**Velocity:** 6 plans / 1 day (Phase 75 spike + Phase 75 TemperatureService + Phase 76-01 AppSettings & Formatter + Phase 77-01 RMB menu + Phase 78-01 Temps UI + Phase 78-02 persistence wiring)
-**Test suite:** 554 MSTest runtime tests (445 Core + 109 App = 522 post-Phase-75 baseline + 32 new across Phases 76 + 77 + 78), 0 failures
-**Technical debt:** Low (mature codebase; LHM integration contained to FuzzyClock.App per REL-03; Phase 76 added formatter in Core without breaking that invariant; Phase 77 added pure predicate in App, no Core change; Phase 78 added Settings UI + persistence wiring in App, no Core change)
+**Velocity:** 7 plans / 1 day (Phase 75 spike + Phase 75 TemperatureService + Phase 76-01 AppSettings & Formatter + Phase 77-01 RMB menu + Phase 78-01 Temps UI + Phase 78-02 persistence wiring + Phase 79-01 widget render)
+**Test suite:** 562 MSTest runtime tests (445 Core + 117 App = 522 post-Phase-75 baseline + 40 new across Phases 76 + 77 + 78 + 79), 0 failures
+**Technical debt:** Low (mature codebase; LHM integration contained to FuzzyClock.App per REL-03; Phase 76 added formatter in Core without breaking that invariant; Phase 77 added pure predicate in App, no Core change; Phase 78 added Settings UI + persistence wiring in App, no Core change; Phase 79-01 added widget render in App, no Core change)
 
 ### Performance History
 
@@ -89,6 +103,7 @@ Last activity: 2026-05-04 — Phase 78 complete; Temps tab wired + persistence +
 | 77    | 01   | ~25 min  | 3     | 4     |
 | 78    | 01   | ~7 min   | 3     | 4     |
 | 78    | 02   | ~8 min   | 3     | 2     |
+| 79    | 01   | ~10 min  | 3     | 3     |
 
 ## Accumulated Context
 
@@ -106,6 +121,7 @@ Last activity: 2026-05-04 — Phase 78 complete; Temps tab wired + persistence +
 - **Plan 76-01 (2026-05-04): AppSettings temps-visibility fields + TemperatureFormatter shipped.** Five init-property bools added (TempsLineVisible=false, TempCpuVisible=true, TempGpuVisible=true, TempMoboVisible=false, TempNvmeVisible=false); NVMe default is false in all 5 sites per TEMP-TAB-03 amendment commit b2163d1. Pure static TemperatureFormatter in FuzzyClock.Core with -1f hide-segment guard (value >= 0f), 2-space separator via string.Join, (int)Math.Round banker's rounding, 8 primitive parameters (no wrapper record, no ninth tempsLineVisible param). 544 MSTest green (445 Core + 99 App = 522 baseline + 22 new runtime tests from 18 methods). One Rule 1 auto-fix: doc comment rephrased to avoid literal `LibreHardwareMonitor` string so the Phase 80 CI grep gate stays clean. 4 atomic TDD commits (fb04fda RED → d3822ee GREEN; e5dbb47 RED → 1747fd2 GREEN).
 - **Plan 77-01 (2026-05-04): Right-Click Menu on Widget shipped.** `RightClickMenuGate` pure static predicate in `FuzzyClock.App` (30 lines) with `ShouldOpen(isDragging, isGhostActive, isCtrlAltHeld)` truth table unit-tested via 6 `[DataRow]` cases in `RightClickMenuGateTests.cs` (24 lines). MainWindow wiring across four touchpoints: `PreviewMouseRightButtonUp` XAML attribute on `<Window>`, `_menuOpen` field, `if (_menuOpen) return;` guard inserted in ProximityChanged lambda BEFORE the `Opacity` assignment (keeps `_proximityRatio = ratio;` unconditional for expected resume-snap per Pitfall 5), `ContextMenuStrip.Opening += (_,_) => _menuOpen = true;` + `Closed += (_,_) => _menuOpen = false;` registered in ContentRendered immediately after `_trayIcon` built (using `+=` preserves `TrayMenuBuilder.cs:90 SyncCheckmarks` registration — handlers fire in registration order), and `Window_PreviewMouseRightButtonUp` handler routing to `_trayIcon.ContextMenuStrip!.Show(System.Windows.Forms.Cursor.Position)`. **TrayMenuBuilder.cs ZERO diff** (single-source-of-truth invariant preserved — widget-invoked menu is byte-for-byte identical to tray invocation). 550 MSTest green (445 Core + 105 App = 522 baseline + 28 net). 3 commits (2270c3c RED → 3bf59cf GREEN → f14a566 wiring). User walked 7 manual smoke-test checklists covering all 4 clock modes (Phrase/Dial/LCD/Nixie) + stats panel + transparent padding + checkmark parity + drag-suppress + ghost-suppress + Ctrl+Alt override + opacity freeze + rapid-click idempotence + regression sweep — all passed. Zero deviations.
 - **Plan 78-01 (2026-05-04): Temps tab UI (wiring-free) shipped.** `SettingsSnapshot` extended with 10 init-property fields (5 AppSettings bool projections + 4 sensor floats + `TempsServiceReady`). `SettingsWindow.xaml` Temps TabItem inserted at index 2 (between Stats and Behavior — tab order now Appearance=54 / Stats=285 / Temps=384 / Behavior=420). Tab body: `ChkTempsVisible` master checkbox + 2×2 WrapPanel (`Width=270`, child `Width=86`) of 4 sensor checkboxes (`ChkTempCpuVisible` / `ChkTempGpuVisible` / `ChkTempMoboVisible` / `ChkTempNvmeVisible` inside `TempSensorsPanel`) + muted `#FF999999 / FontSize=11 / Wrap` help text as sibling of TempSensorsPanel. `SettingsWindow.xaml.cs` +5 `event Action<bool>?` hooks + 5 `_Changed` handlers + `ApplyTempCheckboxNaState` private static helper encoding the D-01/D-02/D-07 three-state N/A decision tree (pre-IsReady optimistic / post-IsReady + `tempC < 0f` disabled+" (N/A)" / post-IsReady + real value enabled plain). `RefreshControls` + `PopulateControls` both extended to set IsChecked from snapshot, run 4× `ApplyTempCheckboxNaState`, then set `TempSensorsPanel.IsEnabled = s.TempsLineVisible`. 4 commits (789bcf2 RED → 989b1d2 GREEN snapshot → 73493b2 XAML → d220ba8 events+handlers). 552 MSTest green (550 baseline + 2 new SettingsSnapshot tests). **Zero deviations.**
+- **Plan 79-01 (2026-05-04): Temps line widget render shipped.** `TempsText` TextBlock added as 7th and final child of `StatsPanel` in `MainWindow.xaml` (byte-for-byte UptimeText-clone styling per D-15; only `x:Name` + initial `Text=""` differ). New `private void UpdateTempsDisplay()` method in `MainWindow.xaml.cs` reads `_temperatureService?.XTempC ?? -1f` (×4) + 4 visibility bools + master, calls `FuzzyClock.Core.TemperatureFormatter.Format(...)`, applies Text-before-Visibility ordering with D-05 predicate `(_settings.TempsLineVisible && formatted.Length > 0)`. Wired into 6 call sites: (1) `_statsTimer.Tick` lambda tail — TEMP-LINE-05 piggyback (no new DispatcherTimer); (2)–(6) each of the 5 Phase 78 event handlers appended with `UpdateTempsDisplay();` after `SaveSettings();` for TEMP-TAB-05 SC5 immediate reflow. `TempsText.Foreground = brush;` landed in BOTH `ApplyTheme` (line ~1638) AND `ApplyDisplayColor` (line ~1675) per the Phase 33 critical pattern — auto-contrast participation free via `ContrastRefreshController.ColorChanged → ApplyDisplayColor`. 8 new tests in `FuzzyClock.App.Tests/TempsLineTests.cs`: 6 `[DataRow]` truth-table cases (pure static helper encodes D-05 predicate exactly) + `Format_WithFakeTempSource_ProducesExpectedLine` asserting `"CPU 52°  GPU 61°  NVMe 38°"` (Mobo omitted via -1f sentinel — TEMP-LINE-04 hide-segment path) + `Format_AllSuppressed_ReturnsEmptyString` (empty-string → Collapsed feeder path). 3 atomic plan commits (97d424c test RED → 5747390 feat XAML GREEN → d3868fc feat code-behind GREEN). 562 MSTest green (554 baseline + 8 new). REL-03 preserved (0 LHM refs in Core). **Zero deviations.** Human-verify lands in Plan 79-02.
 - **Plan 78-02 (2026-05-04): MainWindow persistence wiring + human-verify shipped.** `GetCurrentSettingsSnapshot` +10 projections (5 `_settings.Temp*Visible` + 4 `_temperatureService?.XTempC ?? -1f` + `_temperatureService?.IsReady ?? false`). `OpenSettings` +5 event subscriptions (between `BatteryAlertThresholdChanged` and `Closed`), each lambda mutates `_settings = _settings with { TempXVisible = v }; SaveSettings();`. `ResetToDefaults` +5 Temp-field defaults (`TempsLineVisible=false, TempCpuVisible=true, TempGpuVisible=true, TempMoboVisible=false, TempNvmeVisible=false`) + conditional `if (_settingsWindow is { IsVisible: true }) _settingsWindow.RefreshControls(GetCurrentSettingsSnapshot());` nudge (mirrors OpenSettings:415 convention). 2 new `GetCurrentSettingsSnapshotContract_*` tests in `AppSettingsTests.cs` — contract-shape style since WPF STA prevents invoking MainWindow from MSTest. 3 commits (aee40f6 RED → 78ed7e1 GREEN snapshot extension → a09c65d persistence+reset). 554 MSTest green (552 baseline + 2 new). **Zero deviations.** Human-verify checkpoint: user walked 29-item / 7-category checklist on dev hardware — Mobo (N/A) + NVMe (N/A) disabled per PawnIO-free spike baseline; GPU enabled + readable (NVIDIA A2000); persistence confirmed via settings.json inspection (`"TempsLineVisible":true`, `"TempCpuVisible":false`); reset-to-defaults refreshes live Settings window via the `{ IsVisible: true }` pattern-match. User signed off `approved`. Post-checkpoint, user surfaced "temps line not visible on widget" — confirmed Phase 79 scope per CONTEXT D-12 (Phase 78 persists only; widget render lands in Phase 79) — user accepted.
 
 ### Open Questions
@@ -125,12 +141,13 @@ Last activity: 2026-05-04 — Phase 78 complete; Temps tab wired + persistence +
 - [x] Plan 77-01 (RMB menu) — SHIPPED 2026-05-04; RightClickMenuGate + MainWindow wiring + 6 new DataRow cases; TrayMenuBuilder.cs zero-diff invariant preserved
 - [x] Plan 78-01 (Temps tab UI) — SHIPPED 2026-05-04; SettingsSnapshot +10 fields, SettingsWindow Temps TabItem + events + N/A helper; 552 MSTest green
 - [x] Plan 78-02 (MainWindow persistence wiring + human-verify) — SHIPPED 2026-05-04; GetCurrentSettingsSnapshot + OpenSettings + ResetToDefaults extensions; 29/29 human-verify approved; 554 MSTest green
-- [ ] Plan 79 (widget rendering) — invokes TemperatureFormatter.Format per tick, consumes ITempSource + AppSettings; subscribes to the 5 SettingsWindow events from Phase 78 or reads `_settings.Temp*` directly on each tick
+- [x] Plan 79-01 (widget render) — SHIPPED 2026-05-04; TempsText TextBlock + UpdateTempsDisplay + 6 call sites + both ApplyX Foreground lines; 562 MSTest green (+8)
+- [ ] Plan 79-02 (human-verify checkpoint) — pending; dev-box expectation `GPU 51°` single-segment line per D-19
 - [ ] Plan 80 [Files] must ship RID-specific LHM DLLs under `runtimes/win-x64/lib/net10.0/` + native pair
 
 ### Known Blockers
 
-None — Phases 75, 76, 77, 78 all complete. Phase 79 unblocked.
+None — Phases 75, 76, 77, 78 all complete; Phase 79 Plan 01 shipped (widget render); Plan 79-02 (human-verify) unblocked and next.
 
 ## Session Continuity
 

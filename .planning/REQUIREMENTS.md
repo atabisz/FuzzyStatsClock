@@ -92,12 +92,12 @@ Every v4.2 REQ-ID maps to exactly one phase. 29/29 coverage (no orphans, no dupl
 | TEMP-TAB-03 | Phase 78 | Complete (2026-05-04) |
 | TEMP-TAB-04 | Phase 78 | Complete (2026-05-04) |
 | TEMP-TAB-05 | Phase 78 | Complete (2026-05-04) |
-| TEMP-LINE-01 | Phase 79 | Pending |
-| TEMP-LINE-02 | Phase 79 | Pending |
-| TEMP-LINE-03 | Phase 79 | Pending |
-| TEMP-LINE-04 | Phase 79 | Pending |
-| TEMP-LINE-05 | Phase 79 | Pending |
-| TEMP-LINE-06 | Phase 79 | Pending |
+| TEMP-LINE-01 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
+| TEMP-LINE-02 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
+| TEMP-LINE-03 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
+| TEMP-LINE-04 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
+| TEMP-LINE-05 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
+| TEMP-LINE-06 | Phase 79 | In Progress (79-01 shipped 2026-05-04; human-verify in 79-02) |
 | TEMP-SVC-01 | Phase 75 | Complete (NO-GO, 2026-05-04) |
 | TEMP-SVC-02 | Phase 75 | Complete |
 | TEMP-SVC-03 | Phase 75 | Complete |
