@@ -20,7 +20,7 @@ granularity: standard
 
 ## Phases
 
-- [ ] **Phase 75: Hardware Discovery Spike + TemperatureService** — Prove sensor coverage on clean Win11 24H2 VM, then land the service singleton gated by the go/no-go decision. _(Plan 01 complete 2026-05-04 → NO-GO; Plan 02 blocked pending scope amendment.)_
+- [x] **Phase 75: Hardware Discovery Spike + TemperatureService** — Prove sensor coverage on clean Win11 24H2 VM, then land the service singleton gated by the go/no-go decision. _(Plan 01 complete 2026-05-04 → NO-GO; Plan 02 blocked pending scope amendment.)_ (completed 2026-05-04)
 - [ ] **Phase 76: AppSettings + TemperatureFormatter Tests** — Persist the five new temp-visibility bools and unit-test the pure formatter.
 - [ ] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards.
 - [ ] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes.
@@ -46,7 +46,7 @@ granularity: standard
   4. On normal quit, log-off, and forced process kill, the LHM `Computer` handle is released exactly once (`Window.Closing` + `SessionEnding` + `AppDomain.ProcessExit` with an `Interlocked` single-entry guard); no driver handle leak survives the process.
   5. `ITempSource` + `FakeTempSource` exist so `TemperatureService` contract tests run on any machine without touching hardware.
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 75-01-PLAN.md — Hardware discovery spike + go/no-go report + D-05 threading decision (wave 1) — **DONE 2026-05-04 → NO-GO**; see [`.planning/spikes/75-hardware-discovery.md`](./spikes/75-hardware-discovery.md)
@@ -161,7 +161,7 @@ Phase 77 (RMB menu) remained unblocked throughout.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 75. Hardware Discovery Spike + TemperatureService | 1/2 | In progress — scope amended 2026-05-04; Plan 02 unblocked | - |
+| 75. Hardware Discovery Spike + TemperatureService | 2/2 | Complete   | 2026-05-04 |
 | 76. AppSettings + TemperatureFormatter Tests | 0/0 | Not started | - |
 | 77. Right-Click Menu on Widget | 0/0 | Not started | - |
 | 78. Temps Tab in Settings | 0/0 | Not started | - |

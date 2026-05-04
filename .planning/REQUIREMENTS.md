@@ -99,10 +99,10 @@ Every v4.2 REQ-ID maps to exactly one phase. 29/29 coverage (no orphans, no dupl
 | TEMP-LINE-05 | Phase 79 | Pending |
 | TEMP-LINE-06 | Phase 79 | Pending |
 | TEMP-SVC-01 | Phase 75 | Complete (NO-GO, 2026-05-04) |
-| TEMP-SVC-02 | Phase 75 | Pending |
-| TEMP-SVC-03 | Phase 75 | Pending |
-| TEMP-SVC-04 | Phase 75 | Pending |
-| TEMP-SVC-05 | Phase 75 | Pending |
+| TEMP-SVC-02 | Phase 75 | Complete |
+| TEMP-SVC-03 | Phase 75 | Complete |
+| TEMP-SVC-04 | Phase 75 | Complete |
+| TEMP-SVC-05 | Phase 75 | Complete |
 | TEST-01 | Phase 76 | Pending |
 | TEST-02 | Phase 76 | Pending |
 | TEST-03 | Phase 76 | Pending |
