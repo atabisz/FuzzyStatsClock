@@ -19,6 +19,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: REL-03 guard — LibreHardwareMonitor absent from FuzzyClock.Core/
+        shell: bash
+        run: |
+          if grep -rn --include='*.cs' --include='*.csproj' 'LibreHardwareMonitor' FuzzyClock.Core/; then
+            echo "::error::REL-03 violation: 'LibreHardwareMonitor' found in FuzzyClock.Core/"
+            exit 1
+          fi
+
       - name: Extract version from tag
         id: version
         shell: bash
@@ -50,6 +58,15 @@ jobs:
           -p:AssemblyVersion=${{ steps.version.outputs.version }}.0
           -p:FileVersion=${{ steps.version.outputs.version }}.0
           -o publish/
+
+      - name: REL-02 guard — no WinRing0 driver in publish output
+        shell: bash
+        run: |
+          if find publish/ -name 'WinRing0*.sys' -print -quit | grep -q .; then
+            echo "::error::REL-02 violation: WinRing0*.sys leaked into publish/"
+            find publish/ -name 'WinRing0*.sys'
+            exit 1
+          fi
 
       - name: Compile installer
         shell: cmd
