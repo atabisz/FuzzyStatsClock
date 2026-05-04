@@ -144,7 +144,11 @@ Plans:
   5. Temperature reads piggyback on the existing stats timer tick with a 2-second effective minimum for LHM reads (single-entry lock on `Update()` prevents overlapping calls during the 0.5s hover fast-refresh); no new `DispatcherTimer` is introduced.
   6. `TempsText` inherits the accent color like `UptimeText` and participates in auto-contrast sampling identically to the rest of the widget text.
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 79-01-PLAN.md -- TempsText TextBlock + UpdateTempsDisplay + timer/handler wiring + ApplyTheme/ApplyDisplayColor extension + TempsLineTests (wave 1)
+- [ ] 79-02-PLAN.md -- Human-verify checklist (22 items / 7 categories) on live dev hardware (wave 2)
 
 ---
 
@@ -175,7 +179,7 @@ Plans:
 | 76. AppSettings + TemperatureFormatter Tests | 1/1 | Complete    | 2026-05-04 |
 | 77. Right-Click Menu on Widget | 1/1 | Complete    | 2026-05-04 |
 | 78. Temps Tab in Settings | 2/2 | Complete    | 2026-05-04 |
-| 79. Temps Line on Widget | 0/0 | Not started | - |
+| 79. Temps Line on Widget | 0/2 | Planned     | - |
 | 80. Release & Compliance | 0/0 | Not started | - |
 
 ---
@@ -195,3 +199,4 @@ Phase 77 (RMB) runs independently of the temps chain. Phase 80 integrates everyt
 ---
 
 *Roadmap drafted: 2026-05-04 — derived from v4.2 requirements + research recommendations*
+
