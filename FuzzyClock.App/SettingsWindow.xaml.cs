@@ -54,6 +54,13 @@ public sealed partial class SettingsWindow : Window
     public event Action<string>? PhraseWrapStyleChanged;
     public event Action<int>?    GhostFadeRadiusPxChanged;
 
+    // v4.2 Phase 78 — Temps tab events (5 bool toggles)
+    public event Action<bool>?   TempsLineVisibleChanged;
+    public event Action<bool>?   TempCpuVisibleChanged;
+    public event Action<bool>?   TempGpuVisibleChanged;
+    public event Action<bool>?   TempMoboVisibleChanged;
+    public event Action<bool>?   TempNvmeVisibleChanged;
+
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
     {
@@ -235,6 +242,51 @@ public sealed partial class SettingsWindow : Window
             ac == Color.FromArgb(0xFF, 0x00, 0xC0, 0x00) ? RingGreen  :
             ac == Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4) ? RingPink   : null;
         SetActiveSwatch(ring);
+
+        // ── v4.2 Phase 78 — Temps tab controls + N/A evaluation ──
+        // Order: IsChecked FIRST (stored value is authoritative per D-06),
+        // then IsEnabled/Content per N/A rules (D-01/D-02/D-07),
+        // then TempSensorsPanel.IsEnabled cascade (D-04).
+        ChkTempsVisible.IsChecked    = s.TempsLineVisible;
+        ChkTempCpuVisible.IsChecked  = s.TempCpuVisible;
+        ChkTempGpuVisible.IsChecked  = s.TempGpuVisible;
+        ChkTempMoboVisible.IsChecked = s.TempMoboVisible;
+        ChkTempNvmeVisible.IsChecked = s.TempNvmeVisible;
+
+        // N/A detection per UI-SPEC State Matrix.
+        // D-02: pre-IsReady (cold start up to 5s) — treat all as available (no suffix, enabled).
+        // Post-IsReady: -1f sentinel → disabled + " (N/A)" suffix; ≥0f → enabled + plain label.
+        ApplyTempCheckboxNaState(ChkTempCpuVisible,  "CPU",  s.CpuTempC,  s.TempsServiceReady);
+        ApplyTempCheckboxNaState(ChkTempGpuVisible,  "GPU",  s.GpuTempC,  s.TempsServiceReady);
+        ApplyTempCheckboxNaState(ChkTempMoboVisible, "Mobo", s.MoboTempC, s.TempsServiceReady);
+        ApplyTempCheckboxNaState(ChkTempNvmeVisible, "NVMe", s.NvmeTempC, s.TempsServiceReady);
+
+        // D-04 master-gates-sub-panel (mirrors ChkGhostMode → GhostFadeRadiusPanel precedent).
+        TempSensorsPanel.IsEnabled = s.TempsLineVisible;
+    }
+
+    // v4.2 Phase 78 — N/A evaluation per UI-SPEC state matrix row 3/4/5.
+    // Pre-IsReady: optimistic — enabled, plain label (D-02).
+    // Post-IsReady + sentinel: disabled + " (N/A)" suffix (D-01/D-07).
+    // Post-IsReady + real value: enabled, plain label.
+    private static void ApplyTempCheckboxNaState(System.Windows.Controls.CheckBox checkbox, string label, float tempC, bool isReady)
+    {
+        if (!isReady)
+        {
+            checkbox.IsEnabled = true;
+            checkbox.Content   = label;
+            return;
+        }
+        if (tempC < 0f)
+        {
+            checkbox.IsEnabled = false;
+            checkbox.Content   = label + " (N/A)";
+        }
+        else
+        {
+            checkbox.IsEnabled = true;
+            checkbox.Content   = label;
+        }
     }
 
     // ── Toggle button state helpers ───────────────────────────────────────
@@ -616,6 +668,39 @@ public sealed partial class SettingsWindow : Window
         var val = (int)GhostFadeRadiusSlider.Value;
         GhostFadeRadiusLabel.Text = $"{val} px";
         GhostFadeRadiusPxChanged?.Invoke(val);
+    }
+
+    // ── v4.2 Phase 78 — Temps tab handlers ──
+    private void ChkTempsVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        bool enabled = ChkTempsVisible.IsChecked == true;
+        TempSensorsPanel.IsEnabled = enabled;   // D-04 master gates sub-panel (mirrors ChkGhostMode_Changed)
+        TempsLineVisibleChanged?.Invoke(enabled);
+    }
+
+    private void ChkTempCpuVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        TempCpuVisibleChanged?.Invoke(ChkTempCpuVisible.IsChecked == true);
+    }
+
+    private void ChkTempGpuVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        TempGpuVisibleChanged?.Invoke(ChkTempGpuVisible.IsChecked == true);
+    }
+
+    private void ChkTempMoboVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        TempMoboVisibleChanged?.Invoke(ChkTempMoboVisible.IsChecked == true);
+    }
+
+    private void ChkTempNvmeVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        TempNvmeVisibleChanged?.Invoke(ChkTempNvmeVisible.IsChecked == true);
     }
 
     // ── Win32Window adapter for WinForms dialogs ──────────────────────────
