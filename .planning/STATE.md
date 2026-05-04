@@ -2,6 +2,20 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: milestone
+status: complete
+last_updated: "2026-05-04T15:30:00.000Z"
+last_activity: 2026-05-04 — Phase 80 complete; NOTICES + CI gates + installer line + tripwire validated; milestone v4.2 is 6/6 complete
+progress:
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 10
+  completed_plans: 10
+---
+
+---
+gsd_state_version: 1.0
+milestone: v4.2
+milestone_name: milestone
 status: planning
 last_updated: "2026-05-04T14:15:00.000Z"
 last_activity: 2026-05-04 — Phase 79 complete; temps line rendered on widget; 562 MSTest green

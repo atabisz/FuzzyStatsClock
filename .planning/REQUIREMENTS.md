@@ -107,11 +107,11 @@ Every v4.2 REQ-ID maps to exactly one phase. 29/29 coverage (no orphans, no dupl
 | TEST-02 | Phase 76 | Complete (2026-05-04) |
 | TEST-03 | Phase 76 | Complete (2026-05-04) |
 | TEST-04 | Phase 76 | Complete (2026-05-04) |
-| REL-01 | Phase 80 | Pending |
-| REL-02 | Phase 80 | Pending |
-| REL-03 | Phase 80 | Pending |
-| REL-04 | Phase 80 | Pending |
-| REL-05 | Phase 80 | Pending |
+| REL-01 | Phase 80 | Complete (2026-05-04) |
+| REL-02 | Phase 80 | Complete (2026-05-04) |
+| REL-03 | Phase 80 | Complete (2026-05-04) |
+| REL-04 | Phase 80 | Complete (2026-05-04) |
+| REL-05 | Phase 80 | Complete (2026-05-04) |
 
 ### Phase → Requirements Summary
 

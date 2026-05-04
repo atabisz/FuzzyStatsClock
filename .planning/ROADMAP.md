@@ -25,7 +25,7 @@ granularity: standard
 - [x] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards. (completed 2026-05-04)
 - [x] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes. (completed 2026-05-04)
 - [x] **Phase 79: Temps Line on Widget** — Compact accent-colored line below uptime, auto-reflowing on sensor availability. (completed 2026-05-04)
-- [ ] **Phase 80: Release & Compliance** — Pin LHM 0.9.6, ship THIRD-PARTY-NOTICES, CI grep gates, installer DLL capture.
+- [x] **Phase 80: Release & Compliance** — Pin LHM 0.9.6, ship THIRD-PARTY-NOTICES, CI grep gates, installer DLL capture. (completed 2026-05-04)
 
 ---
 
@@ -184,7 +184,7 @@ Plans:
 | 77. Right-Click Menu on Widget | 1/1 | Complete    | 2026-05-04 |
 | 78. Temps Tab in Settings | 2/2 | Complete    | 2026-05-04 |
 | 79. Temps Line on Widget | 2/2 | Complete    | 2026-05-04 |
-| 80. Release & Compliance | 0/2 | Planned     | - |
+| 80. Release & Compliance | 2/2 | Complete    | 2026-05-04 |
 
 ---
 
