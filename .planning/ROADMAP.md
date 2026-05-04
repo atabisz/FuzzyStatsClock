@@ -20,7 +20,7 @@ granularity: standard
 
 ## Phases
 
-- [ ] **Phase 75: Hardware Discovery Spike + TemperatureService** — Prove sensor coverage on clean Win11 24H2 VM, then land the service singleton gated by the go/no-go decision.
+- [ ] **Phase 75: Hardware Discovery Spike + TemperatureService** — Prove sensor coverage on clean Win11 24H2 VM, then land the service singleton gated by the go/no-go decision. _(Plan 01 complete 2026-05-04 → NO-GO; Plan 02 blocked pending scope amendment.)_
 - [ ] **Phase 76: AppSettings + TemperatureFormatter Tests** — Persist the five new temp-visibility bools and unit-test the pure formatter.
 - [ ] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards.
 - [ ] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes.
@@ -49,8 +49,16 @@ granularity: standard
 **Plans:** 2 plans
 
 Plans:
-- [ ] 75-01-PLAN.md — Hardware discovery spike + go/no-go report + D-05 threading decision (wave 1)
-- [ ] 75-02-PLAN.md — TemperatureService + ITempSource + FakeTempSource + 21 tests + three-tier dispose wiring (wave 2)
+- [x] 75-01-PLAN.md — Hardware discovery spike + go/no-go report + D-05 threading decision (wave 1) — **DONE 2026-05-04 → NO-GO**; see [`.planning/spikes/75-hardware-discovery.md`](./spikes/75-hardware-discovery.md)
+- [ ] 75-02-PLAN.md — TemperatureService + ITempSource + FakeTempSource + 21 tests + three-tier dispose wiring (wave 2) — **BLOCKED** pending scope amendment (see NO-GO notes below)
+
+**NO-GO status (2026-05-04):** the spike found GPU readable but NVMe not enumerated on the dev box. Before Plan 75-02 can proceed, the following amendments must land:
+
+1. **ROADMAP.md Phase 75 SC1** — amend from "GPU + NVMe both readable" to "GPU readable; NVMe best-effort with documented N/A fallback" (see Spike Section 6 rationale).
+2. **REQUIREMENTS.md TEMP-TAB-03** — drop NVMe from default-visible; add Settings help-text disclaimer about PawnIO/admin-elevation requirement.
+3. **REQUIREMENTS.md TEMP-LINE-04** — make explicit the requirement to hide the NVMe segment when `NvmeTempC == -1f`.
+
+Until these commit, Plan 75-02 must not auto-advance. Phase 77 (RMB menu) remains unblocked.
 
 ---
 
@@ -152,7 +160,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 75. Hardware Discovery Spike + TemperatureService | 0/2 | Not started | - |
+| 75. Hardware Discovery Spike + TemperatureService | 1/2 | In progress — Plan 02 blocked pending scope amendment (NO-GO) | - |
 | 76. AppSettings + TemperatureFormatter Tests | 0/0 | Not started | - |
 | 77. Right-Click Menu on Widget | 0/0 | Not started | - |
 | 78. Temps Tab in Settings | 0/0 | Not started | - |
