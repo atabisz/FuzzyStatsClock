@@ -22,7 +22,7 @@ granularity: standard
 
 - [x] **Phase 75: Hardware Discovery Spike + TemperatureService** — Prove sensor coverage on clean Win11 24H2 VM, then land the service singleton gated by the go/no-go decision. _(Plan 01 complete 2026-05-04 → NO-GO; Plan 02 blocked pending scope amendment.)_ (completed 2026-05-04)
 - [x] **Phase 76: AppSettings + TemperatureFormatter Tests** — Persist the five new temp-visibility bools and unit-test the pure formatter. (completed 2026-05-04)
-- [x] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards. (completed 2026-05-04)
+- [x] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards. (completed 2026-05-04)
 - [x] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes. (completed 2026-05-04)
 - [x] **Phase 79: Temps Line on Widget** — Compact accent-colored line below uptime, auto-reflowing on sensor availability. (completed 2026-05-04)
 - [ ] **Phase 80: Release & Compliance** — Pin LHM 0.9.6, ship THIRD-PARTY-NOTICES, CI grep gates, installer DLL capture.
@@ -167,7 +167,11 @@ Plans:
   4. `THIRD-PARTY-NOTICES.md` exists at repo root, ships inside the installer, and contains verbatim MPL-2.0 text plus attribution for `LibreHardwareMonitorLib` and any transitive dependencies requiring notice.
   5. Running `FuzzyClockSetup-4.2.*.exe` on a clean Win11 VM installs to `%LOCALAPPDATA%\Programs\FuzzyClock\` with no UAC prompt; the installed folder contains the LHM DLL and all transitive DLLs introduced by the new reference; the installed build launches and renders the temps line on supported hardware.
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 80-01-PLAN.md — THIRD-PARTY-NOTICES.md + release.yml REL-02/REL-03 gates + iss [Files] line + REL-01 verification + tripwire validation (wave 1)
+- [ ] 80-02-PLAN.md — Human-verify 8-item D-16 checklist on dev box + phase 80 close-out state rollup (wave 2)
 
 ---
 
@@ -180,7 +184,7 @@ Plans:
 | 77. Right-Click Menu on Widget | 1/1 | Complete    | 2026-05-04 |
 | 78. Temps Tab in Settings | 2/2 | Complete    | 2026-05-04 |
 | 79. Temps Line on Widget | 2/2 | Complete    | 2026-05-04 |
-| 80. Release & Compliance | 0/0 | Not started | - |
+| 80. Release & Compliance | 0/2 | Planned     | - |
 
 ---
 
@@ -199,4 +203,3 @@ Phase 77 (RMB) runs independently of the temps chain. Phase 80 integrates everyt
 ---
 
 *Roadmap drafted: 2026-05-04 — derived from v4.2 requirements + research recommendations*
-
