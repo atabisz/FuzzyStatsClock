@@ -19,3 +19,6 @@ TestResults/
 # Claude tooling (GSD workflow, agents, commands)
 .claude/
 .superpowers/
+
+# Scratch / throwaway experiments (spike enumerators, one-shot probes)
+scratch/
