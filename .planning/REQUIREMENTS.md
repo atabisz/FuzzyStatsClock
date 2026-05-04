@@ -79,8 +79,53 @@
 
 ## Traceability
 
-(Filled by roadmapper — each REQ-ID maps to exactly one phase.)
+Every v4.2 REQ-ID maps to exactly one phase. 29/29 coverage (no orphans, no duplicates).
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| RMB-01 | Phase 77 | Pending |
+| RMB-02 | Phase 77 | Pending |
+| RMB-03 | Phase 77 | Pending |
+| RMB-04 | Phase 77 | Pending |
+| TEMP-TAB-01 | Phase 78 | Pending |
+| TEMP-TAB-02 | Phase 78 | Pending |
+| TEMP-TAB-03 | Phase 78 | Pending |
+| TEMP-TAB-04 | Phase 78 | Pending |
+| TEMP-TAB-05 | Phase 78 | Pending |
+| TEMP-LINE-01 | Phase 79 | Pending |
+| TEMP-LINE-02 | Phase 79 | Pending |
+| TEMP-LINE-03 | Phase 79 | Pending |
+| TEMP-LINE-04 | Phase 79 | Pending |
+| TEMP-LINE-05 | Phase 79 | Pending |
+| TEMP-LINE-06 | Phase 79 | Pending |
+| TEMP-SVC-01 | Phase 75 | Pending |
+| TEMP-SVC-02 | Phase 75 | Pending |
+| TEMP-SVC-03 | Phase 75 | Pending |
+| TEMP-SVC-04 | Phase 75 | Pending |
+| TEMP-SVC-05 | Phase 75 | Pending |
+| TEST-01 | Phase 76 | Pending |
+| TEST-02 | Phase 76 | Pending |
+| TEST-03 | Phase 76 | Pending |
+| TEST-04 | Phase 76 | Pending |
+| REL-01 | Phase 80 | Pending |
+| REL-02 | Phase 80 | Pending |
+| REL-03 | Phase 80 | Pending |
+| REL-04 | Phase 80 | Pending |
+| REL-05 | Phase 80 | Pending |
+
+### Phase → Requirements Summary
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 75 — Hardware Discovery Spike + TemperatureService | TEMP-SVC-01..05 | 5 |
+| 76 — AppSettings + TemperatureFormatter Tests | TEST-01..04 | 4 |
+| 77 — Right-Click Menu on Widget | RMB-01..04 | 4 |
+| 78 — Temps Tab in Settings | TEMP-TAB-01..05 | 5 |
+| 79 — Temps Line on Widget | TEMP-LINE-01..06 | 6 |
+| 80 — Release & Compliance | REL-01..05 | 5 |
+| **Total** | | **29** |
 
 ---
 
 *Requirements defined: 2026-05-04*
+*Traceability filled: 2026-05-04 (roadmapper)*
