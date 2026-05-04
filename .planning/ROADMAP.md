@@ -98,7 +98,10 @@ Plans:
   3. When Ghost Mode is active and Ctrl+Alt is not held, right-click is suppressed (the `WS_EX_TRANSPARENT` click-through path routes the click to whatever is below); holding Ctrl+Alt while proximity-faded restores interactivity and the menu opens normally.
   4. Opening the right-click menu freezes proximity fade: `_proximityRatio` is pinned and the widget holds its current opacity until the menu closes, after which normal fade behavior resumes.
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 77-01-PLAN.md — RightClickMenuGate pure helper + MainWindow PreviewMouseRightButtonUp wiring + Opening/Closed _menuOpen hooks + ProximityChanged guard (wave 1)
 
 ---
 
