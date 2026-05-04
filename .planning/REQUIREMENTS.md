@@ -21,7 +21,7 @@
 
 - [ ] **TEMP-TAB-01:** A new "Temps" tab appears in the Settings window between the Stats and Behavior tabs (order: Appearance / Stats / Temps / Behavior).
 - [ ] **TEMP-TAB-02:** The Temps tab exposes a master "Show Temps Line" toggle; default OFF on fresh install and on upgrade from v4.1.
-- [ ] **TEMP-TAB-03:** The Temps tab exposes four per-sensor checkboxes — CPU, GPU, Mobo, NVMe — with defaults CPU=ON, GPU=ON, Mobo=OFF, NVMe=ON.
+- [ ] **TEMP-TAB-03:** The Temps tab exposes four per-sensor checkboxes — CPU, GPU, Mobo, NVMe — with defaults CPU=ON, GPU=ON, Mobo=OFF, **NVMe=OFF** (amended 2026-05-04 after spike found NVMe not enumerated on baseline hardware). Help text near the sensor group reads: _"CPU and NVMe readings may require elevated access or a helper driver (e.g. PawnIO) on some hardware; disabled checkboxes indicate the sensor is unavailable on this machine."_
 - [ ] **TEMP-TAB-04:** When a sensor is unavailable on the current hardware, its checkbox is disabled and its label is suffixed with " (N/A)"; no UAC prompt is issued at any time.
 - [ ] **TEMP-TAB-05:** All Temps tab settings persist to `settings.json` and restore on launch; `ResetToDefaults()` resets all five new values.
 
@@ -30,7 +30,7 @@
 - [ ] **TEMP-LINE-01:** A new `TempsText` line renders inside `StatsPanel` directly below `UptimeText` when the master toggle is ON; auto-hides with the Stats panel (inherits `StatsVisible`).
 - [ ] **TEMP-LINE-02:** Format is a compact inline line with 2-space separator, integer Celsius, and `°` symbol only — e.g. `CPU 52°  GPU 61°  NVMe 38°`. No C/F suffix, no unit toggle.
 - [ ] **TEMP-LINE-03:** Friendly sensor labels only (`CPU`, `GPU`, `Mobo`, `NVMe`); raw LHM names (`Tctl/Tdie`, `Core #0`, etc.) are never displayed.
-- [ ] **TEMP-LINE-04:** Sensors that are checked but return no valid reading are silently omitted from the line (hot-swap tolerance — e.g. removable NVMe disconnected mid-session causes a reflow, not a crash).
+- [ ] **TEMP-LINE-04:** Sensors that are checked but return no valid reading — specifically any sensor whose `TemperatureService` property equals the `-1f` N/A sentinel — are silently omitted from the line (hot-swap tolerance — e.g. removable NVMe disconnected mid-session, NVMe not enumerated on OEM hardware, or PawnIO-gated CPU sensor on an unelevated session all cause a segment drop + line reflow, not a crash). The formatter MUST treat `-1f` as "hide this segment" in every rendering path.
 - [ ] **TEMP-LINE-05:** Temperature refresh piggybacks on the existing stats timer tick; minimum 2-second effective refresh for LHM reads (single-entry lock prevents overlapping `Update()` calls during hover fast-refresh).
 - [ ] **TEMP-LINE-06:** The line inherits accent color like `UptimeText`; participates in auto-contrast sampling identically to existing widget text.
 
@@ -38,7 +38,7 @@
 
 - [x] **TEMP-SVC-01:** A Phase 1 hardware-discovery spike produces a written report documenting sensor availability on a clean Win11 24H2 VM with no admin elevation and no PawnIO installed; the report records a go/no-go decision and, if no-go, a documented scope reduction. _(Satisfied 2026-05-04 → NO-GO; see [.planning/spikes/75-hardware-discovery.md](./spikes/75-hardware-discovery.md). Scope reduction amendments are owner-assigned; see STATE.md Active TODOs.)_
 - [ ] **TEMP-SVC-02:** `TemperatureService` is a singleton class in `FuzzyClock.App` (not `FuzzyClock.Core`); exposes `IsReady` gate and `float?` properties for CPU / GPU / Mobo / NVMe where `-1f` is the sentinel for "unavailable".
-- [ ] **TEMP-SVC-03:** `TemperatureService` initializes via `Task.Run(Initialize)` with a 3-second timeout; initialization failure leaves `IsReady=false` and all sensors at the N/A sentinel; the widget does not crash.
+- [ ] **TEMP-SVC-03:** `TemperatureService` initializes via `Task.Run(Initialize)` with a **5-second timeout** (amended 2026-05-04 from 3s after spike measured 4272ms `Computer.Open()` on dev box — see [`.planning/spikes/75-hardware-discovery.md`](./spikes/75-hardware-discovery.md) Section 5); initialization failure leaves `IsReady=false` and all sensors at the N/A sentinel; the widget does not crash.
 - [ ] **TEMP-SVC-04:** `TemperatureService` disposes cleanly via a three-tier path (`Window.Closing` + `SessionEnding` + `AppDomain.ProcessExit`) with an `Interlocked` single-entry guard, releasing the LHM `Computer` handle on log-off, kill, and normal quit.
 - [ ] **TEMP-SVC-05:** `ITempSource` abstraction + `FakeTempSource` enable hardware-free unit tests of the service contract.
 

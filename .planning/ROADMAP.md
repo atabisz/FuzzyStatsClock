@@ -40,7 +40,7 @@ granularity: standard
 **Requirements:** TEMP-SVC-01, TEMP-SVC-02, TEMP-SVC-03, TEMP-SVC-04, TEMP-SVC-05
 
 **Success Criteria** (what must be TRUE):
-  1. A written hardware-discovery report exists in `.planning/` recording, per sensor (CPU, GPU, Mobo, NVMe), whether LHM produced a valid reading on a clean Win11 24H2 VM with no admin elevation and no PawnIO installed; the report carries a dated go/no-go decision and, on no-go, a documented scope reduction.
+  1. A written hardware-discovery report exists in `.planning/` recording, per sensor (CPU, GPU, Mobo, NVMe), whether LHM produced a valid reading on a clean Win11 24H2 baseline with no admin elevation and no PawnIO installed; the report carries a dated go/no-go decision. Minimum bar is **GPU readable**; CPU / Mobo / NVMe are best-effort with documented N/A fallback paths — a missing sensor is not a milestone blocker as long as `TemperatureService` degrades to the `-1f` sentinel without throwing. _(Satisfied 2026-05-04 → NO-GO on original strict gate; scope reduced per amendments below; see [`.planning/spikes/75-hardware-discovery.md`](./spikes/75-hardware-discovery.md).)_
   2. `TemperatureService` lives in `FuzzyClock.App` as a singleton; app startup does not block waiting on sensor init (initialization runs on a background task with a 3-second timeout) and the widget launches successfully even when initialization fails.
   3. When initialization fails or a sensor is absent, `IsReady` stays false and the relevant CPU/GPU/Mobo/NVMe property returns the `-1f` N/A sentinel; no exception reaches the UI thread.
   4. On normal quit, log-off, and forced process kill, the LHM `Computer` handle is released exactly once (`Window.Closing` + `SessionEnding` + `AppDomain.ProcessExit` with an `Interlocked` single-entry guard); no driver handle leak survives the process.
@@ -50,15 +50,16 @@ granularity: standard
 
 Plans:
 - [x] 75-01-PLAN.md — Hardware discovery spike + go/no-go report + D-05 threading decision (wave 1) — **DONE 2026-05-04 → NO-GO**; see [`.planning/spikes/75-hardware-discovery.md`](./spikes/75-hardware-discovery.md)
-- [ ] 75-02-PLAN.md — TemperatureService + ITempSource + FakeTempSource + 21 tests + three-tier dispose wiring (wave 2) — **BLOCKED** pending scope amendment (see NO-GO notes below)
+- [ ] 75-02-PLAN.md — TemperatureService + ITempSource + FakeTempSource + 21 tests + three-tier dispose wiring (wave 2) — unblocked 2026-05-04 after scope amendments landed
 
-**NO-GO status (2026-05-04):** the spike found GPU readable but NVMe not enumerated on the dev box. Before Plan 75-02 can proceed, the following amendments must land:
+**NO-GO scope amendments (resolved 2026-05-04):** the spike found GPU readable but NVMe not enumerated on the dev box (PawnIO-free baseline). The following amendments were applied before Plan 75-02 was unblocked:
 
-1. **ROADMAP.md Phase 75 SC1** — amend from "GPU + NVMe both readable" to "GPU readable; NVMe best-effort with documented N/A fallback" (see Spike Section 6 rationale).
-2. **REQUIREMENTS.md TEMP-TAB-03** — drop NVMe from default-visible; add Settings help-text disclaimer about PawnIO/admin-elevation requirement.
-3. **REQUIREMENTS.md TEMP-LINE-04** — make explicit the requirement to hide the NVMe segment when `NvmeTempC == -1f`.
+1. ✅ **ROADMAP.md Phase 75 SC1** — minimum bar reduced to "GPU readable"; CPU/Mobo/NVMe best-effort with `-1f` N/A fallback.
+2. ✅ **REQUIREMENTS.md TEMP-TAB-03** — NVMe default flipped ON → OFF; help text added about PawnIO / admin-elevation dependency.
+3. ✅ **REQUIREMENTS.md TEMP-LINE-04** — `-1f` sentinel is now explicitly a "hide segment" signal across all rendering paths.
+4. ✅ **Plan 75-02 + REQUIREMENTS.md TEMP-SVC-03** — init timeout raised 3s → 5s after spike measured 4272ms `Computer.Open()` (above 3s budget).
 
-Until these commit, Plan 75-02 must not auto-advance. Phase 77 (RMB menu) remains unblocked.
+Phase 77 (RMB menu) remained unblocked throughout.
 
 ---
 
@@ -160,7 +161,7 @@ Until these commit, Plan 75-02 must not auto-advance. Phase 77 (RMB menu) remain
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 75. Hardware Discovery Spike + TemperatureService | 1/2 | In progress — Plan 02 blocked pending scope amendment (NO-GO) | - |
+| 75. Hardware Discovery Spike + TemperatureService | 1/2 | In progress — scope amended 2026-05-04; Plan 02 unblocked | - |
 | 76. AppSettings + TemperatureFormatter Tests | 0/0 | Not started | - |
 | 77. Right-Click Menu on Widget | 0/0 | Not started | - |
 | 78. Temps Tab in Settings | 0/0 | Not started | - |

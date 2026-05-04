@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Temps & Menu
-status: phase-blocked-scope-amendment
-last_updated: "2026-05-04T06:47:20.996Z"
-last_activity: 2026-05-04 — spike executed; NO-GO; Plan 75-02 blocked
+status: in-progress
+last_updated: "2026-05-04T16:50:00.000Z"
+last_activity: 2026-05-04 — spike NO-GO; 4 scope amendments landed; Plan 75-02 unblocked
 progress:
   total_phases: 6
   completed_phases: 0
@@ -16,19 +16,19 @@ progress:
 
 **Last updated:** 2026-05-04
 **Current milestone:** v4.2 Temps & Menu
-**Status:** Phase 75 Plan 01 complete — Plan 75-02 BLOCKED pending ROADMAP/REQUIREMENTS amendment (NO-GO gate)
+**Status:** Phase 75 Plan 01 complete (NO-GO); scope amendments applied; Plan 75-02 unblocked and executing
 
 ## Project Reference
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-**Current focus:** Milestone v4.2 — Phase 75 Plan 01 done (spike); awaiting owner sign-off on scope reduction before Plan 75-02 begins.
+**Current focus:** Milestone v4.2 — Phase 75 Plan 01 done (spike NO-GO); scope amendments committed; Plan 75-02 (TemperatureService) now executing.
 
 ## Current Position
 
 Phase: 75 (Hardware Discovery Spike + TemperatureService) — in progress
-Plan: 75-01 COMPLETE (`cb26529`); 75-02 BLOCKED pending scope amendment
-Status: NO-GO gate fired — milestone must amend ROADMAP.md + REQUIREMENTS.md before Plan 75-02 executes
+Plan: 75-01 COMPLETE (`cb26529`); 75-02 executing under amended scope
+Status: NO-GO gate resolved — 4 scope amendments landed; Plan 75-02 proceeds under GPU-only minimum bar + 5s init timeout
 Last activity: 2026-05-04 — `.planning/spikes/75-hardware-discovery.md` written; 75-01-SUMMARY.md written
 
 ## Performance Metrics
@@ -63,15 +63,16 @@ Last activity: 2026-05-04 — `.planning/spikes/75-hardware-discovery.md` writte
 
 ### Active TODOs
 
-- [ ] Amend `ROADMAP.md` Phase 75 SC1 from "GPU + NVMe both readable" to "GPU readable; NVMe best-effort with documented N/A fallback"
-- [ ] Amend `REQUIREMENTS.md` TEMP-TAB-03 defaults: drop NVMe from default-visible; add PawnIO/admin-elevation disclaimer to Settings help text
-- [ ] Amend `REQUIREMENTS.md` TEMP-LINE-04 to require hiding the NVMe segment when `NvmeTempC == -1f` (make implicit contract explicit)
-- [ ] Unblock Plan 75-02 once amendments committed
+- [x] Amend `ROADMAP.md` Phase 75 SC1 (GPU minimum bar; CPU/Mobo/NVMe best-effort with `-1f` fallback)
+- [x] Amend `REQUIREMENTS.md` TEMP-TAB-03 (NVMe default ON → OFF; help text disclaimer added)
+- [x] Amend `REQUIREMENTS.md` TEMP-LINE-04 (`-1f` sentinel explicitly hides segment in every rendering path)
+- [x] Amend `REQUIREMENTS.md` TEMP-SVC-03 + Plan 75-02 (init timeout 3s → 5s per 4272ms `Computer.Open()` spike measurement)
+- [x] Unblock Plan 75-02
 - [ ] Plan 77 (RMB menu) can proceed in parallel — no dependency on Plan 75-02 or on spike outcome
 
 ### Known Blockers
 
-1. **Plan 75-02 (TemperatureService) is blocked** pending the three amendments above. The NO-GO gate requires scope reduction before Phase 76 opens; Plan 75-02 should not auto-advance.
+None — NO-GO scope-amendment gate resolved 2026-05-04.
 
 ## Session Continuity
 
@@ -87,11 +88,11 @@ Scratch folder deleted post-spike. 75-01-SUMMARY.md written. This STATE.md updat
 
 ### Next Session Should Know
 
-- **Plan 75-02 cannot auto-execute.** The milestone orchestrator should halt Wave 2 and route to amendment flow before Plan 75-02 opens.
-- **ROADMAP amendments are blocking.** Three documents need edits (ROADMAP.md, REQUIREMENTS.md once for TEMP-TAB-03, REQUIREMENTS.md once for TEMP-LINE-04) before Plan 75-02 unblocks.
-- **Phase 77 (RMB menu) is not blocked.** It can be planned and executed in parallel with the amendment work.
-- **Initialisation timeout will need attention in Plan 75-02.** Computer.Open() = 4272 ms on the dev box; 3000 ms TEMP-SVC-03 timeout may need a rationale-documented bump to ~5000 ms, or an explicit accept-the-silent-failure design choice.
-- Baseline test count still 501 (433 Core + 68 App) — Plan 75-01 was docs-only; no code changed.
+- **Plan 75-02 is executing** under the amended scope (GPU-only minimum bar, 5s init timeout, NVMe-default-OFF).
+- **Scope amendments committed 2026-05-04.** ROADMAP.md Phase 75 SC1 + NO-GO block, REQUIREMENTS.md TEMP-TAB-03 / TEMP-LINE-04 / TEMP-SVC-03, Plan 75-02 timeout clause — all landed in one atomic commit.
+- **Phase 77 (RMB menu) is not blocked.** It can be planned and executed in parallel with Plan 75-02.
+- **Init timeout 5s per spike.** `Task.Delay(TimeSpan.FromSeconds(5))` in `TemperatureService.InitializeAsync` per 4272ms `Computer.Open()` measurement.
+- Baseline test count still 501 (433 Core + 68 App) — Plan 75-01 was docs-only; Plan 75-02 target is 522 (+21 TemperatureService tests).
 
 ### Context for Continuation
 
@@ -102,4 +103,4 @@ Scratch folder deleted post-spike. 75-01-SUMMARY.md written. This STATE.md updat
 - Spike artifact: `.planning/spikes/75-hardware-discovery.md` (survives milestone archival; Phase 80 release docs can reference it)
 
 ---
-*State snapshot: 2026-05-04 — Plan 75-01 complete (NO-GO); Plan 75-02 blocked pending scope amendment*
+*State snapshot: 2026-05-04 — Plan 75-01 complete (NO-GO); scope amendments landed; Plan 75-02 executing*
