@@ -3,39 +3,39 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: milestone
 status: planning
-last_updated: "2026-05-04T07:27:01.528Z"
-last_activity: 2026-05-04 — 75-02-SUMMARY.md written; all four TEMP-SVC-0{2,3,4,5} requirements satisfied
+last_updated: "2026-05-04T08:08:43.150Z"
+last_activity: 2026-05-04 — 76-01-SUMMARY.md written; TEST-01/TEST-02/TEST-03/TEST-04 all satisfied; 544 MSTest green
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State: FuzzyStatsClock
 
 **Last updated:** 2026-05-04
 **Current milestone:** v4.2 Temps & Menu
-**Status:** Ready to plan
+**Status:** Phase 76 shipped — Phase 77 (RMB menu) and Phase 78 (Temps tab UI) now both unblocked
 
 ## Project Reference
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-**Current focus:** Milestone v4.2 — Phase 75 complete (spike + TemperatureService). Next: Phase 76 (AppSettings + TemperatureFormatter) or Phase 77 (RMB menu, parallelizable).
+**Current focus:** Milestone v4.2 — Phases 75 + 76 complete. Next: Phase 77 (RMB menu, parallelizable with 78) or Phase 78 (Temps tab UI, consumes the 5 new AppSettings fields from 76-01).
 
 ## Current Position
 
-Phase: 75 (Hardware Discovery Spike + TemperatureService) — COMPLETE
-Plan: 75-01 (`cb26529`) + 75-02 (`f6daee1` / `0041e2d` / `e99b842`) both SHIPPED
-Status: TemperatureService landed in FuzzyClock.App with Path 2 threading + 5s init timeout + three-tier Interlocked dispose; REL-03 preserved; 522 MSTest green (433 Core + 89 App)
-Last activity: 2026-05-04 — 75-02-SUMMARY.md written; all four TEMP-SVC-0{2,3,4,5} requirements satisfied
+Phase: 76 (AppSettings + TemperatureFormatter Tests) — COMPLETE
+Plan: 76-01 (`fb04fda` / `d3822ee` / `e5dbb47` / `1747fd2`) SHIPPED — 4 atomic TDD commits (Task 1 RED→GREEN; Task 2 RED→GREEN)
+Status: Five init-property bool fields added to AppSettings (TempsLineVisible=false, TempCpuVisible=true, TempGpuVisible=true, TempMoboVisible=false, TempNvmeVisible=false); SettingsService.Defaults() explicit symmetry; pure-static TemperatureFormatter in FuzzyClock.Core (zero LibreHardwareMonitor refs — REL-03 preserved); 544 MSTest green (445 Core + 99 App = 522 baseline + 22 new runtime tests)
+Last activity: 2026-05-04 — 76-01-SUMMARY.md written; TEST-01/TEST-02/TEST-03/TEST-04 all satisfied
 
 ## Performance Metrics
 
-**Velocity:** 2 plans / 1 day on Phase 75 (spike + TemperatureService)
-**Test suite:** 522 MSTest tests (433 Core + 89 App = 68 baseline + 21 new), 0 failures, 0 warnings
-**Technical debt:** Low (mature codebase; LHM integration contained to FuzzyClock.App per REL-03)
+**Velocity:** 3 plans / 1 day (Phase 75 spike + Phase 75 TemperatureService + Phase 76-01 AppSettings & Formatter)
+**Test suite:** 544 MSTest runtime tests (445 Core + 99 App = 522 post-Phase-75 baseline + 22 new), 0 failures
+**Technical debt:** Low (mature codebase; LHM integration contained to FuzzyClock.App per REL-03; Phase 76 added formatter in Core without breaking that invariant)
 
 ### Performance History
 
@@ -43,6 +43,7 @@ Last activity: 2026-05-04 — 75-02-SUMMARY.md written; all four TEMP-SVC-0{2,3,
 |-------|------|----------|-------|-------|
 | 75    | 01   | ~45 min  | 3     | 2     |
 | 75    | 02   | 17 min   | 4     | 7     |
+| 76    | 01   | ~6 min   | 2     | 5     |
 
 ## Accumulated Context
 
@@ -57,6 +58,7 @@ Last activity: 2026-05-04 — 75-02-SUMMARY.md written; all four TEMP-SVC-0{2,3,
 - **Methodology variance:** dev box was PawnIO-free at baseline; the planned uninstall/restore cycle was a no-op. Documented in `.planning/spikes/75-hardware-discovery.md` Sections 1+2.
 - **Init timeout resolution:** raised 3s → 5s (`InitTimeoutSeconds = 5` compile-time const in `TemperatureService`). Spike measured 4272ms `Computer.Open()` on dev box; 5s provides ~17% headroom without introducing a config switch.
 - **Plan 75-02 (2026-05-04): TemperatureService shipped.** Path 2 threading (2s cadence), async init with `Task.WhenAny` + 5s timeout, three-tier dispose (`OnClosing` + `SessionEnding` + `ProcessExit`) behind single `Interlocked.CompareExchange` on int `_disposed`. Test subclass seam via `protected virtual InitializeCore()` (class non-sealed for that reason only — doc comment explains production treat-as-sealed). REL-03 preserved (zero LHM references in `FuzzyClock.Core/`). 522 MSTest green.
+- **Plan 76-01 (2026-05-04): AppSettings temps-visibility fields + TemperatureFormatter shipped.** Five init-property bools added (TempsLineVisible=false, TempCpuVisible=true, TempGpuVisible=true, TempMoboVisible=false, TempNvmeVisible=false); NVMe default is false in all 5 sites per TEMP-TAB-03 amendment commit b2163d1. Pure static TemperatureFormatter in FuzzyClock.Core with -1f hide-segment guard (value >= 0f), 2-space separator via string.Join, (int)Math.Round banker's rounding, 8 primitive parameters (no wrapper record, no ninth tempsLineVisible param). 544 MSTest green (445 Core + 99 App = 522 baseline + 22 new runtime tests from 18 methods). One Rule 1 auto-fix: doc comment rephrased to avoid literal `LibreHardwareMonitor` string so the Phase 80 CI grep gate stays clean. 4 atomic TDD commits (fb04fda RED → d3822ee GREEN; e5dbb47 RED → 1747fd2 GREEN).
 
 ### Open Questions
 
@@ -71,34 +73,44 @@ Last activity: 2026-05-04 — 75-02-SUMMARY.md written; all four TEMP-SVC-0{2,3,
 - [x] Amend `REQUIREMENTS.md` TEMP-SVC-03 + Plan 75-02 (init timeout 3s → 5s per 4272ms `Computer.Open()` spike measurement)
 - [x] Unblock Plan 75-02
 - [x] Ship Plan 75-02 (TemperatureService + ITempSource + FakeTempSource + 21 MSTest methods)
-- [ ] Plan 76 (AppSettings + TemperatureFormatter) — next in sequence; consumes `ITempSource` via DI
-- [ ] Plan 77 (RMB menu) — parallelizable with Phase 76 (no dependency on TemperatureService)
+- [x] Plan 76-01 (AppSettings + TemperatureFormatter) — SHIPPED 2026-05-04; 5 init-property bools + pure formatter + 18 new test methods (22 runtime)
+- [ ] Plan 77 (RMB menu) — parallelizable with Phase 78 (no dependency on TemperatureService)
+- [ ] Plan 78 (Temps tab UI) — consumes the 5 new AppSettings fields from 76-01
+- [ ] Plan 79 (widget rendering) — invokes TemperatureFormatter.Format per tick, consumes ITempSource + AppSettings
 - [ ] Plan 80 [Files] must ship RID-specific LHM DLLs under `runtimes/win-x64/lib/net10.0/` + native pair
 
 ### Known Blockers
 
-None — Phase 75 complete.
+None — Phase 76 complete.
 
 ## Session Continuity
 
 ### What Just Happened
 
-Phase 75 Plan 02 (TemperatureService) executed in 17 minutes:
+Phase 76 Plan 01 (AppSettings temps-visibility + TemperatureFormatter) executed TDD-style in ~6 minutes across 4 atomic commits:
 
-- **Task 1** — LHM 0.9.6 PackageReference added to `FuzzyClock.App.csproj`; `FuzzyClock.App/ITempSource.cs` written (six-member contract; no IDisposable; nullable-free float properties). Committed as `f6daee1`.
-- **Task 2** — `FuzzyClock.App/TemperatureService.cs` (274 lines) + `FuzzyClock.App.Tests/FakeTempSource.cs` + `TemperatureServiceTests.cs` (21 methods + StubSensor/StubHardware + 4 test subclasses NoOpInit/SleepyInit/ThrowingInit/CountingClose). Six auto-fixed deviations: sealed+virtual conflict → non-sealed with doc comment; CS0414 unused `_lhmAvailable` → `if (_lhmAvailable)` gate in BackgroundLoop; IHardware/ISensor stub shape trimmed to interface-only members; `using System.IO;` added; grep-gate alignment collapsed to single-space form; CloseCallCount documented-only. 522/522 MSTest green. Committed as `0041e2d`.
-- **Task 3** — Three-tier dispose wired: `MainWindow._temperatureService` field + `new TemperatureService()` in ContentRendered + `_temperatureService?.Dispose()` in OnClosing + `internal void DisposeTemperatureService()`; `App.xaml.cs` SessionEnding extended + `AppDomain.CurrentDomain.ProcessExit += OnProcessExit` at end of OnStartup. Committed as `e99b842`.
-- **Task 4** — Automated grep gate passed (all four wiring sites present). Manual launch smoke-test documented in SUMMARY for user to run at convenience; not a hard block for Phase 76.
+- **Task 1 RED** — `fb04fda` (test): appended a `// ----- v4.2 temps-visibility fields -----` section to `AppSettingsTests.cs` with 10 new test methods (5 absent-field + 5 round-trip). `dotnet build` failed with 15 CS0117/CS1061 compile errors — the expected RED state.
+- **Task 1 GREEN** — `d3822ee` (feat): added five init-property `bool` fields (`TempsLineVisible=false, TempCpuVisible=true, TempGpuVisible=true, TempMoboVisible=false, TempNvmeVisible=false`) to `AppSettings.cs` after `GhostFadeRadiusPx`; added trailing comma and five symmetry assignments in `SettingsService.Defaults()`. 99 App tests green (89 baseline + 10 new).
+- **Task 2 RED** — `e5dbb47` (test): wrote `FuzzyClock.Core.Tests/TemperatureFormatterTests.cs` (109 lines, 8 `[TestMethod]` entries including a `[DataRow]` rounding table). Build failed with 8 CS0103 errors — expected RED.
+- **Task 2 GREEN** — `1747fd2` (feat): wrote `FuzzyClock.Core/TemperatureFormatter.cs` (43 lines). Pure static class; single `Format(4 floats, 4 bools) → string` method; `value >= 0f` guard enforcing the -1f hide-segment contract (TEMP-LINE-04); `string.Join("  ", segments)` for the 2-space separator; `(int)Math.Round(cpu)` with default banker's rounding. 445 Core tests green (433 baseline + 12 new runtime).
 
-REL-03 CI invariant preserved: `grep -r "LibreHardwareMonitor" FuzzyClock.Core/` returns nothing. 75-02-SUMMARY.md written. This STATE.md update is part of the Plan 75-02 wrap-up commit.
+**One Rule 1 auto-fix:** the drafted doc comment contained the literal string `LibreHardwareMonitor` (as part of a sentence documenting its absence). This would still trip the Phase 80 CI grep gate. Rephrased to `this file has zero references to the hardware-sensor package` — semantics preserved, grep-gate-safe. Applied before the Task 2 GREEN commit, so committed atomically with that work.
+
+**Final verification gates all green:**
+- `dotnet test` reports 544 runtime tests passed, 0 failed (445 Core + 99 App).
+- `grep -r "LibreHardwareMonitor" FuzzyClock.Core/` returns zero matches.
+- Every `TempNvmeVisible` site (record, Defaults(), absent-field test, code comment) asserts or sets `false` — the single round-trip test constructs `TempNvmeVisible = true` to prove serialization round-trip, which is by design.
+
+76-01-SUMMARY.md written with self-check section verifying all four commit hashes exist. This STATE.md update is part of the Plan 76-01 wrap-up metadata commit.
 
 ### Next Session Should Know
 
-- **Phase 75 is complete.** Both plans (spike + TemperatureService) shipped on 2026-05-04.
-- **Phase 76 (AppSettings + TemperatureFormatter) is next in sequence** — consumers inject `ITempSource` (either production `TemperatureService` or test `FakeTempSource`), gate on `IsReady`, treat `-1f` as "hide segment" per TEMP-LINE-04.
-- **Phase 77 (RMB menu) can run in parallel** with Phase 76 — no dependency on TemperatureService.
+- **Phase 76 is complete.** Only Plan (76-01) shipped on 2026-05-04.
+- **Phase 78 (Temps tab UI) is unblocked** — the five new `AppSettings` fields exist with documented defaults. SettingsWindow can wire to them via the existing settings pipeline; no additional AppSettings work needed.
+- **Phase 79 (widget rendering) is unblocked** — `TemperatureFormatter.Format` is a tested, pure function. Widget will combine four floats from the `TemperatureService` singleton (set up in Phase 75 Plan 02) with four visibility flags from `AppSettings`, call `Format` per tick. Empty-string response collapses the TextBlock.
+- **Phase 77 (RMB menu) remains parallelizable** with 78 — no shared surface.
 - **LHM transitive DLL layout:** RID-specific under `runtimes/{rid}/lib/net10.0/` + MonoPosixHelper native pair. Phase 80 Inno Setup planner must ship the full `runtimes/` tree or the RID subtree — flat reference won't work.
-- **Test count:** 522 (433 Core + 89 App = 68 baseline + 21 TemperatureService). Next phases should land additional tests on top of this baseline.
+- **Test count:** 544 (445 Core + 99 App). Phases 77–80 should land additional tests on top of this baseline.
 - **InitTimeoutSeconds = 5** is compile-time const, no config switch. Silent-failure mode (IsReady=true + _lhmAvailable=false + all sentinels) if Computer.Open() exceeds 5s on a given machine.
 
 ### Context for Continuation
@@ -111,4 +123,4 @@ REL-03 CI invariant preserved: `grep -r "LibreHardwareMonitor" FuzzyClock.Core/`
 - Phase 75 plan directory: `.planning/phases/75-hardware-discovery-spike-temperatureservice/` — contains both PLAN + SUMMARY pairs
 
 ---
-*State snapshot: 2026-05-04 — Phase 75 complete (Plan 01 NO-GO spike + Plan 02 TemperatureService shipped); Phase 76 unblocked*
+*State snapshot: 2026-05-04 — Phase 76 complete (Plan 01 AppSettings temps-visibility + TemperatureFormatter shipped); Phases 77, 78, 79 all unblocked — 77 and 78 are parallelizable*

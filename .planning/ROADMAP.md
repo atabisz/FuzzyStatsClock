@@ -21,7 +21,7 @@ granularity: standard
 ## Phases
 
 - [x] **Phase 75: Hardware Discovery Spike + TemperatureService** — Prove sensor coverage on clean Win11 24H2 VM, then land the service singleton gated by the go/no-go decision. _(Plan 01 complete 2026-05-04 → NO-GO; Plan 02 blocked pending scope amendment.)_ (completed 2026-05-04)
-- [ ] **Phase 76: AppSettings + TemperatureFormatter Tests** — Persist the five new temp-visibility bools and unit-test the pure formatter.
+- [x] **Phase 76: AppSettings + TemperatureFormatter Tests** — Persist the five new temp-visibility bools and unit-test the pure formatter. (completed 2026-05-04)
 - [ ] **Phase 77: Right-Click Menu on Widget** — Reuse the existing tray ContextMenuStrip on widget right-click with drag/ghost/proximity guards.
 - [ ] **Phase 78: Temps Tab in Settings** — New "Temps" tab between Stats and Behavior with master toggle + per-sensor checkboxes.
 - [ ] **Phase 79: Temps Line on Widget** — Compact accent-colored line below uptime, auto-reflowing on sensor availability.
@@ -77,10 +77,10 @@ Phase 77 (RMB menu) remained unblocked throughout.
   3. `TemperatureFormatter` lives in `FuzzyClock.Core` with zero reference to `LibreHardwareMonitorLib`; unit tests cover all-sensors-present, partial-N/A, all-N/A-returns-empty, single-sensor, 2-space separator, `°` symbol, and integer rounding.
   4. The full MSTest suite (Core + App) reports 0 failures after the new fields and tests land; the post-Phase-75 baseline (522 tests: 433 Core + 89 App) is strictly exceeded. *(Amended 2026-05-04: original "501" figure was pre-Phase-75; actual baseline is 522 per STATE.md.)*
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 76-01-PLAN.md — AppSettings five-field extension + TemperatureFormatter in FuzzyClock.Core + persistence & pure-function tests (wave 1)
+- [x] 76-01-PLAN.md — AppSettings five-field extension + TemperatureFormatter in FuzzyClock.Core + persistence & pure-function tests (wave 1) — **DONE 2026-05-04**; 4 atomic TDD commits (`fb04fda` RED → `d3822ee` GREEN; `e5dbb47` RED → `1747fd2` GREEN); 544 MSTest green (522 baseline + 22 new); REL-03 preserved.
 
 ---
 
@@ -168,7 +168,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 75. Hardware Discovery Spike + TemperatureService | 2/2 | Complete    | 2026-05-04 |
-| 76. AppSettings + TemperatureFormatter Tests | 0/0 | Not started | - |
+| 76. AppSettings + TemperatureFormatter Tests | 1/1 | Complete    | 2026-05-04 |
 | 77. Right-Click Menu on Widget | 0/0 | Not started | - |
 | 78. Temps Tab in Settings | 0/0 | Not started | - |
 | 79. Temps Line on Widget | 0/0 | Not started | - |

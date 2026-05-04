@@ -44,10 +44,10 @@
 
 ### Persistence & Tests
 
-- [ ] **TEST-01:** Five new `AppSettings` fields (`TempsLineVisible`, `TempCpuVisible`, `TempGpuVisible`, `TempMoboVisible`, `TempNvmeVisible`) are init-property bools with defaults matching TEMP-TAB-02 / TEMP-TAB-03.
-- [ ] **TEST-02:** JSON round-trip test covers all five new fields (serialize → deserialize → all values match).
-- [ ] **TEST-03:** Absent-field deserialization tests verify init defaults apply when loading a v4.1 `settings.json` with none of the five fields present.
-- [ ] **TEST-04:** `TemperatureFormatter` (pure static in `FuzzyClock.Core` — no LHM reference) is unit-tested for: all-sensors-present, partial-N/A, all-N/A-returns-empty, single-sensor, correct 2-space separator, `°` symbol, integer rounding.
+- [x] **TEST-01:** Five new `AppSettings` fields (`TempsLineVisible`, `TempCpuVisible`, `TempGpuVisible`, `TempMoboVisible`, `TempNvmeVisible`) are init-property bools with defaults matching TEMP-TAB-02 / TEMP-TAB-03. _(Satisfied 2026-05-04 by Plan 76-01, commit `d3822ee`; NVMe default `false` per 2026-05-04 amendment.)_
+- [x] **TEST-02:** JSON round-trip test covers all five new fields (serialize → deserialize → all values match). _(Satisfied 2026-05-04 by Plan 76-01, commit `fb04fda`; 5 per-field round-trip `[TestMethod]` entries in `AppSettingsTests.cs`.)_
+- [x] **TEST-03:** Absent-field deserialization tests verify init defaults apply when loading a v4.1 `settings.json` with none of the five fields present. _(Satisfied 2026-05-04 by Plan 76-01, commit `fb04fda`; 5 per-field absent-field `[TestMethod]` entries deserializing `{"FontSize":32}` minimal JSON.)_
+- [x] **TEST-04:** `TemperatureFormatter` (pure static in `FuzzyClock.Core` — no LHM reference) is unit-tested for: all-sensors-present, partial-N/A, all-N/A-returns-empty, single-sensor, correct 2-space separator, `°` symbol, integer rounding. _(Satisfied 2026-05-04 by Plan 76-01, commits `e5dbb47`/`1747fd2`; 8 `[TestMethod]` entries (12 runtime via `[DataRow]` rounding table) in `TemperatureFormatterTests.cs`; REL-03 grep gate verified clean.)_
 
 ### Release & Compliance
 
@@ -103,10 +103,10 @@ Every v4.2 REQ-ID maps to exactly one phase. 29/29 coverage (no orphans, no dupl
 | TEMP-SVC-03 | Phase 75 | Complete |
 | TEMP-SVC-04 | Phase 75 | Complete |
 | TEMP-SVC-05 | Phase 75 | Complete |
-| TEST-01 | Phase 76 | Pending |
-| TEST-02 | Phase 76 | Pending |
-| TEST-03 | Phase 76 | Pending |
-| TEST-04 | Phase 76 | Pending |
+| TEST-01 | Phase 76 | Complete (2026-05-04) |
+| TEST-02 | Phase 76 | Complete (2026-05-04) |
+| TEST-03 | Phase 76 | Complete (2026-05-04) |
+| TEST-04 | Phase 76 | Complete (2026-05-04) |
 | REL-01 | Phase 80 | Pending |
 | REL-02 | Phase 80 | Pending |
 | REL-03 | Phase 80 | Pending |
