@@ -406,6 +406,17 @@ public partial class MainWindow : Window
         AutoLaunchEnabled      = _autoLaunchEnabled,
         PhraseWrapEnabled      = _phraseWrapEnabled,
         PhraseWrapStyle        = _phraseWrapStyle,
+        // v4.2 Phase 78 — Temps tab projection (5 AppSettings bools + 4 sensor floats + 1 ready bool)
+        TempsLineVisible       = _settings.TempsLineVisible,
+        TempCpuVisible         = _settings.TempCpuVisible,
+        TempGpuVisible         = _settings.TempGpuVisible,
+        TempMoboVisible        = _settings.TempMoboVisible,
+        TempNvmeVisible        = _settings.TempNvmeVisible,
+        CpuTempC               = _temperatureService?.CpuTempC  ?? -1f,
+        GpuTempC               = _temperatureService?.GpuTempC  ?? -1f,
+        MoboTempC              = _temperatureService?.MoboTempC ?? -1f,
+        NvmeTempC              = _temperatureService?.NvmeTempC ?? -1f,
+        TempsServiceReady      = _temperatureService?.IsReady   ?? false,
     };
 
     private void OpenSettings()
