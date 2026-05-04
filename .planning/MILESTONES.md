@@ -1,5 +1,35 @@
 # Milestones
 
+## v4.2 Temps & Menu (Shipped: 2026-05-04)
+
+**Phases completed:** 6 phases (75–80), 10 plans, 562 MSTest green (445 Core + 117 App)
+
+**Git range:** v4.1 → v4.2 (66 commits, 130 files, +17,522 / -2,064 lines)
+
+**Key accomplishments:**
+
+- TemperatureService singleton in `FuzzyClock.App` with LibreHardwareMonitorLib 0.9.6 (MPL-2.0 pinned), 5s async init via `Task.WhenAny`, dedicated 2s-cadence background task (Path 2 per spike-measured 608ms Update() mean), three-tier dispose (MainWindow.OnClosing + SessionEnding + ProcessExit) guarded by Interlocked single-entry; `IsReady` gate + `-1f` sentinel discipline mirrors StatsService conventions
+- TemperatureFormatter pure static in `FuzzyClock.Core` (zero LHM refs) with 2-space separator, integer °C, `°` symbol only, empty-on-all-suppressed output; 8 `[TestMethod]` (12 runtime via DataRow); 5 AppSettings init-property bools persist across settings.json round-trips
+- RightClickMenuGate pure predicate with 6 DataRow truth-table cases + MainWindow wiring (PreviewMouseRightButtonUp + `_menuOpen` field + Opening/Closed `+=` hooks preserving TrayMenuBuilder.SyncCheckmarks); widget right-click opens the exact tray ContextMenuStrip instance; TrayMenuBuilder.cs zero-diff invariant preserved
+- Temps tab in Settings window (index 2 between Stats and Behavior) with master toggle + 4 per-sensor checkboxes (CPU/GPU/Mobo/NVMe with defaults ON/ON/OFF/OFF per NVMe-unreliable spike amendment) + disabled+"(N/A)" suffix logic + muted help text disclaimer; `TempSensorsPanel.IsEnabled` gated by master (mirrors GhostFadeRadiusPanel precedent)
+- TempsText on widget renders below UptimeText inside StatsPanel with immediate reflow on Settings toggle (5 Phase 78 handlers each extended with `UpdateTempsDisplay();` after `SaveSettings();`); accent color + auto-contrast participation via `TempsText.Foreground = brush;` at BOTH ApplyTheme AND ApplyDisplayColor sites (Phase 33 critical pattern)
+- MPL-2.0 release compliance: `THIRD-PARTY-NOTICES.md` at repo root (644 lines — verbatim MPL-2.0 + Apache-2.0 + MIT + attribution blocks for LHM 0.9.6 + 5 transitive deps); REL-02 post-publish CI grep gate (WinRing0*.sys absent); REL-03 pre-build CI grep gate (LibreHardwareMonitor absent from FuzzyClock.Core/); Inno Setup ships NOTICES to `{app}` root with `PrivilegesRequired=lowest` invariant preserved
+
+**Key technical decisions:**
+
+- D-05 Path 2 threading (spike measured 608ms Update() mean — exceeded 50ms piggyback threshold)
+- D-01 PublishSingleFile=true preserved over multi-file publish (transitive DLLs self-extract from FuzzyClock.exe)
+- D-03 Handwritten THIRD-PARTY-NOTICES over auto-generation tool (pinned dep → stable notice)
+- NO-GO scope amendments 2026-05-04: GPU-only minimum bar per spike (NVMe not enumerated on PawnIO-free baseline); TEMP-TAB-03 NVMe default OFF; 5s init timeout per 4272ms Computer.Open() measurement
+
+**Known deferred items at close:**
+
+- `PhraseEngineTests.SpecialCases_NoonAndMidnight(12,0,"noon")` ~20% probabilistic flake — `EnglishPhraseProvider.NoonCandidates` random pick across 5 alternatives; introduced in `924562e` pre-v3.2; tracked in STATE.md Active TODOs for opportunistic fix
+- `FuzzyClock.App.csproj <Version>3.6.0</Version>` stale — CI overrides on tag push so harmless; bump to 4.2.0 in post-milestone polish
+- Phase 80 Items 5+8 of human-verify (installer end-to-end + NOTICES SHA256 parity) — deferred to first `v4.2.0` tag push since Inno Setup 6 not installed on dev box; installer compile deterministic given verified inputs
+
+---
+
 ## v4.1 Polish & Phrases (Shipped: 2026-04-01)
 
 **Phases completed:** 5 phases, 8 plans, 16 tasks

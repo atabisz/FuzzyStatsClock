@@ -10,6 +10,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v4.2 shipped: 2026-05-04** — Temps & Menu: system temperature monitoring (CPU/GPU/Mobo/NVMe via LibreHardwareMonitorLib 0.9.6 MPL-2.0) rendered below uptime on widget with accent color + auto-contrast; new Temps tab in Settings between Stats and Behavior with master toggle + per-sensor checkboxes + N/A disabled-state detection; right-click widget now opens the tray ContextMenuStrip at cursor (drag/ghost/Ctrl+Alt guards, TrayMenuBuilder.cs zero-diff invariant); MPL-2.0 compliance shipped — THIRD-PARTY-NOTICES.md at repo root (644 lines verbatim) + REL-02/REL-03 CI grep gates in release.yml + Inno Setup ships NOTICES to {app} root with per-user no-UAC invariant preserved; 562 MSTest green (445 Core + 117 App).
+
 **v4.1 shipped: 2026-04-02** — Polish & Phrases: 12px backdrop padding, continuous stats interval slider (0.5–10.0s), Classic/Terse providers expanded to 70/65 multi-candidate phrases, Jive/Pirate/Yoda providers deepened with authentic linguistic patterns (210 phrases), named theme system removed (325 lines deleted, Settings simplified)
 
 **v4.0 shipped: 2026-03-27** — Proximity Ghost Mode complete: `GhostFadeRadiusPx` field in `AppSettings`/`SettingsService` with range validation and 7 new tests; `ComputeProximityRatio` (Chebyshev distance, 12 TDD unit tests) + always-running `GhostModeController` timer with `ProximityChanged` event; `MainWindow` wired with `_proximityRatio` field, `_isDragging` guard, `IsEnabled` gate at controller top, legacy snap-to-ghost block deleted; Settings > Behavior fade radius slider (20–200px, default 80px) live-updates controller and persists; `ResetToDefaults()` restores to 80px; 414 MSTest tests (357 Core + 57 App), 0 failures. All 13/13 PROX requirements satisfied.
@@ -24,7 +26,7 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), named themes (removed in v4.1), battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
 
-501 MSTest tests (433 Core + 68 App) passing. CI gate enforced.
+562 MSTest tests (445 Core + 117 App) passing. CI gate enforced. REL-02 + REL-03 grep gates live in release.yml. LHM 0.9.6 pinned in FuzzyClock.App.csproj.
 
 ## Requirements
 

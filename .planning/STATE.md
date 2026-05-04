@@ -1,5 +1,19 @@
 ---
 gsd_state_version: 1.0
+milestone: none
+milestone_name: between-milestones
+status: ready-for-new-milestone
+last_updated: "2026-05-04T15:45:00.000Z"
+last_activity: 2026-05-04 — v4.2 milestone archived + tagged; ready for /gsd-new-milestone
+progress:
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+---
+
+---
+gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: milestone
 status: complete
