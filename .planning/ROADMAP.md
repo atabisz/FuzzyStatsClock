@@ -46,7 +46,11 @@ granularity: standard
   4. On normal quit, log-off, and forced process kill, the LHM `Computer` handle is released exactly once (`Window.Closing` + `SessionEnding` + `AppDomain.ProcessExit` with an `Interlocked` single-entry guard); no driver handle leak survives the process.
   5. `ITempSource` + `FakeTempSource` exist so `TemperatureService` contract tests run on any machine without touching hardware.
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 75-01-PLAN.md — Hardware discovery spike + go/no-go report + D-05 threading decision (wave 1)
+- [ ] 75-02-PLAN.md — TemperatureService + ITempSource + FakeTempSource + 21 tests + three-tier dispose wiring (wave 2)
 
 ---
 
@@ -148,7 +152,7 @@ granularity: standard
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 75. Hardware Discovery Spike + TemperatureService | 0/0 | Not started | - |
+| 75. Hardware Discovery Spike + TemperatureService | 0/2 | Not started | - |
 | 76. AppSettings + TemperatureFormatter Tests | 0/0 | Not started | - |
 | 77. Right-Click Menu on Widget | 0/0 | Not started | - |
 | 78. Temps Tab in Settings | 0/0 | Not started | - |
