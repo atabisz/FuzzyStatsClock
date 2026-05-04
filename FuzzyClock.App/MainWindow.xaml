@@ -282,6 +282,19 @@
                        Foreground="White"
                        Text="up —"
                        TextAlignment="Left" />
+
+            <!-- Temps row — child of StatsPanel so it hides with stats.
+                 TempsText.Visibility is driven by (TempsLineVisible && formatted.Length > 0)
+                 per 79-CONTEXT D-05; StatsPanel=Collapsed also hides this line automatically
+                 via WPF layout inheritance. Clone of UptimeText styling per D-15. -->
+            <TextBlock x:Name="TempsText"
+                       Margin="0,2,0,0"
+                       Visibility="Visible"
+                       FontFamily="Segoe UI Light"
+                       FontSize="11"
+                       Foreground="White"
+                       Text=""
+                       TextAlignment="Left" />
             </StackPanel>
             </Grid>
         </Border>
