@@ -225,4 +225,91 @@ public class AppSettingsTests
             "Integer 3 in JSON should deserialize to double 3.0");
     }
 
+    // ----- v4.2 temps-visibility fields (TEST-01/TEST-02/TEST-03) -----
+
+    [TestMethod]
+    public void Deserialize_MissingTempsLineVisible_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.TempsLineVisible,
+            "TempsLineVisible should default to false when absent from JSON (init default per TEMP-TAB-02; master OFF on v4.1 upgrade)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingTempCpuVisible_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.TempCpuVisible,
+            "TempCpuVisible should default to true when absent from JSON (init default per TEMP-TAB-03; NOT C# bool default false)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingTempGpuVisible_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.TempGpuVisible,
+            "TempGpuVisible should default to true when absent from JSON (init default per TEMP-TAB-03)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingTempMoboVisible_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.TempMoboVisible,
+            "TempMoboVisible should default to false when absent from JSON (init default per TEMP-TAB-03; PawnIO-gated)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingTempNvmeVisible_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.TempNvmeVisible,
+            "TempNvmeVisible should default to FALSE when absent from JSON (TEMP-TAB-03 amendment 2026-05-04 commit b2163d1; NVMe not enumerated on baseline hardware — NOT true)");
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempsLineVisible_Matches()
+    {
+        var original = new AppSettings { TempsLineVisible = true };   // flipped from default false
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsTrue(result.TempsLineVisible);
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempCpuVisible_Matches()
+    {
+        var original = new AppSettings { TempCpuVisible = false };    // flipped from default true
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsFalse(result.TempCpuVisible);
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempGpuVisible_Matches()
+    {
+        var original = new AppSettings { TempGpuVisible = false };    // flipped from default true
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsFalse(result.TempGpuVisible);
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempMoboVisible_Matches()
+    {
+        var original = new AppSettings { TempMoboVisible = true };    // flipped from default false
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsTrue(result.TempMoboVisible);
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempNvmeVisible_Matches()
+    {
+        var original = new AppSettings { TempNvmeVisible = true };    // flipped from default false (post-amendment)
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsTrue(result.TempNvmeVisible);
+    }
+
 }
