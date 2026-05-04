@@ -380,6 +380,42 @@
             </StackPanel>
         </TabItem>
 
+        <!-- ===== TEMPS TAB ===== -->
+        <TabItem Header="Temps">
+            <StackPanel Margin="12">
+
+                <!-- Master toggle (TEMP-TAB-02; gates TempSensorsPanel per D-04) -->
+                <CheckBox x:Name="ChkTempsVisible"
+                          Content="Show Temps Line"
+                          Margin="0,0,0,10"
+                          Checked="ChkTempsVisible_Changed"
+                          Unchecked="ChkTempsVisible_Changed"/>
+
+                <!-- Per-sensor sub-panel (TEMP-TAB-03; indent 16px; master-gated IsEnabled per D-04) -->
+                <StackPanel x:Name="TempSensorsPanel" Margin="16,0,0,6">
+                    <WrapPanel Width="270">
+                        <!-- Ordering locked: CPU, GPU, Mobo, NVMe (row-major) -->
+                        <CheckBox x:Name="ChkTempCpuVisible"  Content="CPU"  Width="86" Margin="0,0,0,5"
+                                  Checked="ChkTempCpuVisible_Changed"  Unchecked="ChkTempCpuVisible_Changed"/>
+                        <CheckBox x:Name="ChkTempGpuVisible"  Content="GPU"  Width="86" Margin="0,0,0,5"
+                                  Checked="ChkTempGpuVisible_Changed"  Unchecked="ChkTempGpuVisible_Changed"/>
+                        <CheckBox x:Name="ChkTempMoboVisible" Content="Mobo" Width="86"
+                                  Checked="ChkTempMoboVisible_Changed" Unchecked="ChkTempMoboVisible_Changed"/>
+                        <CheckBox x:Name="ChkTempNvmeVisible" Content="NVMe" Width="86"
+                                  Checked="ChkTempNvmeVisible_Changed" Unchecked="ChkTempNvmeVisible_Changed"/>
+                    </WrapPanel>
+                </StackPanel>
+
+                <!-- Help text (TEMP-TAB-03 verbatim; outside TempSensorsPanel per D-05) -->
+                <TextBlock Text="CPU and NVMe readings may require elevated access or a helper driver (e.g. PawnIO) on some hardware; disabled checkboxes indicate the sensor is unavailable on this machine."
+                           Foreground="#FF999999"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Margin="16,0,0,0"/>
+
+            </StackPanel>
+        </TabItem>
+
         <!-- ===== BEHAVIOR TAB ===== -->
         <TabItem Header="Behavior">
             <StackPanel Margin="12">
