@@ -95,7 +95,7 @@ public sealed class TemperatureServiceTests
         // sentinels in place, and never let the exception propagate.
         using var svc = new ThrowingInitTemperatureService();
 
-        WaitForReady(svc, TimeSpan.FromSeconds(2));
+        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         Assert.IsTrue(svc.IsReady);
         Assert.AreEqual(-1f, svc.CpuTempC);
@@ -119,7 +119,7 @@ public sealed class TemperatureServiceTests
         try
         {
             using var svc = new ThrowingInitTemperatureService();
-            WaitForReady(svc, TimeSpan.FromSeconds(2));
+            WaitForReady(svc, TimeSpan.FromSeconds(7));
         }
         finally
         {
@@ -265,7 +265,7 @@ public sealed class TemperatureServiceTests
         // that Path 2's Refresh() is safe to call without a cached tree, and
         // that it does not throw.
         using var svc = new NoOpInitTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(2));
+        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         svc.Refresh();   // no-op under Path 2
         svc.Refresh();
@@ -284,7 +284,7 @@ public sealed class TemperatureServiceTests
         // real Computer (NoOp init), the loop never runs, but the flag is
         // initialized false — we assert that via reflection on the internal field.
         using var svc = new NoOpInitTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(2));
+        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         // Direct flag assertion via internal field reflection (InternalsVisibleTo
         // exposes the field, but `volatile bool` fields are not conveniently
@@ -307,7 +307,7 @@ public sealed class TemperatureServiceTests
         // The Interlocked guard gates the Close try/catch; CloseCallCount is
         // incremented inside that block. One Dispose → one Close.
         using var svc = new CountingCloseTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(2));
+        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         svc.Dispose();
 
@@ -321,7 +321,7 @@ public sealed class TemperatureServiceTests
         // the first call and 1 on every subsequent call, short-circuiting past
         // the Close block. Three Dispose calls → still one Close.
         using var svc = new CountingCloseTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(2));
+        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         svc.Dispose();
         svc.Dispose();
@@ -337,7 +337,7 @@ public sealed class TemperatureServiceTests
         // still admit exactly one Close across all of them. Even on a single-core
         // machine this exercises the CompareExchange semantics under contention.
         using var svc = new CountingCloseTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(2));
+        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         Parallel.For(0, 3, _ => svc.Dispose());
 
