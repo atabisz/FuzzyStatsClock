@@ -120,7 +120,11 @@ Plans:
   4. Toggling any of the five controls persists to `settings.json` immediately and restores on next launch; "Reset to Defaults" resets all five values back to their documented defaults.
   5. The master toggle gates the temps line on the widget live (see Phase 79); per-sensor toggles add or remove the corresponding sensor from the rendered line with no widget restart.
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 78-01-PLAN.md -- SettingsSnapshot 10-field extension + SettingsWindow XAML Temps tab + 5 events + 5 handlers + RefreshControls N/A logic (wave 1)
+- [ ] 78-02-PLAN.md -- MainWindow.GetCurrentSettingsSnapshot extension + 5 event subscriptions + ResetToDefaults extension + human-verify checkpoint (wave 2)
 
 ---
 
