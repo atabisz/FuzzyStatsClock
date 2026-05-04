@@ -38,4 +38,17 @@ internal sealed record SettingsSnapshot
     public int     BatteryAlertThreshold                 { get; init; } = 20;
     public bool    PhraseWrapEnabled                     { get; init; } = true;
     public string  PhraseWrapStyle                       { get; init; } = "midpoint";
+
+    // v4.2 Phase 78 — Temps tab snapshot fields (read-only projection of AppSettings + TemperatureService)
+    // Defaults here are C# type zero-values; MainWindow.GetCurrentSettingsSnapshot populates real values at open time.
+    public bool    TempsLineVisible                     { get; init; }
+    public bool    TempCpuVisible                       { get; init; }
+    public bool    TempGpuVisible                       { get; init; }
+    public bool    TempMoboVisible                      { get; init; }
+    public bool    TempNvmeVisible                      { get; init; }
+    public float   CpuTempC                             { get; init; }
+    public float   GpuTempC                             { get; init; }
+    public float   MoboTempC                            { get; init; }
+    public float   NvmeTempC                            { get; init; }
+    public bool    TempsServiceReady                    { get; init; }
 }
