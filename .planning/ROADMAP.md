@@ -90,7 +90,9 @@ Plans:
   3. User unchecks all three modifiers and widget always fades on hover regardless of held keys
   4. User enables Shift-only, holds Shift while hovering, and widget stays visible
   5. Full human verification checklist passes (checkbox state persistence, Reset to Defaults, all-unchecked behavior, modifier combination matrix)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 84-01-PLAN.md — MainWindow wiring (ApplySettings + OpenSettings + ResetToDefaults + IsModifierHeld call sites) + human verification checklist
 
 ## Progress Table
 
@@ -99,7 +101,7 @@ Plans:
 | 81. Data Flow | 2/2 | Complete | 2026-05-07 |
 | 82. Settings UI | 1/1 | Complete | 2026-05-07 |
 | 83. Runtime Detection | 2/2 | Complete | 2026-05-07 |
-| 84. Integration | 0/? | Not started | - |
+| 84. Integration | 1/1 | Planning complete | - |
 
 ## Coverage Summary
 
