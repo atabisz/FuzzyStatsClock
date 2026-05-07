@@ -29,7 +29,7 @@ progress:
 # Project State: FuzzyStatsClock v4.3
 
 **Milestone:** v4.3 Configurable Ghost Override
-**Status:** in-progress
+**Status:** complete
 **Last updated:** 2026-05-07
 
 ## Project Reference
@@ -40,10 +40,10 @@ progress:
 
 ## Current Position
 
-**Phase:** 83 (Runtime Detection) — complete
-**Plan:** 2/2 plans executed (controller refactored, tests passing)
-**Status:** Phase 83 complete — MainWindow integration deferred to Phase 84 (codebase currently non-buildable per phase design)
-**Progress:** ████████████░░ 75% (3/4 phases complete, 3/4 planned)
+**Phase:** 84 (Integration) — complete
+**Plan:** 1/1 plans executed (MainWindow wired end-to-end, 574 tests passing, human verification passed)
+**Status:** Milestone v4.3 complete — all 22 requirements validated
+**Progress:** ████████████████ 100% (4/4 phases complete)
 
 ## Performance Metrics
 
@@ -66,8 +66,7 @@ progress:
 
 ### Active TODOs
 
-- Plan Phase 84 (Integration) — wire MainWindow to use IsModifierHeld + UpdateModifierConfig
-- Phase 83 complete — controller refactored but MainWindow still references old IsCtrlAltHeld (2 call sites at lines 1065 and 1539 need updating)
+- None — milestone v4.3 complete, ready for `/gsd-complete-milestone`
 
 ### Known Blockers
 
@@ -88,14 +87,14 @@ None.
 
 ## Session Continuity
 
-**Stopped at:** Phase 83 complete (2/2 plans executed)
-**Resume file:** `.planning/phases/83-runtime-detection/83-02-SUMMARY.md`
-**Next action:** `/clear` then `/gsd-plan-phase 84` to plan MainWindow integration
+**Stopped at:** Phase 84 complete (1/1 plan executed, human verification passed)
+**Resume file:** `.planning/phases/84-integration/84-01-SUMMARY.md`
+**Next action:** `/gsd-complete-milestone` to tag v4.3 and archive phase directories
 
 **When returning:**
 1. Read this STATE.md to understand where we are
-2. Plan Phase 84 (Integration) — 3 sites need wiring: ApplySettings initialization, event handler updates, UpdateModifierConfig calls
-3. Note: Codebase currently non-buildable (MainWindow.xaml.cs lines 1065 and 1539 call removed IsCtrlAltHeld method) — expected intermediate state per phase design
+2. Run `/gsd-complete-milestone` to tag v4.3, archive phases 81-84, update PROJECT.md
+3. Milestone ready to ship: 574 MSTest passing, 22/22 requirements validated, human verification complete
 
 **Recent milestone:** v4.2 Temps & Menu shipped 2026-05-04 (562 MSTest green, 66 commits, MPL-2.0 compliance complete)
 

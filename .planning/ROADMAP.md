@@ -28,8 +28,8 @@
 
 - [x] **Phase 81: Data Flow** - AppSettings schema + persistence + MSTest round-trip (completed 2026-05-07)
 - [x] **Phase 82: Settings UI** - Three modifier checkboxes in Settings > Behavior (completed 2026-05-07)
-- [ ] **Phase 83: Runtime Detection** - GhostModeController refactor with configurable VK checks
-- [ ] **Phase 84: Integration** - MainWindow wiring + ResetToDefaults + human verification
+- [x] **Phase 83: Runtime Detection** - GhostModeController refactor with configurable VK checks (completed 2026-05-07)
+- [x] **Phase 84: Integration** - MainWindow wiring + ResetToDefaults + human verification (completed 2026-05-07)
 
 ## Phase Details
 
@@ -92,7 +92,7 @@ Plans:
   5. Full human verification checklist passes (checkbox state persistence, Reset to Defaults, all-unchecked behavior, modifier combination matrix)
 **Plans**: 1 plan
 Plans:
-- [ ] 84-01-PLAN.md — MainWindow wiring (ApplySettings + OpenSettings + ResetToDefaults + IsModifierHeld call sites) + human verification checklist
+- [x] 84-01-PLAN.md — MainWindow wiring (ApplySettings + OpenSettings + ResetToDefaults + IsModifierHeld call sites) + human verification checklist (completed 2026-05-07)
 
 ## Progress Table
 
@@ -101,7 +101,7 @@ Plans:
 | 81. Data Flow | 2/2 | Complete | 2026-05-07 |
 | 82. Settings UI | 1/1 | Complete | 2026-05-07 |
 | 83. Runtime Detection | 2/2 | Complete | 2026-05-07 |
-| 84. Integration | 1/1 | Planning complete | - |
+| 84. Integration | 1/1 | Complete | 2026-05-07 |
 
 ## Coverage Summary
 
