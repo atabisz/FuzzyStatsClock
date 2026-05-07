@@ -43,7 +43,11 @@
   3. SettingsSnapshot exposes modifier bools so Settings window can populate checkboxes
   4. MSTest round-trip test proves all three modifier bools serialize/deserialize correctly with no silent data loss
   5. MSTest absent-field test proves v4.2 settings.json (missing UseCtrl/UseAlt/UseShift) deserializes with init defaults
-**Plans**: TBD
+**Plans**: 2 plans (TDD first, schema extension)
+
+Plans:
+- [ ] 81-01-PLAN.md — RED phase: 3 absent-field tests + round-trip extension (Wave 1)
+- [ ] 81-02-PLAN.md — GREEN phase: AppSettings + SettingsSnapshot schema extension (Wave 2)
 
 ### Phase 82: Settings UI
 **Goal**: User can see and modify ghost override configuration in Settings window
@@ -85,7 +89,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 81. Data Flow | 0/? | Not started | - |
+| 81. Data Flow | 0/2 | Not started | - |
 | 82. Settings UI | 0/? | Not started | - |
 | 83. Runtime Detection | 0/? | Not started | - |
 | 84. Integration | 0/? | Not started | - |
