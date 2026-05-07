@@ -10,7 +10,7 @@
 - ✅ **v3.7 Nixie Clock** — Phases 58–59 (shipped 2026-03-23) — [archive](./milestones/v3.7-ROADMAP.md)
 - ✅ **v3.6.2 Contrast Fix** — Phase 58 (shipped 2026-03-19) — [archive](./milestones/v3.6.2-ROADMAP.md)
 - ✅ **v3.5 Phrase Wrap + Installer** — Phases 48–55 (shipped 2026-03-18) — [archive](./milestones/v3.5-ROADMAP.md)
-- ✅ **v3.2 Expanded Experience** — Phases 41–47 (shipped 2026-03-09) — [archive](./milestones/v3.2-ROADMAP.md)
+- ✅ **v3.2 Expanded Experience** — Phases 41–47 (shipped 2026-09-09) — [archive](./milestones/v3.2-ROADMAP.md)
 - ✅ **v3.1 Quality + Battery** — Phases 37–40 (shipped 2026-03-08) — [archive](./milestones/v3.1-ROADMAP.md)
 - ✅ **v3.0 Date Display** — Phase 36 (shipped 2026-03-07) — [archive](./milestones/v3.0-ROADMAP.md)
 - ✅ Earlier milestones (v1.0 – v2.9) — see [archives](./milestones/) + [MILESTONES.md](./MILESTONES.md)
@@ -74,7 +74,11 @@ Plans:
   3. User unchecks all modifiers, hovers widget, and widget always fades (override disabled)
   4. MSTest unit tests verify all 8 combinations (2³) including all-false = always-false
   5. EU keyboard users hold Left Ctrl+Left Alt and get correct behavior without AltGr false-positives
-**Plans**: TBD
+**Plans**: 2 plans (TDD + controller refactor)
+
+Plans:
+- [ ] 83-01-PLAN.md — TDD RED: GhostModeControllerTests with 8 parametric test cases (Wave 1)
+- [ ] 83-02-PLAN.md — GREEN: UpdateModifierConfig + IsModifierHeld refactor + OnTimerTick short-circuit (Wave 2)
 
 ### Phase 84: Integration
 **Goal**: Modifier configuration wires end-to-end from Settings UI through persistence to runtime behavior
@@ -93,8 +97,8 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 81. Data Flow | 2/2 | Complete | 2026-05-07 |
-| 82. Settings UI | 1/1 | Planned | - |
-| 83. Runtime Detection | 0/? | Not started | - |
+| 82. Settings UI | 1/1 | Complete | 2026-05-07 |
+| 83. Runtime Detection | 0/2 | Planned | - |
 | 84. Integration | 0/? | Not started | - |
 
 ## Coverage Summary
@@ -135,4 +139,4 @@ Phase 81: Data Flow (foundation)
 
 ---
 *Roadmap created: 2026-05-07*
-*Ready for `/gsd:plan-phase 82`*
+*Ready for `/gsd:execute-phase 83`*
