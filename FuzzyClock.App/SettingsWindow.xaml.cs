@@ -61,6 +61,11 @@ public sealed partial class SettingsWindow : Window
     public event Action<bool>?   TempMoboVisibleChanged;
     public event Action<bool>?   TempNvmeVisibleChanged;
 
+    // v4.3 Phase 82 — Ghost override modifier configuration
+    public event Action<bool>?   UseCtrlChanged;
+    public event Action<bool>?   UseAltChanged;
+    public event Action<bool>?   UseShiftChanged;
+
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
     {
@@ -204,6 +209,12 @@ public sealed partial class SettingsWindow : Window
         GhostFadeRadiusSlider.Value    = s.GhostFadeRadiusPx;
         GhostFadeRadiusLabel.Text      = $"{s.GhostFadeRadiusPx} px";
         GhostFadeRadiusPanel.IsEnabled = s.GhostModeEnabled;
+
+        // v4.3 Phase 82 — Ghost override modifier checkboxes
+        ChkUseCtrl.IsChecked  = s.UseCtrl;
+        ChkUseAlt.IsChecked   = s.UseAlt;
+        ChkUseShift.IsChecked = s.UseShift;
+        GhostOverridePanel.IsEnabled = s.GhostModeEnabled;   // master gates sub-panel (site 1/2)
         ChkAutoContrast.IsChecked = s.AutoContrastEnabled;
         ChkAutoLaunch.IsChecked   = s.AutoLaunchEnabled;
 
@@ -587,6 +598,7 @@ public sealed partial class SettingsWindow : Window
         if (_suppressEvents) return;
         bool enabled = ChkGhostMode.IsChecked == true;
         GhostFadeRadiusPanel.IsEnabled = enabled;
+        GhostOverridePanel.IsEnabled = enabled;      // Phase 82 — gate modifier sub-panel (site 2/2)
         GhostModeChanged?.Invoke(enabled);
     }
 
@@ -600,6 +612,25 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         AutoLaunchChanged?.Invoke(ChkAutoLaunch.IsChecked == true);
+    }
+
+    // ── Ghost override modifiers ───────────────────────────────────────────
+    private void ChkUseCtrl_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        UseCtrlChanged?.Invoke(ChkUseCtrl.IsChecked == true);
+    }
+
+    private void ChkUseAlt_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        UseAltChanged?.Invoke(ChkUseAlt.IsChecked == true);
+    }
+
+    private void ChkUseShift_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        UseShiftChanged?.Invoke(ChkUseShift.IsChecked == true);
     }
 
     // ── Phrase wrap controls ───────────────────────────────────────────────
