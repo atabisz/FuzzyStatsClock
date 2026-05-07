@@ -89,7 +89,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 81. Data Flow | 0/2 | Not started | - |
+| 81. Data Flow | 0/2 | Ready to execute | - |
 | 82. Settings UI | 0/? | Not started | - |
 | 83. Runtime Detection | 0/? | Not started | - |
 | 84. Integration | 0/? | Not started | - |
