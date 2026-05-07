@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Configurable Ghost Override
 status: in-progress
-last_updated: "2026-05-07T04:30:00.000Z"
-last_activity: 2026-05-07 — Phase 82 complete (1/1 plans, 566 tests green, 5/5 requirements verified)
+last_updated: "2026-05-07T16:40:00.000Z"
+last_activity: 2026-05-07 — Phase 83 context gathered (7 decisions captured, ready for planning)
 progress:
   total_phases: 4
   completed_phases: 2
@@ -40,9 +40,9 @@ progress:
 
 ## Current Position
 
-**Phase:** 83 (Runtime Detection) — next in sequence
-**Plan:** Ready to plan Phase 83 (can run parallel with Phase 82, but 82 now complete)
-**Status:** Phase 82 complete (1/1 plans), Phase 83 ready for planning
+**Phase:** 83 (Runtime Detection) — context captured
+**Plan:** Ready to plan Phase 83 (7 decisions locked: config flow, method naming, all-false optimization, VK constants, call sites, test style, visibility)
+**Status:** Phase 82 complete (1/1 plans), Phase 83 context ready for planning
 **Progress:** ████████░░ 50% (2/4 phases complete, 2/4 planned)
 
 ## Performance Metrics
@@ -60,10 +60,13 @@ progress:
 3. **Left-side VK codes only** (2026-05-07) — VK_LCONTROL, VK_LMENU, VK_LSHIFT prevent AltGr false-positives on EU keyboards (v2.3 lesson)
 4. **All-unchecked = override disabled** (2026-05-07) — Clear semantics: all-false means ghost always activates regardless of held keys
 5. **AND logic (not OR)** (2026-05-07) — When multiple modifiers enabled, ALL must be held simultaneously to suppress ghost; prevents single-key sensitivity issue
+6. **Phase 83: UpdateModifierConfig property setter** (2026-05-07) — Controller gets public UpdateModifierConfig(bool, bool, bool) method; called from ApplySettings + event handlers; instant config changes without controller recreation
+7. **Phase 83: IsModifierHeld() public for testing** (2026-05-07) — Rename IsCtrlAltHeld → IsModifierHeld, make public for direct unit testing; [DataRow] x8 parametric test covers all 2³ combinations
+8. **Phase 83: Short-circuit all-false in OnTimerTick** (2026-05-07) — When all three bools false, skip IsModifierHeld call entirely; satisfies DET-02 via never calling method when disabled
 
 ### Active TODOs
 
-- Plan Phase 83 (Runtime Detection) — ready for planning (can run parallel, but Phase 82 now complete)
+- Plan Phase 83 (Runtime Detection) — context captured with 7 locked decisions, ready for `/gsd-plan-phase 83`
 - Phase 82 complete — GhostOverridePanel UI layer ready for Phase 84 integration
 
 ### Known Blockers
@@ -85,13 +88,15 @@ None.
 
 ## Session Continuity
 
-**Next action:** `/gsd:execute-phase 81` to execute Data Flow foundation layer
+**Stopped at:** Phase 83 context gathered
+**Resume file:** `.planning/phases/83-runtime-detection/83-CONTEXT.md`
+**Next action:** `/clear` then `/gsd-plan-phase 83` to create detailed plan
 
 **When returning:**
 1. Read this STATE.md to understand where we are
-2. Check ROADMAP.md Phase 81 to see what needs planning
-3. Validate coverage (22/22 requirements mapped)
-4. Execute Phase 81 when plan approved
+2. Read Phase 83 CONTEXT.md for locked decisions
+3. Plan Phase 83 (7 decisions captured: config flow via UpdateModifierConfig, IsModifierHeld rename, public visibility, short-circuit optimization, VK_LSHIFT const, dual call sites, DataRow parametric tests)
+4. Execute Phase 83 when plan approved
 
 **Recent milestone:** v4.2 Temps & Menu shipped 2026-05-04 (562 MSTest green, 66 commits, MPL-2.0 compliance complete)
 
