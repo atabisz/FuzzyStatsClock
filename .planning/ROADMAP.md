@@ -59,7 +59,10 @@ Plans:
   3. User can check/uncheck each modifier independently with immediate save to settings.json
   4. When Ghost Mode is off, modifier checkboxes are disabled (gray) and cannot be changed
   5. When Ghost Mode is on, modifier checkboxes are enabled and reflect current persisted state
-**Plans**: TBD
+**Plans**: 1 plan (UI layer complete - XAML + code-behind + test scaffold)
+
+Plans:
+- [ ] 82-01-PLAN.md — GhostOverridePanel with 3 modifier checkboxes + events + PopulateControls + two-site IsEnabled gating (Wave 1)
 
 ### Phase 83: Runtime Detection
 **Goal**: GhostModeController correctly detects user-configured modifier combinations
@@ -90,7 +93,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 81. Data Flow | 2/2 | Complete | 2026-05-07 |
-| 82. Settings UI | 0/? | Not started | - |
+| 82. Settings UI | 1/1 | Planned | - |
 | 83. Runtime Detection | 0/? | Not started | - |
 | 84. Integration | 0/? | Not started | - |
 
@@ -132,4 +135,4 @@ Phase 81: Data Flow (foundation)
 
 ---
 *Roadmap created: 2026-05-07*
-*Ready for `/gsd:plan-phase 81`*
+*Ready for `/gsd:plan-phase 82`*
