@@ -77,8 +77,8 @@ Plans:
 **Plans**: 2 plans (TDD + controller refactor)
 
 Plans:
-- [ ] 83-01-PLAN.md — TDD RED: GhostModeControllerTests with 8 parametric test cases (Wave 1)
-- [ ] 83-02-PLAN.md — GREEN: UpdateModifierConfig + IsModifierHeld refactor + OnTimerTick short-circuit (Wave 2)
+- [x] 83-01-PLAN.md — TDD RED: GhostModeControllerTests with 8 parametric test cases (Wave 1) — completed 2026-05-07
+- [x] 83-02-PLAN.md — GREEN: UpdateModifierConfig + IsModifierHeld refactor + OnTimerTick short-circuit (Wave 2) — completed 2026-05-07
 
 ### Phase 84: Integration
 **Goal**: Modifier configuration wires end-to-end from Settings UI through persistence to runtime behavior
@@ -98,7 +98,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 81. Data Flow | 2/2 | Complete | 2026-05-07 |
 | 82. Settings UI | 1/1 | Complete | 2026-05-07 |
-| 83. Runtime Detection | 0/2 | Planned | - |
+| 83. Runtime Detection | 2/2 | Complete | 2026-05-07 |
 | 84. Integration | 0/? | Not started | - |
 
 ## Coverage Summary

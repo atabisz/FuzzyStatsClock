@@ -4,12 +4,12 @@ milestone: v4.3
 milestone_name: Configurable Ghost Override
 status: in-progress
 last_updated: "2026-05-07T16:40:00.000Z"
-last_activity: 2026-05-07 — Phase 83 context gathered (7 decisions captured, ready for planning)
+last_activity: 2026-05-07 — Phase 83 complete (GhostModeController refactored with configurable modifier detection; MainWindow integration pending Phase 84)
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
 ---
 
 ---
@@ -40,10 +40,10 @@ progress:
 
 ## Current Position
 
-**Phase:** 83 (Runtime Detection) — context captured
-**Plan:** Ready to plan Phase 83 (7 decisions locked: config flow, method naming, all-false optimization, VK constants, call sites, test style, visibility)
-**Status:** Phase 82 complete (1/1 plans), Phase 83 context ready for planning
-**Progress:** ████████░░ 50% (2/4 phases complete, 2/4 planned)
+**Phase:** 83 (Runtime Detection) — complete
+**Plan:** 2/2 plans executed (controller refactored, tests passing)
+**Status:** Phase 83 complete — MainWindow integration deferred to Phase 84 (codebase currently non-buildable per phase design)
+**Progress:** ████████████░░ 75% (3/4 phases complete, 3/4 planned)
 
 ## Performance Metrics
 
@@ -66,8 +66,8 @@ progress:
 
 ### Active TODOs
 
-- Plan Phase 83 (Runtime Detection) — context captured with 7 locked decisions, ready for `/gsd-plan-phase 83`
-- Phase 82 complete — GhostOverridePanel UI layer ready for Phase 84 integration
+- Plan Phase 84 (Integration) — wire MainWindow to use IsModifierHeld + UpdateModifierConfig
+- Phase 83 complete — controller refactored but MainWindow still references old IsCtrlAltHeld (2 call sites at lines 1065 and 1539 need updating)
 
 ### Known Blockers
 
@@ -88,15 +88,14 @@ None.
 
 ## Session Continuity
 
-**Stopped at:** Phase 83 context gathered
-**Resume file:** `.planning/phases/83-runtime-detection/83-CONTEXT.md`
-**Next action:** `/clear` then `/gsd-plan-phase 83` to create detailed plan
+**Stopped at:** Phase 83 complete (2/2 plans executed)
+**Resume file:** `.planning/phases/83-runtime-detection/83-02-SUMMARY.md`
+**Next action:** `/clear` then `/gsd-plan-phase 84` to plan MainWindow integration
 
 **When returning:**
 1. Read this STATE.md to understand where we are
-2. Read Phase 83 CONTEXT.md for locked decisions
-3. Plan Phase 83 (7 decisions captured: config flow via UpdateModifierConfig, IsModifierHeld rename, public visibility, short-circuit optimization, VK_LSHIFT const, dual call sites, DataRow parametric tests)
-4. Execute Phase 83 when plan approved
+2. Plan Phase 84 (Integration) — 3 sites need wiring: ApplySettings initialization, event handler updates, UpdateModifierConfig calls
+3. Note: Codebase currently non-buildable (MainWindow.xaml.cs lines 1065 and 1539 call removed IsCtrlAltHeld method) — expected intermediate state per phase design
 
 **Recent milestone:** v4.2 Temps & Menu shipped 2026-05-04 (562 MSTest green, 66 commits, MPL-2.0 compliance complete)
 
