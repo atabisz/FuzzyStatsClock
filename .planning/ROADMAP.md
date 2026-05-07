@@ -17,26 +17,115 @@
 
 ---
 
+## Current Milestone: v4.3 Configurable Ghost Override
+
+**Goal:** Let users customize which modifier keys suppress Ghost Mode instead of hardcoded Ctrl+Alt
+**Granularity:** Standard
+**Created:** 2026-05-07
+**Status:** Planning
+
 ## Phases
 
-<details>
-<summary>✅ v4.2 Temps & Menu (Phases 75–80) — SHIPPED 2026-05-04</summary>
+- [ ] **Phase 81: Data Flow** - AppSettings schema + persistence + MSTest round-trip
+- [ ] **Phase 82: Settings UI** - Three modifier checkboxes in Settings > Behavior
+- [ ] **Phase 83: Runtime Detection** - GhostModeController refactor with configurable VK checks
+- [ ] **Phase 84: Integration** - MainWindow wiring + ResetToDefaults + human verification
 
-- [x] Phase 75: Hardware Discovery Spike + TemperatureService (2/2 plans) — completed 2026-05-04
-- [x] Phase 76: AppSettings + TemperatureFormatter Tests (1/1 plan) — completed 2026-05-04
-- [x] Phase 77: Right-Click Menu on Widget (1/1 plan) — completed 2026-05-04
-- [x] Phase 78: Temps Tab in Settings (2/2 plans) — completed 2026-05-04
-- [x] Phase 79: Temps Line on Widget (2/2 plans) — completed 2026-05-04
-- [x] Phase 80: Release & Compliance (2/2 plans) — completed 2026-05-04
+## Phase Details
 
-</details>
+### Phase 81: Data Flow
+**Goal**: Modifier configuration persists correctly across app restarts and v4.2 upgrades
+**Depends on**: Nothing (first phase)
+**Requirements**: CFG-01, CFG-02, CFG-03, CFG-04, TST-01, TST-02
+**Success Criteria** (what must be TRUE):
+  1. User can install v4.3 over v4.2 and app launches with Ctrl+Alt defaults (UseCtrl=true, UseAlt=true, UseShift=false)
+  2. User can change modifier configuration, close app, restart, and see exact same configuration loaded
+  3. SettingsSnapshot exposes modifier bools so Settings window can populate checkboxes
+  4. MSTest round-trip test proves all three modifier bools serialize/deserialize correctly with no silent data loss
+  5. MSTest absent-field test proves v4.2 settings.json (missing UseCtrl/UseAlt/UseShift) deserializes with init defaults
+**Plans**: TBD
 
-See `.planning/MILESTONES.md` for the complete shipped-version history and key accomplishments per milestone.
+### Phase 82: Settings UI
+**Goal**: User can see and modify ghost override configuration in Settings window
+**Depends on**: Phase 81 (needs AppSettings schema)
+**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05
+**Success Criteria** (what must be TRUE):
+  1. User opens Settings > Behavior and sees indented sub-panel below Ghost Mode with label "Hold these keys to keep widget visible:"
+  2. Sub-panel contains three checkboxes clearly labeled "Left Ctrl", "Left Alt", "Left Shift"
+  3. User can check/uncheck each modifier independently with immediate save to settings.json
+  4. When Ghost Mode is off, modifier checkboxes are disabled (gray) and cannot be changed
+  5. When Ghost Mode is on, modifier checkboxes are enabled and reflect current persisted state
+**Plans**: TBD
 
-## Next Milestone
+### Phase 83: Runtime Detection
+**Goal**: GhostModeController correctly detects user-configured modifier combinations
+**Depends on**: Phase 81 (needs AppSettings schema)
+**Requirements**: DET-01, DET-02, DET-03, DET-04, DET-05, TST-03
+**Success Criteria** (what must be TRUE):
+  1. User holds only enabled modifiers and widget stays visible (ghost suppressed)
+  2. User holds partial combination (e.g., only Ctrl when Ctrl+Alt configured) and widget fades (ghost activates)
+  3. User unchecks all modifiers, hovers widget, and widget always fades (override disabled)
+  4. MSTest unit tests verify all 8 combinations (2³) including all-false = always-false
+  5. EU keyboard users hold Left Ctrl+Left Alt and get correct behavior without AltGr false-positives
+**Plans**: TBD
 
-No active milestone. Run `/gsd-new-milestone` to start the next cycle — questioning → research → requirements → roadmap.
+### Phase 84: Integration
+**Goal**: Modifier configuration wires end-to-end from Settings UI through persistence to runtime behavior
+**Depends on**: Phase 82, Phase 83 (needs both UI and controller)
+**Requirements**: INT-01, INT-02, INT-03, INT-04, TST-04
+**Success Criteria** (what must be TRUE):
+  1. User changes modifier checkbox in Settings, hovers widget, and sees immediate behavior change matching new configuration
+  2. User clicks Reset to Defaults and sees checkboxes flip to Ctrl+Alt instantly, with widget behavior matching
+  3. User unchecks all three modifiers and widget always fades on hover regardless of held keys
+  4. User enables Shift-only, holds Shift while hovering, and widget stays visible
+  5. Full human verification checklist passes (checkbox state persistence, Reset to Defaults, all-unchecked behavior, modifier combination matrix)
+**Plans**: TBD
+
+## Progress Table
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 81. Data Flow | 0/? | Not started | - |
+| 82. Settings UI | 0/? | Not started | - |
+| 83. Runtime Detection | 0/? | Not started | - |
+| 84. Integration | 0/? | Not started | - |
+
+## Coverage Summary
+
+**Requirements mapped:** 22/22 ✓
+
+**Requirement → Phase mapping:**
+- Phase 81: CFG-01, CFG-02, CFG-03, CFG-04, TST-01, TST-02 (6 requirements)
+- Phase 82: UI-01, UI-02, UI-03, UI-04, UI-05 (5 requirements)
+- Phase 83: DET-01, DET-02, DET-03, DET-04, DET-05, TST-03 (6 requirements)
+- Phase 84: INT-01, INT-02, INT-03, INT-04, TST-04 (5 requirements)
+
+**Orphaned requirements:** None ✓
+
+## Phase Dependencies
+
+```
+Phase 81: Data Flow (foundation)
+    ↓
+    ├─→ Phase 82: Settings UI (parallel)
+    └─→ Phase 83: Runtime Detection (parallel)
+            ↓
+        Phase 84: Integration (end-to-end)
+```
+
+## Notes
+
+**Research insights applied:**
+- Zero new dependencies — all capabilities validated in production since v2.3 (GetAsyncKeyState) and v3.2 (Settings checkboxes)
+- Phase 2 and 3 can execute in parallel (no cross-dependency)
+- All phases follow proven patterns from prior milestones
+
+**Critical patterns to preserve:**
+- `_suppressEvents` guard in SettingsWindow (Phase 82) — prevents checkbox state corruption during PopulateControls
+- Left-side VK codes only (VK_LCONTROL, VK_LMENU, VK_LSHIFT) — AltGr false-positive mitigation from v2.3
+- Immediate persistence via `_settings = _settings with { UseX = v }; SaveSettings();` pattern (Phase 84)
+- Init-property defaults (true, true, false) for v4.2 upgrade compatibility (Phase 81)
 
 ---
-
-*Roadmap last updated: 2026-05-04 after v4.2 milestone archival*
+*Roadmap created: 2026-05-07*
+*Ready for `/gsd:plan-phase 81`*
