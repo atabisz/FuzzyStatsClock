@@ -15,14 +15,14 @@ namespace FuzzyClock.App.Tests;
 public class GhostModeControllerTests
 {
     [TestMethod]
-    [DataRow(false, false, false, false)]  // all-false case (DET-02)
-    [DataRow(true,  false, false, false)]  // Ctrl-only enabled, not held
-    [DataRow(true,  false, false, true)]   // Ctrl-only enabled, Ctrl held
-    [DataRow(false, true,  false, false)]  // Alt-only enabled, not held
-    [DataRow(false, true,  false, true)]   // Alt-only enabled, Alt held
-    [DataRow(true,  true,  false, false)]  // Ctrl+Alt enabled, neither held
-    [DataRow(true,  true,  false, false)]  // Ctrl+Alt enabled, only Ctrl held (partial)
-    [DataRow(true,  true,  false, true)]   // Ctrl+Alt enabled, both held
+    [DataRow(false, false, false, false)]  // all-false case (DET-02): override disabled
+    [DataRow(true,  false, false, false)]  // Ctrl-only enabled, not held → false
+    [DataRow(false, true,  false, false)]  // Alt-only enabled, not held → false
+    [DataRow(false, false, true,  false)]  // Shift-only enabled, not held → false
+    [DataRow(true,  true,  false, false)]  // Ctrl+Alt enabled, neither held → false
+    [DataRow(true,  false, true,  false)]  // Ctrl+Shift enabled, neither held → false
+    [DataRow(false, true,  true,  false)]  // Alt+Shift enabled, neither held → false
+    [DataRow(true,  true,  true,  false)]  // All three enabled, none held → false
     public void IsModifierHeld_VariousConfigs_ReturnsExpected(
         bool useCtrl, bool useAlt, bool useShift, bool expected)
     {

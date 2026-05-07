@@ -315,6 +315,7 @@ public partial class MainWindow : Window
         this.Opacity   = s.Opacity;
         _ghostMode.IsEnabled = s.GhostModeEnabled;
         _ghostMode.GhostFadeRadiusPx = s.GhostFadeRadiusPx;
+        _ghostMode.UpdateModifierConfig(s.UseCtrl, s.UseAlt, s.UseShift);
 
         _autoLaunchEnabled = s.AutoLaunchEnabled;
         // Restore registry entry to match persisted setting.
@@ -403,6 +404,9 @@ public partial class MainWindow : Window
         DateFormat             = _dateFormat,
         GhostModeEnabled       = _ghostMode.IsEnabled,
         GhostFadeRadiusPx      = _ghostMode.GhostFadeRadiusPx,
+        UseCtrl                = _settings.UseCtrl,
+        UseAlt                 = _settings.UseAlt,
+        UseShift               = _settings.UseShift,
         AutoContrastEnabled    = _contrast.IsEnabled,
         AutoLaunchEnabled      = _autoLaunchEnabled,
         PhraseWrapEnabled      = _phraseWrapEnabled,
@@ -478,6 +482,25 @@ public partial class MainWindow : Window
         {
             _ghostMode.GhostFadeRadiusPx = v;
             SaveSettings();
+        };
+        // v4.3 Phase 84 — Modifier override configuration (INT-01, INT-02)
+        _settingsWindow.UseCtrlChanged += v =>
+        {
+            _settings = _settings with { UseCtrl = v };
+            SaveSettings();
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+        };
+        _settingsWindow.UseAltChanged += v =>
+        {
+            _settings = _settings with { UseAlt = v };
+            SaveSettings();
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+        };
+        _settingsWindow.UseShiftChanged += v =>
+        {
+            _settings = _settings with { UseShift = v };
+            SaveSettings();
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
         };
         _settingsWindow.AutoContrastChanged   += v => { _contrast.SetEnabled(v); SaveSettings(); };
         _settingsWindow.AutoLaunchChanged     += v =>
@@ -1062,7 +1085,7 @@ public partial class MainWindow : Window
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (_ghostMode.IsCtrlAltHeld() || !_ghostMode.IsEnabled)
+        if (_ghostMode.IsModifierHeld() || !_ghostMode.IsEnabled)
         {
             // Normal hover path (CTRLALT-01/02): show backdrop + activate fast-refresh.
             // WS_EX_TRANSPARENT is NOT applied — window stays fully interactive (drag, right-click, scroll).
@@ -1230,6 +1253,7 @@ public partial class MainWindow : Window
         // Re-enable ghost mode
         _ghostMode.IsEnabled = true;
         _ghostMode.GhostFadeRadiusPx = 80;
+        _ghostMode.UpdateModifierConfig(true, true, false);  // INT-04: restore Ctrl+Alt defaults
 
         // Reset auto-launch: disable on reset
         _autoLaunchEnabled = false;
@@ -1267,6 +1291,7 @@ public partial class MainWindow : Window
         SetLanguage("auto");
 
         // v4.2 Phase 78 — Reset Temps tab fields to documented defaults (TEMP-TAB-02 + TEMP-TAB-03)
+        // v4.3 Phase 84 — Reset modifier override to Ctrl+Alt defaults (INT-04)
         _settings = _settings with
         {
             TempsLineVisible = false,   // master OFF
@@ -1274,6 +1299,9 @@ public partial class MainWindow : Window
             TempGpuVisible   = true,    // per-sensor ON
             TempMoboVisible  = false,   // per-sensor OFF (PawnIO-gated)
             TempNvmeVisible  = false,   // per-sensor OFF (TEMP-TAB-03 amendment 2026-05-04)
+            UseCtrl  = true,
+            UseAlt   = true,
+            UseShift = false,
         };
         // If Settings window is open, refresh so the UI reflects the reset values
         // AND re-evaluates N/A state via RefreshControls → PopulateControls → ApplyTempCheckboxNaState
@@ -1536,7 +1564,7 @@ public partial class MainWindow : Window
         if (_menuOpen) return;
 
         // RMB-02 + RMB-03 predicate (pure, unit-tested via RightClickMenuGateTests).
-        if (!RightClickMenuGate.ShouldOpen(_isDragging, _ghostMode.IsActive, _ghostMode.IsCtrlAltHeld()))
+        if (!RightClickMenuGate.ShouldOpen(_isDragging, _ghostMode.IsActive, _ghostMode.IsModifierHeld()))
             return;
 
         // RMB-01: show the exact ContextMenuStrip instance the tray NotifyIcon uses.

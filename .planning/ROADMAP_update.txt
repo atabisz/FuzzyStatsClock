@@ -1,0 +1,5 @@
+**Plans**: 2 plans (TDD + controller refactor)
+
+Plans:
+- [ ] 83-01-PLAN.md — TDD RED: GhostModeControllerTests with 8 parametric test cases (Wave 1)
+- [ ] 83-02-PLAN.md — GREEN: UpdateModifierConfig + IsModifierHeld refactor + OnTimerTick short-circuit (Wave 2)

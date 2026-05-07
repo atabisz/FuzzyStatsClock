@@ -209,6 +209,10 @@ internal sealed class GhostModeController : IDisposable
     /// </summary>
     public bool IsModifierHeld()
     {
+        // DET-02 short-circuit: all-false = override disabled (always return false)
+        if (!_useCtrl && !_useAlt && !_useShift)
+            return false;
+
         // For each modifier: check if enabled AND currently held
         bool ctrlHeld  = _useCtrl  && (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
         bool altHeld   = _useAlt   && (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
