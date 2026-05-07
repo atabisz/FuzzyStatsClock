@@ -28,9 +28,22 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 562 MSTest tests (445 Core + 117 App) passing. CI gate enforced. REL-02 + REL-03 grep gates live in release.yml. LHM 0.9.6 pinned in FuzzyClock.App.csproj.
 
+## Current Milestone: v4.3 Configurable Ghost Override
+
+**Goal:** Let users customize which modifier keys suppress Ghost Mode instead of hardcoded Ctrl+Alt.
+
+**Target features:**
+
+- **Configurable ghost override modifiers** — Three checkboxes in Settings > Behavior (Ctrl / Alt / Shift) to configure which modifier keys suppress Ghost Mode when held while hovering
+- **Backward-compatible default** — Default remains Ctrl+Alt for existing users; new users see Ctrl+Alt enabled by default
+- **Disable option** — Unchecking all three modifiers disables the override entirely (ghost mode always activates on hover with no keyboard bypass)
+- **Persisted configuration** — Setting persists to settings.json and restores on launch; `ResetToDefaults()` restores Ctrl+Alt
+
+**Key context:** GhostModeController currently hardcodes `VK_LCONTROL` + `VK_LMENU` checks. The new implementation will read a configuration (3 bools: `UseCtrl`, `UseAlt`, `UseShift`) and check `GetAsyncKeyState` for the enabled combination. All three false = override disabled (IsCtrlAltHeld always returns false).
+
 ## Requirements
 
-### Validated
+### Active
 
 - ✓ Displays current time as a fuzzy/poetic English phrase (e.g. "just a little after 11", "almost noon", "12 o'clock", "quarter past 3") — v1.0
 - ✓ Phrase updates on every 5-minute boundary — v1.0
@@ -521,4 +534,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-04 — v4.2 Temps & Menu milestone started*
+*Last updated: 2026-05-07 — v4.3 Configurable Ghost Override milestone started*

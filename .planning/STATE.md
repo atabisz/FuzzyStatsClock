@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: none
-milestone_name: between-milestones
-status: ready-for-new-milestone
-last_updated: "2026-05-04T15:45:00.000Z"
-last_activity: 2026-05-04 — v4.2 milestone archived + tagged; ready for /gsd-new-milestone
+milestone: v4.3
+milestone_name: Configurable Ghost Override
+status: planning
+last_updated: "2026-05-07T00:00:00.000Z"
+last_activity: 2026-05-07 — Milestone v4.3 started
 progress:
   total_phases: 0
   completed_phases: 0
@@ -124,10 +124,10 @@ progress:
 
 ## Current Position
 
-Phase: 79 (Temps Line on Widget) — **COMPLETE 2026-05-04**
-Plan: 79-02 (human-verify checkpoint) SHIPPED — single metadata commit `docs(79-02): capture human-verify sign-off`. User walked the 22-item / 7-category checklist on live dev hardware via `dotnet run --project FuzzyClock.App/FuzzyClock.App.csproj -c Release` and replied `approved`. Dev-box render confirmed as single-segment `GPU 51°` line — matches D-19 prediction exactly (CPU + Mobo + NVMe absent on PawnIO-free baseline per Phase 75 spike Section 3). All 6 TEMP-LINE requirements (TEMP-LINE-01..06) now Complete.
-Status: Phase 79 closed across all state files. Plan 79-01 production code (`97d424c` RED → `5747390` XAML GREEN → `d3868fc` code-behind GREEN → `145a52d` SUMMARY) unchanged; Plan 79-02 is zero-code / metadata-only. 562 MSTest green preserved (445 Core + 117 App). REL-03 invariant preserved end-to-end through all 5 completed phases (zero `LibreHardwareMonitor` references under `FuzzyClock.Core/`). Next: Phase 80 (Release & Compliance) — LHM 0.9.6 pin + CI grep gates + `THIRD-PARTY-NOTICES.md` + Inno Setup `[Files]` LHM DLL capture.
-Last activity: 2026-05-04 — Phase 79 complete; temps line rendered on widget; 562 MSTest green
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-07 — Milestone v4.3 started
 
 ## Performance Metrics
 
