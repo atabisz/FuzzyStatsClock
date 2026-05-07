@@ -1,5 +1,32 @@
 # Milestones
 
+## v4.3 Configurable Ghost Override (Shipped: 2026-05-07)
+
+**Phases completed:** 4 phases (81–84), 5 plans, 574 MSTest green (445 Core + 129 App)
+
+**Git range:** v4.2 → v4.3 (37 commits, 38 files, +5,994 / -2,089 lines)
+
+**Key accomplishments:**
+
+- AppSettings + SettingsSnapshot extended with UseCtrl/UseAlt/UseShift bool fields with explicit init defaults (true, true, false) for v4.2 upgrade compatibility; 3 absent-field MSTest tests + round-trip extension validate JSON contract (Phase 81: CFG-01/02/03/04, TST-01/02)
+- GhostOverridePanel added to Settings > Behavior with three checkboxes labeled "Left Ctrl/Alt/Shift" (emphasizes left-side VK codes); two-site IsEnabled gating (PopulateControls + ChkGhostMode_Changed) follows GhostFadeRadiusPanel pattern; _suppressEvents guard prevents settings corruption (Phase 82: UI-01/02/03/04/05)
+- GhostModeController refactored with UpdateModifierConfig public method + IsModifierHeld with configurable AND logic (all enabled modifiers must be held); OnTimerTick short-circuit: when all modifiers false, IsModifierHeld never called; 8 DataRow parametric tests cover all 2³ combinations (Phase 83: DET-01/02/03/04/05, TST-03)
+- MainWindow end-to-end integration via 5 touchpoints: ApplySettings init, GetCurrentSettingsSnapshot projection, OpenSettings event subscriptions (3 handlers with immediate persistence), ResetToDefaults (restores Ctrl+Alt defaults), IsModifierHeld call-site updates (2 locations); 62-item human verification checklist passed (8 categories) (Phase 84: INT-01/02/03/04, TST-04)
+
+**Key technical decisions:**
+
+- Four-phase structure with Phase 82+83 parallel execution (zero cross-dependencies)
+- Init-property defaults (true, true, false) preserve Ctrl+Alt on v4.2 upgrade
+- Left-side VK codes only (VK_LCONTROL, VK_LMENU, VK_LSHIFT) prevent AltGr false-positives
+- All-unchecked = override disabled (clear semantics)
+- AND logic not OR (prevents single-key sensitivity)
+- IsModifierHeld made public for direct unit testing
+- Short-circuit optimization in OnTimerTick when all-false
+
+**Requirements coverage:** 22/22 (100%) — CFG (4), UI (5), DET (5), INT (4), TST (4)
+
+---
+
 ## v4.2 Temps & Menu (Shipped: 2026-05-04)
 
 **Phases completed:** 6 phases (75–80), 10 plans, 562 MSTest green (445 Core + 117 App)
