@@ -51,4 +51,9 @@ internal sealed record SettingsSnapshot
     public float   MoboTempC                            { get; init; }
     public float   NvmeTempC                            { get; init; }
     public bool    TempsServiceReady                    { get; init; }
+
+    // v4.3 Phase 81 (CFG-02) — modifier configuration snapshot
+    public bool UseCtrl  { get; init; }
+    public bool UseAlt   { get; init; }
+    public bool UseShift { get; init; }
 }
