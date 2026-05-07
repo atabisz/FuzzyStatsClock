@@ -396,6 +396,24 @@ public class AppSettingsTests
         Assert.IsFalse(snap.TempsServiceReady,  "TempsServiceReady default = bool default (false)");
     }
 
+    // ----- v4.3 Phase 82 SettingsSnapshot modifier field tests -----
+
+    [TestMethod]
+    public void SettingsSnapshot_ModifierFieldsAreInitSettable()
+    {
+        // Proves CFG-02: SettingsSnapshot carries UseCtrl/UseAlt/UseShift fields
+        var snapshot = new SettingsSnapshot
+        {
+            UseCtrl  = false,
+            UseAlt   = true,
+            UseShift = true
+        };
+
+        Assert.IsFalse(snapshot.UseCtrl,  "UseCtrl init-settable");
+        Assert.IsTrue(snapshot.UseAlt,    "UseAlt init-settable");
+        Assert.IsTrue(snapshot.UseShift,  "UseShift init-settable");
+    }
+
     // ----- v4.2 Phase 78-02 GetCurrentSettingsSnapshot mapping-contract tests -----
 
     [TestMethod]
