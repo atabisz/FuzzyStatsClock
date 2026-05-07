@@ -20,6 +20,7 @@ internal sealed class GhostModeController : IDisposable
     private const uint SWP_FRAMECHANGED  = 0x0020;
     private const int  VK_LCONTROL       = 0xA2;   // Left Ctrl only — avoids right-side ambiguity
     private const int  VK_LMENU          = 0xA4;   // Left Alt only — VK_MENU matches AltGr on EU keyboards
+    private const int  VK_LSHIFT         = 0xA0;   // Left Shift only — consistency with left-side-only pattern
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -52,6 +53,9 @@ internal sealed class GhostModeController : IDisposable
     private DispatcherTimer? _restoreTimer;
     private double _lastProximityRatio = 0.0;
     private int _ghostFadeRadiusPx = 80;
+    private bool _useCtrl  = true;   // CFG-04: default preserves Ctrl+Alt behavior from v4.2
+    private bool _useAlt   = true;   // CFG-04: default preserves Ctrl+Alt behavior from v4.2
+    private bool _useShift = false;  // CFG-04: default Shift disabled
 
     /// <summary>Whether ghost mode is enabled. Persisted to settings.</summary>
     public bool IsEnabled { get; set; } = true;
@@ -85,6 +89,19 @@ internal sealed class GhostModeController : IDisposable
     }
 
     /// <summary>
+    /// Sets which modifier keys suppress ghost mode when held during hover.
+    /// Called from MainWindow.ApplySettings() on startup and from Settings window
+    /// event handlers when user changes checkboxes. All-false = override disabled
+    /// (ghost always activates regardless of held keys per DET-02).
+    /// </summary>
+    public void UpdateModifierConfig(bool useCtrl, bool useAlt, bool useShift)
+    {
+        _useCtrl  = useCtrl;
+        _useAlt   = useAlt;
+        _useShift = useShift;
+    }
+
+    /// <summary>
     /// Called once from ContentRendered after the HWND is available.
     /// Creates the 75ms polling timer and starts it immediately — timer runs for the entire session.
     /// Caller should set GhostFadeRadiusPx from AppSettings.GhostFadeRadiusPx after this call.
@@ -112,11 +129,19 @@ internal sealed class GhostModeController : IDisposable
         if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
 
         double ratio;
-        if (IsCtrlAltHeld())
+        // D-08 + DET-02: Short-circuit when all modifiers disabled (all-false = override disabled).
+        // When any modifier is enabled, check if enabled modifiers are held to suppress ghost fade.
+        if (_useCtrl || _useAlt || _useShift)
         {
-            // D-08: Ctrl+Alt suppresses proximity fade — force ratio to 0.0 regardless of cursor position.
-            ratio = 0.0;
+            if (IsModifierHeld())
+                ratio = 0.0;  // Enabled modifiers held — suppress proximity fade
+            else
+                ratio = ComputeProximityRatio(
+                    cursor.X, cursor.Y,
+                    rect.Left, rect.Top, rect.Right, rect.Bottom,
+                    _ghostFadeRadiusPx);
         }
+        // If all three false, no check needed — ghost always activates (override disabled per DET-02)
         else
         {
             ratio = ComputeProximityRatio(
@@ -176,13 +201,27 @@ internal sealed class GhostModeController : IDisposable
     }
 
     /// <summary>
-    /// Returns true when Left-Ctrl + Left-Alt are both currently held.
+    /// Returns true when all enabled modifiers are currently held.
     /// Uses GetAsyncKeyState (not Keyboard.IsKeyDown) — overlay has no keyboard focus.
-    /// Uses left-side-specific VK codes to avoid AltGr false-positives on EU keyboards.
+    /// Uses left-side-specific VK codes (DET-05) to avoid AltGr false-positives on EU keyboards.
+    /// AND logic (DET-03): ALL enabled modifiers must be held simultaneously.
+    /// Public for unit testing (TST-03); called from OnTimerTick.
     /// </summary>
-    public bool IsCtrlAltHeld() =>
-        (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0 &&
-        (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
+    public bool IsModifierHeld()
+    {
+        // For each modifier: check if enabled AND currently held
+        bool ctrlHeld  = _useCtrl  && (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
+        bool altHeld   = _useAlt   && (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
+        bool shiftHeld = _useShift && (GetAsyncKeyState(VK_LSHIFT)   & 0x8000) != 0;
+
+        // AND logic: each enabled modifier must be held
+        // If disabled (_useX is false), the modifier is automatically "satisfied"
+        bool ctrlOk  = !_useCtrl  || ctrlHeld;
+        bool altOk   = !_useAlt   || altHeld;
+        bool shiftOk = !_useShift || shiftHeld;
+
+        return ctrlOk && altOk && shiftOk;
+    }
 
     /// <summary>
     /// Pure static proximity ratio computation. Returns 0.0 (outside zone) to 1.0 (inside widget).
