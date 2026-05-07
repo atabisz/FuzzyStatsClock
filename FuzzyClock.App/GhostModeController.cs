@@ -129,11 +129,19 @@ internal sealed class GhostModeController : IDisposable
         if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
 
         double ratio;
-        if (IsCtrlAltHeld())
+        // D-08 + DET-02: Short-circuit when all modifiers disabled (all-false = override disabled).
+        // When any modifier is enabled, check if enabled modifiers are held to suppress ghost fade.
+        if (_useCtrl || _useAlt || _useShift)
         {
-            // D-08: Ctrl+Alt suppresses proximity fade — force ratio to 0.0 regardless of cursor position.
-            ratio = 0.0;
+            if (IsModifierHeld())
+                ratio = 0.0;  // Enabled modifiers held — suppress proximity fade
+            else
+                ratio = ComputeProximityRatio(
+                    cursor.X, cursor.Y,
+                    rect.Left, rect.Top, rect.Right, rect.Bottom,
+                    _ghostFadeRadiusPx);
         }
+        // If all three false, no check needed — ghost always activates (override disabled per DET-02)
         else
         {
             ratio = ComputeProximityRatio(
