@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Configurable Ghost Override
-status: ready-to-execute
-last_updated: "2026-05-07T00:00:00.000Z"
-last_activity: 2026-05-07 — Phase 81 planned (2 plans)
+status: in-progress
+last_updated: "2026-05-07T02:00:00.000Z"
+last_activity: 2026-05-07 — Phase 81 complete (2/2 plans, 565 tests green, 6/6 requirements verified)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 0
+  completed_plans: 2
 ---
 
 ---
@@ -40,10 +40,10 @@ progress:
 
 ## Current Position
 
-**Phase:** 81 (Data Flow)
-**Plan:** 2 plans created (81-01, 81-02)
-**Status:** Ready to execute
-**Progress:** ██░░░░░░░░ 25% (0/4 phases complete, 1/4 planned)
+**Phase:** 82 (Settings UI)
+**Plan:** Ready to plan Phase 82
+**Status:** Phase 81 complete, ready for Phase 82
+**Progress:** ███░░░░░░░ 25% (1/4 phases complete, 1/4 planned)
 
 ## Performance Metrics
 
@@ -63,9 +63,9 @@ progress:
 
 ### Active TODOs
 
-- Plan Phase 81 (Data Flow foundation)
-- Verify MSTest absent-field behavior for UseCtrl/UseAlt/UseShift
-- Verify `_suppressEvents` guard pattern from Phase 78 Temps tab
+- Plan Phase 82 (Settings UI)
+- Plan Phase 83 (Runtime Detection) — can run parallel with Phase 82
+- Verify `_suppressEvents` guard pattern ready for Phase 82 checkboxes
 
 ### Known Blockers
 

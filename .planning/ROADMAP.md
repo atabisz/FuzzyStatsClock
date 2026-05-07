@@ -26,7 +26,7 @@
 
 ## Phases
 
-- [ ] **Phase 81: Data Flow** - AppSettings schema + persistence + MSTest round-trip
+- [x] **Phase 81: Data Flow** - AppSettings schema + persistence + MSTest round-trip (completed 2026-05-07)
 - [ ] **Phase 82: Settings UI** - Three modifier checkboxes in Settings > Behavior
 - [ ] **Phase 83: Runtime Detection** - GhostModeController refactor with configurable VK checks
 - [ ] **Phase 84: Integration** - MainWindow wiring + ResetToDefaults + human verification
@@ -46,8 +46,8 @@
 **Plans**: 2 plans (TDD first, schema extension)
 
 Plans:
-- [ ] 81-01-PLAN.md — RED phase: 3 absent-field tests + round-trip extension (Wave 1)
-- [ ] 81-02-PLAN.md — GREEN phase: AppSettings + SettingsSnapshot schema extension (Wave 2)
+- [x] 81-01-PLAN.md — RED phase: 3 absent-field tests + round-trip extension (Wave 1)
+- [x] 81-02-PLAN.md — GREEN phase: AppSettings + SettingsSnapshot schema extension (Wave 2)
 
 ### Phase 82: Settings UI
 **Goal**: User can see and modify ghost override configuration in Settings window
@@ -89,7 +89,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 81. Data Flow | 0/2 | Ready to execute | - |
+| 81. Data Flow | 2/2 | Complete | 2026-05-07 |
 | 82. Settings UI | 0/? | Not started | - |
 | 83. Runtime Detection | 0/? | Not started | - |
 | 84. Integration | 0/? | Not started | - |
