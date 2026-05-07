@@ -49,6 +49,9 @@ public class AppSettingsTests
             DateFormat = "ISO",
             LcdStyle   = "Paper",
             GhostFadeRadiusPx = 120,  // non-default value to prove round-trip
+            UseCtrl  = false,  // flipped from default true to prove serialization
+            UseAlt   = false,  // flipped from default true
+            UseShift = true,   // flipped from default false
         };
 
         string json = JsonSerializer.Serialize(original);
@@ -82,6 +85,9 @@ public class AppSettingsTests
         Assert.AreEqual(original.DateFormat, result.DateFormat, "DateFormat");
         Assert.AreEqual(original.LcdStyle,   result.LcdStyle,   "LcdStyle");
         Assert.AreEqual(original.GhostFadeRadiusPx, result.GhostFadeRadiusPx, "GhostFadeRadiusPx");
+        Assert.AreEqual(original.UseCtrl,  result.UseCtrl,  "UseCtrl");
+        Assert.AreEqual(original.UseAlt,   result.UseAlt,   "UseAlt");
+        Assert.AreEqual(original.UseShift, result.UseShift, "UseShift");
     }
 
     // STEST-02: Deserialize JSON that omits the UptimeVisible field entirely.
@@ -99,6 +105,35 @@ public class AppSettingsTests
         // Must be true (init default), NOT false (C# bool default)
         Assert.IsTrue(result.UptimeVisible,
             "UptimeVisible should default to true when absent from JSON (init default), not false (C# bool default)");
+    }
+
+    // CFG-04: UseCtrl/UseAlt/UseShift absent-field tests — verify init defaults (true/true/false)
+    // protect Ctrl+Alt default on upgrade from v4.2 → v4.3
+    [TestMethod]
+    public void Deserialize_MissingUseCtrl_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.UseCtrl,
+            "UseCtrl should default to true when absent from JSON (init default), not false (C# bool default)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingUseAlt_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.UseAlt,
+            "UseAlt should default to true when absent from JSON (init default), not false (C# bool default)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingUseShift_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.UseShift,
+            "UseShift should default to false when absent from JSON (init default = C# bool default)");
     }
 
     [TestMethod]
