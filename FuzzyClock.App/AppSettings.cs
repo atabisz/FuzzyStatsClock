@@ -53,5 +53,13 @@ public record AppSettings
     public bool   TempGpuVisible               { get; init; } = true;    // per-sensor ON
     public bool   TempMoboVisible              { get; init; } = false;   // per-sensor OFF (PawnIO-gated)
     public bool   TempNvmeVisible              { get; init; } = false;   // per-sensor OFF (spike amendment — NVMe not enumerated on baseline hardware)
+
+    // v4.3 — configurable ghost override modifiers (Phase 81 CFG-01)
+    // Defaults preserve Ctrl+Alt behavior for v4.2 upgrades (CFG-04).
+    // Explicit init defaults required: bool JSON-deserializes as false when field absent;
+    // UseCtrl/UseAlt MUST be true on upgrade, not C# bool default false.
+    public bool UseCtrl  { get; init; } = true;   // Left-Ctrl enabled by default
+    public bool UseAlt   { get; init; } = true;   // Left-Alt enabled by default
+    public bool UseShift { get; init; } = false;  // Left-Shift disabled by default
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"
