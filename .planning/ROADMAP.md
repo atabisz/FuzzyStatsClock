@@ -27,7 +27,7 @@
 ## Phases
 
 - [x] **Phase 81: Data Flow** - AppSettings schema + persistence + MSTest round-trip (completed 2026-05-07)
-- [ ] **Phase 82: Settings UI** - Three modifier checkboxes in Settings > Behavior
+- [x] **Phase 82: Settings UI** - Three modifier checkboxes in Settings > Behavior (completed 2026-05-07)
 - [ ] **Phase 83: Runtime Detection** - GhostModeController refactor with configurable VK checks
 - [ ] **Phase 84: Integration** - MainWindow wiring + ResetToDefaults + human verification
 
@@ -62,7 +62,7 @@ Plans:
 **Plans**: 1 plan (UI layer complete - XAML + code-behind + test scaffold)
 
 Plans:
-- [ ] 82-01-PLAN.md — GhostOverridePanel with 3 modifier checkboxes + events + PopulateControls + two-site IsEnabled gating (Wave 1)
+- [x] 82-01-PLAN.md — GhostOverridePanel with 3 modifier checkboxes + events + PopulateControls + two-site IsEnabled gating (Wave 1) — completed 2026-05-07
 
 ### Phase 83: Runtime Detection
 **Goal**: GhostModeController correctly detects user-configured modifier combinations
