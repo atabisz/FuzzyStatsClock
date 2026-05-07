@@ -20,6 +20,7 @@ internal sealed class GhostModeController : IDisposable
     private const uint SWP_FRAMECHANGED  = 0x0020;
     private const int  VK_LCONTROL       = 0xA2;   // Left Ctrl only — avoids right-side ambiguity
     private const int  VK_LMENU          = 0xA4;   // Left Alt only — VK_MENU matches AltGr on EU keyboards
+    private const int  VK_LSHIFT         = 0xA0;   // Left Shift only — consistency with left-side-only pattern
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -52,6 +53,9 @@ internal sealed class GhostModeController : IDisposable
     private DispatcherTimer? _restoreTimer;
     private double _lastProximityRatio = 0.0;
     private int _ghostFadeRadiusPx = 80;
+    private bool _useCtrl  = true;   // CFG-04: default preserves Ctrl+Alt behavior from v4.2
+    private bool _useAlt   = true;   // CFG-04: default preserves Ctrl+Alt behavior from v4.2
+    private bool _useShift = false;  // CFG-04: default Shift disabled
 
     /// <summary>Whether ghost mode is enabled. Persisted to settings.</summary>
     public bool IsEnabled { get; set; } = true;
