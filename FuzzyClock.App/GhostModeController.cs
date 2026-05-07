@@ -193,13 +193,27 @@ internal sealed class GhostModeController : IDisposable
     }
 
     /// <summary>
-    /// Returns true when Left-Ctrl + Left-Alt are both currently held.
+    /// Returns true when all enabled modifiers are currently held.
     /// Uses GetAsyncKeyState (not Keyboard.IsKeyDown) — overlay has no keyboard focus.
-    /// Uses left-side-specific VK codes to avoid AltGr false-positives on EU keyboards.
+    /// Uses left-side-specific VK codes (DET-05) to avoid AltGr false-positives on EU keyboards.
+    /// AND logic (DET-03): ALL enabled modifiers must be held simultaneously.
+    /// Public for unit testing (TST-03); called from OnTimerTick.
     /// </summary>
-    public bool IsCtrlAltHeld() =>
-        (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0 &&
-        (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
+    public bool IsModifierHeld()
+    {
+        // For each modifier: check if enabled AND currently held
+        bool ctrlHeld  = _useCtrl  && (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
+        bool altHeld   = _useAlt   && (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
+        bool shiftHeld = _useShift && (GetAsyncKeyState(VK_LSHIFT)   & 0x8000) != 0;
+
+        // AND logic: each enabled modifier must be held
+        // If disabled (_useX is false), the modifier is automatically "satisfied"
+        bool ctrlOk  = !_useCtrl  || ctrlHeld;
+        bool altOk   = !_useAlt   || altHeld;
+        bool shiftOk = !_useShift || shiftHeld;
+
+        return ctrlOk && altOk && shiftOk;
+    }
 
     /// <summary>
     /// Pure static proximity ratio computation. Returns 0.0 (outside zone) to 1.0 (inside widget).
