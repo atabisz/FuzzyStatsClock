@@ -1,286 +1,255 @@
-# Stack Research
+# Technology Stack — v4.3 Configurable Ghost Override
 
-**Domain:** Windows WPF desktop widget — temperature monitoring additions (v4.2 Temps & Menu)
-**Researched:** 2026-05-04
+**Project:** FuzzyClock v4.3
+**Researched:** 2026-05-07
 **Confidence:** HIGH
 
-## Scope of This Research
+## Executive Summary
 
-This is a **subsequent-milestone** research doc. The project's existing stack is validated and frozen:
+**Zero new dependencies required.** The configurable modifier key feature uses existing capabilities already validated in production: WPF CheckBox controls (present in SettingsWindow since v3.2), Win32 `GetAsyncKeyState` P/Invoke for keyboard state detection (in use since v2.3), and `AppSettings` init-property record persistence (established pattern since v1.1).
 
-- C# / WPF on .NET 10 (`net10.0-windows`, `UseWPF=true`, `UseWindowsForms=true`, `AllowsTransparency=true`)
-- `FuzzyClock.Core` (pure `net10.0`) + `FuzzyClock.App` (WPF) + MSTest 4.0.1 tests (501 tests, CI-gated)
-- `System.Text.Json` in-box
-- Inno Setup 6 per-user installer (`PrivilegesRequired=lowest`, `{localappdata}\Programs\FuzzyClock\`)
-- PDH `System.Diagnostics.PerformanceCounter` 10.0.0
-- WinForms `NotifyIcon` + `ContextMenuStrip` already live as the tray
+## Recommended Stack
 
-**Out of scope for this doc:** stack choices already validated over 69 phases. **In scope:** the *minimal additions* required for (1) temperature sensors and (2) surfacing the existing `ContextMenuStrip` from a WPF right-click event.
+### No Changes Required
 
----
+The existing v4.2 stack handles all v4.3 requirements:
 
-## Recommended Additions
+| Component | Current Version | Coverage |
+|-----------|----------------|----------|
+| **UI Framework** | WPF (net10.0-windows) | CheckBox controls in Settings window |
+| **Keyboard State** | Win32 User32.dll P/Invoke | `GetAsyncKeyState` for modifier detection |
+| **Settings Persistence** | System.Text.Json (in-box) | `AppSettings` init-property record |
+| **Testing** | MSTest 4.0.1 | 562 tests (445 Core + 117 App) |
 
-### Core Technologies
+### Existing Capabilities (No Addition Needed)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **LibreHardwareMonitorLib** | **0.9.6** (released 2026-02-14) | Temperature / fan / voltage sensor readings — CPU package, GPU, motherboard, NVMe/SSD | The de facto Windows hardware-sensor library. Actively maintained fork of OpenHardwareMonitor (last release ~12 weeks before milestone start). MPL-2.0 — compatible with closed-source redistribution. Ships a native `net10.0` TFM. Wide sensor coverage: MSI B840/B850/X870(E)/Z890, Intel IGCL, NVIDIA/AMD/Intel GPUs, Thermal Grizzly, Ryzen SMU. No other maintained .NET library comes close. |
-| **System.Windows.Forms.ContextMenuStrip** | (in-box, `UseWindowsForms=true` already enabled) | Right-click menu on the widget surface, reusing the existing tray menu instance | Already referenced by the project. `ToolStripDropDown.Show(Point screenLocation)` is a stable, documented, `windowsdesktop-10.0`-supported API that takes screen coordinates and requires **no owner `Control`** — exactly what's needed to surface a WinForms menu from a WPF `MouseRightButtonUp` handler. Zero new dependency. |
+#### 1. WPF CheckBox Controls
+**Already in use:** Settings > Behavior tab has multiple CheckBox elements (`ChkGhostMode`, `ChkAutoContrast`, `ChkAutoLaunch`)
 
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| (none required) | — | — | All temperature work is served by LibreHardwareMonitorLib's in-process API. No JSON, DI, logging, or threading library additions needed. |
-
-### Transitive Dependencies (auto-pulled by LibreHardwareMonitorLib 0.9.6 on `net10.0`)
-
-| Transitive | Purpose | Deployment Concern |
-|------------|---------|--------------------|
-| DiskInfoToolkit | SSD/NVMe SMART/health readings | Managed DLL — copied to output automatically |
-| HidSharp | USB HID device I/O (fan controllers, WireView) | Managed DLL — copied to output automatically |
-| RAMSPDToolkit-NDD | Memory SPD/thermal (DIMM temps) | Managed DLL — copied to output automatically |
-| Mono.Posix.NETStandard | Cross-platform interop shim (unused on Windows) | Small managed DLL — copied but inert on Windows |
-| System.IO.Ports 10.0.7 | Serial port access (PSU/fan controllers) | Managed DLL — copied to output automatically |
-| System.Management 10.0.7 | WMI queries | In-box on Windows, managed DLL copy |
-| System.Threading.AccessControl 10.0.7 | Mutex ACLs | Managed DLL — small |
-
-**Critical finding — no native drivers bundled in the NuGet package.** LHM v0.9.6's `.csproj` contains *zero* `<Content>` entries for `.sys` files and *zero* embedded `WinRing0.sys` / `WinRing0x64.sys` resources. Instead, it embeds 13 PawnIO `.bin` modules as `EmbeddedResource` (e.g. `AMDFamily17.bin`, `IntelMSR.bin`, `LpcIO.bin`, `SmbusI801.bin`, `RyzenSMU.bin`) which are loaded *into* the separately-installed PawnIO kernel driver at runtime via `\\?\GLOBALROOT\Device\PawnIO`. **No `.sys` files ship with our app.**
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| (none added) | — | Existing `dotnet` CLI + Inno Setup 6 + GitHub Actions pipeline absorbs the new NuGet dep with no workflow change. `dotnet publish -r win-x64 --self-contained=false` continues to produce the exe + managed DLL drop that `[Files]` globs. |
-
----
-
-## Installation
-
-```bash
-# Add to FuzzyClock.App.csproj ItemGroup containing package references:
-# <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
-dotnet add FuzzyClock.App package LibreHardwareMonitorLib --version 0.9.6
-
-# Update Inno Setup [Files] to glob all managed DLLs from publish dir
-# (replaces the single-file FuzzyClock.exe entry)
+**Pattern to replicate:**
+```xml
+<CheckBox x:Name="ChkUseCtrl" Content="Ctrl" />
+<CheckBox x:Name="ChkUseAlt" Content="Alt" />
+<CheckBox x:Name="ChkUseShift" Content="Shift" />
 ```
 
-Update `FuzzyClock.iss` `[Files]` section from:
-
-```ini
-Source: "{#SourceDir}\FuzzyClock.exe"; DestDir: "{app}"; Flags: ignoreversion
-```
-
-to:
-
-```ini
-Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-```
-
-This picks up `LibreHardwareMonitorLib.dll`, `HidSharp.dll`, `DiskInfoToolkit.dll`, `RAMSPDToolkit-NDD.dll`, `Mono.Posix.NETStandard.dll`, `System.IO.Ports.dll`, `System.Management.dll`, `System.Threading.AccessControl.dll`, plus transitive satellite assemblies.
-
----
-
-## Layering Impact (Core vs App)
-
-**Recommendation: LibreHardwareMonitorLib goes in `FuzzyClock.App` only, not `FuzzyClock.Core`.**
-
-Rationale:
-- LHM internally pinvokes Windows-only DeviceIoControl and WMI — would break the `net10.0` pure-library invariant of `FuzzyClock.Core`
-- Existing pattern (CPU/GPU/MEM via `System.Diagnostics.PerformanceCounter`) lives in `App` for the same reason
-- Temperature-extraction *logic* that is testable (formatting `"CPU 52°  GPU 61°"`, filtering unavailable sensors, sensor-key mapping) can live in `Core` as pure static methods operating on a `float?` or a `record TemperatureReading(string Label, float? Celsius)`, with MSTest verifying formatting in isolation — same pattern used for `UptimeFormatter`, `DateFormatter`, `PhraseWrapService`.
-
-**Suggested new type layout:**
-
-- `FuzzyClock.Core.TemperatureFormatter` — pure static, formats the one-liner + handles N/A; unit-testable (no WPF, no Windows native calls)
-- `FuzzyClock.App.TemperatureService` — wraps LHM `Computer` lifecycle, exposes `float? CpuPackageTempC`, `float? GpuTempC`, `float? MotherboardTempC`, `float? NvmeTempC`; called from the existing stats `DispatcherTimer` tick
-- `[InternalsVisibleTo]` entries are already set on both projects to their test assemblies; no new `InternalsVisibleTo` entries needed since `TemperatureService` can be `internal` inside `App`.
-
----
-
-## Right-Click ContextMenuStrip Integration
-
-**Recommendation: Reuse the existing tray `ContextMenuStrip` instance. Wire `MouseRightButtonUp` on the WPF window to `_trayMenu.Show(new System.Drawing.Point((int)screenPos.X, (int)screenPos.Y))`.**
-
-Minimal integration sketch (reference only — implementation is a later phase):
-
+**Event wiring:**
 ```csharp
-private void MainWindow_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
-{
-    // Respect existing ghost-mode invariants: RMB only works when widget is interactable
-    // (ghost disabled OR Ctrl+Alt held — same predicate used for drag/scroll).
-    if (_isGhostMode || _proximityRatio > 0.0) return;
+ChkUseCtrl.Checked += (s, e) => UseCtrlChanged?.Invoke(true);
+ChkUseCtrl.Unchecked += (s, e) => UseCtrlChanged?.Invoke(false);
+```
 
-    // Convert WPF logical coords -> Win32 screen coords via PointToScreen (handles DPI)
-    var pos = this.PointToScreen(e.GetPosition(this));
-    _trayMenu.Show(new System.Drawing.Point((int)pos.X, (int)pos.Y));
-    e.Handled = true;
+**Why:** Standard WPF controls. No additional library or NuGet package required.
+
+#### 2. Win32 Keyboard State Detection
+**Already in use:** `GhostModeController` uses `GetAsyncKeyState(VK_LCONTROL)` and `GetAsyncKeyState(VK_LMENU)` since v2.3 (Phase 26)
+
+**Existing pattern:**
+```csharp
+[DllImport("user32.dll")]
+private static extern short GetAsyncKeyState(int vKey);
+
+private bool IsCtrlAltHeld()
+{
+    const int VK_LCONTROL = 0xA2;
+    const int VK_LMENU = 0xA4;
+    return (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0
+        && (GetAsyncKeyState(VK_LMENU) & 0x8000) != 0;
 }
 ```
 
-**Why this works:**
-- `ToolStripDropDown.Show(Point)` overload is documented on `windowsdesktop-10.0`; takes raw screen pixels; no owner control required.
-- `UseWindowsForms=true` already gives the project a single WinForms message pump co-hosted with the WPF Dispatcher — same-thread, no marshal.
-- The existing tray menu instance already contains the 8 pruned items with IsChecked sync on `Opening` — reusing it guarantees the v3.2 *"identical items, checkmarks, and behavior"* requirement for free.
-- DPI: `Window.PointToScreen` returns DPI-aware screen pixels on .NET 10 WPF (PerMonitorV2) — menu lands precisely at the cursor on mixed-DPI setups.
-- Threading: WinForms menu item callbacks fire on the shared UI thread; the existing `Dispatcher.Invoke(...)` pattern in the tray click handlers (validated in v2.2, key-decision log entry 420) applies unchanged.
+**Extension needed:** Add `VK_LSHIFT = 0xA0` constant, read 3 bools from configuration, check only enabled keys.
 
-**Suppression invariants to preserve (from milestone spec):**
-- `_isGhostMode == true` → suppress (click-through is active; RMB would hit the window below)
-- `_proximityRatio > 0.0` → suppress (widget is fading; RMB during fade would be jarring)
-- Ctrl+Alt held → RMB allowed (matches existing drag/scroll override path)
+**Why:** Left-side-only virtual key codes prevent AltGr false-positives on EU keyboards (validated in v2.3). Same P/Invoke signature, just parameterized by configuration.
 
-No XAML changes needed — `MouseRightButtonUp` is a `UIElement` event already available on `Window`.
+#### 3. AppSettings Persistence
+**Already in use:** 30+ fields in `AppSettings` init-property record with System.Text.Json serialization to `%LOCALAPPDATA%\FuzzyClock\settings.json`
 
----
-
-## Alternatives Considered
-
-### Temperature libraries
-
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| LibreHardwareMonitorLib 0.9.6 | **OpenHardwareMonitorLib** | Never for this project — archived/unmaintained since 2020, uses legacy WinRing0 driver that modern AV (Defender/BitDefender) flags as `HackTool:Win32/WinRing0`. LHM is the active fork. |
-| LibreHardwareMonitorLib 0.9.6 | **HWiNFO shared-memory API / sensor bridge** | Only if we wanted read-only access to a user-installed monitoring tool — requires HWiNFO Pro running, adds UX friction, commercial restrictions. Not viable for a zero-dependency widget. |
-| LibreHardwareMonitorLib 0.9.6 | **MSI Afterburner shared memory (`MAHMSharedMemory`)** | Only exposes GPU sensors and requires MSI Afterburner installed. Too narrow for CPU / GPU / Motherboard / NVMe coverage. |
-| LibreHardwareMonitorLib 0.9.6 | **Direct WMI `MSAcpi_ThermalZoneTemperature`** | Available without admin but returns only motherboard ACPI thermal zones (often 1–2 sensors, frequently garbage readings, zero GPU/NVMe coverage). Does not meet the "CPU package / GPU / NVMe" requirement. Could be a future fallback for users without PawnIO — not a replacement. |
-| LibreHardwareMonitorLib 0.9.6 | **Intel IGCL / NVIDIA NVML direct P/Invoke** | Much lower-level; would require implementing three separate vendor SDKs. LHM already wraps all three consistently. |
-
-### WPF right-click menu
-
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| Reuse tray `ContextMenuStrip` via `Show(Point)` | **Build a parallel WPF `ContextMenu`** | Would require duplicating all 8 menu items, submenus, checkmark sync logic, and IsChecked-on-Opening pattern — ~400 LOC duplication and continuous drift risk between tray and widget menus. Rejected. |
-| Reuse tray `ContextMenuStrip` via `Show(Point)` | **WPF `Window.ContextMenu` property** | Requires the menu to be a WPF `ContextMenu`; same duplication problem. Also, WPF `ContextMenu` on an `AllowsTransparency=True` frameless window has known positioning quirks with per-monitor DPI (documented since .NET Core 3). The WinForms menu renders via a separate HWND and avoids this class of bug. |
-| `Show(Point screenLocation)` overload | `Show(int x, int y)` overload | Functionally identical; `Show(Point)` matches existing `System.Drawing.Point` usage in tray code for consistency. |
-
----
-
-## What NOT to Use
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| **OpenHardwareMonitorLib** (any version) | Archived; uses WinRing0 driver that's flagged by modern AV; last release 2020; no .NET Core+ support | LibreHardwareMonitorLib |
-| **Bundling `WinRing0.sys` / `WinRing0x64.sys` ourselves** | (a) LHM 0.9.6 no longer uses these — replaced by the separately-installed PawnIO driver in the v0.9.x line. (b) Even for older LHM versions, shipping an unsigned kernel driver in a per-user `%LOCALAPPDATA%` installer would be blocked by Windows driver signing enforcement on any Win10 1607+ system. (c) Driver install requires admin — violates the "no UAC" milestone constraint. | Rely on graceful fallback via `PawnIo.IsInstalled` (see "Graceful Fallback" below). Do **not** ship, extract, or install any `.sys` file. |
-| **Driving LHM from the WPF UI thread synchronously on every tick** | `Computer.Accept(IVisitor)` / `IHardware.Update()` can stall tens of milliseconds on sensor enumeration (CPU MSR reads, WMI calls). Blocking the Dispatcher every 0.5s would make the widget jittery during hover. | Kick a background `Task`, marshal the result scalar values back via `Dispatcher.InvokeAsync`. |
-| **Creating a fresh `Computer` instance per tick** | `Computer.Open()` does driver init, hardware enumeration, and PawnIO module loading — 200–600ms cold. Per-tick recreate would kill startup and cause stutter. | Single long-lived `Computer`; open once in `TemperatureService` ctor, close in `Dispose()`. Call `Update()` on the four chosen hardware items each tick (cheap). |
-| **Enabling every sensor group** | LHM's `IsCpuEnabled/IsGpuEnabled/IsMotherboardEnabled/IsStorageEnabled/IsMemoryEnabled/IsControllerEnabled/IsNetworkEnabled/IsPsuEnabled/IsBatteryEnabled` true-for-all enumerates *every* sensor of every kind — tens of ms of overhead we don't need. | Enable only the four groups this milestone targets: `IsCpuEnabled`, `IsGpuEnabled`, `IsMotherboardEnabled`, `IsStorageEnabled`. Leave others `false`. |
-
----
-
-## Graceful Fallback — The Critical Deployment Pattern
-
-LibreHardwareMonitorLib 0.9.6 gets most CPU-package / motherboard / LPC sensors from **PawnIO**, a separately-installed signed kernel driver (GPL-2.0 + linking exception; downloaded from pawnio.eu, installed via a signed MSI that requires one-time admin). **Our installer cannot install PawnIO** (per-user, no UAC).
-
-**Fallback behavior observed in `LibreHardwareMonitorLib/PawnIo/PawnIo.cs` (master branch):**
-
-- `PawnIo.IsInstalled` — static property that probes `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO` (with 64-bit view fallback) and returns `bool`. Safe to call without admin. No exception if the key is absent.
-- When PawnIO is absent: `LoadModuleFromResource()` returns a `PawnIo` instance with a null handle; `IsLoaded` returns `false`; hardware groups whose sensors depend on PawnIO degrade their `ISensor.Value` to `null` (rather than throwing).
-- Sensors that **do NOT depend on PawnIO** — these work on a no-admin system without PawnIO installed:
-  - GPU temperature via NVAPI (NVIDIA) / AtiAdlxx (AMD) / IGCL (Intel iGPU) — vendor user-mode DLLs
-  - NVMe/SSD temperature via Windows Storage API (`DeviceIoControl` on physical drive handles; read-only SMART is accessible to non-admin on Windows 10+)
-  - Battery sensors via `SetupDi*` + `IOCTL_BATTERY_QUERY_INFORMATION` (user-mode)
-  - Some motherboard sensors through WMI `MSAcpi_ThermalZoneTemperature` (coarse, but present)
-- Sensors that **require PawnIO** (will surface as `null` → "N/A" in our UI):
-  - CPU package temperature via MSR reads (Intel `MSR_TEMPERATURE_TARGET` 0x1A2, AMD family-specific MSRs)
-  - Motherboard Super-I/O / LPC chip temps (IT87xx, NCT67xx, W836xx)
-  - SMBus DIMM thermal readings
-
-**Implementation implication for Phase N:** `TemperatureService` must expose `float?` (nullable). The Settings > Temps UI must disable a sensor checkbox + show the "N/A" label when the corresponding LHM `ISensor.Value == null` at startup enumeration. This aligns exactly with the milestone requirement: *"unavailable sensors disabled with N/A label"*.
-
-**Do not prompt the user to install PawnIO.** Document it in `README.md` as an optional power-user enhancement: *"For full CPU-package and motherboard temperature coverage, install PawnIO once from pawnio.eu — FuzzyClock will pick it up automatically on next launch."*
-
----
-
-## MPL-2.0 Compliance for Closed-Source Redistribution
-
-**Verdict: LibreHardwareMonitorLib 0.9.6 (MPL-2.0) ships cleanly in a closed-source FuzzyClock.exe with minimal obligations.**
-
-MPL-2.0 is **file-level copyleft** (unlike GPL's project-level copyleft). Key compliance points for this use case:
-
-| Obligation | Required action | Status |
-|------------|----------------|--------|
-| Keep the LHM source available | If we ship an *unmodified* `LibreHardwareMonitorLib.dll`, the public GitHub repo at `github.com/LibreHardwareMonitor/LibreHardwareMonitor` satisfies this — no need to re-host or bundle source | Nothing to do; link in NOTICES is sufficient |
-| Ship the MPL-2.0 LICENSE text | Include `LICENSE-LibreHardwareMonitorLib.txt` (MPL-2.0) alongside the app | **New installer `[Files]` entry required** (see below) |
-| Keep MPL file headers intact | Only applies when *modifying* MPL source; we consume the library as a binary NuGet | N/A — we are not modifying |
-| Open-source FuzzyClock itself | **NOT required** — MPL-2.0 is file-scope copyleft; our own .cs files are under our own license (currently MIT per commit `caafd20`). Only the *MPL-2.0 licensed files* must remain under MPL-2.0, which they do (we don't modify them) | No impact on FuzzyClock's MIT license |
-| Attribution in "About" or docs | MPL requires informing recipients of MPL coverage; a `NOTICES.txt` with "This product uses LibreHardwareMonitorLib (MPL-2.0) — github.com/LibreHardwareMonitor/LibreHardwareMonitor" satisfies it | **New installer `[Files]` entry or README section** |
-| Transitive MPL/LGPL deps (HidSharp, etc.) | Follow their individual licenses — HidSharp is Apache 2.0; DiskInfoToolkit is MIT-style per its repo; bundle notices | Add one-line attributions to NOTICES.txt |
-
-**Required installer changes for license compliance:**
-
-```ini
-[Files]
-Source: "{#SourceDir}\*";                   DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "licenses\LICENSE-LHM.txt";         DestDir: "{app}\licenses"; Flags: ignoreversion
-Source: "licenses\NOTICES.txt";             DestDir: "{app}\licenses"; Flags: ignoreversion
+**Pattern to replicate:**
+```csharp
+public record AppSettings
+{
+    // Existing fields...
+    public bool GhostOverrideUseCtrl { get; init; } = true;
+    public bool GhostOverrideUseAlt { get; init; } = true;
+    public bool GhostOverrideUseShift { get; init; } = false;
+}
 ```
 
-Add a `licenses\` directory in the repo with:
-- `LICENSE-LHM.txt` — verbatim MPL-2.0 (copy from `https://www.mozilla.org/MPL/2.0/`)
-- `NOTICES.txt` — one-liner per third-party dep, with repo URLs
+**Backward compatibility:** Init-property defaults ensure v4.2 users see Ctrl+Alt (true, true, false) on upgrade. JSON absent-field handling works automatically.
 
-Optional polish: wire an "About / Licenses" item in Settings > Behavior that opens `{app}\licenses\` in Explorer. Not required by MPL; nice UX.
+**Why:** Established pattern. Zero JSON attributes required. Atomic write via temp file + `File.Move(overwrite:true)` already implemented in `SettingsService`.
 
----
+## Integration Points
 
-## Version Compatibility
+### 1. SettingsWindow XAML (New UI)
+**File:** `FuzzyClock.App/SettingsWindow.xaml`
+**Location:** Behavior tab, below `GhostFadeRadiusPanel`
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| LibreHardwareMonitorLib 0.9.6 | net10.0 (native), net8.0, net9.0, net472, netstandard2.0 | Explicit `net10.0` TFM in the NuGet — no fallback, no trimming risk |
-| LibreHardwareMonitorLib 0.9.6 | HidSharp 2.6.4+ | Pinned by LHM; do not override |
-| LibreHardwareMonitorLib 0.9.6 | System.Management 10.0.7 | Same major version as the project's existing `System.Diagnostics.PerformanceCounter` 10.0.0 — no downgrade/upgrade conflict |
-| LibreHardwareMonitorLib 0.9.6 | PawnIO user-mode install | Runtime only; not a build dep. Library version-probes the registry; tolerates absence |
-| `dotnet publish -r win-x64 --self-contained=false` | Inno Setup `[Files] recursesubdirs` glob | Well-tested pattern in .NET 10 WPF installers; no known conflict with LHM's transitive DLLs |
-| Windows 10 1809+ / Windows 11 | LHM 0.9.6 | LHM requires Win10+ for its DeviceIoControl patterns; matches FuzzyClock's existing Win10/11 target |
+**Pattern:** Clone `GhostFadeRadiusPanel` indented sub-panel structure:
+- Outer StackPanel indented under `ChkGhostMode`
+- Label + WrapPanel with 3 CheckBox elements
+- Help TextBlock in muted `#FF999999` color
 
-**Architecture note:** LHM's PawnIO DeviceIoControl paths assume x64. The project currently publishes `win-x64` (implicit from SDK defaults; no `x86` or `arm64` artifacts in CI). **Keep `win-x64` only for v4.2.** Do not switch to `AnyCPU` runtime — IL from LHM works AnyCPU-wise, but the PawnIO driver-side contract is x64-only, and mixed-arch deployment adds no value for a Windows desktop widget. The GitHub Actions matrix should remain single-arch.
+**Why:** Matches v4.2 Phase 78 `TempSensorsPanel` pattern (master toggle with indented sub-panel).
 
----
+### 2. SettingsWindow Code-Behind (Event Wiring)
+**File:** `FuzzyClock.App/SettingsWindow.xaml.cs`
 
-## Integration Checklist for Downstream Planning
+**Events to add:**
+```csharp
+public event Action<bool>? GhostOverrideUseCtrlChanged;
+public event Action<bool>? GhostOverrideUseAltChanged;
+public event Action<bool>? GhostOverrideUseShiftChanged;
+```
 
-Use this as a concrete Phase-N input:
+**Pattern:** Mirror `ChkTempsVisible.Checked += ...` pattern from Phase 78 with `_suppressEvents` guard.
 
-**NuGet additions — `FuzzyClock.App.csproj` only:**
-- [ ] `<PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />`
+**Why:** Consistent with existing 19 `SettingsChanged` events established in v3.2.
 
-**Inno Setup `FuzzyClock.iss` changes:**
-- [ ] Replace single-file `[Files]` entry with glob: `Source: "{#SourceDir}\*"; ... Flags: ignoreversion recursesubdirs createallsubdirs`
-- [ ] Add `licenses\LICENSE-LHM.txt` and `licenses\NOTICES.txt` entries
-- [ ] No `[Run]` changes; no UAC changes (`PrivilegesRequired=lowest` preserved)
-- [ ] **Do not** add any `.sys` file installation — PawnIO is the user's responsibility as a side install
+### 3. MainWindow Event Subscriptions (Persistence)
+**File:** `FuzzyClock.App/MainWindow.xaml.cs`
 
-**New files in repo:**
-- [ ] `licenses/LICENSE-LHM.txt` — verbatim MPL-2.0
-- [ ] `licenses/NOTICES.txt` — attributions for LHM + HidSharp + DiskInfoToolkit + RAMSPDToolkit-NDD
+**Pattern:** Clone v4.2 Phase 78 pattern:
+```csharp
+_settingsWindow.GhostOverrideUseCtrlChanged += v => {
+    _settings = _settings with { GhostOverrideUseCtrl = v };
+    SaveSettings();
+    _ghostModeController?.SetModifierConfig(
+        _settings.GhostOverrideUseCtrl,
+        _settings.GhostOverrideUseAlt,
+        _settings.GhostOverrideUseShift);
+};
+```
 
-**No new files for `WinRing0.sys` / `WinRing0x64.sys`** — these are not used by LHM 0.9.6 and must not appear in `[Files]`.
+**Why:** Immediate persistence with `SaveSettings()`. Live controller update without restart.
 
-**`[InternalsVisibleTo]` changes:** none required. `TemperatureService` lives `internal` in App (already exposes internals to `FuzzyClock.App.Tests`). `TemperatureFormatter` lives `public static` in Core (already exposes internals to `FuzzyClock.Core.Tests`).
+### 4. GhostModeController (Detection Logic)
+**File:** `FuzzyClock.App/GhostModeController.cs`
 
-**CI release workflow:** no change. `dotnet publish` will transparently include the new DLLs; `ISCC` glob will pick them up; `sha256sum` continues to hash `FuzzyClockSetup-X.Y.Z.exe`.
+**Change:** Replace hardcoded `IsCtrlAltHeld()` with configurable logic:
+```csharp
+private bool _useCtrl, _useAlt, _useShift;
 
-**Antivirus false-positive concern:** LHM 0.9.6 no longer bundles WinRing0, so the historical OHM/WinRing0-triggered AV flag (`HackTool:Win32/WinRing0`) does **not** apply to our distribution. LHM itself is clean-signature on VirusTotal (verified on the LHM 0.9.6 NuGet drop). No SmartScreen/Defender issues anticipated beyond the existing unsigned-exe warning that v3.5's per-user installer already handles.
+public void SetModifierConfig(bool useCtrl, bool useAlt, bool useShift)
+{
+    _useCtrl = useCtrl;
+    _useAlt = useAlt;
+    _useShift = useShift;
+}
 
----
+private bool IsModifierHeld()
+{
+    if (!_useCtrl && !_useAlt && !_useShift)
+        return false; // Override disabled
+
+    bool ctrlMatch = !_useCtrl || (GetAsyncKeyState(0xA2) & 0x8000) != 0;
+    bool altMatch = !_useAlt || (GetAsyncKeyState(0xA4) & 0x8000) != 0;
+    bool shiftMatch = !_useShift || (GetAsyncKeyState(0xA0) & 0x8000) != 0;
+    
+    return ctrlMatch && altMatch && shiftMatch;
+}
+```
+
+**Why:** All-false = override disabled (ghost always activates). Each enabled key becomes a required part of the combination.
+
+### 5. SettingsService Validation
+**File:** `FuzzyClock.App/SettingsService.cs`
+
+**No validation needed.** Bool fields cannot be invalid. No range guard required (unlike `StatsIntervalSeconds` or `Opacity` which need clamping).
+
+**Why:** Bools are always valid. JSON deserialization yields true/false; no error state exists.
+
+### 6. ResetToDefaults
+**File:** `FuzzyClock.App/MainWindow.xaml.cs`
+
+**Extension:**
+```csharp
+_settings = _settings with
+{
+    GhostOverrideUseCtrl = true,
+    GhostOverrideUseAlt = true,
+    GhostOverrideUseShift = false,
+    // ... other resets
+};
+```
+
+**Why:** Restores Ctrl+Alt default, matching pre-v4.3 hardcoded behavior.
+
+## What NOT to Add
+
+| Candidate | Why Avoid |
+|-----------|-----------|
+| **Custom keyboard hook library** | Win32 `GetAsyncKeyState` is sufficient. No need for global hooks or `SetWindowsHookEx` complexity. |
+| **WPF KeyBinding** | Widget is frameless with no keyboard focus. Key bindings require focus. `GetAsyncKeyState` polling is the correct pattern (validated in v2.3). |
+| **Third-party hotkey manager (e.g., NHotkey)** | Overkill. Feature needs modifier detection during hover, not global system hotkeys. |
+| **InputSimulator or similar** | Feature only reads keyboard state, never sends input. No simulation needed. |
+| **System.Windows.Forms.Keys enum** | Direct int constants (0xA2/0xA4/0xA0) are clearer in P/Invoke context and avoid `UseWindowsForms=true` enum ambiguity. |
+
+## Testing Additions
+
+**Location:** `FuzzyClock.App.Tests/`
+
+### 1. AppSettings Round-Trip Test
+**Pattern:** Extend existing `STEST-01` test method with 3 new bool fields.
+
+```csharp
+[TestMethod]
+public void AppSettings_JsonRoundTrip_AllFieldsMatch()
+{
+    var original = new AppSettings
+    {
+        // ... existing 30 fields
+        GhostOverrideUseCtrl = true,
+        GhostOverrideUseAlt = false,
+        GhostOverrideUseShift = true,
+    };
+    // serialize → deserialize → assert all fields match
+}
+```
+
+### 2. Absent-Field Tests
+**Pattern:** Clone v2.5 `STEST-02` pattern for init-property defaults.
+
+```csharp
+[TestMethod]
+public void AppSettings_Deserialize_AbsentGhostOverrideUseCtrl_DefaultsTrue()
+{
+    var json = "{ \"Left\": 100, \"Top\": 50 }";
+    var settings = JsonSerializer.Deserialize<AppSettings>(json);
+    Assert.IsTrue(settings.GhostOverrideUseCtrl); // Init default
+}
+```
+
+**Expected test additions:** +4 tests (1 round-trip extension, 3 absent-field tests for Ctrl/Alt/Shift)
+
+**Why:** Validates backward compatibility for users upgrading from v4.2 with old settings.json.
+
+## Installation
+
+**No installation steps required.** All capabilities already present in the v4.2 codebase.
+
+## Version Pins
+
+| Dependency | Current Pin | Note |
+|-----------|-------------|------|
+| .NET SDK | 10.0 | TFM: net10.0-windows |
+| MSTest | 4.0.1 | NuGet package in test projects |
+| System.Text.Json | in-box | No explicit version (ships with .NET 10) |
+
+**No version changes needed for v4.3.**
 
 ## Sources
 
-- **NuGet.org** — `https://www.nuget.org/packages/LibreHardwareMonitorLib` — version 0.9.6, TFM list, transitive deps (HIGH confidence; primary source)
-- **GitHub `LibreHardwareMonitor/LibreHardwareMonitor`** — master branch tree inspection confirms: `LibreHardwareMonitorLib/PawnIo/PawnIo.cs` exists, `Hardware/Cpu/` contains no `Ring0.cs`, `Interop/` has no driver-loading interop file. Confirms WinRing0 replaced by PawnIO (HIGH confidence)
-- **GitHub `LibreHardwareMonitor/LibreHardwareMonitor` — `LibreHardwareMonitorLib.csproj`** — 11 PackageReferences, 13 EmbeddedResources (all `Resources\PawnIo\*.bin`), no `.sys` files referenced anywhere (HIGH confidence; source-of-truth for deployment model)
-- **GitHub `LibreHardwareMonitor` v0.9.5 / v0.9.6 release notes** — "Add option to disable Ring0 driver installation" + "Update PawnIO modules" confirms the WinRing0→PawnIO transition in the v0.9.x line (HIGH confidence)
-- **GitHub `namazso/PawnIO`** — license GPL-2.0 + linking exception, separate install from pawnio.eu, user-admin install required (HIGH confidence)
-- **Microsoft Learn — `ToolStripDropDown.Show` method reference** — documented overloads for `Show(Point)` and `Show(int, int)`, explicit `windowsdesktop-10.0` moniker support (HIGH confidence)
-- **Microsoft Learn — WPF/WinForms interop walkthrough** — confirms `UseWindowsForms=true` co-hosting pattern; no explicit marshaling needed for same-thread menu display (HIGH confidence)
-- **choosealicense.com / tldrlegal — MPL-2.0** — file-level copyleft; closed-source redistribution allowed with LICENSE + attribution (MEDIUM-HIGH; supplementary — the MPL official text is the binding source but mozilla.org was unreachable during this research session. File-scope-only-copyleft is a widely-documented property of MPL-2.0 affirmed across multiple license summaries; low risk of misreading.)
-- **Project local** — `.planning/PROJECT.md`, `FuzzyClock.App.csproj`, `FuzzyClock.Core.csproj`, `FuzzyClock.slnx`, `FuzzyClock.iss` — existing stack invariants
+- **PROJECT.md** — Local repository context (v4.2 baseline, existing patterns)
+- **Win32 Virtual Key Codes** — Microsoft Learn documentation (VK_LCONTROL/VK_LMENU/VK_LSHIFT constants)
+- **GetAsyncKeyState** — Win32 API reference (bitmask 0x8000 for key-down state)
 
----
+## Confidence Assessment
 
-*Stack research for: Windows WPF desktop widget — v4.2 Temps & Menu milestone*
-*Researched: 2026-05-04*
+**HIGH confidence** — All required capabilities are already validated in production code:
+- WPF CheckBox controls used in 3 prior tabs
+- Win32 `GetAsyncKeyState` used since v2.3 (phases 26-27) with zero issues
+- `AppSettings` init-property pattern used across 30+ fields with atomic persistence
+
+**Zero research gaps.** No external libraries, no version upgrades, no new P/Invoke signatures.
