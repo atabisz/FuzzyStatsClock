@@ -453,6 +453,23 @@
                     <TextBlock x:Name="GhostFadeRadiusLabel" Width="42"
                                VerticalAlignment="Center" Margin="6,0,0,0"/>
                 </StackPanel>
+                <StackPanel x:Name="GhostOverridePanel"
+                            Margin="16,0,0,8">
+                    <TextBlock Text="Hold these keys to keep widget visible:"
+                               Margin="0,0,0,4"
+                               Foreground="#FF999999" FontSize="11"/>
+                    <CheckBox x:Name="ChkUseCtrl"
+                              Content="Left Ctrl"
+                              Margin="0,0,0,2"
+                              Checked="ChkUseCtrl_Changed" Unchecked="ChkUseCtrl_Changed"/>
+                    <CheckBox x:Name="ChkUseAlt"
+                              Content="Left Alt"
+                              Margin="0,0,0,2"
+                              Checked="ChkUseAlt_Changed" Unchecked="ChkUseAlt_Changed"/>
+                    <CheckBox x:Name="ChkUseShift"
+                              Content="Left Shift"
+                              Checked="ChkUseShift_Changed" Unchecked="ChkUseShift_Changed"/>
+                </StackPanel>
                 <CheckBox x:Name="ChkAutoContrast"
                           Content="Auto-Contrast — WCAG luminance sampling"
                           Margin="0,0,0,10"
