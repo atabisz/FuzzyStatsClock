@@ -89,6 +89,19 @@ internal sealed class GhostModeController : IDisposable
     }
 
     /// <summary>
+    /// Sets which modifier keys suppress ghost mode when held during hover.
+    /// Called from MainWindow.ApplySettings() on startup and from Settings window
+    /// event handlers when user changes checkboxes. All-false = override disabled
+    /// (ghost always activates regardless of held keys per DET-02).
+    /// </summary>
+    public void UpdateModifierConfig(bool useCtrl, bool useAlt, bool useShift)
+    {
+        _useCtrl  = useCtrl;
+        _useAlt   = useAlt;
+        _useShift = useShift;
+    }
+
+    /// <summary>
     /// Called once from ContentRendered after the HWND is available.
     /// Creates the 75ms polling timer and starts it immediately — timer runs for the entire session.
     /// Caller should set GhostFadeRadiusPx from AppSettings.GhostFadeRadiusPx after this call.
