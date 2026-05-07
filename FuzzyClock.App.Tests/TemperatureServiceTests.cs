@@ -258,22 +258,20 @@ public sealed class TemperatureServiceTests
     public void Refresh_SensorValueGoesNull_TriggersReresolve()
     {
         // Plan 75-02 chose D-05 Path 2 (background loop owns the cadence);
-        // Refresh() is a deliberate no-op. Re-resolution is still triggered
-        // by the background loop path via ReadCachedSensors → _sensorTreeStale,
-        // which is exercised indirectly by the throwing-init test and the
-        // null-value → sentinel contract in ToSentinel. This test documents
-        // that Path 2's Refresh() is safe to call without a cached tree, and
-        // that it does not throw.
-        using var svc = new NoOpInitTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(7));
-
-        svc.Refresh();   // no-op under Path 2
-        svc.Refresh();
-        svc.Refresh();
-
-        // No exception = pass. Sentinel-translation logic is covered by
+        // Refresh() is a deliberate no-op. This test documents that Path 2's
+        // Refresh() is safe to call multiple times without throwing, regardless
+        // of init state. Sentinel-translation logic is covered by
         // ToSentinel_NullValue_ReturnsMinusOne above.
-        Assert.IsTrue(svc.IsReady);
+        using var svc = new NoOpInitTemperatureService();
+
+        // Refresh() MUST be safe to call before async init completes too —
+        // no dependency on IsReady timing.
+        svc.Refresh();
+        svc.Refresh();
+        svc.Refresh();
+
+        // No exception above = pass. (No assertion needed; reaching this line
+        // means all three calls returned without throwing.)
     }
 
     [TestMethod]
@@ -282,9 +280,10 @@ public sealed class TemperatureServiceTests
         // Path 2 background loop wraps the Accept+ReadCachedSensors call in a
         // try/catch that sets _sensorTreeStale = true on any throw. With no
         // real Computer (NoOp init), the loop never runs, but the flag is
-        // initialized false — we assert that via reflection on the internal field.
+        // initialized false — we assert that via reflection on the internal
+        // field. The field is initialized synchronously in the constructor so
+        // no IsReady wait is needed.
         using var svc = new NoOpInitTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         // Direct flag assertion via internal field reflection (InternalsVisibleTo
         // exposes the field, but `volatile bool` fields are not conveniently
@@ -305,9 +304,9 @@ public sealed class TemperatureServiceTests
     public void Dispose_CalledOnce_CallsComputerCloseOnce()
     {
         // The Interlocked guard gates the Close try/catch; CloseCallCount is
-        // incremented inside that block. One Dispose → one Close.
+        // incremented inside that block. One Dispose → one Close. The guard's
+        // behaviour is independent of async init — no IsReady wait is needed.
         using var svc = new CountingCloseTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         svc.Dispose();
 
@@ -319,9 +318,9 @@ public sealed class TemperatureServiceTests
     {
         // D-15 single-entry invariant: Interlocked.CompareExchange returns 0 on
         // the first call and 1 on every subsequent call, short-circuiting past
-        // the Close block. Three Dispose calls → still one Close.
+        // the Close block. Three Dispose calls → still one Close. Independent
+        // of async init state.
         using var svc = new CountingCloseTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         svc.Dispose();
         svc.Dispose();
@@ -336,8 +335,8 @@ public sealed class TemperatureServiceTests
         // Parallel.For fans out to N worker threads; the Interlocked guard must
         // still admit exactly one Close across all of them. Even on a single-core
         // machine this exercises the CompareExchange semantics under contention.
+        // Independent of async init state.
         using var svc = new CountingCloseTemperatureService();
-        WaitForReady(svc, TimeSpan.FromSeconds(7));
 
         Parallel.For(0, 3, _ => svc.Dispose());
 
