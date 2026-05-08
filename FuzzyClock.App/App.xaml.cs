@@ -67,7 +67,30 @@ public partial class App : Application
         // Session-end backup save: Window.Closing is NOT raised on Windows log-off or shutdown.
         // Application.SessionEnding covers those paths. Both Closing (in OnClosing) and
         // SessionEnding call the same SaveSettings() method.
-        SessionEnding += (_, _) => (MainWindow as MainWindow)?.SaveSettings();
+        //
+        // Also tier 2 of TemperatureService three-tier dispose: SessionEnding fires on
+        // log-off/shutdown (Window.Closing does not). DisposeTemperatureService is
+        // Interlocked-guarded so calling it from multiple tiers is safe.
+        SessionEnding += (_, _) =>
+        {
+            var mw = MainWindow as MainWindow;
+            mw?.SaveSettings();
+            mw?.DisposeTemperatureService();
+        };
+
+        // Tier 3 of TemperatureService three-tier dispose: ProcessExit fires on
+        // forced kill / unclean termination when neither Window.Closing nor
+        // SessionEnding runs. ProcessExit has a collective ~2s budget across all
+        // handlers, so OnProcessExit does ONLY the LHM handle release — no file
+        // I/O, no SaveSettings. Subscribed via instance method (not lambda) so
+        // the handler survives MainWindow disposal without holding a rooted
+        // reference; we look up MainWindow at exit time.
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+    }
+
+    private void OnProcessExit(object? sender, EventArgs e)
+    {
+        try { (MainWindow as MainWindow)?.DisposeTemperatureService(); } catch { }
     }
 
     private static void SignalRunningInstance()

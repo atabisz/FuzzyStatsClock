@@ -14,7 +14,8 @@
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
-        PreviewMouseWheel="Window_PreviewMouseWheel">
+        PreviewMouseWheel="Window_PreviewMouseWheel"
+        PreviewMouseRightButtonUp="Window_PreviewMouseRightButtonUp">
 
     <!-- Background="#01000000": alpha=1, RGB=black — near-transparent but hit-testable.
          A fully transparent (alpha=0) background has no hit-test surface, causing mouse
@@ -22,28 +23,36 @@
     <Grid Background="#01000000"
           MouseLeftButtonDown="Grid_MouseLeftButtonDown">
 
-        <!-- Full-widget backdrop — sits behind the inner Grid in Z-order (declared first = behind).
-             Background is set from code-behind (backdrop color or Transparent).
+        <!-- Permanent black background — sits at the back, always visible -->
+        <Border Background="Black"
+                CornerRadius="5"
+                IsHitTestVisible="False"/>
+
+        <!-- Full-widget backdrop — sits above black background but behind content.
+             Background is Transparent normally, set to semi-transparent black on hover.
              IsHitTestVisible="False" prevents intercepting mouse events meant for inner Grid children. -->
         <Border x:Name="BackdropBorder"
                 Background="Transparent"
                 CornerRadius="5"
                 IsHitTestVisible="False"/>
 
-        <!-- Three-row inner Grid: Row 0 = phrase display, Row 1 = date text, Row 2 = stats panel -->
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+        <!-- Main container Border: Transparent padding wrapper for consistent spacing -->
+        <Border Background="Transparent"
+                CornerRadius="5"
+                Padding="12">
+            <!-- Three-row inner Grid: Row 0 = phrase display, Row 1 = date text, Row 2 = stats panel -->
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-            <!-- Row 0: phrase display — unchanged from prior state -->
-            <Border x:Name="ContentBorder"
-                    Grid.Row="0"
-                    Background="Transparent"
-                    CornerRadius="5"
-                    Padding="6">
+                <!-- Row 0: phrase display -->
+                <Border x:Name="ContentBorder"
+                        Grid.Row="0"
+                        Background="Transparent"
+                        Padding="0">
                 <Grid>
                     <!-- PhraseText: live phrase wired in Phase 3 via SetInitialPhrase() and
                          UpdatePhraseIfChanged(). Text is set in code-behind before Show(). -->
@@ -127,19 +136,23 @@
                  FontFamily is overridden in code-behind to match the active text style (Mono/Literary/Classic).
                  Foreground is set to dimmed accent color in code-behind (ApplyTheme/ApplyDisplayColor).
                  DropShadowEffect matches PhraseText/EmphasisText (locked decision: same shadow treatment). -->
-            <TextBlock x:Name="DateText"
-                       Grid.Row="1"
-                       Margin="0,2,0,0"
-                       Visibility="Visible"
-                       FontFamily="Segoe UI Light"
-                       FontSize="26"
-                       Foreground="White"
-                       HorizontalAlignment="Center"
-                       TextAlignment="Center">
-                <TextBlock.Effect>
-                    <DropShadowEffect BlurRadius="4" Direction="315" ShadowDepth="1" Opacity="0.6" Color="Black" />
-                </TextBlock.Effect>
-            </TextBlock>
+            <Border x:Name="DateBorder"
+                    Grid.Row="1"
+                    Background="Transparent"
+                    Margin="0,8,0,0"
+                    Padding="0"
+                    Visibility="Visible">
+                <TextBlock x:Name="DateText"
+                           FontFamily="Segoe UI Light"
+                           FontSize="26"
+                           Foreground="White"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center">
+                    <TextBlock.Effect>
+                        <DropShadowEffect BlurRadius="4" Direction="315" ShadowDepth="1" Opacity="0.6" Color="Black" />
+                    </TextBlock.Effect>
+                </TextBlock>
+            </Border>
 
             <!-- Row 2: stats panel — default Collapsed.
                  Width="180" prevents window-width jitter from SizeToContent=WidthAndHeight
@@ -149,7 +162,8 @@
             <StackPanel x:Name="StatsPanel"
                         Grid.Row="2"
                         Width="184"
-                        Margin="0,4,0,0"
+                        Margin="0,8,0,0"
+                        Background="Transparent"
                         Visibility="Collapsed">
 
                 <!-- CPU row -->
@@ -268,7 +282,21 @@
                        Foreground="White"
                        Text="up —"
                        TextAlignment="Left" />
+
+            <!-- Temps row — child of StatsPanel so it hides with stats.
+                 TempsText.Visibility is driven by (TempsLineVisible && formatted.Length > 0)
+                 per 79-CONTEXT D-05; StatsPanel=Collapsed also hides this line automatically
+                 via WPF layout inheritance. Clone of UptimeText styling per D-15. -->
+            <TextBlock x:Name="TempsText"
+                       Margin="0,2,0,0"
+                       Visibility="Visible"
+                       FontFamily="Segoe UI Light"
+                       FontSize="11"
+                       Foreground="White"
+                       Text=""
+                       TextAlignment="Left" />
             </StackPanel>
-        </Grid>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

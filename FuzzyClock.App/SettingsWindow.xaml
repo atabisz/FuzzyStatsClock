@@ -55,107 +55,6 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12">
 
-                <!-- Named Themes — personality presets; placed above accent color -->
-                <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-
-                    <Border x:Name="RingThemeMidnight" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,6,0">
-                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
-                                MouseLeftButtonDown="ThemeMidnight_Click">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Opacity" Value="0.75"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Ellipse Width="20" Height="20" Fill="#FF6A7FDB" Margin="0,0,0,4"/>
-                                <TextBlock Text="Midnight" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
-                            </StackPanel>
-                        </Border>
-                    </Border>
-
-                    <Border x:Name="RingThemeNeon" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,6,0">
-                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
-                                MouseLeftButtonDown="ThemeNeon_Click">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Opacity" Value="0.75"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Ellipse Width="20" Height="20" Fill="#FF00F5D4" Margin="0,0,0,4"/>
-                                <TextBlock Text="Neon" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
-                            </StackPanel>
-                        </Border>
-                    </Border>
-
-                    <Border x:Name="RingThemeGhost" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,6,0">
-                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
-                                MouseLeftButtonDown="ThemeGhost_Click">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Opacity" Value="0.75"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Ellipse Width="20" Height="20" Fill="#FFC0C8D8" Margin="0,0,0,4"/>
-                                <TextBlock Text="Ghost" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
-                            </StackPanel>
-                        </Border>
-                    </Border>
-
-                    <Border x:Name="RingThemeWarm" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,6,0">
-                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
-                                MouseLeftButtonDown="ThemeWarm_Click">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Opacity" Value="0.75"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Ellipse Width="20" Height="20" Fill="#FFF4A261" Margin="0,0,0,4"/>
-                                <TextBlock Text="Warm" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
-                            </StackPanel>
-                        </Border>
-                    </Border>
-
-                    <Border x:Name="RingThemeTerminal" BorderThickness="0" CornerRadius="4" Padding="1" Margin="0,0,0,0">
-                        <Border Width="60" Height="40" Background="#FF2D2D2D" CornerRadius="4" Cursor="Hand"
-                                MouseLeftButtonDown="ThemeTerminal_Click">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Opacity" Value="0.75"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Ellipse Width="20" Height="20" Fill="#FF39FF14" Margin="0,0,0,4"/>
-                                <TextBlock Text="Terminal" FontSize="10" HorizontalAlignment="Center" Foreground="#FFD0D0D0"/>
-                            </StackPanel>
-                        </Border>
-                    </Border>
-
-                </StackPanel>
-
                 <!-- Accent Color header + swatch row (no grid — horizontal layout) -->
                 <TextBlock Text="Accent Color" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <StackPanel Orientation="Horizontal">
@@ -262,9 +161,10 @@
                                HorizontalAlignment="Right" Margin="0,0,10,0"/>
                     <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
                         <Slider x:Name="OpacitySlider"
-                                Minimum="0.20" Maximum="1.00"
+                                Minimum="0.10" Maximum="1.00"
                                 SmallChange="0.01" LargeChange="0.05"
                                 TickFrequency="0.05" IsSnapToTickEnabled="False"
+                                IsMoveToPointEnabled="True"
                                 Width="160" VerticalAlignment="Center"
                                 ValueChanged="OpacitySlider_ValueChanged"/>
                         <TextBlock x:Name="OpacityLabel" Width="36"
@@ -307,13 +207,19 @@
                                HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <ComboBox x:Name="CmbPhraseStyle"
                               Grid.Row="3" Grid.Column="1"
-                              Width="120" HorizontalAlignment="Left"
+                              Width="130" HorizontalAlignment="Left"
                               Margin="0,8,0,0" VerticalAlignment="Center"
                               SelectionChanged="CmbPhraseStyle_SelectionChanged">
                         <ComboBoxItem Content="Classic"/>
                         <ComboBoxItem Content="Terse"/>
                         <ComboBoxItem Content="Poetic"/>
                         <ComboBoxItem Content="Rude"/>
+                        <ComboBoxItem Content="Jive"/>
+                        <ComboBoxItem Content="Pirate"/>
+                        <ComboBoxItem Content="Dwarf"/>
+                        <ComboBoxItem Content="ValleyGirl"/>
+                        <ComboBoxItem Content="Yoda"/>
+                        <ComboBoxItem Content="Shakespeare"/>
                     </ComboBox>
 
                     <!-- Phrase Wrap -->
@@ -347,58 +253,28 @@
                                   Checked="ChkShowHourNumbers_Changed" Unchecked="ChkShowHourNumbers_Changed"/>
                     </StackPanel>
 
-                    <!-- LCD Options (per D-05, D-06) -->
-                    <TextBlock x:Name="LcdOptionsLabel"
-                               Grid.Row="6" Grid.Column="0"
-                               Text="LCD"
-                               VerticalAlignment="Top"
-                               HorizontalAlignment="Right"
-                               Margin="0,8,10,0"/>
+                    <!-- LCD Options (LCD-01 through LCD-05) -->
+                    <TextBlock x:Name="LcdOptionsLabel" Grid.Row="6" Grid.Column="0"
+                               Text="LCD Options" VerticalAlignment="Top"
+                               HorizontalAlignment="Right" Margin="0,8,10,0"/>
                     <StackPanel x:Name="LcdOptionsPanel"
                                 Grid.Row="6" Grid.Column="1"
                                 Margin="0,8,0,0">
-                        <CheckBox x:Name="ChkLcdUse24Hr" Content="24-hour mode"
-                                  Checked="ChkLcdUse24Hr_Changed"
-                                  Unchecked="ChkLcdUse24Hr_Changed"/>
-                        <CheckBox x:Name="ChkLcdShowSeconds" Content="Show seconds"
-                                  Checked="ChkLcdShowSeconds_Changed"
-                                  Unchecked="ChkLcdShowSeconds_Changed"/>
-                        <ComboBox x:Name="CmbLcdStyle"
-                                  Width="120" HorizontalAlignment="Left"
-                                  Margin="0,8,0,0" VerticalAlignment="Center"
-                                  SelectionChanged="CmbLcdStyle_SelectionChanged">
-                            <ComboBoxItem Content="Dark"/>
-                            <ComboBoxItem Content="Paper"/>
-                            <ComboBoxItem Content="Silver"/>
-                        </ComboBox>
+                        <CheckBox x:Name="ChkLcd24Hr" Content="24-hour display"
+                                  Checked="ChkLcd24Hr_Changed" Unchecked="ChkLcd24Hr_Changed"/>
+                        <CheckBox x:Name="ChkLcdShowSeconds" Content="Show seconds" Margin="0,6,0,0"
+                                  Checked="ChkLcdShowSeconds_Changed" Unchecked="ChkLcdShowSeconds_Changed"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="Style" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="CmbLcdStyle" Width="90" VerticalAlignment="Center"
+                                      SelectionChanged="CmbLcdStyle_SelectionChanged">
+                                <ComboBoxItem Content="Dark"/>
+                                <ComboBoxItem Content="Paper"/>
+                                <ComboBoxItem Content="Silver"/>
+                            </ComboBox>
+                        </StackPanel>
                     </StackPanel>
 
-                </Grid>
-
-                <!-- Backdrop -->
-                <TextBlock Text="Backdrop" FontWeight="SemiBold" Margin="0,8,0,4"/>
-                <CheckBox x:Name="ChkBackdropAlwaysVisible"
-                          Content="Always visible (not just on hover)"
-                          Margin="0,0,0,6"
-                          Checked="ChkBackdropAlwaysVisible_Changed"
-                          Unchecked="ChkBackdropAlwaysVisible_Changed"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="90"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Opacity"
-                               VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"/>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Slider x:Name="BackdropOpacitySlider"
-                                Minimum="10" Maximum="100"
-                                SmallChange="5" LargeChange="10"
-                                TickFrequency="5" IsSnapToTickEnabled="True"
-                                Width="160" VerticalAlignment="Center"
-                                ValueChanged="BackdropOpacitySlider_ValueChanged"/>
-                        <TextBlock x:Name="BackdropOpacityLabel" Width="36"
-                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
-                    </StackPanel>
                 </Grid>
 
             </StackPanel>
@@ -449,15 +325,17 @@
                     <TextBlock Grid.Row="1" Grid.Column="0"
                                Text="Interval" VerticalAlignment="Center"
                                HorizontalAlignment="Right" Margin="0,12,10,0"/>
-                    <ComboBox x:Name="CmbStatsInterval"
-                              Grid.Row="1" Grid.Column="1"
-                              Width="110" HorizontalAlignment="Left"
-                              Margin="0,12,0,0" VerticalAlignment="Center"
-                              SelectionChanged="CmbStatsInterval_SelectionChanged">
-                        <ComboBoxItem Content="1 second"/>
-                        <ComboBoxItem Content="3 seconds"/>
-                        <ComboBoxItem Content="10 seconds"/>
-                    </ComboBox>
+                    <StackPanel Grid.Row="1" Grid.Column="1"
+                                Orientation="Horizontal" Margin="0,12,0,0">
+                        <Slider x:Name="StatsIntervalSlider"
+                                Minimum="0.5" Maximum="10.0"
+                                SmallChange="0.1" LargeChange="1.0"
+                                TickFrequency="0.5" IsSnapToTickEnabled="False"
+                                Width="160" VerticalAlignment="Center"
+                                ValueChanged="StatsIntervalSlider_ValueChanged"/>
+                        <TextBlock x:Name="StatsIntervalLabel" Width="42"
+                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    </StackPanel>
 
                     <!-- Process Threshold -->
                     <TextBlock Grid.Row="2" Grid.Column="0"
@@ -502,6 +380,42 @@
             </StackPanel>
         </TabItem>
 
+        <!-- ===== TEMPS TAB ===== -->
+        <TabItem Header="Temps">
+            <StackPanel Margin="12">
+
+                <!-- Master toggle (TEMP-TAB-02; gates TempSensorsPanel per D-04) -->
+                <CheckBox x:Name="ChkTempsVisible"
+                          Content="Show Temps Line"
+                          Margin="0,0,0,10"
+                          Checked="ChkTempsVisible_Changed"
+                          Unchecked="ChkTempsVisible_Changed"/>
+
+                <!-- Per-sensor sub-panel (TEMP-TAB-03; indent 16px; master-gated IsEnabled per D-04) -->
+                <StackPanel x:Name="TempSensorsPanel" Margin="16,0,0,6">
+                    <WrapPanel Width="270">
+                        <!-- Ordering locked: CPU, GPU, Mobo, NVMe (row-major) -->
+                        <CheckBox x:Name="ChkTempCpuVisible"  Content="CPU"  Width="86" Margin="0,0,0,5"
+                                  Checked="ChkTempCpuVisible_Changed"  Unchecked="ChkTempCpuVisible_Changed"/>
+                        <CheckBox x:Name="ChkTempGpuVisible"  Content="GPU"  Width="86" Margin="0,0,0,5"
+                                  Checked="ChkTempGpuVisible_Changed"  Unchecked="ChkTempGpuVisible_Changed"/>
+                        <CheckBox x:Name="ChkTempMoboVisible" Content="Mobo" Width="86"
+                                  Checked="ChkTempMoboVisible_Changed" Unchecked="ChkTempMoboVisible_Changed"/>
+                        <CheckBox x:Name="ChkTempNvmeVisible" Content="NVMe" Width="86"
+                                  Checked="ChkTempNvmeVisible_Changed" Unchecked="ChkTempNvmeVisible_Changed"/>
+                    </WrapPanel>
+                </StackPanel>
+
+                <!-- Help text (TEMP-TAB-03 verbatim; outside TempSensorsPanel per D-05) -->
+                <TextBlock Text="CPU and NVMe readings may require elevated access or a helper driver (e.g. PawnIO) on some hardware; disabled checkboxes indicate the sensor is unavailable on this machine."
+                           Foreground="#FF999999"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Margin="16,0,0,0"/>
+
+            </StackPanel>
+        </TabItem>
+
         <!-- ===== BEHAVIOR TAB ===== -->
         <TabItem Header="Behavior">
             <StackPanel Margin="12">
@@ -524,8 +438,38 @@
 
                 <CheckBox x:Name="ChkGhostMode"
                           Content="Ghost Mode — auto-hide widget on hover"
-                          Margin="0,0,0,10"
+                          Margin="0,0,0,4"
                           Checked="ChkGhostMode_Changed" Unchecked="ChkGhostMode_Changed"/>
+                <StackPanel x:Name="GhostFadeRadiusPanel"
+                            Orientation="Horizontal"
+                            Margin="16,4,0,8">
+                    <TextBlock Text="Fade Radius" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Slider x:Name="GhostFadeRadiusSlider"
+                            Minimum="20" Maximum="200"
+                            SmallChange="10" LargeChange="20"
+                            TickFrequency="10" IsSnapToTickEnabled="True"
+                            Width="160" VerticalAlignment="Center"
+                            ValueChanged="GhostFadeRadiusSlider_ValueChanged"/>
+                    <TextBlock x:Name="GhostFadeRadiusLabel" Width="42"
+                               VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </StackPanel>
+                <StackPanel x:Name="GhostOverridePanel"
+                            Margin="16,0,0,8">
+                    <TextBlock Text="Hold these keys to keep widget visible:"
+                               Margin="0,0,0,4"
+                               Foreground="#FF999999" FontSize="11"/>
+                    <CheckBox x:Name="ChkUseCtrl"
+                              Content="Left Ctrl"
+                              Margin="0,0,0,2"
+                              Checked="ChkUseCtrl_Changed" Unchecked="ChkUseCtrl_Changed"/>
+                    <CheckBox x:Name="ChkUseAlt"
+                              Content="Left Alt"
+                              Margin="0,0,0,2"
+                              Checked="ChkUseAlt_Changed" Unchecked="ChkUseAlt_Changed"/>
+                    <CheckBox x:Name="ChkUseShift"
+                              Content="Left Shift"
+                              Checked="ChkUseShift_Changed" Unchecked="ChkUseShift_Changed"/>
+                </StackPanel>
                 <CheckBox x:Name="ChkAutoContrast"
                           Content="Auto-Contrast — WCAG luminance sampling"
                           Margin="0,0,0,10"

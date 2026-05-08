@@ -27,7 +27,7 @@ public class AppSettingsTests
             LastActiveMonitor    = "dell u2720q",
             FontSize             = 24,
             StatsVisible         = true,
-            StatsIntervalSeconds = 5,
+            StatsIntervalSeconds = 2.5,
             CpuVisible           = false,
             GpuVisible           = false,
             MemVisible           = false,
@@ -48,6 +48,10 @@ public class AppSettingsTests
             ShowDate   = false,
             DateFormat = "ISO",
             LcdStyle   = "Paper",
+            GhostFadeRadiusPx = 120,  // non-default value to prove round-trip
+            UseCtrl  = false,  // flipped from default true to prove serialization
+            UseAlt   = false,  // flipped from default true
+            UseShift = true,   // flipped from default false
         };
 
         string json = JsonSerializer.Serialize(original);
@@ -59,7 +63,7 @@ public class AppSettingsTests
         Assert.AreEqual(200.5, result.MonitorPositions["dell u2720q"].Top,  0.0001,              "MonitorPositions Top");
         Assert.AreEqual(original.FontSize,             result.FontSize,                          "FontSize");
         Assert.AreEqual(original.StatsVisible,         result.StatsVisible,                      "StatsVisible");
-        Assert.AreEqual(original.StatsIntervalSeconds, result.StatsIntervalSeconds,               "StatsIntervalSeconds");
+        Assert.AreEqual(original.StatsIntervalSeconds, result.StatsIntervalSeconds, 0.0001,        "StatsIntervalSeconds");
         Assert.AreEqual(original.CpuVisible,           result.CpuVisible,                        "CpuVisible");
         Assert.AreEqual(original.GpuVisible,           result.GpuVisible,                        "GpuVisible");
         Assert.AreEqual(original.MemVisible,           result.MemVisible,                        "MemVisible");
@@ -80,6 +84,10 @@ public class AppSettingsTests
         Assert.AreEqual(original.ShowDate,   result.ShowDate,   "ShowDate");
         Assert.AreEqual(original.DateFormat, result.DateFormat, "DateFormat");
         Assert.AreEqual(original.LcdStyle,   result.LcdStyle,   "LcdStyle");
+        Assert.AreEqual(original.GhostFadeRadiusPx, result.GhostFadeRadiusPx, "GhostFadeRadiusPx");
+        Assert.AreEqual(original.UseCtrl,  result.UseCtrl,  "UseCtrl");
+        Assert.AreEqual(original.UseAlt,   result.UseAlt,   "UseAlt");
+        Assert.AreEqual(original.UseShift, result.UseShift, "UseShift");
     }
 
     // STEST-02: Deserialize JSON that omits the UptimeVisible field entirely.
@@ -97,6 +105,35 @@ public class AppSettingsTests
         // Must be true (init default), NOT false (C# bool default)
         Assert.IsTrue(result.UptimeVisible,
             "UptimeVisible should default to true when absent from JSON (init default), not false (C# bool default)");
+    }
+
+    // CFG-04: UseCtrl/UseAlt/UseShift absent-field tests — verify init defaults (true/true/false)
+    // protect Ctrl+Alt default on upgrade from v4.2 → v4.3
+    [TestMethod]
+    public void Deserialize_MissingUseCtrl_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.UseCtrl,
+            "UseCtrl should default to true when absent from JSON (init default), not false (C# bool default)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingUseAlt_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.UseAlt,
+            "UseAlt should default to true when absent from JSON (init default), not false (C# bool default)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingUseShift_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.UseShift,
+            "UseShift should default to false when absent from JSON (init default = C# bool default)");
     }
 
     [TestMethod]
@@ -202,6 +239,248 @@ public class AppSettingsTests
         var result = JsonSerializer.Deserialize<AppSettings>(json)!;
         Assert.AreEqual(ClockType.Phrase, result.ClockType,
             "ClockType should default to Phrase when absent from JSON (init default)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingGhostFadeRadiusPx_DefaultsTo80()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(80, result.GhostFadeRadiusPx,
+            "GhostFadeRadiusPx should default to 80 when absent from JSON (init default), not 0");
+    }
+
+    [TestMethod]
+    public void Deserialize_IntegerStatsInterval_DeserializesToDouble()
+    {
+        // Simulate v4.0 settings.json with integer StatsIntervalSeconds
+        const string json = """{"StatsIntervalSeconds":3}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.AreEqual(3.0, result.StatsIntervalSeconds, 0.0001,
+            "Integer 3 in JSON should deserialize to double 3.0");
+    }
+
+    // ----- v4.2 temps-visibility fields (TEST-01/TEST-02/TEST-03) -----
+
+    [TestMethod]
+    public void Deserialize_MissingTempsLineVisible_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.TempsLineVisible,
+            "TempsLineVisible should default to false when absent from JSON (init default per TEMP-TAB-02; master OFF on v4.1 upgrade)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingTempCpuVisible_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.TempCpuVisible,
+            "TempCpuVisible should default to true when absent from JSON (init default per TEMP-TAB-03; NOT C# bool default false)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingTempGpuVisible_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.TempGpuVisible,
+            "TempGpuVisible should default to true when absent from JSON (init default per TEMP-TAB-03)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingTempMoboVisible_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.TempMoboVisible,
+            "TempMoboVisible should default to false when absent from JSON (init default per TEMP-TAB-03; PawnIO-gated)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingTempNvmeVisible_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.TempNvmeVisible,
+            "TempNvmeVisible should default to FALSE when absent from JSON (TEMP-TAB-03 amendment 2026-05-04 commit b2163d1; NVMe not enumerated on baseline hardware — NOT true)");
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempsLineVisible_Matches()
+    {
+        var original = new AppSettings { TempsLineVisible = true };   // flipped from default false
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsTrue(result.TempsLineVisible);
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempCpuVisible_Matches()
+    {
+        var original = new AppSettings { TempCpuVisible = false };    // flipped from default true
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsFalse(result.TempCpuVisible);
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempGpuVisible_Matches()
+    {
+        var original = new AppSettings { TempGpuVisible = false };    // flipped from default true
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsFalse(result.TempGpuVisible);
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempMoboVisible_Matches()
+    {
+        var original = new AppSettings { TempMoboVisible = true };    // flipped from default false
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsTrue(result.TempMoboVisible);
+    }
+
+    [TestMethod]
+    public void RoundTrip_TempNvmeVisible_Matches()
+    {
+        var original = new AppSettings { TempNvmeVisible = true };    // flipped from default false (post-amendment)
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsTrue(result.TempNvmeVisible);
+    }
+
+    // ----- v4.2 Phase 78 SettingsSnapshot extension tests -----
+
+    [TestMethod]
+    public void SettingsSnapshot_AllTenNewFieldsAreInitSettable()
+    {
+        var snap = new SettingsSnapshot
+        {
+            TempsLineVisible   = true,
+            TempCpuVisible     = false,
+            TempGpuVisible     = false,
+            TempMoboVisible    = true,
+            TempNvmeVisible    = true,
+            CpuTempC           = 52f,
+            GpuTempC           = 61f,
+            MoboTempC          = -1f,
+            NvmeTempC          = 38f,
+            TempsServiceReady  = true,
+        };
+        Assert.IsTrue(snap.TempsLineVisible,   "TempsLineVisible should survive init");
+        Assert.IsFalse(snap.TempCpuVisible,    "TempCpuVisible should survive init");
+        Assert.IsFalse(snap.TempGpuVisible,    "TempGpuVisible should survive init");
+        Assert.IsTrue(snap.TempMoboVisible,    "TempMoboVisible should survive init");
+        Assert.IsTrue(snap.TempNvmeVisible,    "TempNvmeVisible should survive init");
+        Assert.AreEqual(52f, snap.CpuTempC,    "CpuTempC should survive init");
+        Assert.AreEqual(61f, snap.GpuTempC,    "GpuTempC should survive init");
+        Assert.AreEqual(-1f, snap.MoboTempC,   "MoboTempC should survive init (sentinel)");
+        Assert.AreEqual(38f, snap.NvmeTempC,   "NvmeTempC should survive init");
+        Assert.IsTrue(snap.TempsServiceReady,  "TempsServiceReady should survive init");
+    }
+
+    [TestMethod]
+    public void SettingsSnapshot_NewFieldsHaveZeroValueDefaults()
+    {
+        // SettingsSnapshot is a PROJECTION of current app state, not a config model.
+        // New fields default to C# type zero-values; MainWindow.GetCurrentSettingsSnapshot
+        // populates them from AppSettings + TemperatureService at open time (Phase 78-02).
+        var snap = new SettingsSnapshot();
+        Assert.IsFalse(snap.TempsLineVisible,   "TempsLineVisible default = bool default (false)");
+        Assert.IsFalse(snap.TempCpuVisible,     "TempCpuVisible default = bool default (false)");
+        Assert.IsFalse(snap.TempGpuVisible,     "TempGpuVisible default = bool default (false)");
+        Assert.IsFalse(snap.TempMoboVisible,    "TempMoboVisible default = bool default (false)");
+        Assert.IsFalse(snap.TempNvmeVisible,    "TempNvmeVisible default = bool default (false)");
+        Assert.AreEqual(0f, snap.CpuTempC,      "CpuTempC default = float default (0f)");
+        Assert.AreEqual(0f, snap.GpuTempC,      "GpuTempC default = float default (0f)");
+        Assert.AreEqual(0f, snap.MoboTempC,     "MoboTempC default = float default (0f)");
+        Assert.AreEqual(0f, snap.NvmeTempC,     "NvmeTempC default = float default (0f)");
+        Assert.IsFalse(snap.TempsServiceReady,  "TempsServiceReady default = bool default (false)");
+    }
+
+    // ----- v4.3 Phase 82 SettingsSnapshot modifier field tests -----
+
+    [TestMethod]
+    public void SettingsSnapshot_ModifierFieldsAreInitSettable()
+    {
+        // Proves CFG-02: SettingsSnapshot carries UseCtrl/UseAlt/UseShift fields
+        var snapshot = new SettingsSnapshot
+        {
+            UseCtrl  = false,
+            UseAlt   = true,
+            UseShift = true
+        };
+
+        Assert.IsFalse(snapshot.UseCtrl,  "UseCtrl init-settable");
+        Assert.IsTrue(snapshot.UseAlt,    "UseAlt init-settable");
+        Assert.IsTrue(snapshot.UseShift,  "UseShift init-settable");
+    }
+
+    // ----- v4.2 Phase 78-02 GetCurrentSettingsSnapshot mapping-contract tests -----
+
+    [TestMethod]
+    public void GetCurrentSettingsSnapshotContract_MapsAppSettings_ToTempVisibilityFields()
+    {
+        // Simulate MainWindow.GetCurrentSettingsSnapshot's mapping: AppSettings + TemperatureService → SettingsSnapshot.
+        // Direct invocation of MainWindow would require an STA WPF host; instead we assert the contract
+        // the method must uphold — snapshot fields are a projection of AppSettings.Temp* fields plus live
+        // TemperatureService sensor values + IsReady.
+        var settings = new AppSettings
+        {
+            TempsLineVisible = true,
+            TempCpuVisible   = true,
+            TempGpuVisible   = false,
+            TempMoboVisible  = true,
+            TempNvmeVisible  = false,
+        };
+        // Stand-in for _temperatureService readings at the moment OpenSettings fires:
+        const float cpu = 52f, gpu = 61f, mobo = -1f, nvme = 38f;
+        const bool  ready = true;
+
+        var snap = new SettingsSnapshot
+        {
+            TempsLineVisible   = settings.TempsLineVisible,
+            TempCpuVisible     = settings.TempCpuVisible,
+            TempGpuVisible     = settings.TempGpuVisible,
+            TempMoboVisible    = settings.TempMoboVisible,
+            TempNvmeVisible    = settings.TempNvmeVisible,
+            CpuTempC           = cpu,
+            GpuTempC           = gpu,
+            MoboTempC          = mobo,
+            NvmeTempC          = nvme,
+            TempsServiceReady  = ready,
+        };
+
+        Assert.IsTrue(snap.TempsLineVisible,    "TempsLineVisible mirrors AppSettings");
+        Assert.IsTrue(snap.TempCpuVisible,      "TempCpuVisible mirrors AppSettings");
+        Assert.IsFalse(snap.TempGpuVisible,     "TempGpuVisible mirrors AppSettings");
+        Assert.IsTrue(snap.TempMoboVisible,     "TempMoboVisible mirrors AppSettings");
+        Assert.IsFalse(snap.TempNvmeVisible,    "TempNvmeVisible mirrors AppSettings");
+        Assert.AreEqual(52f, snap.CpuTempC,     "CpuTempC mirrors TemperatureService.CpuTempC");
+        Assert.AreEqual(61f, snap.GpuTempC,     "GpuTempC mirrors TemperatureService.GpuTempC");
+        Assert.AreEqual(-1f, snap.MoboTempC,    "MoboTempC mirrors -1f sentinel per D-11");
+        Assert.AreEqual(38f, snap.NvmeTempC,    "NvmeTempC mirrors TemperatureService.NvmeTempC");
+        Assert.IsTrue(snap.TempsServiceReady,   "TempsServiceReady mirrors TemperatureService.IsReady");
+    }
+
+    [TestMethod]
+    public void GetCurrentSettingsSnapshotContract_PreIsReadyColdStart_AllSensorFieldsAreZeroValues()
+    {
+        // D-02: before IsReady flips true, GetCurrentSettingsSnapshot will see IsReady=false
+        // and sensor properties at their (initial) sentinel values. The snapshot should reflect
+        // that truthfully — the *optimistic* treatment is applied by SettingsWindow.RefreshControls,
+        // not by the snapshot producer. Verifies snapshot is honest about state at capture time.
+        var snap = new SettingsSnapshot
+        {
+            TempsServiceReady = false,   // cold start, IsReady not yet true
+            CpuTempC          = -1f,
+            GpuTempC          = -1f,
+            MoboTempC         = -1f,
+            NvmeTempC         = -1f,
+        };
+        Assert.IsFalse(snap.TempsServiceReady, "Pre-IsReady snapshot carries IsReady=false");
+        // SettingsWindow.ApplyTempCheckboxNaState will observe !isReady and fall into the
+        // D-02 optimistic branch regardless of sentinel values — verified in Plan 78-01 tests.
+        Assert.AreEqual(-1f, snap.CpuTempC,  "Snapshot records the service's actual value at capture time");
+        Assert.AreEqual(-1f, snap.MoboTempC, "Snapshot records the service's actual value at capture time");
     }
 
 }

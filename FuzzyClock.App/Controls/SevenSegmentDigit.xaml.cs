@@ -42,6 +42,11 @@ public partial class SevenSegmentDigit : WpfUserControl
         DependencyProperty.Register(nameof(SegmentStyle), typeof(string), typeof(SevenSegmentDigit),
             new PropertyMetadata("Classic", OnSegmentStyleChanged));
 
+    // For colon digits: true = dots lit, false = dots ghost (blink-off state). Width never changes.
+    public static readonly DependencyProperty ColonOnProperty =
+        DependencyProperty.Register(nameof(ColonOn), typeof(bool), typeof(SevenSegmentDigit),
+            new PropertyMetadata(true, OnVisualPropertyChanged));
+
     public char Character
     {
         get => (char)GetValue(CharacterProperty);
@@ -76,6 +81,12 @@ public partial class SevenSegmentDigit : WpfUserControl
     {
         get => (string)GetValue(SegmentStyleProperty);
         set => SetValue(SegmentStyleProperty, value);
+    }
+
+    public bool ColonOn
+    {
+        get => (bool)GetValue(ColonOnProperty);
+        set => SetValue(ColonOnProperty, value);
     }
 
     private static void OnVisualPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -189,20 +200,21 @@ public partial class SevenSegmentDigit : WpfUserControl
         foreach (var seg in _segments)
             RootCanvas.Children.Add(seg);
 
-        // Colon dots
+        // Colon dots — sized to fit within the narrow colon slot (t * 3 gives 1t padding each side)
+        double colonW = t * 3.0;
         _dot1 = new WpfRectangle { Width = t, Height = t };
-        Canvas.SetLeft(_dot1, (digitW - t) / 2);
+        Canvas.SetLeft(_dot1, (colonW - t) / 2);
         Canvas.SetTop(_dot1, canvasH / 3 - t / 2);
 
         _dot2 = new WpfRectangle { Width = t, Height = t };
-        Canvas.SetLeft(_dot2, (digitW - t) / 2);
+        Canvas.SetLeft(_dot2, (colonW - t) / 2);
         Canvas.SetTop(_dot2, 2 * canvasH / 3 - t / 2);
 
         RootCanvas.Children.Add(_dot1);
         RootCanvas.Children.Add(_dot2);
 
         _builtDigitW = digitW;
-        _builtColonW = digitW * 0.30;
+        _builtColonW = colonW;
         _builtCanvasH = canvasH;
 
         RootCanvas.Width = digitW;
@@ -267,14 +279,15 @@ public partial class SevenSegmentDigit : WpfUserControl
 
         if (Character == ':')
         {
-            // Hide all 7 segment polygons; show dots as lit
+            // Hide all 7 segment polygons; dots lit or ghost based on ColonOn (blink state)
             foreach (var seg in _segments)
                 seg.Visibility = Visibility.Hidden;
 
-            _dot1.Fill = _litBrush;
-            _dot2.Fill = _litBrush;
+            var dotBrush = ColonOn ? _litBrush : _ghostBrush;
+            _dot1.Fill = dotBrush;
+            _dot2.Fill = dotBrush;
 
-            // Narrow the canvas to colon width
+            // Narrow the canvas to colon width (never changes — no layout shift)
             _backgroundRect.Width = _builtColonW;
             RootCanvas.Width = _builtColonW;
             Width = _builtColonW;

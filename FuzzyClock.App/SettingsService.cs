@@ -71,11 +71,13 @@ public static class SettingsService
     /// </summary>
     public static AppSettings Validate(AppSettings loaded)
     {
-        // Guard: StatsIntervalSeconds=0 means the field was absent in an old settings
-        // file or the file is corrupted. A zero-interval DispatcherTimer fires at
-        // maximum rate, causing a CPU spike. Replace with the safe default.
-        if (loaded.StatsIntervalSeconds <= 0)
+        // Guard: StatsIntervalSeconds must be in [0.5, 10.0] range.
+        // Values outside range (including 0 from absent/corrupted fields) get the safe default.
+        // Valid values are rounded to 1 decimal place to prevent floating-point noise.
+        if (loaded.StatsIntervalSeconds < 0.5 || loaded.StatsIntervalSeconds > 10.0)
             loaded = loaded with { StatsIntervalSeconds = Defaults().StatsIntervalSeconds };
+        else
+            loaded = loaded with { StatsIntervalSeconds = Math.Round(loaded.StatsIntervalSeconds, 1) };
         // Opacity guard — prevents invisible-widget regression on v1.9 upgrade
         // (C# double type default is 0.0; "Opacity":0.0 in malformed JSON or an explicit
         // zero written by a future bug would make the widget fully transparent with no
@@ -110,6 +112,13 @@ public static class SettingsService
                                         "Yoda", "Shakespeare" };
         if (string.IsNullOrWhiteSpace(loaded.PhraseStyle) || !validPhraseStyles.Contains(loaded.PhraseStyle))
             loaded = loaded with { PhraseStyle = Defaults().PhraseStyle };
+        // LcdStyle guard — only Dark, Paper, Silver are valid
+        string[] validLcdStyles = { "Dark", "Paper", "Silver" };
+        if (string.IsNullOrWhiteSpace(loaded.LcdStyle) || !validLcdStyles.Contains(loaded.LcdStyle))
+            loaded = loaded with { LcdStyle = Defaults().LcdStyle };
+        // GhostFadeRadiusPx guard -- valid range 20-200px per PROX-06
+        if (loaded.GhostFadeRadiusPx < 20 || loaded.GhostFadeRadiusPx > 200)
+            loaded = loaded with { GhostFadeRadiusPx = Defaults().GhostFadeRadiusPx };
         // MonitorPositions null guard — null can occur if someone manually edits settings.json
         // and writes "MonitorPositions":null
         if (loaded.MonitorPositions == null)
@@ -128,7 +137,7 @@ public static class SettingsService
     public static AppSettings Defaults() => new()
     {
         FontSize = 32,
-        StatsVisible = false, StatsIntervalSeconds = 3,
+        StatsVisible = false, StatsIntervalSeconds = 2.0,
         CpuVisible = true, GpuVisible = true, MemVisible = true,
         PagVisible = true, BatteryVisible = true, UptimeVisible = true,
         ClockType = ClockType.Phrase,
@@ -144,7 +153,13 @@ public static class SettingsService
         DateFormat = "Short",
         MonitorPositions = new Dictionary<string, MonitorPosition>(),
         LastActiveMonitor = "",
-        BatteryAlertThresholdPercent = 20
+        BatteryAlertThresholdPercent = 20,
+        GhostFadeRadiusPx = 80,
+        TempsLineVisible = false,
+        TempCpuVisible   = true,
+        TempGpuVisible   = true,
+        TempMoboVisible  = false,
+        TempNvmeVisible  = false
     };
 
     /// <summary>

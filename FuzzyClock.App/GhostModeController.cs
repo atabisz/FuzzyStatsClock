@@ -5,7 +5,9 @@ namespace FuzzyClock.App;
 
 /// <summary>
 /// Owns all Win32 ghost mode infrastructure: P/Invoke declarations, click-through style
-/// management, and the 75ms cursor polling timer used to detect cursor exit under WS_EX_TRANSPARENT.
+/// management, and the 75ms cursor polling timer that drives proximity detection, fade
+/// gradient traversal, ghost activation at ratio=1.0, and restore on cursor retreat.
+/// Timer starts in Initialize() and runs continuously until Dispose().
 /// </summary>
 internal sealed class GhostModeController : IDisposable
 {
@@ -18,6 +20,7 @@ internal sealed class GhostModeController : IDisposable
     private const uint SWP_FRAMECHANGED  = 0x0020;
     private const int  VK_LCONTROL       = 0xA2;   // Left Ctrl only — avoids right-side ambiguity
     private const int  VK_LMENU          = 0xA4;   // Left Alt only — VK_MENU matches AltGr on EU keyboards
+    private const int  VK_LSHIFT         = 0xA0;   // Left Shift only — consistency with left-side-only pattern
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -48,6 +51,11 @@ internal sealed class GhostModeController : IDisposable
     private bool _isGhostMode;
     private IntPtr _hwnd;
     private DispatcherTimer? _restoreTimer;
+    private double _lastProximityRatio = 0.0;
+    private int _ghostFadeRadiusPx = 80;
+    private bool _useCtrl  = true;   // CFG-04: default preserves Ctrl+Alt behavior from v4.2
+    private bool _useAlt   = true;   // CFG-04: default preserves Ctrl+Alt behavior from v4.2
+    private bool _useShift = false;  // CFG-04: default Shift disabled
 
     /// <summary>Whether ghost mode is enabled. Persisted to settings.</summary>
     public bool IsEnabled { get; set; } = true;
@@ -58,46 +66,133 @@ internal sealed class GhostModeController : IDisposable
     /// <summary>
     /// Fired when the cursor polling timer determines the cursor has left the ghost window.
     /// Handler should restore Opacity and ContentBorder.Background.
+    /// Fires only when cursor fully exits the proximity zone (ratio=0.0) after ghost activation —
+    /// not on every sub-1.0 tick during cursor retreat. Phase 68 uses this for final opacity snap.
     /// </summary>
     public event Action? Restored;
 
     /// <summary>
+    /// Fires when the proximity ratio changes. Ratio is 0.0 (outside zone) to 1.0 (inside widget).
+    /// Only fires on change — no event when cursor is stationary outside the proximity zone.
+    /// Phase 68 subscribes to this event to drive opacity fade.
+    /// </summary>
+    public Action<double>? ProximityChanged;
+
+    /// <summary>
+    /// Fade radius in pixels. Set from AppSettings.GhostFadeRadiusPx at startup.
+    /// Phase 69 will update this live when the user moves the settings slider.
+    /// </summary>
+    public int GhostFadeRadiusPx
+    {
+        get => _ghostFadeRadiusPx;
+        set => _ghostFadeRadiusPx = value;
+    }
+
+    /// <summary>
+    /// Sets which modifier keys suppress ghost mode when held during hover.
+    /// Called from MainWindow.ApplySettings() on startup and from Settings window
+    /// event handlers when user changes checkboxes. All-false = override disabled
+    /// (ghost always activates regardless of held keys per DET-02).
+    /// </summary>
+    public void UpdateModifierConfig(bool useCtrl, bool useAlt, bool useShift)
+    {
+        _useCtrl  = useCtrl;
+        _useAlt   = useAlt;
+        _useShift = useShift;
+    }
+
+    /// <summary>
     /// Called once from ContentRendered after the HWND is available.
-    /// Creates and wires the 75ms polling timer for cursor detection under WS_EX_TRANSPARENT.
+    /// Creates the 75ms polling timer and starts it immediately — timer runs for the entire session.
+    /// Caller should set GhostFadeRadiusPx from AppSettings.GhostFadeRadiusPx after this call.
     /// </summary>
     public void Initialize(IntPtr hwnd)
     {
         _hwnd = hwnd;
-        _restoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(75) };
-        _restoreTimer.Tick += (_, _) =>
-        {
-            if (!_isGhostMode) return;
-            // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
-            // receiving mouse messages when WS_EX_TRANSPARENT is active (Mouse.GetPosition(this)
-            // returns stale/wrong coords and causes immediate spurious restore + flicker loop).
-            if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
-            if (cursor.X < rect.Left || cursor.X > rect.Right ||
-                cursor.Y < rect.Top  || cursor.Y > rect.Bottom)
-            {
-                _restoreTimer!.Stop();
-                _isGhostMode = false;
-                int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-                SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
-                SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-                Restored?.Invoke();
-            }
-        };
+        _restoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        _restoreTimer.Tick += OnTimerTick;
+        _restoreTimer.Start();   // always-running from Initialize() until Dispose() (D-01)
     }
 
     /// <summary>
-    /// Starts the cursor polling timer and applies WS_EX_TRANSPARENT to make the window click-through.
-    /// Called from Window_MouseEnter (ghost path only).
+    /// Timer tick — runs every 75ms for the full session lifecycle.
+    /// Computes the proximity ratio via Win32 cursor and window rect queries, emits
+    /// ProximityChanged only when the ratio changes, drives ghost activation at ratio=1.0,
+    /// and removes WS_EX_TRANSPARENT immediately when ratio drops below 1.0.
+    /// </summary>
+    private void OnTimerTick(object? sender, EventArgs e)
+    {
+        if (!IsEnabled) return;   // PROX-09: no proximity computation when ghost mode is off
+
+        // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
+        // receiving mouse messages when WS_EX_TRANSPARENT is active.
+        if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
+
+        double ratio;
+        // D-08 + DET-02: Short-circuit when all modifiers disabled (all-false = override disabled).
+        // When any modifier is enabled, check if enabled modifiers are held to suppress ghost fade.
+        if (_useCtrl || _useAlt || _useShift)
+        {
+            if (IsModifierHeld())
+                ratio = 0.0;  // Enabled modifiers held — suppress proximity fade
+            else
+                ratio = ComputeProximityRatio(
+                    cursor.X, cursor.Y,
+                    rect.Left, rect.Top, rect.Right, rect.Bottom,
+                    _ghostFadeRadiusPx);
+        }
+        // If all three false, no check needed — ghost always activates (override disabled per DET-02)
+        else
+        {
+            ratio = ComputeProximityRatio(
+                cursor.X, cursor.Y,
+                rect.Left, rect.Top, rect.Right, rect.Bottom,
+                _ghostFadeRadiusPx);
+        }
+
+        // D-04/D-05: Only emit ProximityChanged when ratio actually changes.
+        // Prevents event storms when cursor is stationary (especially at steady-state 0.0).
+        if (ratio != _lastProximityRatio)
+        {
+            _lastProximityRatio = ratio;
+            ProximityChanged?.Invoke(ratio);
+        }
+
+        // D-06: Ghost activation — WS_EX_TRANSPARENT applied only when ratio reaches exactly 1.0.
+        // ComputeProximityRatio returns exactly 1.0 for inside-rect; the >= guard is defensive only.
+        if (ratio >= 1.0 && !_isGhostMode)
+        {
+            Activate();
+        }
+
+        // D-07: Restore — WS_EX_TRANSPARENT removed immediately when ratio drops below 1.0.
+        // Widget becomes interactive again as soon as cursor retreats from the widget boundary,
+        // even before opacity has fully restored (Phase 68 handles the opacity gradient).
+        if (ratio < 1.0 && _isGhostMode)
+        {
+            _isGhostMode = false;
+            int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+            SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
+            SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+            // Restored fires only when cursor fully exits the proximity zone (ratio=0.0)
+            // after having been in ghost state. Phase 68 uses this for final opacity snap.
+            if (ratio == 0.0)
+                Restored?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// Applies WS_EX_TRANSPARENT to make the window click-through and sets ghost state.
+    /// Called internally by the timer tick when ratio reaches 1.0 (D-06).
+    /// Remains public so MainWindow's existing Activate() call compiles during the Phase 67→68
+    /// transition period (D-03). Phase 68 will remove the external call site.
     /// Caller is responsible for setting window Opacity = 0 after this call.
     /// </summary>
     public void Activate()
     {
-        _restoreTimer!.Start();
+        // _restoreTimer.Start() removed — timer is always running from Initialize() (D-01)
         _isGhostMode = true;
         int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
         SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
@@ -106,13 +201,62 @@ internal sealed class GhostModeController : IDisposable
     }
 
     /// <summary>
-    /// Returns true when Left-Ctrl + Left-Alt are both currently held.
+    /// Returns true when all enabled modifiers are currently held.
     /// Uses GetAsyncKeyState (not Keyboard.IsKeyDown) — overlay has no keyboard focus.
-    /// Uses left-side-specific VK codes to avoid AltGr false-positives on EU keyboards.
+    /// Uses left-side-specific VK codes (DET-05) to avoid AltGr false-positives on EU keyboards.
+    /// AND logic (DET-03): ALL enabled modifiers must be held simultaneously.
+    /// Public for unit testing (TST-03); called from OnTimerTick.
     /// </summary>
-    public bool IsCtrlAltHeld() =>
-        (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0 &&
-        (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
+    public bool IsModifierHeld()
+    {
+        // DET-02 short-circuit: all-false = override disabled (always return false)
+        if (!_useCtrl && !_useAlt && !_useShift)
+            return false;
+
+        // For each modifier: check if enabled AND currently held
+        bool ctrlHeld  = _useCtrl  && (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
+        bool altHeld   = _useAlt   && (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
+        bool shiftHeld = _useShift && (GetAsyncKeyState(VK_LSHIFT)   & 0x8000) != 0;
+
+        // AND logic: each enabled modifier must be held
+        // If disabled (_useX is false), the modifier is automatically "satisfied"
+        bool ctrlOk  = !_useCtrl  || ctrlHeld;
+        bool altOk   = !_useAlt   || altHeld;
+        bool shiftOk = !_useShift || shiftHeld;
+
+        return ctrlOk && altOk && shiftOk;
+    }
+
+    /// <summary>
+    /// Pure static proximity ratio computation. Returns 0.0 (outside zone) to 1.0 (inside widget).
+    /// Uses Chebyshev distance for rectangular proximity halo — matches the widget's own rectangular shape.
+    /// Parameters use plain ints so tests need no Win32 machinery (avoids inaccessible POINT/RECT structs).
+    /// </summary>
+    internal static double ComputeProximityRatio(
+        int cursorX, int cursorY,
+        int rectLeft, int rectTop, int rectRight, int rectBottom,
+        int radiusPx)
+    {
+        // Step 1: Is cursor inside (or on the edge of) the widget rect?
+        if (cursorX >= rectLeft && cursorX <= rectRight &&
+            cursorY >= rectTop  && cursorY <= rectBottom)
+            return 1.0;
+
+        // Step 2: Zero-radius backward compat (PROX-08/D-09).
+        // Cursor is outside rect (step 1 passed), so with radius=0 nothing is in the zone.
+        if (radiusPx == 0) return 0.0;
+
+        // Step 3: Chebyshev distance from cursor to nearest rect edge.
+        // dx = horizontal overshoot past the rect edge (0 if within x bounds).
+        // dy = vertical overshoot past the rect edge (0 if within y bounds).
+        int dx = Math.Max(rectLeft - cursorX, Math.Max(0, cursorX - rectRight));
+        int dy = Math.Max(rectTop  - cursorY, Math.Max(0, cursorY - rectBottom));
+        int distance = Math.Max(dx, dy);  // Chebyshev — produces square proximity halo
+
+        // Step 4: Normalize and clamp to [0.0, 1.0].
+        double ratio = 1.0 - (double)distance / radiusPx;
+        return Math.Clamp(ratio, 0.0, 1.0);
+    }
 
     public void Dispose() => _restoreTimer?.Stop();
 }

@@ -4,6 +4,47 @@
 
 ---
 
+## Milestone: v3.9 — LCD Clock + Japanese Styles
+
+**Shipped:** 2026-03-27
+**Phases:** 5 (61–65) | **Plans:** 6
+
+### What Was Built
+- Three Japanese phrase style providers (`JapaneseTersePhraseProvider`, `JapanesePoeticPhraseProvider`, `JapaneseRudePhraseProvider`) added to FuzzyClock.Core, registered in PhraseEngine as `ja-classic`/`ja-terse`/`ja-poetic`/`ja-rude`; 37 new unit tests covering all 12-bucket + noon/midnight cases
+- `ResolveLocaleKey` helper extracted into MainWindow consolidating three duplicate locale-resolution switch expressions; Japanese phrase styles enabled in SettingsWindow phrase style combo
+- `BtnLcd` + collapsible `LcdOptionsPanel` (24-hour toggle, show-seconds toggle, Dark/Paper/Silver segment style selector) wired to Settings > Appearance tab via 5 event handlers to pre-existing MainWindow LCD hooks
+- `_colonVisible` bool field in `LcdClockView.UpdateTime()` drives Colon1 blink at 1 Hz using the existing 1s DispatcherTimer tick — no new timer
+- `LcdStyle` validation guard in `SettingsService.Validate()` resets unknown string values to `"Dark"` default; STEST-01 round-trip test extended to cover all 4 LCD fields
+- 352 MSTest tests (314 Core + 38 App), 0 failures
+
+### What Worked
+- **Pre-existing infrastructure paid off**: SevenSegmentDigit, LcdClockView, SevenSegmentEncoder, AppSettings LCD fields, and SettingsWindow LCD stub events were already in place from v3.3; Phases 63–65 were pure wiring with no new subsystem design
+- **Single-entry-point routing pattern** (ResolveLocaleKey): extracting the locale-key logic before adding Japanese style support meant all routing sites got the fix automatically — no per-site patching needed
+- **Small focused phases**: Phases 63/64/65 were each 1 plan and executed cleanly in single sessions; blinking colon (Phase 64) was 2 lines of code
+- **Test-first coverage for providers**: JA provider tests followed the exact same 4-method pattern as existing multilingual tests — low cognitive overhead
+
+### What Was Inefficient
+- Phase 61 had a worktree merge step (STATE.md conflict) that added friction; worktrees for independent subplans adds overhead when they share state files
+- The v3.9-ROADMAP.md archive was created at milestone start (as a planning artifact) and then needed manual correction at completion — the live ROADMAP.md Phase Details had plan lines as `[ ]` that were never updated as plans executed
+- Japanese Poetic/Rude phrase vocabulary marked provisional (low confidence); shipping provisional content accrues native-review debt that will recur each milestone
+
+### Patterns Established
+- LCD infrastructure pre-implemented in a prior milestone (v3.3) before the Settings UI exists; this makes the Settings wiring milestone fast and reliable — same pattern as Dial settings (v3.7→v3.8)
+- `ResolveLocaleKey` as single routing entry point: any new locale or style variant routes through one helper, eliminating per-site duplication
+- Phase 61 provider tests: direct provider instantiation (not PhraseEngine) for isolation tests; `[DoNotParallelize]` class for coordinator tests that touch static PhraseEngine
+
+### Key Lessons
+1. Pre-implementing backend infrastructure (rendering, AppSettings fields, event stubs) in an earlier milestone makes the Settings UI milestone mechanical — the pattern has now worked twice (Nixie/Dial settings, LCD settings)
+2. Keeping phases small and focused (1–2 plans each) allows single-session execution with minimal context setup — the blinking colon phase was a 2-line code change correctly scoped as its own phase
+3. Provisional phrase vocabulary (Japanese Poetic/Rude) ships faster than perfect vocabulary but incurs review debt — acceptable tradeoff for a personal widget, but should be noted in release notes
+
+### Cost Observations
+- Model mix: ~100% sonnet (balanced profile)
+- Sessions: ~6 sessions across 5 phases (2026-03-24 → 2026-03-27)
+- Notable: 4-day milestone for 5 phases; Phase 64 (blinking colon) was the fastest execution — sub-10-minute session
+
+---
+
 ## Milestone: v3.8 — Dial Settings
 
 **Shipped:** 2026-03-23
@@ -195,6 +236,86 @@
 
 ---
 
+## Milestone: v4.0 — Proximity Ghost Mode
+
+**Shipped:** 2026-03-27
+**Phases:** 4 | **Plans:** 5
+
+### What Was Built
+- GhostFadeRadiusPx init-property in AppSettings with default 80, Validate() range guard (20-200px), and 7 new MSTest methods
+- ComputeProximityRatio pure static method (Chebyshev distance, 12 TDD unit tests) + always-running timer with ProximityChanged event
+- ProximityChanged wired into MainWindow.this.Opacity with _isDragging guard, IsEnabled gate, and _proximityRatio field driving contrast skip predicate; legacy snap-to-ghost block deleted
+- Settings > Behavior fade radius slider (20-200px) live-updates GhostModeController.GhostFadeRadiusPx and persists via SaveSettings(); ResetToDefaults() restores to 80px
+
+### What Worked
+- TDD-first for ComputeProximityRatio: 12 failing tests written before any production code — caught edge cases (zero-radius compat, inside-widget = 1.0) before integration
+- Gap closure cycle worked cleanly: verifier found ResetToDefaults() gap, plan-phase --gaps generated a targeted 1-task plan, executed in minutes
+- Chebyshev distance decision was made once in discuss-phase and never revisited — good gray-area resolution up front
+- Phase context boundaries (controller-only → wiring-only → UI-only) kept subagent scopes tight with zero cross-phase drift
+
+### What Was Inefficient
+- Phase 68 ROADMAP.md had a stale unchecked `[ ]` on 68-01 (plan was complete); required manual cleanup during milestone close
+- Phase 69 VERIFICATION.md showed `status: passed` but `phase complete` tool reported warning — false positive from stale tool state; diagnosed quickly but cost one extra verification check
+
+### Patterns Established
+- `IsEnabled` gate as absolute first statement of `OnTimerTick` — the canonical pattern for gating controller behavior via a toggle
+- `_proximityRatio` field in MainWindow as a guard field for a continuous controller signal (mirrors `_isDragging` pattern)
+- `GhostFadeRadiusPanel.IsEnabled` toggled from `ChkGhostMode_Changed` + `RefreshControls()` — two-site IsEnabled gating is the canonical SettingsWindow sub-panel pattern
+- Gap closure plan with `gap_closure: true` frontmatter for verifier-found issues — keeps the original plan clean while surgically closing gaps
+
+### Key Lessons
+1. Write controller logic as pure static methods first — testable in isolation before any UI or wiring work lands
+2. Verifier false positives from stale tool state are safe to override when direct grep confirms `status: passed`
+3. The IsEnabled gate in controller OnTimerTick must be the first line — even before null/init checks — to ensure the toggle truly gates all computation
+
+### Cost Observations
+- Model mix: 100% sonnet
+- Sessions: 2 (context window limit; mileston continued cleanly from summary)
+- Notable: 4-phase milestone shipped same day; gap closure added ~10 minutes
+
+---
+
+## Milestone: v4.1 — Polish & Phrases
+
+**Shipped:** 2026-04-02
+**Phases:** 5 (70–74) | **Plans:** 8
+
+### What Was Built
+- Backdrop padding increased to 12px on all content elements via XAML-only changes; WPF SizeToContent auto-propagated to all 5+ GetWindowRect dependents
+- Stats interval slider: `StatsIntervalSeconds` migrated from `int` to `double` (0.5–10.0s continuous); discrete 1s/3s/10s ComboBox replaced; backward-compatible JSON deserialization
+- EnglishPhraseProvider (Classic) expanded to 70 candidates (14 slots × 5); TersePhraseProvider expanded to 65 candidates (13 slots × 5) with British-idiom preservation
+- Jive provider: 1940s Harlem rhythmic AAVE phrasing; Pirate: authentic nautical metaphors (bells/watch/glass/mark, movie cliches removed); Yoda: strict OSV syntax inversion — 210 phrases across all three
+- Named theme system removed: ThemeDefinition.cs deleted, 325 lines removed across 6 files, Settings Appearance starts at Accent Color
+- 501 MSTest tests (433 Core + 68 App), 0 failures
+
+### What Worked
+- **Pure content phases (72, 73) parallelized cleanly**: no shared code, no merge conflicts, independent provider files — the PhraseEngine provider-per-file pattern enables parallel expansion
+- **XAML-only changes (Phase 70)**: SizeToContent propagation handled all downstream effects (edge snapping, ghost mode, contrast sampling) with zero C# code — the WPF layout pipeline is the right abstraction boundary
+- **JSON backward compatibility (Phase 71)**: System.Text.Json deserializes `int` → `double` seamlessly, so the type migration required no migration code
+- **Theme removal was surgical (Phase 74)**: because AccentColor was always persisted independently, the entire theme system was dead code — deletion was safe with no data loss risk
+
+### What Was Inefficient
+- Worktree merge conflicts on STATE.md continue to cause friction (Phase 74 required manual cherry-pick + conflict resolution vs. a clean merge)
+- The verifier incorrectly flagged a passing test as failing (ran in worktree with stale code) — required manual re-verification and VERIFICATION.md edits
+- SUMMARY.md `one_liner` field extraction failed for 6/8 plans — the frontmatter format varies between executor versions
+
+### Patterns Established
+- **Multi-candidate phrase pattern**: `string[][] _candidates` with `Random.Shared.Next(candidates.Length)` per bucket; stable `GetSegmentKey` returns bucket index (not phrase text) to avoid UI flicker
+- **Provider expansion test pattern**: exhaustive 14-slot coverage test + minimum-5-candidates-per-bucket test + British-idiom/authenticity assertion tests
+- **Theme removal as migration-free deletion**: when individual fields (AccentColor, Opacity, FontSize) are always persisted alongside a convenience aggregate (Theme), the aggregate can be deleted without migration code
+
+### Key Lessons
+1. Content-only phases (pure phrase expansion) are the fastest to plan and execute — zero architectural risk, zero cross-file dependencies
+2. Worktree-based execution adds merge overhead for planning docs (STATE.md, ROADMAP.md); consider inline execution for single-plan phases
+3. The verifier should run against the actual working tree, not a stale worktree snapshot — false positives waste time
+
+### Cost Observations
+- Model mix: ~100% sonnet (balanced profile, executor + verifier)
+- Sessions: 2 days (2026-04-01 → 2026-04-02); phases 70-73 executed on day 1, phase 74 on day 2
+- Notable: 25 files changed, +1,562 / -657 lines; net deletion milestone (theme removal offset phrase expansion)
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -207,6 +328,8 @@
 | v3.5 | 8 | 12 | Installer + CI pipeline shipped; wave parallelism at scale |
 | v3.6.1 | 1 | 1 | Surgical single-file fix; Z-order walk pattern established |
 | v3.6.2 | 1 | 1 | Z-order walk extended: SHELLDLL_DefView + DWM cloaked check for Win11 |
+| v4.0 | 4 | 5 | TDD-first controller + gap closure cycle; IsEnabled gate pattern established |
+| v4.1 | 5 | 8 | Content-parallel phases; migration-free deletion; multi-candidate phrase pattern |
 
 ### Cumulative Quality
 
@@ -218,6 +341,9 @@
 | v3.5 | 274 | Wrap, segment-key, poetic coverage |
 | v3.6.1 | 274 | No new tests; existing suite confirmed no regression |
 | v3.6.2 | 274 | No new tests; existing suite confirmed no regression |
+| v3.9 | 414 | LCD + Japanese phrase styles; +140 tests covering providers and AppSettings |
+| v4.0 | 414 | Proximity fade; +19 new tests (ComputeProximityRatio × 12, AppSettings × 7) |
+| v4.1 | 501 | Phrase expansion + provider authenticity; +87 tests; theme code deleted (net negative LOC) |
 
 ### Top Lessons (Verified Across Milestones)
 

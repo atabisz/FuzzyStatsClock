@@ -15,7 +15,8 @@ public partial class MainWindow : Window
     private DispatcherTimer _timer = null!;
     private DispatcherTimer _statsTimer = null!;
     private StatsService _statsService = null!;
-    private int _statsIntervalSeconds = 3;       // default matches AppSettings.StatsIntervalSeconds default
+    private TemperatureService _temperatureService = null!;
+    private double _statsIntervalSeconds = 2.0;  // default matches AppSettings.StatsIntervalSeconds default
     private double _processCountThreshold = 5.0; // default matches AppSettings.ProcessCountThresholdPercent default
     private bool _batteryAlertActive    = false;
     private int  _batteryAlertThreshold = 20;   // matches AppSettings.BatteryAlertThresholdPercent default
@@ -24,6 +25,7 @@ public partial class MainWindow : Window
     // Bounded by trim logic in UpdateUptimeDisplay(). Max 900 entries at 1s interval (~3.5KB).
     private Dictionary<int, TimeSpan> _prevProcTimes = new();
     private DateTime _prevProcSample = DateTime.MinValue;
+    private readonly HashSet<int> _inaccessiblePids = new();  // PIDs that throw access-denied — skip on future ticks
     // StatsPanel.Width(184) - label column(35) - text column(36) = 113
     private const double StatsBarTrackWidth = 113.0;
     // Distance from screen working-area edge that triggers post-DragMove snapping.
@@ -51,10 +53,11 @@ public partial class MainWindow : Window
     private TrayMenuBuilder _trayMenu = null!;
     private bool _autoLaunchEnabled = false;
     private bool _isDragging = false;   // true between DragMove() start and end — freezes display color
+    private double _proximityRatio = 0.0;   // current proximity ratio from GhostModeController
+    private bool _menuOpen = false;         // true while the tray ContextMenuStrip is open via widget right-click — pins opacity (RMB-04) and prevents re-entrant Show() flicker
     private GhostModeController _ghostMode = null!;
     private ContrastRefreshController _contrast = new();
     private SettingsWindow? _settingsWindow;
-    private string? _currentTheme = null;  // null = no named theme active
     private bool   _phraseWrapEnabled = true;
     private string _phraseWrapStyle   = "midpoint";
     private string _currentRawPhrase  = "";
@@ -122,6 +125,14 @@ public partial class MainWindow : Window
             // StatsService constructor starts Task.Run(Initialize) immediately; Refresh() is a safe
             // no-op until initialization completes (~6s PDH cold start).
             _statsService = new StatsService();
+            // TemperatureService constructor returns <100ms; init runs on a
+            // background Task and flips IsReady after Computer.Open() (up to 5s,
+            // per spike) or the init timeout fires. Three-tier dispose is wired
+            // into OnClosing (tier 1), App.SessionEnding (tier 2), and
+            // App.AppDomain.ProcessExit (tier 3); the Interlocked guard inside
+            // TemperatureService.Dispose ensures LHM's Computer.Close() runs
+            // exactly once across those three tiers.
+            _temperatureService = new TemperatureService();
             _statsTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(_statsIntervalSeconds)
@@ -130,6 +141,7 @@ public partial class MainWindow : Window
             {
                 UpdateStatsDisplay();    // calls _statsService.Refresh() internally — must run first
                 UpdateUptimeDisplay();   // reads CpuPercent after Refresh() already ran — never call Refresh() again here
+                UpdateTempsDisplay();    // v4.2 Phase 79 — temps line piggy-back (TEMP-LINE-05)
             };
             // Conditional timer start: ApplySettings() may have set StatsPanel to Visible
             // (restored from settings.json), but _statsTimer didn't exist then. Start it now
@@ -150,17 +162,26 @@ public partial class MainWindow : Window
             _contrast.Cleared      += ApplyTheme;
             _contrast.Initialize(
                 this,
-                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging,
+                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging || _proximityRatio > 0.0,
                 () => new RgbColor(_accentColor.R, _accentColor.G, _accentColor.B));
 
             // Ghost mode controller — initialize now that HWND is available
             _ghostMode.Restored += () =>
             {
+                _proximityRatio = 0.0;
                 this.Opacity = _windowOpacity;
                 if (!_backdropAlwaysVisible)
                     BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
             };
             _ghostMode.Initialize(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            _ghostMode.ProximityChanged = ratio =>
+            {
+                _proximityRatio = ratio;
+                if (_isDragging) return;
+                if (_settingsWindow?.IsVisible == true) return;  // don't adjust opacity while settings window is open
+                if (_menuOpen) return;                           // RMB-04: pin opacity while right-click menu is open
+                this.Opacity = _windowOpacity * (1.0 - ratio);
+            };
 
             // Tray icon
             _trayMenu = new TrayMenuBuilder(new TrayMenuCallbacks
@@ -181,6 +202,15 @@ public partial class MainWindow : Window
                 SetClockType    = ct => Dispatcher.Invoke(() => SetClockType(ct)),
             });
             _trayIcon = _trayMenu.Build(GetCurrentTrayState(), GetCurrentTrayState);
+
+            // RMB-04: pin _proximityRatio (via the ProximityChanged lambda's _menuOpen guard) while
+            // the tray ContextMenuStrip is open via a widget right-click. The Opening handler at
+            // TrayMenuBuilder.cs:90 (SyncCheckmarks) registered first; WinForms fires handlers in
+            // registration order so checkmark sync still runs before _menuOpen = true.
+            // Anti-flicker: the _menuOpen guard in Window_PreviewMouseRightButtonUp also prevents
+            // re-entrant Show() calls from rapid right-click spam (Pitfall 7).
+            _trayIcon.ContextMenuStrip!.Opening += (_, _) => _menuOpen = true;
+            _trayIcon.ContextMenuStrip!.Closed  += (_, _) => _menuOpen = false;
 
             this.MouseEnter += Window_MouseEnter;
             this.MouseLeave += Window_MouseLeave;
@@ -222,9 +252,6 @@ public partial class MainWindow : Window
         _batteryAlertThreshold = s.BatteryAlertThresholdPercent;
         _phraseWrapEnabled = s.PhraseWrapEnabled;
         _phraseWrapStyle   = s.PhraseWrapStyle;
-        _backdropAlwaysVisible  = s.BackdropAlwaysVisible;
-        _backdropOpacityPercent = s.BackdropOpacityPercent;
-        ApplyBackdropState();
 
         // Apply stats visibility directly (NOT via SetStatsVisible — that calls UpdateLayout()+Clamp()
         // which are unsafe before Show(), where ActualHeight is 0).
@@ -287,6 +314,8 @@ public partial class MainWindow : Window
         _windowOpacity = s.Opacity;
         this.Opacity   = s.Opacity;
         _ghostMode.IsEnabled = s.GhostModeEnabled;
+        _ghostMode.GhostFadeRadiusPx = s.GhostFadeRadiusPx;
+        _ghostMode.UpdateModifierConfig(s.UseCtrl, s.UseAlt, s.UseShift);
 
         _autoLaunchEnabled = s.AutoLaunchEnabled;
         // Restore registry entry to match persisted setting.
@@ -317,7 +346,7 @@ public partial class MainWindow : Window
         // Apply date display directly (safe before Show — no timer yet)
         _showDate   = s.ShowDate;
         _dateFormat = s.DateFormat;
-        DateText.Visibility = s.ShowDate ? Visibility.Visible : Visibility.Collapsed;
+        DateBorder.Visibility = s.ShowDate ? Visibility.Visible : Visibility.Collapsed;
         DateText.Text = DateFormatter.Format(s.DateFormat, DateTime.Now);
         _currentDateText = DateText.Text;
 
@@ -326,11 +355,8 @@ public partial class MainWindow : Window
         _currentPhraseStyle  = s.PhraseStyle;
         _currentPhraseLocale = s.PhraseLocale;
 
-        // LANG-01: detect Windows UI language; explicit manual override takes precedence over auto-detect
-        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        string effectiveLocale = ResolveLocaleKey(_currentPhraseLocale, _currentPhraseStyle, uiLang);
-        PhraseEngine.SetLocale(effectiveLocale);
-        // LANG-04: if SetLocale returned false (unsupported), en-classic remains active (default)
+        // LANG-01: resolve locale key; Japanese and English support phrase-style variants
+        PhraseEngine.SetLocale(ResolveLocaleKey(_currentPhraseLocale, _currentPhraseStyle));
         bool isSerifStyle = s.TextStyle == "Literary";
         bool isMonoStyle  = s.TextStyle == "Mono";
         string styleFontName = isSerifStyle ? "Palatino Linotype" : isMonoStyle ? "Consolas" : "Segoe UI Light";
@@ -350,20 +376,6 @@ public partial class MainWindow : Window
             SplitPhrasePanel.Visibility = isSplitStyle ? Visibility.Visible   : Visibility.Collapsed;
         }
         // If s.ClockType == Dial, Lcd, or Nixie: phrase/split panels are already Collapsed by the ClockType block above
-
-        // Startup theme restore: set fields only — NEVER call ApplyTheme() here.
-        // _hourTickElements etc. are empty until ContentRendered; ApplyTheme() would be a no-op or throw.
-        // ContentRendered calls ApplyTheme() after InitDialDecorations().
-        if (s.Theme is not null && BuiltInThemes.TryGet(s.Theme) is { } savedTheme)
-        {
-            _currentTheme    = s.Theme;
-            _accentColor     = savedTheme.AccentColor;
-            _windowOpacity   = savedTheme.Opacity;
-            _currentFontSize = savedTheme.FontSize;
-            _clockType       = savedTheme.ClockType;
-            // StatsVisible already applied earlier from s.StatsVisible
-            // (the theme's StatsVisible was persisted to s.StatsVisible at save time)
-        }
     }
 
     private SettingsSnapshot GetCurrentSettingsSnapshot() => new SettingsSnapshot
@@ -391,13 +403,25 @@ public partial class MainWindow : Window
         ShowDate               = _showDate,
         DateFormat             = _dateFormat,
         GhostModeEnabled       = _ghostMode.IsEnabled,
+        GhostFadeRadiusPx      = _ghostMode.GhostFadeRadiusPx,
+        UseCtrl                = _settings.UseCtrl,
+        UseAlt                 = _settings.UseAlt,
+        UseShift               = _settings.UseShift,
         AutoContrastEnabled    = _contrast.IsEnabled,
         AutoLaunchEnabled      = _autoLaunchEnabled,
-        ActiveTheme            = _currentTheme,
         PhraseWrapEnabled      = _phraseWrapEnabled,
         PhraseWrapStyle        = _phraseWrapStyle,
-        BackdropAlwaysVisible  = _backdropAlwaysVisible,
-        BackdropOpacityPercent = _backdropOpacityPercent,
+        // v4.2 Phase 78 — Temps tab projection (5 AppSettings bools + 4 sensor floats + 1 ready bool)
+        TempsLineVisible       = _settings.TempsLineVisible,
+        TempCpuVisible         = _settings.TempCpuVisible,
+        TempGpuVisible         = _settings.TempGpuVisible,
+        TempMoboVisible        = _settings.TempMoboVisible,
+        TempNvmeVisible        = _settings.TempNvmeVisible,
+        CpuTempC               = _temperatureService?.CpuTempC  ?? -1f,
+        GpuTempC               = _temperatureService?.GpuTempC  ?? -1f,
+        MoboTempC              = _temperatureService?.MoboTempC ?? -1f,
+        NvmeTempC              = _temperatureService?.NvmeTempC ?? -1f,
+        TempsServiceReady      = _temperatureService?.IsReady   ?? false,
     };
 
     private void OpenSettings()
@@ -407,14 +431,16 @@ public partial class MainWindow : Window
         if (_settingsWindow is { IsVisible: true })
         {
             _settingsWindow.Activate();
+            _settingsWindow.RefreshControls(GetCurrentSettingsSnapshot());
             return;
         }
         _settingsWindow = new SettingsWindow(GetCurrentSettingsSnapshot());
         _settingsWindow.Owner = this;
-        _settingsWindow.AccentColorChanged    += c => { ClearActiveTheme(); SetAccentColor(c); };
-        _settingsWindow.OpacityChanged        += o => { ClearActiveTheme(); SetOpacity(o); };
-        _settingsWindow.FontSizeChanged       += sz => { ClearActiveTheme(); ApplyFontSize(sz); SaveSettings(); };
-        _settingsWindow.ClockTypeChanged      += ct => { ClearActiveTheme(); SetClockType(ct); };
+        _settingsWindow.AccentColorChanged    += c => SetAccentColor(c);
+        _settingsWindow.OpacityChanged        += o => SetOpacity(o);
+        _settingsWindow.OpacityCallback = o => SetOpacity(o);  // Direct callback fallback
+        _settingsWindow.FontSizeChanged       += sz => { ApplyFontSize(sz); SaveSettings(); };
+        _settingsWindow.ClockTypeChanged      += ct => SetClockType(ct);
         _settingsWindow.LcdUse24HrChanged += use24 =>
         {
             _lcdUse24Hr = use24;
@@ -440,7 +466,7 @@ public partial class MainWindow : Window
         _settingsWindow.LanguageChanged       += locale => SetLanguage(locale);
         _settingsWindow.PhraseWrapEnabledChanged += enabled => SetPhraseWrapEnabled(enabled);
         _settingsWindow.PhraseWrapStyleChanged   += style   => SetPhraseWrapStyle(style);
-        _settingsWindow.StatsVisibleChanged   += v => { ClearActiveTheme(); SetStatsVisible(v); };
+        _settingsWindow.StatsVisibleChanged   += v => SetStatsVisible(v);
         _settingsWindow.CpuVisibleChanged     += v => SetStatRowVisible(CpuRow, v);
         _settingsWindow.GpuVisibleChanged     += v => SetStatRowVisible(GpuRow, v);
         _settingsWindow.MemVisibleChanged     += v => SetStatRowVisible(MemRow, v);
@@ -452,6 +478,30 @@ public partial class MainWindow : Window
         _settingsWindow.ShowDateChanged       += v => SetDateVisible(v);
         _settingsWindow.DateFormatChanged     += fmt => SetDateFormat(fmt);
         _settingsWindow.GhostModeChanged      += v => { _ghostMode.IsEnabled = v; SaveSettings(); };
+        _settingsWindow.GhostFadeRadiusPxChanged += v =>
+        {
+            _ghostMode.GhostFadeRadiusPx = v;
+            SaveSettings();
+        };
+        // v4.3 Phase 84 — Modifier override configuration (INT-01, INT-02)
+        _settingsWindow.UseCtrlChanged += v =>
+        {
+            _settings = _settings with { UseCtrl = v };
+            SaveSettings();
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+        };
+        _settingsWindow.UseAltChanged += v =>
+        {
+            _settings = _settings with { UseAlt = v };
+            SaveSettings();
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+        };
+        _settingsWindow.UseShiftChanged += v =>
+        {
+            _settings = _settings with { UseShift = v };
+            SaveSettings();
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+        };
         _settingsWindow.AutoContrastChanged   += v => { _contrast.SetEnabled(v); SaveSettings(); };
         _settingsWindow.AutoLaunchChanged     += v =>
         {
@@ -461,15 +511,36 @@ public partial class MainWindow : Window
             SaveSettings();
         };
         _settingsWindow.BatteryAlertThresholdChanged += t => SetBatteryAlertThreshold(t);
-        _settingsWindow.BackdropAlwaysVisibleChanged += v => SetBackdropAlwaysVisible(v);
-        _settingsWindow.BackdropOpacityPercentChanged += p => SetBackdropOpacityPercent(p);
-        _settingsWindow.ThemeSelected += name =>
+        // v4.2 Phase 78 — Temps tab persistence handlers (widget render wiring lands in Phase 79)
+        _settingsWindow.TempsLineVisibleChanged += v =>
         {
-            if (BuiltInThemes.TryGet(name) is { } theme)
-            {
-                ApplyNamedTheme(theme);
-                _settingsWindow?.RefreshControls(GetCurrentSettingsSnapshot());
-            }
+            _settings = _settings with { TempsLineVisible = v };
+            SaveSettings();
+            UpdateTempsDisplay();   // v4.2 Phase 79 — immediate reflow (TEMP-TAB-05 SC5)
+        };
+        _settingsWindow.TempCpuVisibleChanged += v =>
+        {
+            _settings = _settings with { TempCpuVisible = v };
+            SaveSettings();
+            UpdateTempsDisplay();
+        };
+        _settingsWindow.TempGpuVisibleChanged += v =>
+        {
+            _settings = _settings with { TempGpuVisible = v };
+            SaveSettings();
+            UpdateTempsDisplay();
+        };
+        _settingsWindow.TempMoboVisibleChanged += v =>
+        {
+            _settings = _settings with { TempMoboVisible = v };
+            SaveSettings();
+            UpdateTempsDisplay();
+        };
+        _settingsWindow.TempNvmeVisibleChanged += v =>
+        {
+            _settings = _settings with { TempNvmeVisible = v };
+            SaveSettings();
+            UpdateTempsDisplay();
         };
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
@@ -522,6 +593,7 @@ public partial class MainWindow : Window
             AccentColor          = $"#{_accentColor.A:X2}{_accentColor.R:X2}{_accentColor.G:X2}{_accentColor.B:X2}",
             Opacity              = _windowOpacity,
             GhostModeEnabled     = _ghostMode.IsEnabled,
+            GhostFadeRadiusPx    = _ghostMode.GhostFadeRadiusPx,
             AutoLaunchEnabled    = _autoLaunchEnabled,
             AutoContrastEnabled  = _contrast.IsEnabled,
             ProcessCountThresholdPercent = _processCountThreshold,
@@ -531,11 +603,8 @@ public partial class MainWindow : Window
             PhraseLocale         = _currentPhraseLocale,
             ShowDate             = _showDate,
             DateFormat           = _dateFormat,
-            Theme                = _currentTheme,
             PhraseWrapEnabled    = _phraseWrapEnabled,
             PhraseWrapStyle      = _phraseWrapStyle,
-            BackdropAlwaysVisible  = _backdropAlwaysVisible,
-            BackdropOpacityPercent = _backdropOpacityPercent,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -703,7 +772,7 @@ public partial class MainWindow : Window
 
     private void UpdateDateDisplay()
     {
-        if (DateText.Visibility != Visibility.Visible) return;
+        if (DateBorder.Visibility != Visibility.Visible) return;
         var text = DateFormatter.Format(_dateFormat, DateTime.Now);
         if (text == _currentDateText) return;  // no change (same day)
         DateText.Text = text;
@@ -713,7 +782,7 @@ public partial class MainWindow : Window
     private void SetDateVisible(bool visible)
     {
         _showDate = visible;
-        DateText.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        DateBorder.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         SaveSettings();
     }
 
@@ -825,7 +894,7 @@ public partial class MainWindow : Window
         {
             _cpuSamples.Enqueue(_statsService.CpuPercent);
             // Trim to 15-minute window at current configured interval
-            int maxSamples = Math.Max(1, (15 * 60) / _statsIntervalSeconds);
+            int maxSamples = Math.Max(1, (int)((15 * 60) / _statsIntervalSeconds));
             while (_cpuSamples.Count > maxSamples) _cpuSamples.Dequeue();
         }
 
@@ -853,6 +922,11 @@ public partial class MainWindow : Window
         {
             try
             {
+                // Skip PIDs we know are inaccessible (prevents repeated access-denied exceptions).
+                if (_inaccessiblePids.Contains(p.Id)) continue;
+
+                // TotalProcessorTime throws Win32Exception (Access Denied) for protected system processes.
+                // Cache the PID in _inaccessiblePids so we skip it on future ticks.
                 var cpuTime = p.TotalProcessorTime;
                 newProcTimes[p.Id] = cpuTime;
                 if (elapsedMs > 0 && _prevProcTimes.TryGetValue(p.Id, out var prev))
@@ -862,7 +936,15 @@ public partial class MainWindow : Window
                     if (pct >= _processCountThreshold) procCount++;
                 }
             }
-            catch { /* process exited or access denied — skip */ }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // Access denied — add to blocklist so we don't retry this PID.
+                _inaccessiblePids.Add(p.Id);
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Process exited during enumeration — safe to skip, will be gone next tick.
+            }
             finally { p.Dispose(); }
         }
         _prevProcTimes = newProcTimes;
@@ -874,6 +956,32 @@ public partial class MainWindow : Window
         // Prevents spurious TextBlock invalidation on every 1s tick.
         if (UptimeText.Text != newText)
             UptimeText.Text = newText;
+    }
+
+    // v4.2 Phase 79 — Temps line render path.
+    // Piggybacks on _statsTimer tick (TEMP-LINE-05) — no new DispatcherTimer.
+    // Null-conditional + -1f fallback mirrors GetCurrentSettingsSnapshot convention (Phase 78 D-01).
+    // Foreground is NOT touched here; that lives in ApplyTheme + ApplyDisplayColor per D-10.
+    private void UpdateTempsDisplay()
+    {
+        float cpu  = _temperatureService?.CpuTempC  ?? -1f;
+        float gpu  = _temperatureService?.GpuTempC  ?? -1f;
+        float mobo = _temperatureService?.MoboTempC ?? -1f;
+        float nvme = _temperatureService?.NvmeTempC ?? -1f;
+
+        string formatted = FuzzyClock.Core.TemperatureFormatter.Format(
+            cpu, gpu, mobo, nvme,
+            _settings.TempCpuVisible,
+            _settings.TempGpuVisible,
+            _settings.TempMoboVisible,
+            _settings.TempNvmeVisible);
+
+        // Text-before-Visibility ordering (79-UI-SPEC State Matrix "Transition ordering"):
+        // prevents a one-frame gap where a newly-visible TextBlock holds stale prior-tick text.
+        TempsText.Text = formatted;
+        TempsText.Visibility = (_settings.TempsLineVisible && formatted.Length > 0)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private static float ComputeAvg(Queue<float> q, int count)
@@ -933,7 +1041,7 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
-    private void SetStatsInterval(int seconds)
+    private void SetStatsInterval(double seconds)
     {
         _statsIntervalSeconds = seconds;
 
@@ -966,24 +1074,6 @@ public partial class MainWindow : Window
             BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
     }
 
-    private void SetBackdropAlwaysVisible(bool value)
-    {
-        _backdropAlwaysVisible = value;
-        ApplyBackdropState();
-        SaveSettings();
-    }
-
-    private void SetBackdropOpacityPercent(int percent)
-    {
-        _backdropOpacityPercent = percent;
-        if (_backdropAlwaysVisible || _isHoverFastRefresh)
-        {
-            var alpha = BackdropAlpha();
-            BackdropBorder.Background = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
-        }
-        SaveSettings();
-    }
 
     private void SetBatteryAlertThreshold(int threshold)
     {
@@ -995,7 +1085,7 @@ public partial class MainWindow : Window
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (_ghostMode.IsCtrlAltHeld() || !_ghostMode.IsEnabled)
+        if (_ghostMode.IsModifierHeld() || !_ghostMode.IsEnabled)
         {
             // Normal hover path (CTRLALT-01/02): show backdrop + activate fast-refresh.
             // WS_EX_TRANSPARENT is NOT applied — window stays fully interactive (drag, right-click, scroll).
@@ -1012,25 +1102,6 @@ public partial class MainWindow : Window
             _isHoverFastRefresh = true;
             return;  // Skip ghost mode path — do NOT apply WS_EX_TRANSPARENT
         }
-
-        // Ghost mode activation (v2.3 Phase 26)
-
-        // Step 1: Run synthetic MouseLeave cleanup BEFORE going click-through.
-        // WS_EX_TRANSPARENT stops WM_MOUSELEAVE delivery. Backdrop and timer state
-        // must be clean before we disappear or they will be corrupted post-restore.
-        if (!_backdropAlwaysVisible)
-            BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
-        if (StatsPanel.Visibility == Visibility.Visible && _statsTimer != null)
-        {
-            _statsTimer.Stop();
-            _statsTimer.Interval = TimeSpan.FromSeconds(_statsIntervalSeconds);
-            _statsTimer.Start();
-        }
-        _isHoverFastRefresh = false;
-
-        // Step 2 & 3: Start polling timer and apply WS_EX_TRANSPARENT via controller.
-        _ghostMode.Activate();
-        this.Opacity = 0.0;
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
@@ -1141,9 +1212,15 @@ public partial class MainWindow : Window
     {
         _statsTimer?.Stop();
         _statsService?.Dispose();
+        _temperatureService?.Dispose();   // tier 1 of three-tier dispose (D-15)
         SaveSettings();
         base.OnClosing(e);
     }
+
+    // External entry point for tiers 2 and 3 (SessionEnding + ProcessExit).
+    // The Interlocked guard inside TemperatureService.Dispose makes this safe
+    // to call multiple times from different tiers across the shutdown sequence.
+    internal void DisposeTemperatureService() => _temperatureService?.Dispose();
 
     private void ResetToDefaults()
     {
@@ -1175,6 +1252,8 @@ public partial class MainWindow : Window
 
         // Re-enable ghost mode
         _ghostMode.IsEnabled = true;
+        _ghostMode.GhostFadeRadiusPx = 80;
+        _ghostMode.UpdateModifierConfig(true, true, false);  // INT-04: restore Ctrl+Alt defaults
 
         // Reset auto-launch: disable on reset
         _autoLaunchEnabled = false;
@@ -1186,18 +1265,17 @@ public partial class MainWindow : Window
         // Reset process count threshold to default (5%)
         SetProcessThreshold(5.0);
 
+        // Reset stats interval to default (2.0s)
+        SetStatsInterval(2.0);
+
         // Reset text style to Classic
         SetTextStyle("Classic");
 
         // Reset date display: show in Short format
         _showDate   = true;
         _dateFormat = "Short";
-        DateText.Visibility = Visibility.Visible;
+        DateBorder.Visibility = Visibility.Visible;
         UpdateDateDisplay();
-
-        // Reset named theme: clear active theme so no card is highlighted after reset
-        _currentTheme = null;
-        _settingsWindow?.ClearActiveThemeCard();
 
         // Reset phrase locale to auto and phrase style to Classic.
         // Set _currentPhraseStyle directly — do NOT call SetPhraseStyle() which has a
@@ -1212,39 +1290,30 @@ public partial class MainWindow : Window
         ApplyBackdropState();
         SetLanguage("auto");
 
+        // v4.2 Phase 78 — Reset Temps tab fields to documented defaults (TEMP-TAB-02 + TEMP-TAB-03)
+        // v4.3 Phase 84 — Reset modifier override to Ctrl+Alt defaults (INT-04)
+        _settings = _settings with
+        {
+            TempsLineVisible = false,   // master OFF
+            TempCpuVisible   = true,    // per-sensor ON
+            TempGpuVisible   = true,    // per-sensor ON
+            TempMoboVisible  = false,   // per-sensor OFF (PawnIO-gated)
+            TempNvmeVisible  = false,   // per-sensor OFF (TEMP-TAB-03 amendment 2026-05-04)
+            UseCtrl  = true,
+            UseAlt   = true,
+            UseShift = false,
+        };
+        // If Settings window is open, refresh so the UI reflects the reset values
+        // AND re-evaluates N/A state via RefreshControls → PopulateControls → ApplyTempCheckboxNaState
+        if (_settingsWindow is { IsVisible: true })
+        {
+            _settingsWindow.RefreshControls(GetCurrentSettingsSnapshot());
+        }
+
         // Save the reset state immediately (SetAccentColor and SetOpacity each call SaveSettings(),
         // but we need to save the new position too — call once more with final state)
         SaveSettings();
     }
-
-    private void ApplyNamedTheme(ThemeDefinition theme)
-    {
-        // Set _currentTheme BEFORE calling individual setters,
-        // so each intermediate SaveSettings() call persists the correct theme name.
-        _currentTheme = theme.Name;
-
-        // Apply all theme properties using existing setters.
-        // SetAccentColor, SetOpacity, SetClockType call SaveSettings() internally.
-        // ApplyFontSize and SetStatsVisible do NOT — the final SaveSettings() below covers them.
-        SetAccentColor(theme.AccentColor);
-        SetOpacity(theme.Opacity);
-        ApplyFontSize(theme.FontSize);
-        SetClockType(theme.ClockType);
-        SetStatsVisible(theme.StatsVisible);
-
-        // Final save to persist Theme field and any unsaved property changes.
-        SaveSettings();
-    }
-
-    private void ClearActiveTheme()
-    {
-        _currentTheme = null;
-        // Use null-conditional — window may be closed when a covered property changes
-        // (e.g., opacity scroll wheel while Settings window is not open).
-        _settingsWindow?.ClearActiveThemeCard();
-        // SaveSettings() will be called by the individual setter that triggered this — no call here.
-    }
-
 
     private void SetClockType(ClockType clockType)
     {
@@ -1321,24 +1390,31 @@ public partial class MainWindow : Window
     private void SetOpacity(double opacity)
     {
         _windowOpacity = opacity;
-        this.Opacity   = opacity;
+        // Apply proximity fade only when settings window is closed
+        // (settings window open means user is actively adjusting opacity)
+        if (_settingsWindow?.IsVisible == true)
+            this.Opacity = _windowOpacity;
+        else
+            this.Opacity = _windowOpacity * (1.0 - _proximityRatio);
         SaveSettings();
     }
 
     private void SetPhraseStyle(string style)
     {
-        // LANG-01 guard: do not override a non-English/non-Japanese locale with an English phrase style
-        if (!PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal)
-            && !PhraseEngine.CurrentLocale.StartsWith("ja-", StringComparison.Ordinal))
+        // No-op for locales that have no style variants (fr, es, de, pl)
+        if (_currentPhraseLocale is "fr" or "es" or "de" or "pl")
             return;
+        // No-op for auto when the detected UI language has no style variants
+        if (_currentPhraseLocale == "auto")
+        {
+            string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+            if (uiLang is "fr" or "es" or "de" or "ja" or "pl")
+                return;
+        }
 
         _currentPhraseStyle = style;
-        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        string localeKey = PhraseEngine.CurrentLocale.StartsWith("ja-", StringComparison.Ordinal)
-            ? ResolveLocaleKey("ja", style, uiLang)
-            : ResolveLocaleKey("en", style, uiLang);
-        PhraseEngine.SetLocale(localeKey);
-        _currentRawPhrase = "";          // invalidate UpdatePhraseIfChanged guard cache
+        PhraseEngine.SetLocale(ResolveLocaleKey(_currentPhraseLocale, _currentPhraseStyle));
+        _currentRawPhrase = "";
         _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
@@ -1347,73 +1423,11 @@ public partial class MainWindow : Window
     private void SetLanguage(string locale)
     {
         _currentPhraseLocale = locale;
-
-        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        string effectiveLocale = ResolveLocaleKey(locale, _currentPhraseStyle, uiLang);
-
-        PhraseEngine.SetLocale(effectiveLocale);
+        PhraseEngine.SetLocale(ResolveLocaleKey(locale, _currentPhraseStyle));
         _currentRawPhrase = "";
         _lastSegmentKey   = "";
         UpdatePhraseIfChanged();
         SaveSettings();
-    }
-
-    private string ResolveLocaleKey(string phraseLocale, string phraseStyle, string uiLang)
-    {
-        string styleLower = phraseStyle.ToLowerInvariant();
-
-        if (phraseLocale is "fr" or "es" or "de" or "pl")
-            return phraseLocale;
-
-        if (phraseLocale == "ja")
-            return styleLower switch
-            {
-                "terse"  => "ja-terse",
-                "poetic" => "ja-poetic",
-                "rude"   => "ja-rude",
-                _        => "ja-classic",
-            };
-
-        if (phraseLocale == "en")
-            return styleLower switch
-            {
-                "terse"       => "en-terse",
-                "poetic"      => "en-poetic",
-                "rude"        => "en-rude",
-                "pirate"      => "en-pirate",
-                "dwarf"       => "en-dwarf",
-                "jive"        => "en-jive",
-                "valleygirl"  => "en-valleygirl",
-                "yoda"        => "en-yoda",
-                "shakespeare" => "en-shakespeare",
-                _             => "en-classic",
-            };
-
-        // "auto" — detect from Windows UI culture
-        if (uiLang is "fr" or "es" or "de" or "pl")
-            return uiLang;
-        if (uiLang == "ja")
-            return styleLower switch
-            {
-                "terse"  => "ja-terse",
-                "poetic" => "ja-poetic",
-                "rude"   => "ja-rude",
-                _        => "ja-classic",
-            };
-        // auto + English system
-        return styleLower switch
-        {
-            "terse"       => "en-terse",
-            "poetic"      => "en-poetic",
-            "rude"        => "en-rude",
-            "pirate"      => "en-pirate",
-            "dwarf"       => "en-dwarf",
-            "jive"        => "en-jive",
-            "valleygirl"  => "en-valleygirl",
-            "yoda"        => "en-yoda",
-            "shakespeare" => "en-shakespeare",
-            _             => "en-classic",
-        };
     }
 
     private void SetPhraseWrapEnabled(bool enabled)
@@ -1433,6 +1447,49 @@ public partial class MainWindow : Window
         UpdatePhraseIfChanged();
         SaveSettings();
     }
+
+    /// <summary>
+    /// Resolves the PhraseEngine locale key from the user's locale preference and phrase style.
+    /// Japanese and English are the only locales with phrase-style variants.
+    /// </summary>
+    private static string ResolveLocaleKey(string locale, string style)
+    {
+        if (locale is "fr" or "es" or "de" or "pl")
+            return locale;
+
+        if (locale == "ja")
+            return style.ToLowerInvariant() switch
+            {
+                "terse"  => "ja-terse",
+                "poetic" => "ja-poetic",
+                "rude"   => "ja-rude",
+                _        => "ja-classic",
+            };
+
+        if (locale == "en")
+            return EnStyleKey(style);
+
+        // "auto" — detect from Windows UI culture
+        string uiLang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        if (uiLang is "fr" or "es" or "de" or "ja" or "pl")
+            return uiLang;  // auto-detected non-English: use base locale (Classic only)
+        return EnStyleKey(style);
+    }
+
+    private static string EnStyleKey(string style) =>
+        style.ToLowerInvariant() switch
+        {
+            "terse"       => "en-terse",
+            "poetic"      => "en-poetic",
+            "rude"        => "en-rude",
+            "pirate"      => "en-pirate",
+            "dwarf"       => "en-dwarf",
+            "jive"        => "en-jive",
+            "valleygirl"  => "en-valleygirl",
+            "yoda"        => "en-yoda",
+            "shakespeare" => "en-shakespeare",
+            _             => "en-classic",
+        };
 
     private void SetTextStyle(string style)
     {
@@ -1483,9 +1540,37 @@ public partial class MainWindow : Window
         double step = Math.Sign(e.Delta) * 0.10;
         _windowOpacity = Math.Clamp(_windowOpacity + step, 0.10, 1.0);
         this.Opacity = _windowOpacity;
-        ClearActiveTheme();
         SaveSettings();
         e.Handled = true;  // prevent scroll leaking to desktop or windows below overlay
+    }
+
+    /// <summary>
+    /// Opens the tray ContextMenuStrip at the cursor on widget right-click (button UP),
+    /// reusing the exact same menu instance the NotifyIcon uses (single source of truth for
+    /// items, checkmarks, enabled state, and click handlers — RMB-01).
+    /// </summary>
+    /// <remarks>
+    /// RMB-02: suppressed while dragging (DragMove() is a blocking modal loop, so in practice
+    /// this branch is belt-and-suspenders).
+    /// RMB-03: click-through is handled by WS_EX_TRANSPARENT at the Win32 layer — when ghost
+    /// is active without Ctrl+Alt held, this handler never fires because WPF doesn't receive
+    /// the mouse message. The RightClickMenuGate check here is defensive only.
+    /// The _menuOpen idempotence guard prevents visual flicker on rapid right-click spam
+    /// (Show() repositioning the already-open menu).
+    /// </remarks>
+    private void Window_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        // Idempotence: don't re-show an already-open menu.
+        if (_menuOpen) return;
+
+        // RMB-02 + RMB-03 predicate (pure, unit-tested via RightClickMenuGateTests).
+        if (!RightClickMenuGate.ShouldOpen(_isDragging, _ghostMode.IsActive, _ghostMode.IsModifierHeld()))
+            return;
+
+        // RMB-01: show the exact ContextMenuStrip instance the tray NotifyIcon uses.
+        // Cursor.Position is screen coordinates per Microsoft docs — no PointToScreen needed.
+        _trayIcon.ContextMenuStrip!.Show(System.Windows.Forms.Cursor.Position);
+        e.Handled = true;
     }
 
     private void InitDialDecorations()
@@ -1610,6 +1695,7 @@ public partial class MainWindow : Window
 
         // Uptime row text (accent color)
         UptimeText.Foreground = brush;
+        TempsText.Foreground  = brush;   // v4.2 Phase 79 — TEMP-LINE-06 (Phase 33 critical pattern)
 
         // Date text (dimmed accent — 55% alpha, same treatment as QualifierText)
         var dateBrush = new System.Windows.Media.SolidColorBrush(
@@ -1647,6 +1733,7 @@ public partial class MainWindow : Window
         CpuText.Foreground = brush; GpuText.Foreground = brush;
         MemText.Foreground = brush; PagText.Foreground = brush; BattText.Foreground = brush;
         UptimeText.Foreground = brush;
+        TempsText.Foreground  = brush;   // v4.2 Phase 79 — TEMP-LINE-06 (Phase 33 critical pattern)
 
         // Date text (dimmed display override — 55% alpha)
         var dateDisplayColor = System.Windows.Media.Color.FromArgb(0x8C, rgb.R, rgb.G, rgb.B);

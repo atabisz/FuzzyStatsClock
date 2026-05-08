@@ -1,5 +1,104 @@
 # Milestones
 
+## v4.3 Configurable Ghost Override (Shipped: 2026-05-07)
+
+**Phases completed:** 4 phases (81–84), 5 plans, 574 MSTest green (445 Core + 129 App)
+
+**Git range:** v4.2 → v4.3 (37 commits, 38 files, +5,994 / -2,089 lines)
+
+**Key accomplishments:**
+
+- AppSettings + SettingsSnapshot extended with UseCtrl/UseAlt/UseShift bool fields with explicit init defaults (true, true, false) for v4.2 upgrade compatibility; 3 absent-field MSTest tests + round-trip extension validate JSON contract (Phase 81: CFG-01/02/03/04, TST-01/02)
+- GhostOverridePanel added to Settings > Behavior with three checkboxes labeled "Left Ctrl/Alt/Shift" (emphasizes left-side VK codes); two-site IsEnabled gating (PopulateControls + ChkGhostMode_Changed) follows GhostFadeRadiusPanel pattern; _suppressEvents guard prevents settings corruption (Phase 82: UI-01/02/03/04/05)
+- GhostModeController refactored with UpdateModifierConfig public method + IsModifierHeld with configurable AND logic (all enabled modifiers must be held); OnTimerTick short-circuit: when all modifiers false, IsModifierHeld never called; 8 DataRow parametric tests cover all 2³ combinations (Phase 83: DET-01/02/03/04/05, TST-03)
+- MainWindow end-to-end integration via 5 touchpoints: ApplySettings init, GetCurrentSettingsSnapshot projection, OpenSettings event subscriptions (3 handlers with immediate persistence), ResetToDefaults (restores Ctrl+Alt defaults), IsModifierHeld call-site updates (2 locations); 62-item human verification checklist passed (8 categories) (Phase 84: INT-01/02/03/04, TST-04)
+
+**Key technical decisions:**
+
+- Four-phase structure with Phase 82+83 parallel execution (zero cross-dependencies)
+- Init-property defaults (true, true, false) preserve Ctrl+Alt on v4.2 upgrade
+- Left-side VK codes only (VK_LCONTROL, VK_LMENU, VK_LSHIFT) prevent AltGr false-positives
+- All-unchecked = override disabled (clear semantics)
+- AND logic not OR (prevents single-key sensitivity)
+- IsModifierHeld made public for direct unit testing
+- Short-circuit optimization in OnTimerTick when all-false
+
+**Requirements coverage:** 22/22 (100%) — CFG (4), UI (5), DET (5), INT (4), TST (4)
+
+---
+
+## v4.2 Temps & Menu (Shipped: 2026-05-04)
+
+**Phases completed:** 6 phases (75–80), 10 plans, 562 MSTest green (445 Core + 117 App)
+
+**Git range:** v4.1 → v4.2 (66 commits, 130 files, +17,522 / -2,064 lines)
+
+**Key accomplishments:**
+
+- TemperatureService singleton in `FuzzyClock.App` with LibreHardwareMonitorLib 0.9.6 (MPL-2.0 pinned), 5s async init via `Task.WhenAny`, dedicated 2s-cadence background task (Path 2 per spike-measured 608ms Update() mean), three-tier dispose (MainWindow.OnClosing + SessionEnding + ProcessExit) guarded by Interlocked single-entry; `IsReady` gate + `-1f` sentinel discipline mirrors StatsService conventions
+- TemperatureFormatter pure static in `FuzzyClock.Core` (zero LHM refs) with 2-space separator, integer °C, `°` symbol only, empty-on-all-suppressed output; 8 `[TestMethod]` (12 runtime via DataRow); 5 AppSettings init-property bools persist across settings.json round-trips
+- RightClickMenuGate pure predicate with 6 DataRow truth-table cases + MainWindow wiring (PreviewMouseRightButtonUp + `_menuOpen` field + Opening/Closed `+=` hooks preserving TrayMenuBuilder.SyncCheckmarks); widget right-click opens the exact tray ContextMenuStrip instance; TrayMenuBuilder.cs zero-diff invariant preserved
+- Temps tab in Settings window (index 2 between Stats and Behavior) with master toggle + 4 per-sensor checkboxes (CPU/GPU/Mobo/NVMe with defaults ON/ON/OFF/OFF per NVMe-unreliable spike amendment) + disabled+"(N/A)" suffix logic + muted help text disclaimer; `TempSensorsPanel.IsEnabled` gated by master (mirrors GhostFadeRadiusPanel precedent)
+- TempsText on widget renders below UptimeText inside StatsPanel with immediate reflow on Settings toggle (5 Phase 78 handlers each extended with `UpdateTempsDisplay();` after `SaveSettings();`); accent color + auto-contrast participation via `TempsText.Foreground = brush;` at BOTH ApplyTheme AND ApplyDisplayColor sites (Phase 33 critical pattern)
+- MPL-2.0 release compliance: `THIRD-PARTY-NOTICES.md` at repo root (644 lines — verbatim MPL-2.0 + Apache-2.0 + MIT + attribution blocks for LHM 0.9.6 + 5 transitive deps); REL-02 post-publish CI grep gate (WinRing0*.sys absent); REL-03 pre-build CI grep gate (LibreHardwareMonitor absent from FuzzyClock.Core/); Inno Setup ships NOTICES to `{app}` root with `PrivilegesRequired=lowest` invariant preserved
+
+**Key technical decisions:**
+
+- D-05 Path 2 threading (spike measured 608ms Update() mean — exceeded 50ms piggyback threshold)
+- D-01 PublishSingleFile=true preserved over multi-file publish (transitive DLLs self-extract from FuzzyClock.exe)
+- D-03 Handwritten THIRD-PARTY-NOTICES over auto-generation tool (pinned dep → stable notice)
+- NO-GO scope amendments 2026-05-04: GPU-only minimum bar per spike (NVMe not enumerated on PawnIO-free baseline); TEMP-TAB-03 NVMe default OFF; 5s init timeout per 4272ms Computer.Open() measurement
+
+**Known deferred items at close:**
+
+- `PhraseEngineTests.SpecialCases_NoonAndMidnight(12,0,"noon")` ~20% probabilistic flake — `EnglishPhraseProvider.NoonCandidates` random pick across 5 alternatives; introduced in `924562e` pre-v3.2; tracked in STATE.md Active TODOs for opportunistic fix
+- `FuzzyClock.App.csproj <Version>3.6.0</Version>` stale — CI overrides on tag push so harmless; bump to 4.2.0 in post-milestone polish
+- Phase 80 Items 5+8 of human-verify (installer end-to-end + NOTICES SHA256 parity) — deferred to first `v4.2.0` tag push since Inno Setup 6 not installed on dev box; installer compile deterministic given verified inputs
+
+---
+
+## v4.1 Polish & Phrases (Shipped: 2026-04-01)
+
+**Phases completed:** 5 phases, 8 plans, 16 tasks
+
+**Key accomplishments:**
+
+- Backdrop padding increased to 12px around all widget content with automatic dimension propagation to edge snapping, ghost mode, contrast sampling, and position clamping
+- Stats interval slider: continuous 0.5–10.0s replaces discrete 1s/3s/10s selector; `StatsIntervalSeconds` migrated from int to double across full stack
+- Classic phrase provider expanded to 70 candidates (14 slots × 5 each); Terse expanded to 65 candidates (13 slots × 5 each) with British-idiom preservation
+- Jive/Pirate/Yoda personality providers deepened with authentic linguistic patterns: AAVE rhythmic phrasing, nautical metaphors (bells/watch/glass/mark), strict OSV syntax inversion — 210 phrases total
+- Named theme system removed (Midnight/Neon/Ghost/Warm/Terminal): 325 lines deleted, ThemeDefinition.cs deleted, Settings Appearance simplified to Accent Color first
+- 501 MSTest tests (433 Core + 68 App), 0 failures; 25 files changed, +1,562 / -657 lines
+
+---
+
+## v4.0 Proximity Ghost Mode (Shipped: 2026-03-27)
+
+**Phases completed:** 4 phases, 5 plans, 9 tasks
+
+**Key accomplishments:**
+
+- ComputeProximityRatio static method (Chebyshev distance, 12 TDD unit tests) + always-running timer with ProximityChanged event driving ghost state transitions entirely inside the controller
+- Proximity fade wired into MainWindow: IsEnabled gate in controller, ProximityChanged drives this.Opacity via linear fade formula, drag guard, and legacy snap-to-ghost block deleted
+- Proximity fade radius slider wired end-to-end: Settings > Behavior tab slider (20-200px) drives GhostModeController.GhostFadeRadiusPx live and persists via SaveSettings()
+- ResetToDefaults() now resets GhostFadeRadiusPx to 80, closing the PROX-07 gap where the controller retained a stale user value after reset
+
+---
+
+## v3.9 LCD Clock + Japanese Styles (Shipped: 2026-03-27)
+
+**Phases completed:** 5 phases, 6 plans, 14 tasks
+
+**Key accomplishments:**
+
+- Three Japanese phrase style providers added to FuzzyClock.Core: `JapaneseTersePhraseProvider` (clipped colloquial), `JapanesePoeticPhraseProvider` (atmospheric imagery), `JapaneseRudePhraseProvider` (blunt/impatient); registered in PhraseEngine as `ja-classic`/`ja-terse`/`ja-poetic`/`ja-rude`; 37 new unit tests covering all 12-bucket + noon/midnight cases
+- ResolveLocaleKey helper extracted into MainWindow, consolidating three duplicate locale-resolution switch expressions and enabling Japanese phrase style variants in SettingsWindow
+- LCD button and collapsible LcdOptionsPanel (24-hour, show-seconds, Dark/Paper/Silver style) added to Settings Appearance tab, wiring five event handlers to pre-existing MainWindow LCD hooks.
+- `_colonVisible` bool toggle in LcdClockView.UpdateTime() makes Colon1 blink at 1 Hz using the existing 1s DispatcherTimer tick — no new timer, two lines changed
+- LcdStyle validation guard in SettingsService.Validate() — unknown values (e.g. "Broken") reset to Dark default without throwing; 352 tests, 0 failures
+
+---
+
 ## v3.8 Dial Settings (Shipped: 2026-03-23)
 
 **Phases completed:** 1 phase, 1 plan

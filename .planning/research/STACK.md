@@ -1,299 +1,255 @@
-# Technology Stack
+# Technology Stack — v4.3 Configurable Ghost Override
 
-**Project:** FuzzyStatsClock v3.9 — LCD Clock + Japanese Styles
-**Researched:** 2026-03-23
-**Scope:** Net-new stack changes only for LCD 7-segment UI wiring, colon blink, and Japanese phrase style variants. The validated stack (C# WPF .NET 10, MSTest 4.0.1, System.Text.Json, DispatcherTimer, UseWindowsForms=true) is unchanged. Confidence: HIGH — all claims verified by direct source audit.
+**Project:** FuzzyClock v4.3
+**Researched:** 2026-05-07
+**Confidence:** HIGH
 
----
+## Executive Summary
 
-## What Already Exists (Do Not Re-Implement)
-
-These items are complete and require only wiring or extension, not creation:
-
-| Component | Location | State |
-|-----------|----------|-------|
-| `SevenSegmentDigit` UserControl | `FuzzyClock.App/Controls/SevenSegmentDigit.xaml(.cs)` | Complete — Polygon-based segments, colon dot rectangles, `LitColor`/`GhostColor`/`BgColor`/`SegmentHeight`/`SegmentStyle` DPs |
-| `LcdClockView` UserControl | `FuzzyClock.App/Controls/LcdClockView.xaml(.cs)` | Complete — 8 digit slots (D0–D5 + Colon1/2), 1s `DispatcherTimer`, `Use24Hr`/`ShowSeconds`/`LitColor`/`BgColor`/`GhostColor`/`Size`/`SegmentStyle` DPs, `IsVisibleChanged` lifecycle |
-| `SevenSegmentEncoder` | `FuzzyClock.Core/SevenSegmentEncoder.cs` | Complete — bitmask table for `'0'–'9'`, `' '`, `':'` sentinel (0x80) |
-| `LcdTimeFormatHelper` | `FuzzyClock.App/LcdTimeFormatHelper.cs` | Complete — `FormatTime(DateTime, bool use24Hr, bool showSeconds)` returning 5-char or 8-char string |
-| `LcdSize` enum + `LcdSizeMap` | `FuzzyClock.App/LcdSize.cs` | Complete — `Small=32px`, `Medium=48px`, `Large=64px` segment heights |
-| `ClockType` enum | `FuzzyClock.App/ClockType.cs` | Complete — `Phrase / Dial / Lcd / Nixie` |
-| `AppSettings` LCD fields | `FuzzyClock.App/AppSettings.cs` | Complete — `LcdUse24Hr bool`, `LcdShowSeconds bool`, `LcdStyle string`, `LcdSize LcdSize` |
-| `SettingsSnapshot` LCD fields | `FuzzyClock.App/SettingsSnapshot.cs` | Complete — same four LCD fields present |
-| `MainWindow` LCD event handlers | `FuzzyClock.App/MainWindow.xaml.cs` | Complete — `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` subscriptions wired in `OpenSettings()` |
-| `SettingsWindow` LCD event declarations | `FuzzyClock.App/SettingsWindow.xaml.cs` | Events declared: `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` — no XAML controls fire them yet |
-| `JapanesePhraseProvider` (Classic) | `FuzzyClock.Core/JapanesePhraseProvider.cs` | Complete — 12-bucket template system with `{h}`/`{h1}` hour-word substitution, registered as `["ja"]` |
-| `IPhraseProvider` interface | `FuzzyClock.Core/IPhraseProvider.cs` | Stable — `GetPhrase`, `GetStructuredPhrase`, `GetSegmentKey` |
-| `PhraseEngine` registry | `FuzzyClock.Core/PhraseEngine.cs` | Complete — `SetLocale(string)` lookup; add new keys without interface changes |
-
----
-
-## What Is Missing (Net-New Work for v3.9)
-
-### Gap 1: Colon Blink — Missing from `LcdClockView`
-
-`LcdClockView.UpdateTime()` always assigns `Colon1.Character = ':'`. The `SevenSegmentDigit` colon character renders both dots as lit. There is no mechanism to toggle the colon off on odd seconds.
-
-**What to add:**
-
-`SevenSegmentDigit` needs an `IsLit` dependency property (bool, default `true`). When `IsLit = false` on a colon digit, `UpdateSegments()` renders both dots with `_ghostBrush` instead of `_litBrush`. No structural change to `SevenSegmentDigit` geometry is needed — only the brush selection in `UpdateSegments()` is gated.
-
-`LcdClockView.UpdateTime()` needs to toggle `Colon1.IsLit = (DateTime.Now.Second % 2 == 0)` on each 1s tick. The existing `_timer` at 1s cadence is the correct driver — no new timer is needed.
-
-**Why this approach:**
-- The `_timer` is already a `DispatcherTimer` at 1s; adding a second timer would be redundant.
-- `IsLit` is a cleaner abstraction than toggling `Character` between `':'` and `' '`, because `' '` renders a ghost-colored background block that shifts the digit's rendered width (the colon slot narrows to `_builtColonW = digitW * 0.30` for `':'`; assigning `' '` would expand it back to full `digitW`, causing layout jitter).
-- `IsLit = false` keeps the narrow colon width and renders ghost dots — visually correct LCD blink without layout shift.
-
-| Type | Assembly | Change |
-|------|----------|--------|
-| `SevenSegmentDigit` | `FuzzyClock.App` | Add `IsLit` DP (bool, default true); gate dot brush in `UpdateSegments()` |
-| `LcdClockView` | `FuzzyClock.App` | Toggle `Colon1.IsLit` in `UpdateTime()` based on `DateTime.Now.Second % 2` |
-
-**NuGet needed:** None.
-
----
-
-### Gap 2: LCD Settings UI — Missing from `SettingsWindow`
-
-`SettingsWindow.xaml` has no `BtnLcd` button in the Clock Style rail (only `BtnPhrase`, `BtnDial`, `BtnNixie`). `SetClockStyleButtonStates(ClockType ct)` does not handle `ClockType.Lcd`. There are no XAML controls for `LcdUse24Hr`, `LcdShowSeconds`, or `LcdStyle`.
-
-**What to add:**
-
-1. **`BtnLcd` in the Clock Style rail** — same `SegmentButtonStyle` as the three existing buttons. Add `BtnLcd_Click` handler that calls `SetClockStyleButtonStates(ClockType.Lcd)` and fires `ClockTypeChanged?.Invoke(ClockType.Lcd)`.
-
-2. **`SetClockStyleButtonStates` update** — add `BtnLcd.Tag = ct == ClockType.Lcd ? "selected" : null;` alongside the existing three assignments.
-
-3. **LCD Face settings row** (visibility-gated to `ClockType.Lcd`, same pattern as Dial Face row) containing:
-   - `ChkLcd24Hr` — CheckBox bound to `LcdUse24HrChanged`
-   - `ChkLcdShowSeconds` — CheckBox bound to `LcdShowSecondsChanged`
-   - `CmbLcdStyle` — ComboBox with items `Dark / Paper / Silver`, bound to `LcdStyleChanged`
-
-4. **`PopulateControls` additions** — set `ChkLcd24Hr.IsChecked`, `ChkLcdShowSeconds.IsChecked`, `CmbLcdStyle.SelectedIndex` from `SettingsSnapshot` fields; set LCD Face row visibility via `SetClockStyleButtonStates`.
-
-**Visibility gating pattern** (mirrors Dial Face row, already in `SetClockStyleButtonStates`):
-```csharp
-LcdFaceRow.Visibility = ct == ClockType.Lcd ? Visibility.Visible : Visibility.Collapsed;
-```
-
-| File | Change Type | What Changes |
-|------|-------------|--------------|
-| `SettingsWindow.xaml` | XAML addition | `BtnLcd` button; `LcdFaceRow` Grid row with checkboxes + combo |
-| `SettingsWindow.xaml.cs` | Code addition | `BtnLcd_Click`; `SetClockStyleButtonStates` extension; `PopulateControls` LCD section; checkbox/combo handlers |
-
-**NuGet needed:** None.
-
----
-
-### Gap 3: Japanese Phrase Style Variants — Missing from `PhraseEngine` and `SettingsWindow`
-
-`PhraseEngine._providers` contains only `["ja"]` (Classic). There is no `["ja-terse"]`, `["ja-poetic"]`, or `["ja-rude"]`. `SettingsWindow.PopulateControls` sets `CmbPhraseStyle.IsEnabled = false` when Japanese locale is active, blocking style selection.
-
-**What to add:**
-
-1. **Three new provider classes in `FuzzyClock.Core`:**
-   - `JapaneseTersePhraseProvider` — clipped, casual phrasing (e.g. `三時`, `三時ちょい過ぎ`) registered as `"ja-terse"`
-   - `JapanesePoeticPhraseProvider` — atmospheric imagery (e.g. `夜が更けて三時`) registered as `"ja-poetic"`
-   - `JapaneseRudePhraseProvider` — brusque, impatient phrasing (e.g. `もう三時じゃないか`) registered as `"ja-rude"`
-
-   Each implements `IPhraseProvider` with the same three methods. The `{h}`/`{h1}` template substitution pattern from `JapanesePhraseProvider` is the correct structural model. `GetSegmentKey` returns `GetPhrase(dt)` (same stable-bucket idiom as all other providers).
-
-2. **`PhraseEngine` registry additions:**
-   ```csharp
-   ["ja-terse"]  = new JapaneseTersePhraseProvider(),
-   ["ja-poetic"] = new JapanesePoeticPhraseProvider(),
-   ["ja-rude"]   = new JapaneseRudePhraseProvider(),
-   ```
-
-3. **`SettingsWindow` style selector enablement for Japanese:**
-
-   `PopulateControls` currently sets `CmbPhraseStyle.IsEnabled = !isNonEnglish`. This must be relaxed: when `PhraseLocale == "ja"` (or auto-detected Japanese), `CmbPhraseStyle.IsEnabled = true` and the combo items remain the same (`Classic / Terse / Poetic / Rude`).
-
-4. **`MainWindow` locale routing update:**
-
-   `SetPhraseStyle()` currently has a guard `if (!CurrentLocale.StartsWith("en-")) return;`. This must be extended to also allow `ja-*` routing:
-   ```csharp
-   // Before (English-only):
-   if (!CurrentLocale.StartsWith("en-")) return;
-
-   // After (English + Japanese):
-   bool isJa = CurrentLocale.StartsWith("ja");
-   string prefix = isJa ? "ja" : "en";
-   PhraseEngine.SetLocale($"{prefix}-{style.ToLower()}");
-   ```
-
-   The `SetPhraseLocale()` path that resolves `"ja"` base locale must remain the entry point for locale switching; style is a sub-key layered on top.
-
-| File | Change Type | What Changes |
-|------|-------------|--------------|
-| `FuzzyClock.Core/JapaneseTersePhraseProvider.cs` | New file | `IPhraseProvider` implementation, `"ja-terse"` provider |
-| `FuzzyClock.Core/JapanesePoeticPhraseProvider.cs` | New file | `IPhraseProvider` implementation, `"ja-poetic"` provider |
-| `FuzzyClock.Core/JapaneseRudePhraseProvider.cs` | New file | `IPhraseProvider` implementation, `"ja-rude"` provider |
-| `FuzzyClock.Core/PhraseEngine.cs` | Registry addition | Three new `["ja-*"]` entries in `_providers` |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` | Logic change | `CmbPhraseStyle.IsEnabled = true` when locale is `"ja"`; `PopulateControls` style index mapping unchanged |
-| `FuzzyClock.App/MainWindow.xaml.cs` | Logic change | `SetPhraseStyle()` guard extended to route `ja-terse/poetic/rude` |
-
-**NuGet needed:** None.
-
----
+**Zero new dependencies required.** The configurable modifier key feature uses existing capabilities already validated in production: WPF CheckBox controls (present in SettingsWindow since v3.2), Win32 `GetAsyncKeyState` P/Invoke for keyboard state detection (in use since v2.3), and `AppSettings` init-property record persistence (established pattern since v1.1).
 
 ## Recommended Stack
 
-### Core Technologies (unchanged from v3.8)
+### No Changes Required
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| .NET 10 WPF | net10.0-windows | UI framework — all controls, XAML, DispatcherTimer | Already validated; transparent overlay, UserControls, Settings window |
-| C# 13 | .NET 10 SDK | Language | `init`-property records, pattern matching, collection expressions |
-| System.Text.Json | .NET 10 BCL | Settings serialization | Already validated; handles `AppSettings` init-property record natively |
-| MSTest | 4.0.1 (existing) | Test framework — 299 tests currently passing | Already validated; CI gate enforced |
-| WPF `Polygon` / `Rectangle` / `Canvas` | System.Windows.Shapes / System.Windows.Controls | 7-segment rendering | Already in use via `SevenSegmentDigit` |
-| `DispatcherTimer` | System.Windows.Threading | Per-second tick for LCD colon blink | Already in use in `LcdClockView` at 1s; no new timer needed |
+The existing v4.2 stack handles all v4.3 requirements:
 
-### Types Added (no new packages)
+| Component | Current Version | Coverage |
+|-----------|----------------|----------|
+| **UI Framework** | WPF (net10.0-windows) | CheckBox controls in Settings window |
+| **Keyboard State** | Win32 User32.dll P/Invoke | `GetAsyncKeyState` for modifier detection |
+| **Settings Persistence** | System.Text.Json (in-box) | `AppSettings` init-property record |
+| **Testing** | MSTest 4.0.1 | 562 tests (445 Core + 117 App) |
 
-| Type | Assembly | Purpose |
-|------|----------|---------|
-| `SevenSegmentDigit.IsLit` DP | `FuzzyClock.App` | Colon blink toggle — ghost vs lit dots |
-| `JapaneseTersePhraseProvider` | `FuzzyClock.Core` | `"ja-terse"` registry entry |
-| `JapanesePoeticPhraseProvider` | `FuzzyClock.Core` | `"ja-poetic"` registry entry |
-| `JapaneseRudePhraseProvider` | `FuzzyClock.Core` | `"ja-rude"` registry entry |
+### Existing Capabilities (No Addition Needed)
 
-**Zero new NuGet packages. Zero csproj changes.**
+#### 1. WPF CheckBox Controls
+**Already in use:** Settings > Behavior tab has multiple CheckBox elements (`ChkGhostMode`, `ChkAutoContrast`, `ChkAutoLaunch`)
 
----
-
-## Files to Change
-
-| File | Change Type | What Changes |
-|------|-------------|--------------|
-| `Controls/SevenSegmentDigit.xaml.cs` | DP addition | Add `IsLit` bool DP; gate colon dot brush on `IsLit` in `UpdateSegments()` |
-| `Controls/LcdClockView.xaml.cs` | Logic addition | Toggle `Colon1.IsLit` on each `UpdateTime()` tick based on `second % 2` |
-| `SettingsWindow.xaml` | XAML addition | `BtnLcd` in Clock Style rail; `LcdFaceRow` with `ChkLcd24Hr`, `ChkLcdShowSeconds`, `CmbLcdStyle` |
-| `SettingsWindow.xaml.cs` | Code additions | `BtnLcd_Click`; extend `SetClockStyleButtonStates`; `PopulateControls` LCD section; checkbox/combo handlers for three LCD settings; enable `CmbPhraseStyle` for Japanese locale |
-| `FuzzyClock.Core/JapaneseTersePhraseProvider.cs` | New file | Terse Japanese `IPhraseProvider` |
-| `FuzzyClock.Core/JapanesePoeticPhraseProvider.cs` | New file | Poetic Japanese `IPhraseProvider` |
-| `FuzzyClock.Core/JapaneseRudePhraseProvider.cs` | New file | Rude Japanese `IPhraseProvider` |
-| `FuzzyClock.Core/PhraseEngine.cs` | Registry addition | Add `["ja-terse"]`, `["ja-poetic"]`, `["ja-rude"]` entries |
-| `FuzzyClock.App/MainWindow.xaml.cs` | Logic change | Extend `SetPhraseStyle()` guard to route Japanese sub-styles |
-
----
-
-## Key Integration Points
-
-### Colon Blink — `IsLit` DP on `SevenSegmentDigit`
-
-`SevenSegmentDigit.UpdateSegments()` currently selects `_litBrush` for the colon dots unconditionally when `Character == ':'`. The change:
-
-```csharp
-// In UpdateSegments(), colon branch:
-_dot1.Fill = IsLit ? _litBrush : _ghostBrush;
-_dot2.Fill = IsLit ? _litBrush : _ghostBrush;
+**Pattern to replicate:**
+```xml
+<CheckBox x:Name="ChkUseCtrl" Content="Ctrl" />
+<CheckBox x:Name="ChkUseAlt" Content="Alt" />
+<CheckBox x:Name="ChkUseShift" Content="Shift" />
 ```
 
-`LcdClockView.UpdateTime()` drives the toggle:
-
+**Event wiring:**
 ```csharp
-Colon1.IsLit = (DateTime.Now.Second % 2 == 0);
-// Colon2 (seconds separator) blinks in sync if seconds row is visible
-if (ShowSeconds) Colon2.IsLit = Colon1.IsLit;
+ChkUseCtrl.Checked += (s, e) => UseCtrlChanged?.Invoke(true);
+ChkUseCtrl.Unchecked += (s, e) => UseCtrlChanged?.Invoke(false);
 ```
 
-The existing 1s `DispatcherTimer` already calls `UpdateTime()` on each tick — no cadence change needed.
+**Why:** Standard WPF controls. No additional library or NuGet package required.
 
-### Japanese Style Routing — `SetPhraseStyle()` in `MainWindow`
+#### 2. Win32 Keyboard State Detection
+**Already in use:** `GhostModeController` uses `GetAsyncKeyState(VK_LCONTROL)` and `GetAsyncKeyState(VK_LMENU)` since v2.3 (Phase 26)
 
-The existing routing for English:
+**Existing pattern:**
 ```csharp
-// Existing:
-private void SetPhraseStyle(string style)
+[DllImport("user32.dll")]
+private static extern short GetAsyncKeyState(int vKey);
+
+private bool IsCtrlAltHeld()
 {
-    if (!PhraseEngine.CurrentLocale.StartsWith("en-")) return;
-    PhraseEngine.SetLocale($"en-{style.ToLower()}");
-    ...
+    const int VK_LCONTROL = 0xA2;
+    const int VK_LMENU = 0xA4;
+    return (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0
+        && (GetAsyncKeyState(VK_LMENU) & 0x8000) != 0;
 }
 ```
 
-The locale key convention for Japanese is `ja-terse` / `ja-poetic` / `ja-rude` — parallel to `en-terse` / `en-poetic` / `en-rude`. The style string values (`"Classic"`, `"Terse"`, `"Poetic"`, `"Rude"`) come from `AppSettings.PhraseStyle` unchanged.
+**Extension needed:** Add `VK_LSHIFT = 0xA0` constant, read 3 bools from configuration, check only enabled keys.
 
-The base locale `"ja"` registered in `PhraseEngine` maps to Classic. When style is `"Classic"` for Japanese, `SetLocale("ja")` is correct. When style is `"Terse"`, `SetLocale("ja-terse")` is correct.
+**Why:** Left-side-only virtual key codes prevent AltGr false-positives on EU keyboards (validated in v2.3). Same P/Invoke signature, just parameterized by configuration.
 
-### Japanese Style — `SettingsWindow` Enablement
+#### 3. AppSettings Persistence
+**Already in use:** 30+ fields in `AppSettings` init-property record with System.Text.Json serialization to `%LOCALAPPDATA%\FuzzyClock\settings.json`
 
-`CmbPhraseStyle` currently has four items (index 0–3: Classic/Terse/Poetic/Rude). The index mapping is locale-independent. No new combo items are needed. The only change is removing the `isNonEnglish` guard for Japanese:
-
+**Pattern to replicate:**
 ```csharp
-// Current logic (blocks style for ALL non-English):
-bool isNonEnglish = nonEnglishActive || (s.PhraseLocale is "fr" or "es" or "de" or "ja" or "pl");
-CmbPhraseStyle.IsEnabled = !isNonEnglish;
-
-// Updated logic (blocks style for non-English EXCEPT Japanese):
-bool styleAllowed = !nonEnglishActive
-    || uiLang == "ja"
-    || s.PhraseLocale == "ja";
-CmbPhraseStyle.IsEnabled = styleAllowed
-    && !(s.PhraseLocale is "fr" or "es" or "de" or "pl")
-    && !(nonEnglishActive && uiLang is "fr" or "es" or "de" or "pl");
+public record AppSettings
+{
+    // Existing fields...
+    public bool GhostOverrideUseCtrl { get; init; } = true;
+    public bool GhostOverrideUseAlt { get; init; } = true;
+    public bool GhostOverrideUseShift { get; init; } = false;
+}
 ```
 
-A simpler equivalent: disable only when active locale is in `{fr, es, de, pl}` (the four without style variants).
+**Backward compatibility:** Init-property defaults ensure v4.2 users see Ctrl+Alt (true, true, false) on upgrade. JSON absent-field handling works automatically.
 
-### `AppSettings.PhraseStyle` — No Change
+**Why:** Established pattern. Zero JSON attributes required. Atomic write via temp file + `File.Move(overwrite:true)` already implemented in `SettingsService`.
 
-`PhraseStyle` stores `"Classic"` / `"Terse"` / `"Poetic"` / `"Rude"` regardless of locale. The routing logic in `MainWindow` applies the style key to the active locale prefix (`en-` or `ja-`). No new settings field is needed for Japanese style — the existing field is reused.
+## Integration Points
 
----
+### 1. SettingsWindow XAML (New UI)
+**File:** `FuzzyClock.App/SettingsWindow.xaml`
+**Location:** Behavior tab, below `GhostFadeRadiusPanel`
+
+**Pattern:** Clone `GhostFadeRadiusPanel` indented sub-panel structure:
+- Outer StackPanel indented under `ChkGhostMode`
+- Label + WrapPanel with 3 CheckBox elements
+- Help TextBlock in muted `#FF999999` color
+
+**Why:** Matches v4.2 Phase 78 `TempSensorsPanel` pattern (master toggle with indented sub-panel).
+
+### 2. SettingsWindow Code-Behind (Event Wiring)
+**File:** `FuzzyClock.App/SettingsWindow.xaml.cs`
+
+**Events to add:**
+```csharp
+public event Action<bool>? GhostOverrideUseCtrlChanged;
+public event Action<bool>? GhostOverrideUseAltChanged;
+public event Action<bool>? GhostOverrideUseShiftChanged;
+```
+
+**Pattern:** Mirror `ChkTempsVisible.Checked += ...` pattern from Phase 78 with `_suppressEvents` guard.
+
+**Why:** Consistent with existing 19 `SettingsChanged` events established in v3.2.
+
+### 3. MainWindow Event Subscriptions (Persistence)
+**File:** `FuzzyClock.App/MainWindow.xaml.cs`
+
+**Pattern:** Clone v4.2 Phase 78 pattern:
+```csharp
+_settingsWindow.GhostOverrideUseCtrlChanged += v => {
+    _settings = _settings with { GhostOverrideUseCtrl = v };
+    SaveSettings();
+    _ghostModeController?.SetModifierConfig(
+        _settings.GhostOverrideUseCtrl,
+        _settings.GhostOverrideUseAlt,
+        _settings.GhostOverrideUseShift);
+};
+```
+
+**Why:** Immediate persistence with `SaveSettings()`. Live controller update without restart.
+
+### 4. GhostModeController (Detection Logic)
+**File:** `FuzzyClock.App/GhostModeController.cs`
+
+**Change:** Replace hardcoded `IsCtrlAltHeld()` with configurable logic:
+```csharp
+private bool _useCtrl, _useAlt, _useShift;
+
+public void SetModifierConfig(bool useCtrl, bool useAlt, bool useShift)
+{
+    _useCtrl = useCtrl;
+    _useAlt = useAlt;
+    _useShift = useShift;
+}
+
+private bool IsModifierHeld()
+{
+    if (!_useCtrl && !_useAlt && !_useShift)
+        return false; // Override disabled
+
+    bool ctrlMatch = !_useCtrl || (GetAsyncKeyState(0xA2) & 0x8000) != 0;
+    bool altMatch = !_useAlt || (GetAsyncKeyState(0xA4) & 0x8000) != 0;
+    bool shiftMatch = !_useShift || (GetAsyncKeyState(0xA0) & 0x8000) != 0;
+    
+    return ctrlMatch && altMatch && shiftMatch;
+}
+```
+
+**Why:** All-false = override disabled (ghost always activates). Each enabled key becomes a required part of the combination.
+
+### 5. SettingsService Validation
+**File:** `FuzzyClock.App/SettingsService.cs`
+
+**No validation needed.** Bool fields cannot be invalid. No range guard required (unlike `StatsIntervalSeconds` or `Opacity` which need clamping).
+
+**Why:** Bools are always valid. JSON deserialization yields true/false; no error state exists.
+
+### 6. ResetToDefaults
+**File:** `FuzzyClock.App/MainWindow.xaml.cs`
+
+**Extension:**
+```csharp
+_settings = _settings with
+{
+    GhostOverrideUseCtrl = true,
+    GhostOverrideUseAlt = true,
+    GhostOverrideUseShift = false,
+    // ... other resets
+};
+```
+
+**Why:** Restores Ctrl+Alt default, matching pre-v4.3 hardcoded behavior.
 
 ## What NOT to Add
 
-| Do Not Add | Why | What to Use Instead |
-|------------|-----|---------------------|
-| Any NuGet package | Zero new packages needed | Existing BCL + WPF types |
-| New `DispatcherTimer` for colon blink | `LcdClockView` already has a 1s timer | Toggle `IsLit` inside the existing `UpdateTime()` call |
-| New `LcdStyle` setting for blink on/off | Blink is a standard LCD behavior — not a user preference for this milestone | Always blink when LCD clock is active |
-| New `PhraseStyle` settings field for Japanese | `AppSettings.PhraseStyle` string is locale-independent | Route same value through `ja-` prefix in `SetPhraseStyle()` |
-| `LcdSize` in `AppSettings` | Already documented as derived-from-FontSize; already absent from persistence | Derive at runtime via `FontSizeToLcdSize()` |
-| Separate `Action<bool>? LcdColonBlinkChanged` event | Blink has no toggle in this milestone | Always blink |
-| `LcdSizeChanged` event on `SettingsWindow` | Size is driven by `FontSizeChanged` via `FontSizeToLcdSize()` | No separate event; `ApplyFontSize()` already sets `LcdView.Size` |
-| New Japanese provider base class | Three Japanese variant providers are small (12 buckets each); shared base adds indirection with no benefit | Duplicate the `{h}`/`{h1}` pattern directly in each class |
+| Candidate | Why Avoid |
+|-----------|-----------|
+| **Custom keyboard hook library** | Win32 `GetAsyncKeyState` is sufficient. No need for global hooks or `SetWindowsHookEx` complexity. |
+| **WPF KeyBinding** | Widget is frameless with no keyboard focus. Key bindings require focus. `GetAsyncKeyState` polling is the correct pattern (validated in v2.3). |
+| **Third-party hotkey manager (e.g., NHotkey)** | Overkill. Feature needs modifier detection during hover, not global system hotkeys. |
+| **InputSimulator or similar** | Feature only reads keyboard state, never sends input. No simulation needed. |
+| **System.Windows.Forms.Keys enum** | Direct int constants (0xA2/0xA4/0xA0) are clearer in P/Invoke context and avoid `UseWindowsForms=true` enum ambiguity. |
 
----
+## Testing Additions
 
-## Confidence Assessment
+**Location:** `FuzzyClock.App.Tests/`
 
-| Area | Confidence | Reason |
-|------|------------|--------|
-| LCD rendering infrastructure complete | HIGH | `SevenSegmentDigit`, `LcdClockView`, `SevenSegmentEncoder`, `LcdTimeFormatHelper`, `LcdSize` all verified by direct source audit |
-| Colon blink gap confirmed | HIGH | `LcdClockView.UpdateTime()` source-verified always-lit; no `IsLit` DP exists on `SevenSegmentDigit` |
-| LCD Settings UI gap confirmed | HIGH | `SettingsWindow.xaml` source-verified: only 3 clock style buttons (Phrase/Dial/Nixie); no LCD face controls |
-| Japanese style gap confirmed | HIGH | `PhraseEngine._providers` source-verified: only `["ja"]` key; `SettingsWindow` disables style for `"ja"` locale |
-| `IPhraseProvider` interface stable | HIGH | Interface source-verified; no changes needed for new providers |
-| Zero new NuGet packages | HIGH | All required types in BCL + WPF + existing project files — verified by source audit |
-| Japanese phrase content | LOW | Phrase vocabulary (Terse/Poetic/Rude Japanese) requires native speaker review; the structural pattern (`{h}`/`{h1}` bucket templates) is HIGH confidence |
+### 1. AppSettings Round-Trip Test
+**Pattern:** Extend existing `STEST-01` test method with 3 new bool fields.
 
----
+```csharp
+[TestMethod]
+public void AppSettings_JsonRoundTrip_AllFieldsMatch()
+{
+    var original = new AppSettings
+    {
+        // ... existing 30 fields
+        GhostOverrideUseCtrl = true,
+        GhostOverrideUseAlt = false,
+        GhostOverrideUseShift = true,
+    };
+    // serialize → deserialize → assert all fields match
+}
+```
+
+### 2. Absent-Field Tests
+**Pattern:** Clone v2.5 `STEST-02` pattern for init-property defaults.
+
+```csharp
+[TestMethod]
+public void AppSettings_Deserialize_AbsentGhostOverrideUseCtrl_DefaultsTrue()
+{
+    var json = "{ \"Left\": 100, \"Top\": 50 }";
+    var settings = JsonSerializer.Deserialize<AppSettings>(json);
+    Assert.IsTrue(settings.GhostOverrideUseCtrl); // Init default
+}
+```
+
+**Expected test additions:** +4 tests (1 round-trip extension, 3 absent-field tests for Ctrl/Alt/Shift)
+
+**Why:** Validates backward compatibility for users upgrading from v4.2 with old settings.json.
+
+## Installation
+
+**No installation steps required.** All capabilities already present in the v4.2 codebase.
+
+## Version Pins
+
+| Dependency | Current Pin | Note |
+|-----------|-------------|------|
+| .NET SDK | 10.0 | TFM: net10.0-windows |
+| MSTest | 4.0.1 | NuGet package in test projects |
+| System.Text.Json | in-box | No explicit version (ships with .NET 10) |
+
+**No version changes needed for v4.3.**
 
 ## Sources
 
-All sources are the current codebase — verified by direct file inspection on 2026-03-23.
+- **PROJECT.md** — Local repository context (v4.2 baseline, existing patterns)
+- **Win32 Virtual Key Codes** — Microsoft Learn documentation (VK_LCONTROL/VK_LMENU/VK_LSHIFT constants)
+- **GetAsyncKeyState** — Win32 API reference (bitmask 0x8000 for key-down state)
 
-- `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — segment rendering, colon dot logic, no `IsLit` DP confirmed
-- `FuzzyClock.App/Controls/LcdClockView.xaml.cs` — 1s DispatcherTimer, `UpdateTime()` always-lit colon confirmed
-- `FuzzyClock.App/Controls/LcdClockView.xaml` — 8 digit slot XAML structure confirmed
-- `FuzzyClock.Core/SevenSegmentEncoder.cs` — bitmask table confirmed; colon sentinel 0x80 confirmed
-- `FuzzyClock.App/LcdTimeFormatHelper.cs` — `FormatTime()` signature and 12/24hr logic confirmed
-- `FuzzyClock.App/LcdSize.cs` — `Small=32, Medium=48, Large=64` confirmed
-- `FuzzyClock.App/ClockType.cs` — `Phrase/Dial/Lcd/Nixie` confirmed complete
-- `FuzzyClock.App/AppSettings.cs` — LCD fields present; `LcdSize` absent from persistence confirmed
-- `FuzzyClock.App/SettingsSnapshot.cs` — LCD fields present confirmed
-- `FuzzyClock.App/SettingsWindow.xaml` — 3-button rail (no `BtnLcd`) confirmed; no LCD face controls confirmed
-- `FuzzyClock.App/SettingsWindow.xaml.cs` — LCD event declarations present; no handlers; `CmbPhraseStyle` disabled for `"ja"` locale confirmed
-- `FuzzyClock.App/MainWindow.xaml.cs` — LCD event subscriptions wired in `OpenSettings()`; `SetPhraseStyle()` English-only guard confirmed
-- `FuzzyClock.Core/PhraseEngine.cs` — `["ja"]` only; no `ja-terse/poetic/rude` entries confirmed
-- `FuzzyClock.Core/JapanesePhraseProvider.cs` — `{h}`/`{h1}` template pattern; 12 buckets confirmed
-- `FuzzyClock.Core/IPhraseProvider.cs` — interface signature confirmed stable
-- `.planning/PROJECT.md` — v3.9 requirements LCD-01 through LCD-04, JA-01 through JA-03 confirmed
+## Confidence Assessment
 
----
-*Stack research for: FuzzyStatsClock v3.9 — LCD Clock + Japanese Styles*
-*Researched: 2026-03-23*
+**HIGH confidence** — All required capabilities are already validated in production code:
+- WPF CheckBox controls used in 3 prior tabs
+- Win32 `GetAsyncKeyState` used since v2.3 (phases 26-27) with zero issues
+- `AppSettings` init-property pattern used across 30+ fields with atomic persistence
+
+**Zero research gaps.** No external libraries, no version upgrades, no new P/Invoke signatures.

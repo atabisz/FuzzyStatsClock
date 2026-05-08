@@ -22,6 +22,9 @@ public sealed partial class SettingsWindow : Window
     // ── Per-setting events ────────────────────────────────────────────────
     public event Action<Color>?  AccentColorChanged;
     public event Action<double>? OpacityChanged;
+
+    // Direct callback for opacity (fallback if event doesn't work)
+    public Action<double>? OpacityCallback { get; set; }
     public event Action<int>?    FontSizeChanged;
     public event Action<ClockType>? ClockTypeChanged;
     public event Action<bool>?   LcdUse24HrChanged;
@@ -38,20 +41,30 @@ public sealed partial class SettingsWindow : Window
     public event Action<bool>?   PagVisibleChanged;
     public event Action<bool>?   BatteryVisibleChanged;
     public event Action<bool>?   UptimeVisibleChanged;
-    public event Action<int>?    StatsIntervalChanged;
+    public event Action<double>? StatsIntervalChanged;
     public event Action<double>? ProcessThresholdChanged;
     public event Action<bool>?   ShowDateChanged;
     public event Action<string>? DateFormatChanged;
     public event Action<bool>?   GhostModeChanged;
     public event Action<bool>?   AutoContrastChanged;
     public event Action<bool>?   AutoLaunchChanged;
-    public event Action<string>? ThemeSelected;
     public event Action<int>?    BatteryAlertThresholdChanged;
     public event Action<string>? LanguageChanged;
     public event Action<bool>?   PhraseWrapEnabledChanged;
     public event Action<string>? PhraseWrapStyleChanged;
-    public event Action<bool>?   BackdropAlwaysVisibleChanged;
-    public event Action<int>?    BackdropOpacityPercentChanged;
+    public event Action<int>?    GhostFadeRadiusPxChanged;
+
+    // v4.2 Phase 78 — Temps tab events (5 bool toggles)
+    public event Action<bool>?   TempsLineVisibleChanged;
+    public event Action<bool>?   TempCpuVisibleChanged;
+    public event Action<bool>?   TempGpuVisibleChanged;
+    public event Action<bool>?   TempMoboVisibleChanged;
+    public event Action<bool>?   TempNvmeVisibleChanged;
+
+    // v4.3 Phase 82 — Ghost override modifier configuration
+    public event Action<bool>?   UseCtrlChanged;
+    public event Action<bool>?   UseAltChanged;
+    public event Action<bool>?   UseShiftChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -59,7 +72,7 @@ public sealed partial class SettingsWindow : Window
         _suppressEvents = true;
         InitializeComponent();
 
-        // Restore within-session position
+        // Restore within-session position with monitor validation
         if (!double.IsNaN(_savedLeft))
         {
             WindowStartupLocation = WindowStartupLocation.Manual;
@@ -70,10 +83,53 @@ public sealed partial class SettingsWindow : Window
         PopulateControls(snapshot);
         _suppressEvents = false;
 
+        // After first layout pass, validate position is on a connected monitor
+        ContentRendered += (_, _) =>
+        {
+            if (!double.IsNaN(_savedLeft))
+            {
+                // Check if saved position is still visible on any connected screen
+                var screens = System.Windows.Forms.Screen.AllScreens;
+                bool isVisible = false;
+                foreach (var screen in screens)
+                {
+                    var bounds = screen.WorkingArea;
+                    // Check if window center is within this screen's bounds
+                    double centerX = Left + ActualWidth / 2;
+                    double centerY = Top + ActualHeight / 2;
+                    if (centerX >= bounds.Left && centerX <= bounds.Right &&
+                        centerY >= bounds.Top && centerY <= bounds.Bottom)
+                    {
+                        isVisible = true;
+                        break;
+                    }
+                }
+
+                // If off-screen, re-center on primary screen
+                if (!isVisible)
+                {
+                    var primary = System.Windows.Forms.Screen.PrimaryScreen!;
+                    var wa = primary.WorkingArea;
+                    Left = wa.Left + (wa.Width - ActualWidth) / 2;
+                    Top = wa.Top + (wa.Height - ActualHeight) / 2;
+                    // Update saved position so it doesn't keep trying the bad position
+                    _savedLeft = Left;
+                    _savedTop = Top;
+                }
+            }
+        };
+
         Closing += (_, _) => { _savedLeft = Left; _savedTop = Top; };
     }
 
     // ── Populate ──────────────────────────────────────────────────────────
+    internal void RefreshControls(SettingsSnapshot s)
+    {
+        _suppressEvents = true;
+        PopulateControls(s);
+        _suppressEvents = false;
+    }
+
     private void PopulateControls(SettingsSnapshot s)
     {
         // Opacity
@@ -99,15 +155,23 @@ public sealed partial class SettingsWindow : Window
             _    => 0,  // "auto" or unrecognized
         };
 
-        // Phrase style combo — enable for explicit English or explicit Japanese selection (D-07)
-        CmbPhraseStyle.IsEnabled = s.PhraseLocale is "en" or "ja"
-                                    || (s.PhraseLocale == "auto" && !nonEnglishActive);
+        // Style variants exist for English and Japanese only
+        bool isStyleSupported = s.PhraseLocale == "ja"
+            || s.PhraseLocale == "en"
+            || (s.PhraseLocale == "auto" && !nonEnglishActive);
+        CmbPhraseStyle.IsEnabled = isStyleSupported;
         CmbPhraseStyle.SelectedIndex = s.PhraseStyle switch
         {
-            "Terse"  => 1,
-            "Poetic" => 2,
-            "Rude"   => 3,
-            _        => 0,
+            "Terse"       => 1,
+            "Poetic"      => 2,
+            "Rude"        => 3,
+            "Jive"        => 4,
+            "Pirate"      => 5,
+            "Dwarf"       => 6,
+            "ValleyGirl"  => 7,
+            "Yoda"        => 8,
+            "Shakespeare" => 9,
+            _             => 0,
         };
 
         // Stats checkboxes
@@ -119,13 +183,9 @@ public sealed partial class SettingsWindow : Window
         ChkBattVisible.IsChecked   = s.BatteryVisible;
         ChkUptimeVisible.IsChecked = s.UptimeVisible;
 
-        // Update interval combo (0=1s, 1=3s, 2=10s)
-        CmbStatsInterval.SelectedIndex = s.StatsIntervalSeconds switch
-        {
-            1  => 0,
-            10 => 2,
-            _  => 1   // 3 seconds default
-        };
+        // Update interval slider
+        StatsIntervalSlider.Value = s.StatsIntervalSeconds;
+        StatsIntervalLabel.Text = $"{s.StatsIntervalSeconds:F1}s";
 
         // Process threshold radio buttons
         RbThresh2.IsChecked  = s.ProcessCountThreshold == 2.0;
@@ -146,6 +206,15 @@ public sealed partial class SettingsWindow : Window
 
         // Behavior checkboxes
         ChkGhostMode.IsChecked    = s.GhostModeEnabled;
+        GhostFadeRadiusSlider.Value    = s.GhostFadeRadiusPx;
+        GhostFadeRadiusLabel.Text      = $"{s.GhostFadeRadiusPx} px";
+        GhostFadeRadiusPanel.IsEnabled = s.GhostModeEnabled;
+
+        // v4.3 Phase 82 — Ghost override modifier checkboxes
+        ChkUseCtrl.IsChecked  = s.UseCtrl;
+        ChkUseAlt.IsChecked   = s.UseAlt;
+        ChkUseShift.IsChecked = s.UseShift;
+        GhostOverridePanel.IsEnabled = s.GhostModeEnabled;   // master gates sub-panel (site 1/2)
         ChkAutoContrast.IsChecked = s.AutoContrastEnabled;
         ChkAutoLaunch.IsChecked   = s.AutoLaunchEnabled;
 
@@ -166,14 +235,14 @@ public sealed partial class SettingsWindow : Window
         ChkShowHourNumbers.IsChecked = s.ShowHourNumbers;
 
         // LCD options
-        ChkLcdUse24Hr.IsChecked     = s.LcdUse24Hr;
+        ChkLcd24Hr.IsChecked        = s.LcdUse24Hr;
         ChkLcdShowSeconds.IsChecked = s.LcdShowSeconds;
-        CmbLcdStyle.SelectedIndex   = s.LcdStyle switch { "Paper" => 1, "Silver" => 2, _ => 0 };
-
-        // Backdrop controls
-        BackdropOpacitySlider.Value = s.BackdropOpacityPercent;
-        BackdropOpacityLabel.Text = $"{s.BackdropOpacityPercent}%";
-        ChkBackdropAlwaysVisible.IsChecked = s.BackdropAlwaysVisible;
+        CmbLcdStyle.SelectedIndex   = s.LcdStyle switch
+        {
+            "Paper"  => 1,
+            "Silver" => 2,
+            _        => 0,   // "Dark" is default
+        };
 
         // Accent swatch selection ring
         var ac = s.AccentColor;
@@ -185,20 +254,49 @@ public sealed partial class SettingsWindow : Window
             ac == Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4) ? RingPink   : null;
         SetActiveSwatch(ring);
 
-        // Restore active theme card ring (null = no theme active → no ring shown)
-        if (s.ActiveTheme is not null)
+        // ── v4.2 Phase 78 — Temps tab controls + N/A evaluation ──
+        // Order: IsChecked FIRST (stored value is authoritative per D-06),
+        // then IsEnabled/Content per N/A rules (D-01/D-02/D-07),
+        // then TempSensorsPanel.IsEnabled cascade (D-04).
+        ChkTempsVisible.IsChecked    = s.TempsLineVisible;
+        ChkTempCpuVisible.IsChecked  = s.TempCpuVisible;
+        ChkTempGpuVisible.IsChecked  = s.TempGpuVisible;
+        ChkTempMoboVisible.IsChecked = s.TempMoboVisible;
+        ChkTempNvmeVisible.IsChecked = s.TempNvmeVisible;
+
+        // N/A detection per UI-SPEC State Matrix.
+        // D-02: pre-IsReady (cold start up to 5s) — treat all as available (no suffix, enabled).
+        // Post-IsReady: -1f sentinel → disabled + " (N/A)" suffix; ≥0f → enabled + plain label.
+        ApplyTempCheckboxNaState(ChkTempCpuVisible,  "CPU",  s.CpuTempC,  s.TempsServiceReady);
+        ApplyTempCheckboxNaState(ChkTempGpuVisible,  "GPU",  s.GpuTempC,  s.TempsServiceReady);
+        ApplyTempCheckboxNaState(ChkTempMoboVisible, "Mobo", s.MoboTempC, s.TempsServiceReady);
+        ApplyTempCheckboxNaState(ChkTempNvmeVisible, "NVMe", s.NvmeTempC, s.TempsServiceReady);
+
+        // D-04 master-gates-sub-panel (mirrors ChkGhostMode → GhostFadeRadiusPanel precedent).
+        TempSensorsPanel.IsEnabled = s.TempsLineVisible;
+    }
+
+    // v4.2 Phase 78 — N/A evaluation per UI-SPEC state matrix row 3/4/5.
+    // Pre-IsReady: optimistic — enabled, plain label (D-02).
+    // Post-IsReady + sentinel: disabled + " (N/A)" suffix (D-01/D-07).
+    // Post-IsReady + real value: enabled, plain label.
+    private static void ApplyTempCheckboxNaState(System.Windows.Controls.CheckBox checkbox, string label, float tempC, bool isReady)
+    {
+        if (!isReady)
         {
-            Border? themeRing = s.ActiveTheme switch
-            {
-                "Midnight" => RingThemeMidnight,
-                "Neon"     => RingThemeNeon,
-                "Ghost"    => RingThemeGhost,
-                "Warm"     => RingThemeWarm,
-                "Terminal" => RingThemeTerminal,
-                _          => null,
-            };
-            Color accent = BuiltInThemes.TryGet(s.ActiveTheme)?.AccentColor ?? default;
-            SetActiveThemeCard(themeRing, accent);
+            checkbox.IsEnabled = true;
+            checkbox.Content   = label;
+            return;
+        }
+        if (tempC < 0f)
+        {
+            checkbox.IsEnabled = false;
+            checkbox.Content   = label + " (N/A)";
+        }
+        else
+        {
+            checkbox.IsEnabled = true;
+            checkbox.Content   = label;
         }
     }
 
@@ -243,74 +341,6 @@ public sealed partial class SettingsWindow : Window
             activeRing.BorderThickness = new Thickness(2);
             activeRing.BorderBrush     = blue;
         }
-    }
-
-    private void SetActiveThemeCard(Border? activeRing, Color ringColor)
-    {
-        var rings = new[] { RingThemeMidnight, RingThemeNeon, RingThemeGhost,
-                            RingThemeWarm, RingThemeTerminal };
-        foreach (var r in rings)
-        {
-            r.BorderThickness = new Thickness(0);
-            r.BorderBrush     = null;
-        }
-        if (activeRing is not null)
-        {
-            activeRing.BorderThickness = new Thickness(2);
-            activeRing.BorderBrush     = new SolidColorBrush(ringColor);
-        }
-    }
-
-    /// <summary>Removes the active ring from all theme cards. Called by MainWindow when user deviates from a named theme.</summary>
-    public void ClearActiveThemeCard() => SetActiveThemeCard(null, default);
-
-    /// <summary>Re-populates all controls from a fresh snapshot. Called by MainWindow after applying a named theme.</summary>
-    internal void RefreshControls(SettingsSnapshot snapshot)
-    {
-        _suppressEvents = true;
-        PopulateControls(snapshot);
-        _suppressEvents = false;
-    }
-
-    // ── Theme card click handlers ─────────────────────────────────────────
-    private void ThemeMidnight_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetActiveThemeCard(RingThemeMidnight,
-            Color.FromArgb(0xFF, 0x6A, 0x7F, 0xDB));
-        ThemeSelected?.Invoke("Midnight");
-    }
-
-    private void ThemeNeon_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetActiveThemeCard(RingThemeNeon,
-            Color.FromArgb(0xFF, 0x00, 0xF5, 0xD4));
-        ThemeSelected?.Invoke("Neon");
-    }
-
-    private void ThemeGhost_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetActiveThemeCard(RingThemeGhost,
-            Color.FromArgb(0xFF, 0xC0, 0xC8, 0xD8));
-        ThemeSelected?.Invoke("Ghost");
-    }
-
-    private void ThemeWarm_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetActiveThemeCard(RingThemeWarm,
-            Color.FromArgb(0xFF, 0xF4, 0xA2, 0x61));
-        ThemeSelected?.Invoke("Warm");
-    }
-
-    private void ThemeTerminal_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (_suppressEvents) return;
-        SetActiveThemeCard(RingThemeTerminal,
-            Color.FromArgb(0xFF, 0x39, 0xFF, 0x14));
-        ThemeSelected?.Invoke("Terminal");
     }
 
     // ── Accent color swatches ─────────────────────────────────────────────
@@ -375,6 +405,7 @@ public sealed partial class SettingsWindow : Window
         double v = Math.Round(e.NewValue, 2);
         OpacityLabel.Text = $"{(int)(v * 100)}%";
         OpacityChanged?.Invoke(v);
+        OpacityCallback?.Invoke(v);
     }
 
     // ── Font size buttons ─────────────────────────────────────────────────
@@ -435,26 +466,6 @@ public sealed partial class SettingsWindow : Window
         ClockTypeChanged?.Invoke(ClockType.Lcd);
     }
 
-    // ── LCD option controls ────────────────────────────────────────────────
-    private void ChkLcdUse24Hr_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        LcdUse24HrChanged?.Invoke(ChkLcdUse24Hr.IsChecked == true);
-    }
-
-    private void ChkLcdShowSeconds_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        LcdShowSecondsChanged?.Invoke(ChkLcdShowSeconds.IsChecked == true);
-    }
-
-    private void CmbLcdStyle_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_suppressEvents) return;
-        if (CmbLcdStyle.SelectedItem is ComboBoxItem item)
-            LcdStyleChanged?.Invoke((string)item.Content);
-    }
-
     // ── Phrase style combo ────────────────────────────────────────────────
     private void CmbPhraseStyle_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -471,8 +482,8 @@ public sealed partial class SettingsWindow : Window
         {
             string locale = (string)item.Tag;
             LanguageChanged?.Invoke(locale);
-            // Enable phrase style combo for English or explicit Japanese; disable for others and auto
-            CmbPhraseStyle.IsEnabled = locale is "en" or "ja";
+            bool isStyleSupported = locale is "en" or "ja" or "auto";
+            CmbPhraseStyle.IsEnabled = isStyleSupported;
         }
     }
 
@@ -519,13 +530,13 @@ public sealed partial class SettingsWindow : Window
         UptimeVisibleChanged?.Invoke(ChkUptimeVisible.IsChecked == true);
     }
 
-    // ── Stats interval combo ──────────────────────────────────────────────
-    private void CmbStatsInterval_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    // ── Stats interval slider ──────────────────────────────────────────────
+    private void StatsIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_suppressEvents) return;
-        int[] intervals = [1, 3, 10];
-        if (CmbStatsInterval.SelectedIndex >= 0 && CmbStatsInterval.SelectedIndex < intervals.Length)
-            StatsIntervalChanged?.Invoke(intervals[CmbStatsInterval.SelectedIndex]);
+        var val = Math.Round(e.NewValue, 1);
+        StatsIntervalLabel.Text = $"{val:F1}s";
+        StatsIntervalChanged?.Invoke(val);
     }
 
     // ── Process threshold radio buttons ───────────────────────────────────
@@ -585,7 +596,10 @@ public sealed partial class SettingsWindow : Window
     private void ChkGhostMode_Changed(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        GhostModeChanged?.Invoke(ChkGhostMode.IsChecked == true);
+        bool enabled = ChkGhostMode.IsChecked == true;
+        GhostFadeRadiusPanel.IsEnabled = enabled;
+        GhostOverridePanel.IsEnabled = enabled;      // Phase 82 — gate modifier sub-panel (site 2/2)
+        GhostModeChanged?.Invoke(enabled);
     }
 
     private void ChkAutoContrast_Changed(object sender, RoutedEventArgs e)
@@ -598,6 +612,25 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         AutoLaunchChanged?.Invoke(ChkAutoLaunch.IsChecked == true);
+    }
+
+    // ── Ghost override modifiers ───────────────────────────────────────────
+    private void ChkUseCtrl_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        UseCtrlChanged?.Invoke(ChkUseCtrl.IsChecked == true);
+    }
+
+    private void ChkUseAlt_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        UseAltChanged?.Invoke(ChkUseAlt.IsChecked == true);
+    }
+
+    private void ChkUseShift_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        UseShiftChanged?.Invoke(ChkUseShift.IsChecked == true);
     }
 
     // ── Phrase wrap controls ───────────────────────────────────────────────
@@ -640,19 +673,65 @@ public sealed partial class SettingsWindow : Window
         ShowHourNumbersChanged?.Invoke(ChkShowHourNumbers.IsChecked == true);
     }
 
-    // ── Backdrop controls ─────────────────────────────────────────────────
-    private void ChkBackdropAlwaysVisible_Changed(object sender, RoutedEventArgs e)
+    // ── LCD options ───────────────────────────────────────────────────────
+    private void ChkLcd24Hr_Changed(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        BackdropAlwaysVisibleChanged?.Invoke(ChkBackdropAlwaysVisible.IsChecked == true);
+        LcdUse24HrChanged?.Invoke(ChkLcd24Hr.IsChecked == true);
     }
 
-    private void BackdropOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void ChkLcdShowSeconds_Changed(object sender, RoutedEventArgs e)
     {
         if (_suppressEvents) return;
-        var val = (int)BackdropOpacitySlider.Value;
-        BackdropOpacityLabel.Text = $"{val}%";
-        BackdropOpacityPercentChanged?.Invoke(val);
+        LcdShowSecondsChanged?.Invoke(ChkLcdShowSeconds.IsChecked == true);
+    }
+
+    private void CmbLcdStyle_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        if (CmbLcdStyle.SelectedItem is ComboBoxItem item)
+            LcdStyleChanged?.Invoke((string)item.Content);
+    }
+
+    private void GhostFadeRadiusSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressEvents) return;
+        var val = (int)GhostFadeRadiusSlider.Value;
+        GhostFadeRadiusLabel.Text = $"{val} px";
+        GhostFadeRadiusPxChanged?.Invoke(val);
+    }
+
+    // ── v4.2 Phase 78 — Temps tab handlers ──
+    private void ChkTempsVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        bool enabled = ChkTempsVisible.IsChecked == true;
+        TempSensorsPanel.IsEnabled = enabled;   // D-04 master gates sub-panel (mirrors ChkGhostMode_Changed)
+        TempsLineVisibleChanged?.Invoke(enabled);
+    }
+
+    private void ChkTempCpuVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        TempCpuVisibleChanged?.Invoke(ChkTempCpuVisible.IsChecked == true);
+    }
+
+    private void ChkTempGpuVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        TempGpuVisibleChanged?.Invoke(ChkTempGpuVisible.IsChecked == true);
+    }
+
+    private void ChkTempMoboVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        TempMoboVisibleChanged?.Invoke(ChkTempMoboVisible.IsChecked == true);
+    }
+
+    private void ChkTempNvmeVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        TempNvmeVisibleChanged?.Invoke(ChkTempNvmeVisible.IsChecked == true);
     }
 
     // ── Win32Window adapter for WinForms dialogs ──────────────────────────

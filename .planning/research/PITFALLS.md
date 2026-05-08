@@ -1,341 +1,386 @@
-# Domain Pitfalls
+# Domain Pitfalls: Configurable Modifier Hotkeys in WPF
 
-**Domain:** WPF C# — Adding LCD 7-segment clock style and Japanese phrase style variants (Terse/Poetic/Rude) to existing widget
-**Project:** Fuzzy Clock v3.9
-**Researched:** 2026-03-23
-**Confidence:** HIGH — all pitfalls derived from direct source audit of MainWindow.xaml.cs, SettingsWindow.xaml.cs, SettingsWindow.xaml, AppSettings.cs, SettingsSnapshot.cs, LcdClockView.xaml.cs, SevenSegmentDigit.xaml.cs, PhraseEngine.cs, JapanesePhraseProvider.cs, and ClockType.cs
-
----
-
-## State at Start of Milestone
-
-The LCD infrastructure is already substantially built. Key facts established by source audit:
-
-- `ClockType.Lcd` is already a member of the `ClockType` enum (ClockType.cs).
-- `AppSettings` already has `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize` fields with init defaults.
-- `SettingsSnapshot` already has the same four LCD fields.
-- `LcdClockView` and `SevenSegmentDigit` are complete WPF UserControls with their own 1-second `DispatcherTimer` managed via `IsVisibleChanged`.
-- `MainWindow` already handles `ClockType.Lcd` in `ApplySettings`, `SetClockType`, `SaveSettings`, and event subscriptions in `OpenSettings`.
-- `SettingsWindow` already declares and fires `LcdUse24HrChanged`, `LcdShowSecondsChanged`, `LcdStyleChanged` events with wired handlers in MainWindow.
-- **What is NOT yet built:** `BtnLcd` button in `SettingsWindow.xaml`; the LCD options row (24hr/seconds/style controls) in the Settings Appearance tab; LCD visibility gating in `SetClockStyleButtonStates`; Japanese Terse/Poetic/Rude providers; `SetLanguage` routing for `ja-terse`, `ja-poetic`, `ja-rude`.
-
-This context makes the following pitfalls specific and actionable.
-
----
+**Domain:** Adding configurable modifier checkbox UI + dynamic GetAsyncKeyState routing
+**Researched:** 2026-05-07
+**Confidence:** HIGH
 
 ## Critical Pitfalls
 
-Mistakes that cause build failures or silent runtime regressions.
+Mistakes that cause rewrites, regressions, or serious user-facing bugs.
 
 ---
 
-### Pitfall 1: `BtnLcd` Added to XAML But Not to `SetClockStyleButtonStates` — LCD Button Never Shows Selected
+### Pitfall 1: Checkbox State Corruption During PopulateControls
 
-**What goes wrong:** `SetClockStyleButtonStates(ClockType ct)` in SettingsWindow.xaml.cs currently sets `Tag = "selected"` on `BtnPhrase`, `BtnDial`, and `BtnNixie`. When `BtnLcd` is added to the XAML clock style rail, if `SetClockStyleButtonStates` is not updated to include `BtnLcd.Tag = ct == ClockType.Lcd ? "selected" : null`, the LCD button never visually reflects the selected state.
+**What goes wrong:** Modifier checkboxes fire `Changed` events during `PopulateControls()`, triggering persistence writes with stale configuration values before the full snapshot is populated.
 
-**Why it happens:** XAML and code-behind are edited in separate files. Adding the button element does not cause a compile error from the code-behind method omission — `BtnLcd` gets `Tag = null` permanently, making it appear unselected even when LCD is the active clock type.
+**Why it happens:** WPF CheckBox.IsChecked is a dependency property — setting it from code-behind fires the `Checked`/`Unchecked` events. The existing `_suppressEvents` guard pattern prevents this, but forgetting to check it in the new modifier handlers corrupts state.
 
-**Consequences:** Visual bug — LCD is active but Phrase/Dial/Nixie buttons show as selected, or none do. `PopulateControls` also calls `SetClockStyleButtonStates(s.ClockType)`, so opening Settings while LCD is active will also show the wrong button highlighted.
+**Consequences:**
+- Settings.json writes partial configuration (e.g., only `UseCtrl=true` written, `UseAlt`/`UseShift` reverted to false)
+- Causes user-configured combo to reset on next Settings window open
+- AppSettings JSON has correct persisted values, but SettingsWindow handlers overwrite them
 
-**Prevention:** Update `SetClockStyleButtonStates` in the same commit as the XAML button addition. The complete required body after this change:
-
+**Prevention:**
 ```csharp
-BtnPhrase.Tag = ct == ClockType.Phrase ? "selected" : null;
-BtnDial.Tag   = ct == ClockType.Dial   ? "selected" : null;
-BtnNixie.Tag  = ct == ClockType.Nixie  ? "selected" : null;
-BtnLcd.Tag    = ct == ClockType.Lcd    ? "selected" : null;
-```
-
-**Detection:** Select LCD via tray → open Settings. The LCD button must be highlighted. If it is not, `SetClockStyleButtonStates` was not updated.
-
-**Phase:** LCD Settings UI wiring phase (first phase of the milestone).
-
----
-
-### Pitfall 2: LCD Options Row Not Gated on `ClockType.Lcd` — Controls Visible in Wrong Clock Mode
-
-**What goes wrong:** The Dial Face row uses the pattern: `DialFaceLabel.Visibility` and `DialFacePanel.Visibility` are gated to `Visibility.Visible` only when `ct == ClockType.Dial` inside `SetClockStyleButtonStates`. If the LCD options row (24hr toggle, show-seconds toggle, style selector) is added to the Settings XAML without a parallel gating block in `SetClockStyleButtonStates`, the LCD controls will be visible regardless of the active clock type.
-
-**Why it happens:** The gating pattern for the Dial Face row is in `SetClockStyleButtonStates` but is easy to miss when adding a new clock-type-specific row, especially if the developer adds the XAML first and the gating second.
-
-**Consequences:** LCD-specific controls clutter the Settings window when the user is in Phrase/Dial/Nixie mode. Controls are visible and interactive even though changing them has no visible effect (the LCD view is hidden). Misleading UX.
-
-**Prevention:** Extend `SetClockStyleButtonStates` to include LCD row gating in the same pass as the Dial Face gating. Name the label and panel elements consistently (e.g., `LcdOptionsLabel`, `LcdOptionsPanel`) and set their `Visibility` using the `ct == ClockType.Lcd` condition.
-
-**Detection:** Select Phrase mode → open Settings. The LCD options row must be `Collapsed`. Select LCD mode → open Settings. The LCD options row must be `Visible`.
-
-**Phase:** LCD Settings UI wiring phase.
-
----
-
-### Pitfall 3: `BtnLcd_Click` Fires `ClockTypeChanged` But `SetClockStyleButtonStates` Inside the Handler Only Updates Three Buttons
-
-**What goes wrong:** The click handler pattern for `BtnPhrase_Click`, `BtnDial_Click`, `BtnNixie_Click` is:
-
-```csharp
-private void BtnXxx_Click(object sender, RoutedEventArgs e)
+// MANDATORY pattern in every new checkbox Changed handler
+private void ChkGhostModCtrl_Changed(object sender, RoutedEventArgs e)
 {
-    if (_suppressEvents) return;
-    SetClockStyleButtonStates(ClockType.Xxx);
-    ClockTypeChanged?.Invoke(ClockType.Xxx);
+    if (_suppressEvents) return;  // <-- MUST be first line
+    GhostModifierCtrlChanged?.Invoke(ChkGhostModCtrl.IsChecked == true);
 }
 ```
 
-If `BtnLcd_Click` is added but `SetClockStyleButtonStates` has not yet been updated to include `BtnLcd.Tag`, the LCD button click fires correctly through `ClockTypeChanged` (activating LCD in the widget) but the Settings button row still shows the previous button as selected.
+**Detection:** Unit test that calls `PopulateControls(snapshot)` twice with different values and verifies final persisted state matches the second snapshot, not a hybrid.
 
-**Why it happens:** `BtnLcd_Click` calls `SetClockStyleButtonStates(ClockType.Lcd)` internally. If that method only sets three tags, the LCD button's own tag is not set.
-
-**Consequences:** The correct clock type is activated (widget switches to LCD) but the Settings window shows an inconsistent button selection state.
-
-**Prevention:** This is prevented by fixing Pitfall 1 first. `SetClockStyleButtonStates` must include all four buttons before `BtnLcd_Click` is wired.
-
-**Phase:** LCD Settings UI wiring phase.
+**Phase assignment:** Validate in settings UI phase, test in integration verification.
 
 ---
 
-### Pitfall 4: Japanese Style Providers Registered Under Keys That Don't Match `SetLanguage` Routing
+### Pitfall 2: VK Code Mapping Mismatch Between UI and Runtime
 
-**What goes wrong:** `PhraseEngine._providers` currently routes Japanese as `"ja"` → `JapanesePhraseProvider`. The new providers must be registered under keys that `SetLanguage` will compute, e.g., `"ja-terse"`, `"ja-poetic"`, `"ja-rude"`. If the registration keys don't match what `SetLanguage` produces, `PhraseEngine.SetLocale` returns `false` silently and the engine stays on the previously active provider.
+**What goes wrong:** Checkbox state maps to AppSettings bools (`UseCtrl`, `UseAlt`, `UseShift`), but runtime `IsCtrlAltHeld()` logic maps to different VK codes than the UI implies.
 
-**Why it happens:** `PhraseEngine.SetLocale` returns a bool but the callers (`SetLanguage`, `ApplySettings`) do not check the return value. A key mismatch is a silent no-op.
+**Why it happens:** Three sources of truth diverge:
+1. **UI labels** — "Ctrl", "Alt", "Shift" suggest left-or-right keys
+2. **AppSettings field names** — `UseCtrl` ambiguous (left-only? both?)
+3. **Runtime VK checks** — hardcoded `VK_LCONTROL`/`VK_LMENU` (left-only) in existing code
 
-**Consequences:** Selecting Japanese + Poetic in Settings fires the event, the field is saved as `"Poetic"`, but the phrase display stays on plain Japanese Classic because the locale key lookup failed.
+**Consequences:**
+- User enables "Ctrl" checkbox expecting left+right Ctrl to work; only left Ctrl works
+- User tests with right Alt (RMenu) on EU keyboard; override fails silently
+- GitHub issue: "Shift doesn't work" — user holds right Shift, code checks left Shift
 
-**Prevention:** Define the keys in PhraseEngine first, then use those exact string literals in `SetLanguage`'s routing switch. The routing logic for Japanese must parallel the English routing:
+**Prevention:**
+- **Canonical decision:** Preserve existing left-only behavior (`VK_LCONTROL=0xA2`, `VK_LMENU=0xA4`, `VK_LSHIFT=0xA0`)
+- **UI precision:** Checkbox labels must say "Left Ctrl", "Left Alt", "Left Shift" (not "Ctrl", "Alt", "Shift")
+- **Comment documentation:** AppSettings fields documented as left-only in triple-slash comments
+- **Help text:** Settings UI includes "Left-side modifier keys only" help TextBlock below checkboxes
 
-```
-locale == "ja", PhraseStyle == "Terse"  → "ja-terse"
-locale == "ja", PhraseStyle == "Poetic" → "ja-poetic"
-locale == "ja", PhraseStyle == "Rude"   → "ja-rude"
-locale == "ja", default                 → "ja"
-```
+**Detection:** Human verification checklist item: "Hold right Shift → confirm override does NOT activate".
 
-Register exactly those keys in `_providers`.
-
-**Detection:** Set language to Japanese, set style to Terse → phrase must change from the Classic Japanese output. If it does not change, the key lookup failed. Check `PhraseEngine.CurrentLocale` — it must equal `"ja-terse"` not `"ja"`.
-
-**Phase:** Japanese providers phase.
-
----
-
-### Pitfall 5: `SetLanguage` Routes `"ja"` to a Single Provider, Ignoring `_currentPhraseStyle` — Style × Locale Routing Gap
-
-**What goes wrong:** `SetLanguage("ja")` currently resolves to `effectiveLocale = "ja"` unconditionally. This is correct for v3.8 (no Japanese styles exist). In v3.9, if the user has `PhraseStyle = "Terse"` and switches to Japanese, `SetLanguage` must incorporate `_currentPhraseStyle` into the locale key computation, exactly as it already does for `locale == "en"`.
-
-Looking at the actual code, `SetLanguage` handles `locale == "en"` by checking `_currentPhraseStyle` and mapping to `"en-terse"`, `"en-poetic"`, etc. The `"ja"` branch currently short-circuits before this mapping, assigning `effectiveLocale = locale` directly.
-
-**Why it happens:** The English style routing in `SetLanguage` is a `locale == "en"` branch. Non-English locales (`"fr"`, `"es"`, `"de"`, `"ja"`, `"pl"`) are handled by a single `if (locale is "fr" or ...)` branch that assigns `effectiveLocale = locale` without considering style.
-
-**Consequences:** A user with `PhraseStyle = "Terse"` who switches from English to Japanese will get plain Japanese Classic, not Japanese Terse. The style combo becomes visually active (enabled) but has no effect.
-
-**Prevention:** When adding Japanese styles, add a parallel style-mapping block for `locale == "ja"` in `SetLanguage` and in the `ApplySettings` locale resolution block. Both locations contain the same routing logic and must both be updated. A grep for `effectiveLocale` will show all resolution sites.
-
-**Detection:** Set Japanese language, set style to Terse (if enabled for Japanese), verify phrase output is from the Terse provider. Then switch to English, verify English Terse, then back to Japanese Terse — verify state is preserved after the round-trip.
-
-**Phase:** Japanese providers phase.
+**Phase assignment:** Settings UI phase must lock labels as "Left Ctrl" / "Left Alt" / "Left Shift" to prevent requirement scope creep.
 
 ---
 
-### Pitfall 6: `CmbPhraseStyle.IsEnabled` Gate Not Updated for Japanese — Style Combo Stays Disabled
+### Pitfall 3: All-Unchecked = Undefined Behavior
 
-**What goes wrong:** `PopulateControls` in SettingsWindow.xaml.cs currently disables `CmbPhraseStyle` when the active locale is any of `"fr"`, `"es"`, `"de"`, `"ja"`, `"pl"`. In v3.9, Japanese now has its own Terse/Poetic/Rude styles, so `"ja"` must not disable the combo. The same logic exists in `CmbPhraseLanguage_SelectionChanged`.
+**What goes wrong:** User unchecks all three modifier checkboxes. Runtime logic encounters undefined state — does it mean "disabled" or "always active" or "last-known config"?
 
-**Why it happens:** The disable condition was written as a flat list of non-English locales (`locale is "fr" or "es" or "de" or "ja" or "pl"`). When Japanese gets styles, `"ja"` must be removed from this list. There are at minimum two code sites: `PopulateControls` line 103 and `CmbPhraseLanguage_SelectionChanged` line 437.
+**Why it happens:** Three-checkbox UI naturally allows the empty set. Code must decide semantic meaning:
+- **Option A:** All-false = override disabled (ghost always activates, no keyboard bypass)
+- **Option B:** All-false = invalid state (force at least one enabled via UI disable)
+- **Option C:** All-false = falls back to hardcoded Ctrl+Alt default
 
-**Consequences:** The Style combo is grayed out when Japanese is active. User cannot select Japanese Terse/Poetic/Rude from the Settings window even though the providers exist. The tray menu has no style selection path, so this is the only UI entry point.
+**Consequences (if not decided up-front):**
+- Ambiguous requirement → executor implements Option A, user expects Option C
+- Later phase rewrites runtime logic to change semantics → breaking change
+- Or: executor forgets to handle all-false entirely → `IsCtrlAltHeld()` returns false on every call, ghost never activates even without modifiers held
 
-**Prevention:** Before adding Japanese providers, audit both disable sites. Update the condition to exclude `"ja"` from the list. Consider whether other non-English locales (fr/es/de/pl) should eventually support styles and leave a comment.
+**Prevention:**
+- **Lock semantics now:** All-false = override disabled (IsCtrlAltHeld always returns false). Documented as GHOST-OVERRIDE-01 requirement.
+- **UI affordance (optional):** Help text "Uncheck all to disable keyboard override" below checkboxes
+- **Validate() guard:** Not needed — all-false is a valid semantic state, not corruption
+- **Unit test coverage:** Test case `UseCtrl=false, UseAlt=false, UseShift=false → IsCtrlAltHeld() returns false regardless of GetAsyncKeyState`
 
-**Detection:** Set language to Japanese → verify style combo is enabled. Set language to French → verify style combo is disabled.
+**Detection:** Test matrix includes row `[false, false, false] → override inactive`.
 
-**Phase:** Japanese providers phase — must be done before any Japanese style can be selected.
-
----
-
-### Pitfall 7: `ApplySettings` Locale Resolution Block Not Updated to Handle `ja` + Style
-
-**What goes wrong:** `ApplySettings` contains a locale resolution block that duplicates the logic in `SetLanguage` (both are in MainWindow.xaml.cs, approximately lines 330–374). The `"ja"` branch in `ApplySettings` assigns `effectiveLocale = _currentPhraseLocale` without checking `_currentPhraseStyle`. The fix needed in `SetLanguage` (Pitfall 5) is not automatically reflected in `ApplySettings`.
-
-**Why it happens:** The resolution logic is intentionally duplicated: `SetLanguage` runs at runtime when the user changes language; the `ApplySettings` block runs at startup. Both must be kept in sync. The English style mapping is already duplicated in both places across ~20 lines. Adding Japanese style mapping requires updating both places.
-
-**Consequences:** The widget restores correctly to Japanese Terse after restart **only if** the `ApplySettings` block also handles the mapping. If only `SetLanguage` is updated, users who save Japanese Terse, restart the app, and observe Classic Japanese have a silent settings-restoration bug.
-
-**Prevention:** When updating `SetLanguage` for Japanese styles, immediately search for the `ApplySettings` locale resolution block (search for `effectiveLocale` in MainWindow.xaml.cs) and apply the same mapping there. The two blocks should remain structurally identical.
-
-**Detection:** Set language to Japanese + Poetic → save → restart app → verify widget displays Japanese Poetic phrasing, not Classic Japanese. If it shows Classic, `ApplySettings` was not updated.
-
-**Phase:** Japanese providers phase.
+**Phase assignment:** Requirements phase must lock all-false semantics; test phase must verify it.
 
 ---
 
-### Pitfall 8: `_suppressEvents` Guard in `PopulateControls` — Style Combo Content Change While Suppressed Fires Event Anyway
+### Pitfall 4: GetAsyncKeyState Return Value Misread (0x8000 Mask)
 
-**What goes wrong:** `CmbPhraseStyle` items are `ComboBoxItem` elements with `Content` strings (e.g., `"Classic"`, `"Terse"`, `"Poetic"`, `"Rude"`). If v3.9 needs to add Japanese-specific style items (e.g., displaying as `"Casual"` / `"Poetic"` / `"Brusque"` in Japanese locale, if localized labels are desired) by replacing the ComboBoxItem content dynamically during `PopulateControls`, the `_suppressEvents` guard prevents the `SelectionChanged` event from firing — which is correct. But if items are swapped at a time when `_suppressEvents = false`, the selection change during item replacement will fire the event unexpectedly.
+**What goes wrong:** New dynamic logic checks `GetAsyncKeyState(vk) != 0` instead of `(GetAsyncKeyState(vk) & 0x8000) != 0`.
 
-**Why it happens:** `PopulateControls` runs under `_suppressEvents = true`. If item content is swapped in a separate method called outside that guard (e.g., in `CmbPhraseLanguage_SelectionChanged`), the guard is no longer active.
+**Why it happens:** Cargo-culting from WinForms P/Invoke examples that don't explain bit semantics. GetAsyncKeyState returns `short` with two independent signals:
+- **High bit (0x8000):** Key currently pressed right now
+- **Low bit (0x0001):** Key was toggled (pressed-and-released) since last call
 
-**Consequences:** Spurious `PhraseStyleChanged` events with stale or default style values, causing a flicker of the wrong phrase style.
+Checking `!= 0` includes the low bit → false-positive if key was tapped-then-released before hover but is not currently held.
 
-**Prevention:** Keep style combo items as static ComboBoxItem elements. Use only `SelectedIndex` changes within `_suppressEvents` blocks, never dynamic item replacement. Map internal style keys to fixed indices. If Japanese styles need different display labels, use a separate label mechanism rather than mutating ComboBoxItem content at runtime.
+**Consequences:**
+- Ghost override activates when Ctrl *was* tapped 5 seconds ago but is not currently held
+- Intermittent: only triggers if user tapped Ctrl/Alt/Shift earlier in the session
+- Hard to reproduce: requires exact key-press history leading up to hover
 
-**Detection:** Switch language to Japanese — verify the phrase style combo does not fire a `PhraseStyleChanged` event during the language switch. Set a breakpoint or log in the `PhraseStyleChanged` handler.
+**Prevention:**
+- **Existing pattern preservation:** Codebase already uses `& 0x8000` at GhostModeController.cs:184-185
+- **Code review gate:** Every `GetAsyncKeyState(...)` call must have `& 0x8000` mask
+- **Comment on new dynamic check:**
+  ```csharp
+  // High bit (0x8000) = currently pressed; low bit (0x0001) = toggled since last call
+  bool isPressed = (GetAsyncKeyState(vk) & 0x8000) != 0;
+  ```
 
-**Phase:** Japanese providers phase.
+**Detection:** Static analysis — grep for `GetAsyncKeyState.*!= 0` without `& 0x8000`.
+
+**Phase assignment:** Code implementation phase; caught in PR review or pre-commit hook.
+
+---
+
+### Pitfall 5: AltGr False-Positive When User Enables Generic "Alt"
+
+**What goes wrong:** If future scope creep introduces left+right Alt support, using `VK_MENU` (0x12, generic Alt) triggers on AltGr (right Alt) on EU keyboards. AltGr synthesizes `VK_LCONTROL + VK_RMENU` in hardware — `GetAsyncKeyState(VK_MENU)` returns true when user types AltGr+key combo (e.g., `@` on UK layout, `€` on DE layout).
+
+**Why it happens:** Windows keyboard stack maps AltGr → simultaneous left Ctrl + right Alt. Generic VK codes (`VK_CONTROL`, `VK_MENU`) match *either* side. If code checks `VK_LCONTROL & VK_MENU`, AltGr typing triggers both.
+
+**Consequences:**
+- User typing `@` symbol on UK keyboard inadvertently suppresses ghost mode
+- French/German/Polish users report "ghost override activates randomly while typing"
+- GitHub issue closed as "works on my machine" (US keyboard developer cannot reproduce)
+
+**Prevention:**
+- **Locked requirement:** Left-side only (`VK_LCONTROL`, `VK_LMENU`, `VK_LSHIFT`). No generic VK codes.
+- **Checkbox labels enforce:** "Left Ctrl", "Left Alt", "Left Shift" prevent scope creep requests
+- **Validation barrier:** If future milestone adds "Both Sides" UI option, require dedicated research phase on AltGr handling
+
+**Detection:** Human verification on EU keyboard layout (UK, DE, FR, PL) — type AltGr+key combos while hovering → ghost must activate normally, not suppress.
+
+**Phase assignment:** Out-of-scope for v4.3 (locked in requirements); flagged for future milestone if ever requested.
 
 ---
 
 ## Moderate Pitfalls
 
----
-
-### Pitfall 9: LCD Timer (`LcdClockView`) Ghost Mode Interaction — 1s Timer Fires While Widget Is Opacity=0
-
-**What goes wrong:** `LcdClockView` starts its internal 1-second `DispatcherTimer` when `IsVisible == true`. Ghost mode sets `Window.Opacity = 0` and applies `WS_EX_TRANSPARENT`, but does **not** set `LcdView.Visibility = Collapsed`. The timer continues firing, calling `UpdateTime()` every second, including during ghost mode.
-
-**Why it happens:** Ghost mode was designed for the phrase/dial/Nixie display modes where the 10s phrase timer already fires while ghost mode is active with no ill effects. The LCD timer fires 6× more frequently (every second) and performs layout-affecting work (swapping character assignments that trigger canvas redraws). The widget is invisible during ghost mode, so the work is wasted.
-
-**Consequences:** No visual artifact (the widget is invisible). No crash. However, the redraw cost persists during the entire ghost period. On machines with low GPU memory or resource-constrained environments, this is unnecessary overhead. More importantly, if `UpdateTime` has any side effects outside the Canvas (e.g., SizeToContent layout recalculation), it may cause the window size to recalculate while ghost mode is active, potentially interfering with the `GetWindowRect` polling used by `GhostModeController` to detect cursor departure.
-
-**Prevention:** The `ContrastRefreshController` uses a skip condition: `() => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging`. The LCD timer should consult the same condition. The cleanest approach is to add an early-return guard at the top of `LcdClockView.UpdateTime()` — or, since `LcdClockView` does not have access to the ghost mode state, pass a `Func<bool> shouldSkip` predicate into `LcdClockView` that `MainWindow` sets to `() => _ghostMode.IsActive`.
-
-**Detection:** Activate ghost mode → hover over the widget area → confirm via Debug.WriteLine or a tick counter that `UpdateTime` is not called during the ghost period. Given the widget is invisible, this pitfall may not surface as a user-visible bug but is worth addressing for correctness.
-
-**Phase:** LCD widget wiring phase — add the skip predicate when wiring `LcdView` in `ContentRendered`.
+Correctness bugs or poor UX, but recoverable without rewrite.
 
 ---
 
-### Pitfall 10: Blinking Colon — `SevenSegmentDigit` Has No Blink State; Blink Must Be Driven from `LcdClockView`
+### Pitfall 6: Settings Migration Loses User's Existing Ctrl+Alt Preference
 
-**What goes wrong:** `SevenSegmentDigit` with `Character = ':'` always renders the colon dots as lit. There is no blink state in `SevenSegmentDigit`. If the blinking colon feature (LCD-03) is implemented by toggling `Colon1.Character` between `':'` and `' '` at every `_timer.Tick`, the timer already fires every second — the colon will toggle on every second, which is correct for a standard blinking colon (on for 1s, off for 1s). **But** if the implementation mistakenly adds a separate blink timer with a 500ms interval alongside the existing 1s display timer, two timers will run simultaneously.
+**What goes wrong:** Upgrading from v4.2 (hardcoded Ctrl+Alt) to v4.3 (configurable) with no migration path causes one of two failure modes:
+- **Mode A:** User's settings.json is missing `UseCtrl`/`UseAlt`/`UseShift` → fields deserialize as C# bool default `false` → all-false state → override disabled → user cannot suppress ghost with Ctrl+Alt anymore
+- **Mode B:** Init-property defaults set to `UseCtrl=true, UseAlt=true, UseShift=false` → correct default, but no way to distinguish "v4.2 upgrade never saw Settings UI" from "v4.3 user explicitly unchecked Shift"
 
-**Why it happens:** The natural intuition for "blink every half second" is a 500ms timer. But a colon that is on for 1 second and off for 1 second (driven by the existing 1s tick via character toggling) is the correct behaviour and requires no additional timer.
+**Why it happens:** AppSettings is an init-property record. Absent JSON fields take init-property values, not C# type defaults. If init defaults are not set, C# bool default `false` applies.
 
-**Consequences of adding a 500ms timer:** Three concurrent DispatcherTimers in the application (10s phrase timer, stats timer, and 500ms blink timer) — adding unnecessary timer proliferation. The `IsBusyHint` on the WPF Dispatcher increases marginally, and the 500ms timer adds complexity without benefit.
+**Consequences:**
+- v4.2 users upgrade → Ctrl+Alt stops working → "v4.3 broke my workflow"
+- Or: v4.2 user who never opens Settings UI has different effective config than v4.3 fresh install → non-deterministic behavior
 
-**Prevention:** Implement colon blink as a state toggle inside `LcdClockView.UpdateTime()` using a `_colonVisible` bool that flips on each call. No separate timer is needed. Pseudocode:
-
+**Prevention:**
 ```csharp
-_colonVisible = !_colonVisible;
-Colon1.Character = _colonVisible ? ':' : ' ';
-if (ShowSeconds) Colon2.Character = _colonVisible ? ':' : ' ';
+// AppSettings.cs — MANDATORY init-property defaults
+public bool UseCtrl { get; init; } = true;   // v4.2 compat default
+public bool UseAlt  { get; init; } = true;   // v4.2 compat default
+public bool UseShift { get; init; } = false; // v4.2 compat default
 ```
 
-**Detection:** After implementing blink, verify only two timers exist in the process: the 10s phrase timer and the stats timer (plus the LCD view's own 1s timer, which is internal to `LcdClockView`). Grep for `new DispatcherTimer` across all files — the count should not increase from its current state.
+**Validation:** Not needed in `SettingsService.Validate()` — all-false is semantically valid (override disabled). If a corrupted settings.json has `"UseCtrl":"banana"`, System.Text.Json throws during deserialization → caught by outer `try/catch` in `Load()` → falls back to `Defaults()`.
 
-**Phase:** LCD blink implementation phase.
+**Detection:**
+- Unit test: Deserialize v4.2 settings.json (no UseCtrl/UseAlt/UseShift fields) → verify result has `UseCtrl=true, UseAlt=true, UseShift=false`
+- Round-trip test already covers this (STEST-01 pattern)
 
----
-
-### Pitfall 11: `AppSettings` JSON Round-Trip Test Does Not Cover LCD Fields — Silent Regression Risk
-
-**What goes wrong:** `STEST-01` in `SettingsServiceTests.cs` asserts that every `AppSettings` field survives a serialize/deserialize round-trip. `AppSettings` already contains `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize`. If STEST-01 was not updated when these fields were added (audit required), it does not assert them. Any JSON serialization regression on these fields would not be caught by the test suite.
-
-**Why it happens:** Init-property records in C# do not fail the round-trip test when a field is added but not asserted — they simply carry their default value silently.
-
-**Consequences:** A user who saves LCD preferences finds them reset to defaults on next launch, with no test failure surfacing the regression.
-
-**Prevention:** Audit `STEST-01` before the milestone begins. Confirm it asserts `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize`. If absent, add the assertions. Also add absent-field tests for each LCD field: confirm that a `settings.json` without `"LcdUse24Hr"` key deserializes to `false` (the init default).
-
-**Detection:** `dotnet test` passes but user reports LCD preferences not persisting. Absent-field tests would have caught this.
-
-**Phase:** LCD settings persistence phase.
+**Phase assignment:** AppSettings schema phase; validation in test phase.
 
 ---
 
-### Pitfall 12: `SettingsService.Validate()` Has No Guard for `LcdStyle` — Manually Edited `settings.json` Passes Bad Value
+### Pitfall 7: ResetToDefaults() Omits Modifier Fields
 
-**What goes wrong:** `SettingsService.Validate()` currently guards `StatsIntervalSeconds`, `Opacity`, and `AccentColor`. `LcdStyle` is persisted as a string (`"Dark"`, `"Paper"`, `"Silver"`). If a user manually edits `settings.json` to `"LcdStyle": "bogus"`, `ApplyLcdColors()` falls through the `if/else` chain to the `else // "Dark"` branch, applying Dark style silently. This is tolerable but inconsistent — the saved value is bogus but the rendered value is `"Dark"`.
+**What goes wrong:** User clicks "Reset to Defaults" in Settings UI. `ResetToDefaults()` resets accent color, opacity, font size, clock style, stats visibility... but forgets to reset `UseCtrl`/`UseAlt`/`UseShift`. Next open, modifier checkboxes show user's old values, not defaults.
 
-**Prevention:** Add a guard in `Validate()`:
+**Why it happens:** `ResetToDefaults()` in MainWindow.xaml.cs enumerates every AppSettings field explicitly. Adding new fields requires updating this method. Easy to forget during implementation.
 
+**Consequences:**
+- User resets to defaults → expects Ctrl+Alt → sees their custom Shift-only config still active
+- Confusing UX: "Reset to Defaults" is not idempotent
+- Not a data-loss bug (just missed a reset path)
+
+**Prevention:**
 ```csharp
-if (s.LcdStyle is not ("Dark" or "Paper" or "Silver"))
-    s = s with { LcdStyle = "Dark" };
+// MainWindow.xaml.cs ResetToDefaults() — add after GhostFadeRadiusPx reset
+_settings = _settings with
+{
+    // ... existing resets ...
+    GhostFadeRadiusPx = 80,
+    UseCtrl  = true,   // <-- NEW
+    UseAlt   = true,   // <-- NEW
+    UseShift = false,  // <-- NEW
+};
+SaveSettings();
 ```
 
-This follows the existing `AccentColor` guard pattern.
+After persist, call `_settingsWindow?.RefreshControls(GetCurrentSettingsSnapshot())` so checkboxes update immediately if window is open.
 
-**Phase:** LCD settings persistence phase.
+**Detection:**
+- Human verification checklist: Open Settings → set Shift-only → close → Reset to Defaults → reopen Settings → verify Ctrl+Alt checkboxes are on, Shift is off
+- Or: Unit test that calls ResetToDefaults, reads _settings, asserts modifier fields match `Defaults()`
 
----
-
-### Pitfall 13: `GetCurrentSettingsSnapshot()` Must Include `LcdSize` — Verify It Is Already Populated
-
-**What goes wrong:** `GetCurrentSettingsSnapshot()` currently includes `LcdSize = FontSizeToLcdSize(_currentFontSize)`. This was confirmed by source audit (MainWindow.xaml.cs line 419). However, if `LcdSize` were absent, opening the Settings window while LCD is active would populate the size control from the default init value (`LcdSize.Medium`) rather than the actual active size. This pitfall is a reminder to verify the snapshot is complete, not a confirmed gap.
-
-**Prevention:** Before writing any LCD Settings UI code, audit the full snapshot in `GetCurrentSettingsSnapshot()` against every `LcdXxx` field in `SettingsSnapshot`. Run: confirm `LcdUse24Hr = _lcdUse24Hr`, `LcdShowSeconds = _lcdShowSeconds`, `LcdStyle = _lcdStyle`, `LcdSize = FontSizeToLcdSize(_currentFontSize)` are all present.
-
-**Phase:** LCD Settings UI wiring phase.
+**Phase assignment:** Settings UI wiring phase; caught in human-verify or audit phase.
 
 ---
 
-### Pitfall 14: `ResetToDefaults` Does Not Reset LCD Options — Widget Restores to LCD After Reset
+### Pitfall 8: Runtime Modifier Check Does Not Match Persisted State
 
-**What goes wrong:** `ResetToDefaults()` calls `SetClockType(ClockType.Phrase)` (confirmed in MainWindow.xaml.cs line 1202), which correctly resets the clock type. However, `_lcdUse24Hr`, `_lcdShowSeconds`, and `_lcdStyle` are also set in `ResetToDefaults()` (lines 1205–1207). If these lines are absent or if new LCD fields are added during v3.9 without updating `ResetToDefaults`, the reset state will carry stale LCD settings.
+**What goes wrong:** User changes modifier config in Settings UI → event fires → `_settings with { UseCtrl = v }` → `SaveSettings()` → disk updated. BUT `GhostModeController.IsCtrlAltHeld()` is not updated with the new config. Next hover, it still checks the old hardcoded VK codes or a stale config snapshot.
 
-**Prevention:** After adding any new `_lcdXxx` field (e.g., `_lcdSize` if it becomes independently tracked), add its reset line to `ResetToDefaults()` and verify the reset `AppSettings` `with` expression includes the field.
+**Why it happens:** Separation of concerns — MainWindow owns `_settings`, GhostModeController is a separate instance with no direct `_settings` reference. If GhostModeController caches VK codes at construction time and never re-reads config, it becomes stale.
 
-**Detection:** Set LCD mode with 24hr on → tray "Reset to Defaults" → open Settings → switch to LCD → verify 24hr is off (reset to `false` default).
+**Consequences:**
+- User enables Shift-only → Settings window shows Shift checked → SaveSettings writes to disk → hover still requires Ctrl+Alt
+- Only fixed by app restart (when GhostModeController re-initializes from fresh settings.json)
+- Feels like Settings UI is broken
 
-**Phase:** LCD Settings UI wiring phase.
+**Prevention (Architecture Decision Required):**
 
----
-
-### Pitfall 15: `PhraseWrapService.allowNatural` Guard Does Not Account for Japanese Locale
-
-**What goes wrong:** `ApplyPhraseWrap` guards natural pause wrapping with:
-
+**Option A — Pass config to IsCtrlAltHeld on every call:**
 ```csharp
-bool allowNatural = PhraseEngine.CurrentLocale.StartsWith("en-", StringComparison.Ordinal);
+// GhostModeController.cs
+public bool IsCtrlAltHeld(bool useCtrl, bool useAlt, bool useShift)
+{
+    if (!useCtrl && !useAlt && !useShift) return false; // all-false = disabled
+    bool ctrlMatch = !useCtrl || (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
+    bool altMatch  = !useAlt  || (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
+    bool shiftMatch = !useShift || (GetAsyncKeyState(VK_LSHIFT)  & 0x8000) != 0;
+    return ctrlMatch && altMatch && shiftMatch;
+}
+
+// MainWindow.xaml.cs ProximityChanged callback
+bool modHeld = _ghostModeController.IsCtrlAltHeld(
+    _settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
 ```
 
-Japanese phrases (`"ja"`, `"ja-terse"`, `"ja-poetic"`, `"ja-rude"`) use Japanese CJK characters with no space boundaries. `PhraseWrapService.ComputeSplit` uses space-based splitting for natural pause. If a Japanese phrase somehow reaches the wrap path (it is short enough that it normally would not), natural pause wrap on a spaceless string would produce a null split and fall through to midpoint, which splits at a character boundary in the middle of a multi-byte Unicode grapheme cluster.
+**Option B — Reactive config update method on controller:**
+```csharp
+// GhostModeController.cs
+private bool _useCtrl = true;
+private bool _useAlt = true;
+private bool _useShift = false;
 
-**Why it happens:** CJK strings have no spaces. The `allowNatural` guard already prevents this for English-only providers. The new `"ja-"` prefix means the `StartsWith("en-")` guard correctly excludes Japanese — this pitfall is about verifying the guard covers `"ja-"` rather than adding a new guard.
+public void UpdateModifierConfig(bool useCtrl, bool useAlt, bool useShift)
+{
+    _useCtrl = useCtrl;
+    _useAlt = useAlt;
+    _useShift = useShift;
+}
 
-**Prevention:** Confirm by inspection that `StartsWith("en-")` returns `false` for `"ja"`, `"ja-terse"`, `"ja-poetic"`, `"ja-rude"` — it does. No code change needed. Document this as a known invariant in a comment in `ApplyPhraseWrap`.
+// MainWindow event handler
+GhostModifierCtrlChanged += (enabled) =>
+{
+    _settings = _settings with { UseCtrl = enabled };
+    SaveSettings();
+    _ghostModeController.UpdateModifierConfig(
+        _settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+};
+```
 
-**Detection:** Set locale to Japanese Terse, enable phrase wrap. Verify the wrap is either absent (phrase is short enough not to wrap) or splits at a reasonable visual boundary.
+**Recommendation:** Option A (stateless controller). Matches existing codebase pattern — `GhostModeController.IsEnabled` is gated by external flag from MainWindow, not internal state.
 
-**Phase:** Japanese providers phase — verify, no change expected.
+**Detection:** Human verification item: "Change modifiers in Settings → close Settings → hover with new combo → verify override activates without restart".
+
+**Phase assignment:** GhostModeController refactor phase; must be decided before implementation starts.
 
 ---
 
-### Pitfall 16: `[DoNotParallelize]` on `PhraseEngineCoordinatorTests` Must Cover Japanese-Locale Tests
+### Pitfall 9: Checkbox Logic Inversion (All Must Be Held vs Any Must Be Held)
 
-**What goes wrong:** `PhraseEngineCoordinatorTests` has `[DoNotParallelize]` applied because `PhraseEngine` uses static state (`_activeProvider`, `CurrentLocale`). Tests that exercise the new `"ja-terse"`, `"ja-poetic"`, `"ja-rude"` locale keys must be in `PhraseEngineCoordinatorTests` (or in a class that also has `[DoNotParallelize]`), not in a separate parallelizable test class.
+**What goes wrong:** Ambiguous requirement interpretation — does "Ctrl + Alt + Shift enabled" mean:
+- **AND logic:** User must hold Ctrl AND Alt AND Shift simultaneously
+- **OR logic:** User can hold Ctrl OR Alt OR Shift (any one suffices)
 
-**Why it happens:** Adding new providers triggers the natural instinct to add new test classes for them. If those classes are placed in `MultilingualPhraseProviderTests` (which tests providers in isolation, not via the engine), they are safe to parallelize. But if they exercise `PhraseEngine.SetLocale` and `PhraseEngine.GetPhrase`, they must be in the non-parallelizable class.
+**Why it happens:** English "and" is ambiguous. "Enable Ctrl and Alt" could mean "both required" or "both allowed". If requirements doc says "user can configure Ctrl, Alt, and Shift" without specifying boolean logic, executor guesses.
 
-**Consequences:** Locale contamination between test methods. Flaky tests that pass in isolation and fail in parallel runs.
+**Consequences:**
+- Executor implements OR logic (any one held → suppress)
+- User expects AND logic (all enabled must be held → suppress)
+- OR logic makes single-key Shift override too sensitive (Shift pressed accidentally)
+- AND logic makes three-key Ctrl+Alt+Shift override unusable (requires two hands)
 
-**Prevention:** Provider unit tests (testing `JapaneseTersePhraseProvider.GetPhrase` directly, not through `PhraseEngine`) are safe in any class. Engine integration tests (testing `PhraseEngine.SetLocale("ja-terse")`) must go in `PhraseEngineCoordinatorTests` under `[DoNotParallelize]`.
+**Prevention:**
+- **Lock semantics now (HIGH priority):**
+  - **Selected logic:** AND (all enabled checkboxes must be held simultaneously)
+  - **Rationale:** Matches existing Ctrl+Alt behavior (both required). Single-modifier sensitivity would make Shift-only override trigger on every Shift keypress during typing.
+  - **Requirement:** GHOST-OVERRIDE-02: "All enabled modifiers must be held simultaneously to suppress ghost mode"
 
-**Phase:** Japanese providers phase.
+- **Code clarity:**
+  ```csharp
+  // Explicit AND logic in IsCtrlAltHeld
+  bool ctrlOk  = !useCtrl  || IsKeyPressed(VK_LCONTROL);
+  bool altOk   = !useAlt   || IsKeyPressed(VK_LMENU);
+  bool shiftOk = !useShift || IsKeyPressed(VK_LSHIFT);
+  return ctrlOk && altOk && shiftOk;
+  // Translation: each enabled modifier must be pressed; disabled modifiers pass automatically
+  ```
+
+**Detection:** Test matrix includes rows `[true,false,false] + Ctrl held → true`, `[true,false,false] + Alt held → false`.
+
+**Phase assignment:** Requirements phase must lock AND vs OR before planning.
+
+---
+
+### Pitfall 10: Timing Race Between Settings Change and GhostModeController Tick
+
+**What goes wrong:** User changes modifier config in Settings UI while hovering near the widget. GhostModeController timer fires its 75ms tick at the same moment. Race condition:
+1. UI thread: `_settings = _settings with { UseCtrl = false }`
+2. Controller thread: `IsCtrlAltHeld(_settings.UseCtrl, ...)` reads mid-update
+3. Stale config or torn read (though C# bool is atomic, the three-field struct is not)
+
+**Why it happens:** GhostModeController runs a DispatcherTimer on the UI thread (not background thread). No race with _settings mutation. But if future refactor moves controller to background thread, reads become unsafe.
+
+**Consequences (if background-threaded):**
+- Intermittent: ghost activates when it shouldn't or vice-versa
+- Only visible during Settings window open + hover + rapid checkbox toggling
+- Hard to reproduce in testing
+
+**Prevention:**
+- **Current architecture:** GhostModeController.OnTimerTick is DispatcherTimer → runs on UI thread → no lock needed
+- **Future-proofing:** If ever refactored to background thread, document that `_settings` must be read via `Dispatcher.Invoke` or locked
+- **Not a v4.3 concern** — no background threading planned
+
+**Detection:** Not applicable (no concurrency in current design). If architecture changes, add lock or Dispatcher.Invoke.
+
+**Phase assignment:** Out-of-scope for v4.3. Flag in architecture notes if threading changes.
 
 ---
 
 ## Minor Pitfalls
 
----
-
-### Pitfall 17: 12-Hour LCD Display — Leading Space in Hour Digit
-
-**What goes wrong:** `LcdTimeFormatHelper.FormatTime` in 12-hour mode uses `hourStr = h < 10 ? $" {h}" : $"{h}"` — a leading space for single-digit hours. `SevenSegmentDigit` with `Character = ' '` renders a blank digit (0x00 mask, all segments off). This is correct behaviour. The pitfall is assuming the space causes a layout shift: `SevenSegmentDigit` sets its own `Width` based on `_builtDigitW` and does not narrow for a blank character the way it narrows for `':'`. A leading blank digit has full digit width, keeping the clock display width stable between, say, `" 1:00"` and `"10:00"`. This is intentional and correct — do not "fix" it.
-
-**Prevention:** No code change needed. Document the intent in a comment so future developers do not inadvertently "optimize" the leading space to an empty string.
-
-**Phase:** Not a blocker — awareness only.
+Polish issues, no functional breakage.
 
 ---
 
-### Pitfall 18: `SaveSettings()` Includes `LcdSize` Via `FontSizeToLcdSize` — Verify `LcdSize` Is Not Also Tracked as an Independent Field
+### Pitfall 11: Settings UI Layout Breaks When Help Text Wraps
 
-**What goes wrong:** `AppSettings.LcdSize` is saved as `FontSizeToLcdSize(_currentFontSize)` in `SaveSettings()`. There is no independent `_lcdSize` field in `MainWindow` — the size derives from font size. If during v3.9 work someone adds a separate `_lcdSize` field to MainWindow for fine-grained LCD sizing, they would create a discrepancy: `SaveSettings()` uses `FontSizeToLcdSize(_currentFontSize)` while `ApplySettings()` and `SetClockType()` use the new field.
+**What goes wrong:** Three checkboxes + help text added to Behavior tab. Help text is long ("Left-side modifier keys only. Uncheck all to disable keyboard override."). At narrow window width or large font DPI, text wraps awkwardly, pushing checkboxes off-screen or overlapping controls.
 
-**Prevention:** Keep LCD size purely derived from font size. Do not add a separate `_lcdSize` field. The `LcdSize` enum in `AppSettings` and `SettingsSnapshot` exists for serialization and snapshot convenience, not as an independent dimension.
+**Why it happens:** WPF TextBlock with `TextWrapping="Wrap"` adapts to container width, but if the container (StackPanel) is not width-constrained, wrapping fails. Or Grid column definitions are hardcoded `Width="250"`, causing overflow at high DPI.
 
-**Phase:** Awareness only.
+**Consequences:**
+- Not a functional bug — settings still save/load correctly
+- Poor UX on 4K monitors or accessibility large-text mode
+- User cannot see all three checkboxes without scrolling
+
+**Prevention:**
+- **StackPanel + MaxWidth:** Wrap checkboxes in a StackPanel with `MaxWidth="320"` to constrain layout
+- **Help TextBlock:** `TextWrapping="Wrap"`, `Foreground="#FF999999"`, `FontSize="11"` (matches TEMP-TAB-03 pattern)
+- **Manual verification:** Test at 100%, 150%, 200% DPI scaling in Windows display settings
+
+**Detection:** Human verification checklist item: "Open Settings at 150% DPI → verify modifier checkboxes and help text visible without scrolling".
+
+**Phase assignment:** Settings UI phase; caught in visual review.
+
+---
+
+### Pitfall 12: Confusing Help Text Phrasing
+
+**What goes wrong:** Help text says "Hold these keys to prevent ghost mode" — user interprets as "hold these keys to keep ghost mode ON" (opposite intended meaning).
+
+**Why it happens:** "Prevent ghost mode" is ambiguous — prevent activation or prevent deactivation? Natural English is hard.
+
+**Consequences:**
+- User confusion → support request or GitHub issue
+- Not a data-loss bug, just requires better copy
+
+**Prevention:**
+- **Recommended phrasing:** "Hold selected modifiers to keep the widget visible while hovering (suppresses auto-hide)"
+- **Or shorter:** "Hold modifiers to suppress auto-hide"
+- **Avoid:** "prevent ghost mode", "disable ghost", "override ghost" (all ambiguous)
+
+**Detection:** User study or A/B test (out of scope). Rely on clear requirements doc wording.
+
+**Phase assignment:** Requirements phase locks help text; implemented in Settings UI phase.
 
 ---
 
@@ -343,36 +388,41 @@ Japanese phrases (`"ja"`, `"ja-terse"`, `"ja-poetic"`, `"ja-rude"`) use Japanese
 
 | Phase Topic | Likely Pitfall | Mitigation |
 |-------------|---------------|------------|
-| LCD Settings UI — BtnLcd XAML + gating | `BtnLcd` added to XAML but `SetClockStyleButtonStates` not updated; LCD options row not gated on `ct == ClockType.Lcd` | Update `SetClockStyleButtonStates` atomically with XAML change; add LCD row gating in the same method alongside the Dial Face row gating |
-| LCD blinking colon | Separate 500ms blink timer added alongside existing 1s timer | Implement blink as a `_colonVisible` toggle inside `UpdateTime()` — no new timer |
-| LCD ghost mode interaction | 1s timer fires during ghost mode (wasted redraws, potential SizeToContent side effects) | Pass a skip predicate into `LcdClockView` from `MainWindow.ContentRendered` |
-| Japanese provider registration | Keys like `"ja-terse"` not registered; `PhraseEngine.SetLocale` returns false silently | Register keys in `_providers` first; verify `CurrentLocale` after `SetLocale` call |
-| Japanese style routing in `SetLanguage` | `"ja"` branch ignores `_currentPhraseStyle`; style combo stays disabled for Japanese | Update both `SetLanguage` and `ApplySettings` locale resolution blocks; remove `"ja"` from the disable-combo condition |
-| Japanese providers + `[DoNotParallelize]` | Engine integration tests not marked non-parallelizable; locale contamination | Provider tests (isolation) in any class; engine tests in `PhraseEngineCoordinatorTests` |
-| AppSettings round-trip test | LCD fields not asserted in `STEST-01` | Audit and add assertions before writing LCD persistence code |
+| AppSettings schema | Missing init-property defaults on UseCtrl/UseAlt/UseShift → v4.2 upgrades break | Set `= true/true/false` in AppSettings record |
+| Settings UI XAML | Checkbox labels say "Ctrl" not "Left Ctrl" → user expects right-side keys to work | Lock labels as "Left Ctrl", "Left Alt", "Left Shift" in XAML |
+| Settings UI wiring | Forget `if (_suppressEvents) return;` in checkbox Changed handlers → PopulateControls corrupts state | Copy-paste guard pattern from existing handlers |
+| GhostModeController refactor | Hardcoded VK_LCONTROL/VK_LMENU → dynamic VK routing; forget `& 0x8000` mask on new checks | Code review grep for `GetAsyncKeyState.*!= 0` without mask |
+| Runtime integration | IsCtrlAltHeld() checks stale config after Settings UI change → restart required to apply | Pass config params on every call (Option A) or call UpdateModifierConfig on change (Option B) |
+| ResetToDefaults | Forget to add UseCtrl/UseAlt/UseShift to reset block → defaults non-idempotent | Add 3 fields after GhostFadeRadiusPx reset |
+| Settings migration | Absent fields deserialize to false → all-false = override disabled → Ctrl+Alt stops working | Verify init defaults in round-trip test |
+| Human verification | Test on US keyboard only → AltGr conflicts invisible → ships with EU keyboard bug | Verification plan MUST include EU layout testing (or explicit out-of-scope note) |
 
 ---
 
 ## Sources
 
-| Source | Confidence |
-|--------|------------|
-| `FuzzyClock.App/ClockType.cs` — `ClockType.Lcd` confirmed as existing enum member | HIGH |
-| `FuzzyClock.App/AppSettings.cs` — `LcdUse24Hr`, `LcdShowSeconds`, `LcdStyle`, `LcdSize` confirmed present with init defaults | HIGH |
-| `FuzzyClock.App/SettingsSnapshot.cs` — same four fields confirmed present | HIGH |
-| `FuzzyClock.App/Controls/LcdClockView.xaml.cs` — 1s `DispatcherTimer` lifecycle via `IsVisibleChanged` confirmed; `_colonVisible` blink toggle not present | HIGH |
-| `FuzzyClock.App/Controls/SevenSegmentDigit.xaml.cs` — no blink state; `Character = ' '` renders full-width blank digit | HIGH |
-| `FuzzyClock.App/SettingsWindow.xaml` — `BtnLcd` absent from clock style rail; no LCD options row present | HIGH |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` `SetClockStyleButtonStates` — three buttons only (`BtnPhrase`, `BtnDial`, `BtnNixie`); no `BtnLcd` | HIGH |
-| `FuzzyClock.App/MainWindow.xaml.cs` lines 330–374 — `ApplySettings` locale resolution block: `"ja"` branch uses `effectiveLocale = locale` without style mapping | HIGH |
-| `FuzzyClock.App/MainWindow.xaml.cs` lines 1397–1441 — `SetLanguage` `"ja"` branch same shortcut | HIGH |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` line 103 — `CmbPhraseStyle.IsEnabled = !isNonEnglish`; `"ja"` in the disable list | HIGH |
-| `FuzzyClock.App/SettingsWindow.xaml.cs` line 437 — `CmbPhraseLanguage_SelectionChanged`: same `"ja"` disable condition | HIGH |
-| `FuzzyClock.Core/PhraseEngine.cs` — no `"ja-terse"`, `"ja-poetic"`, `"ja-rude"` keys in `_providers` dictionary | HIGH |
-| `FuzzyClock.App/GhostModeController.cs` — ghost mode sets `Window.Opacity = 0` + `WS_EX_TRANSPARENT`; does not collapse `LcdView` | HIGH |
-| `.planning/PROJECT.md` — active requirements LCD-01 through LCD-04, JA-01 through JA-03 | HIGH |
+**HIGH confidence** — all findings verified against existing codebase:
+
+### Codebase Evidence
+- `FuzzyClock.App/GhostModeController.cs:21-22,42,184-185` — VK_LCONTROL/VK_LMENU constants + GetAsyncKeyState & 0x8000 pattern established in v2.3
+- `FuzzyClock.App/SettingsWindow.xaml.cs:20,67-79,121-125` — `_suppressEvents` guard pattern in 40+ checkbox handlers
+- `FuzzyClock.App/SettingsService.cs:18-66,72-100` — AppSettings init-property pattern + Validate() guards + v2.6 migration (old Left/Top → MonitorPositions)
+- `.planning/milestones/v2.3-phases/27-ctrl-alt-interaction-modifier/27-RESEARCH.md` — VK_LMENU rationale (AltGr avoidance), GetAsyncKeyState mask (0x8000 high bit), WPF no-focus keyboard limitation
+
+### Project Decisions
+- `.planning/PROJECT.md:441` — "VK_LMENU not VK_MENU for Ctrl+Alt modifier | VK_MENU fires on AltGr (right-Alt) on EU keyboards"
+- `.planning/PROJECT.md:42` — "GhostModeController currently hardcodes VK_LCONTROL + VK_LMENU checks. The new implementation will read a configuration (3 bools: UseCtrl, UseAlt, UseShift)"
+- `.planning/MILESTONES.md:332` — v2.3 decision: `GetAsyncKeyState(VK_LCONTROL) & 0x8000` + `GetAsyncKeyState(VK_LMENU) & 0x8000` guard in Window_MouseEnter
+
+### Win32 API References
+- Microsoft Learn: GetAsyncKeyState return value — high bit (0x8000) = currently pressed, low bit (0x0001) = toggled since last call
+- Microsoft Learn: Virtual-Key Codes — VK_LCONTROL (0xA2), VK_LMENU (0xA4), VK_LSHIFT (0xA0), VK_RMENU (0xA5)
+- Windows keyboard input model: AltGr on EU keyboards synthesizes VK_LCONTROL + VK_RMENU simultaneously
+
+### WPF Patterns
+- WPF CheckBox dependency properties fire events on programmatic IsChecked assignment — universal WPF behavior
+- WPF init-property records with System.Text.Json — absent fields take init defaults, not C# type defaults (`.NET 5+` behavior)
 
 ---
 
-*Pitfalls research for: Fuzzy Clock v3.9 — LCD Clock + Japanese Styles*
-*Researched: 2026-03-23*
+**Last updated:** 2026-05-07 — v4.3 Configurable Ghost Override research

@@ -2,41 +2,48 @@
 
 ## What This Is
 
-A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers), or as a Nixie tube clock face. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (1s/3s/10s). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. Five built-in named themes (Minimal, Neon, Ghost, Warm, Ocean) apply accent color, opacity, font size, clock style, and stats visibility atomically. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
+A minimal C# WPF desktop widget that displays the current time as a fuzzy, natural-English phrase — "just a little after 11", "almost noon", "quarter past 3" — or as a minimal analog dial with hour and minute hands (no face, no numbers), a Nixie tube clock face, or a 7-segment LCD clock with blinking colon and optional seconds row. It floats on the desktop as a transparent, frameless, always-on-top overlay with no background box. The phrase/dial refreshes every 10 seconds. Below the phrase or dial, an optional stats panel shows live CPU, GPU, memory, paging file, and battery charge as horizontal bars with percentage text (battery shows `⚡ 87%` when AC-connected, `N/A` on desktops/VMs), with a user-selectable update rate (continuous 0.5–10.0s slider). Below the phrase or dial, an optional date line shows the current date in one of four formats (Short/Long/Numeric/ISO) in a muted accent color. Below the stats panel, an optional uptime row shows system uptime and rolling 1m/5m/15m CPU load averages in a compact single line (`up 5h 3m   0.52  0.47  0.43`). Users can choose from five accent color presets (White, Amber, Ice Blue, Green, Hello Kitty Pink) or pick any custom color via the system color picker; the accent color applies consistently to phrase text, dial hands/decorations, stats bars/text, and uptime text. Widget opacity is adjustable via a right-click menu (25%/50%/75%/100%) or mouse scroll wheel (10% steps, 10% floor). The widget features ghost mode: hovering the mouse over the widget automatically hides it (Opacity=0, click-through via WS_EX_TRANSPARENT) so it never blocks the desktop; moving the mouse away restores it. Holding left Ctrl+Alt while hovering suppresses ghost mode and activates normal hover behaviors instead (semi-transparent backdrop, fast stats refresh, drag, right-click, scroll). Ghost mode can be disabled via the system tray "Ghost Mode" toggle. When Ghost Mode is active, the widget fades out gradually as the cursor enters a configurable proximity zone (20–200px, default 80px) — opacity decreases linearly from the zone boundary to zero at the widget edge, then restores symmetrically as the cursor retreats; holding Ctrl+Alt suppresses the proximity fade. An optional auto-contrast mode samples the screen color under the widget footprint every 500ms and automatically switches all text to black or white (WCAG-based) when the configured accent color no longer provides sufficient contrast; it restores to the accent color when contrast is sufficient again. A system tray icon provides quick toggles (Auto-Launch, Ghost Mode, Auto-Contrast), Reset to Defaults, Quit, and "Open Settings..." which opens a modeless three-tab Settings window (Appearance / Stats / Behavior) for full configuration. The English phrase vocabulary supports four styles: Classic, Terse (compact British forms like "half three"), Poetic (evocative like "the small hours"), and Rude (blunt like "nearly four, move it"). Phrases automatically display in French, Spanish, German, Japanese, or Polish based on the Windows UI language; Japanese locale supports four styles (Classic/Terse/Poetic/Rude); unsupported locales fall back to English. When the battery drops below a configurable threshold while unplugged, the battery stat row shifts to red as a visual alert. The widget auto-launches at Windows login when enabled. Widget position is remembered per monitor — switching monitors restores the last-used position on each display. All preferences are saved across restarts.
 
 ## Core Value
 
 The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
 
-## Current Milestone: v3.9 LCD Clock + Japanese Styles
-
-**Goal:** Add a 7-segment LCD clock as the fourth clock style and add Terse/Poetic/Rude phrase personality variants for Japanese locale.
-
-**Target features:**
-- LCD clock face: WPF-drawn 7-segment digits, accent-colored, 12-hour or 24-hour switchable, blinking colon, optional toggleable seconds row
-- Japanese Terse: short, clipped casual phrasing
-- Japanese Poetic: atmospheric imagery-based phrasing
-- Japanese Rude: brusque / impatient phrasing
-
 ## Current State
 
-**v3.9 in progress: Phase 63 complete** — BtnLcd in Clock Style rail; LCD options panel (24hr/seconds/style) visible only when LCD active; 355 tests pass (318 Core + 37 App); Phase 64 (Blinking Colon) next
+**v4.2 shipped: 2026-05-04** — Temps & Menu: system temperature monitoring (CPU/GPU/Mobo/NVMe via LibreHardwareMonitorLib 0.9.6 MPL-2.0) rendered below uptime on widget with accent color + auto-contrast; new Temps tab in Settings between Stats and Behavior with master toggle + per-sensor checkboxes + N/A disabled-state detection; right-click widget now opens the tray ContextMenuStrip at cursor (drag/ghost/Ctrl+Alt guards, TrayMenuBuilder.cs zero-diff invariant); MPL-2.0 compliance shipped — THIRD-PARTY-NOTICES.md at repo root (644 lines verbatim) + REL-02/REL-03 CI grep gates in release.yml + Inno Setup ships NOTICES to {app} root with per-user no-UAC invariant preserved; 562 MSTest green (445 Core + 117 App).
 
-**v3.8 shipped: 2026-03-23** — Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) in Settings > Appearance with Dial-only visibility gating; `PopulateControls` + `_suppressEvents` guard pattern; 299 tests pass (262 Core + 37 App)
+**v4.1 shipped: 2026-04-02** — Polish & Phrases: 12px backdrop padding, continuous stats interval slider (0.5–10.0s), Classic/Terse providers expanded to 70/65 multi-candidate phrases, Jive/Pirate/Yoda providers deepened with authentic linguistic patterns (210 phrases), named theme system removed (325 lines deleted, Settings simplified)
 
-**v3.7 shipped: 2026-03-23** — Nixie tube clock re-introduced as a selectable clock style; `ClockType` enum replaces `DialMode bool`; SettingsWindow 3-button Clock Style rail (Phrase/Dial/Nixie); `BackdropBorder` is sole hover backdrop; 0 build errors, 299 tests pass (262 Core + 37 App)
+**v4.0 shipped: 2026-03-27** — Proximity Ghost Mode complete: `GhostFadeRadiusPx` field in `AppSettings`/`SettingsService` with range validation and 7 new tests; `ComputeProximityRatio` (Chebyshev distance, 12 TDD unit tests) + always-running `GhostModeController` timer with `ProximityChanged` event; `MainWindow` wired with `_proximityRatio` field, `_isDragging` guard, `IsEnabled` gate at controller top, legacy snap-to-ghost block deleted; Settings > Behavior fade radius slider (20–200px, default 80px) live-updates controller and persists; `ResetToDefaults()` restores to 80px; 414 MSTest tests (357 Core + 57 App), 0 failures. All 13/13 PROX requirements satisfied.
 
-**v3.6.2 shipped: 2026-03-19** — `HasAppWindowBeneath` extended with `SHELLDLL_DefView` shell exclusion and `DwmGetWindowAttribute(DWMWA_CLOAKED)` check; AutoContrast and BackdropAlwaysVisible stable over desktops with icons and Windows 11 shell panels
+**v3.9 shipped: 2026-03-27** — LCD clock (7-segment, blinking colon, 12/24hr, optional seconds row, Dark/Paper/Silver styles) added as fourth clock style; Japanese Terse/Poetic/Rude phrase providers added; `ResolveLocaleKey` consolidates all locale routing; 395 MSTest tests (357 Core + 38 App) passing (includes Jive/Pirate/Dwarf/ValleyGirl/Yoda/Shakespeare phrase styles added post-milestone)
 
-**v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping (midpoint/natural pause), dark-mode Settings window redesign, edge snapping, single-instance IPC
+**v3.8 shipped: 2026-03-23** — Dial face checkboxes (Hour Ticks, Minute Dots, Hour Numbers) in Settings > Appearance with Dial-only visibility gating
 
-**v3.2 shipped: 2026-03-09** — Settings window (3-tab), 5 named themes, battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
+**v3.7 shipped: 2026-03-23** — Nixie tube clock as third clock style; `ClockType` enum replaces `DialMode bool`; SettingsWindow 3-button Clock Style rail
 
-299 MSTest tests (262 Core + 37 App) passing. CI gate enforced.
+**v3.5 shipped: 2026-03-18** — Per-user Inno Setup installer with CI release pipeline, phrase wrapping, dark-mode Settings window, edge snapping, single-instance IPC
+
+**v3.2 shipped: 2026-03-09** — Settings window (3-tab), named themes (removed in v4.1), battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
+
+562 MSTest tests (445 Core + 117 App) passing. CI gate enforced. REL-02 + REL-03 grep gates live in release.yml. LHM 0.9.6 pinned in FuzzyClock.App.csproj.
+
+## Current Milestone: v4.3 Configurable Ghost Override
+
+**Goal:** Let users customize which modifier keys suppress Ghost Mode instead of hardcoded Ctrl+Alt.
+
+**Target features:**
+
+- **Configurable ghost override modifiers** — Three checkboxes in Settings > Behavior (Ctrl / Alt / Shift) to configure which modifier keys suppress Ghost Mode when held while hovering
+- **Backward-compatible default** — Default remains Ctrl+Alt for existing users; new users see Ctrl+Alt enabled by default
+- **Disable option** — Unchecking all three modifiers disables the override entirely (ghost mode always activates on hover with no keyboard bypass)
+- **Persisted configuration** — Setting persists to settings.json and restores on launch; `ResetToDefaults()` restores Ctrl+Alt
+
+**Key context:** GhostModeController currently hardcodes `VK_LCONTROL` + `VK_LMENU` checks. The new implementation will read a configuration (3 bools: `UseCtrl`, `UseAlt`, `UseShift`) and check `GetAsyncKeyState` for the enabled combination. All three false = override disabled (IsCtrlAltHeld always returns false).
 
 ## Requirements
 
-### Validated
+### Active
 
 - ✓ Displays current time as a fuzzy/poetic English phrase (e.g. "just a little after 11", "almost noon", "12 o'clock", "quarter past 3") — v1.0
 - ✓ Phrase updates on every 5-minute boundary — v1.0
@@ -193,9 +200,9 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ SETT-05: Behavior tab exposes ghost mode, auto-contrast, auto-launch, and battery alert threshold — v3.2
 - ✓ SETT-06: All settings changes apply immediately to the live widget (modeless; no Apply button) — v3.2
 - ✓ SETT-07: Tray menu retains quick toggles (Ghost Mode, Stats, Auto-Contrast, Auto-Launch) alongside "Open Settings..." — v3.2
-- ✓ THM-01: Settings window Appearance tab offers 5 named built-in themes — v3.2
-- ✓ THM-02: Applying a theme atomically sets accent color, opacity, font size, clock style, and stats panel visibility — v3.2
-- ✓ THM-03: Active theme name persists to settings.json and restores on launch — v3.2
+- ✓ THM-01: Settings window Appearance tab offers 5 named built-in themes — v3.2 — REMOVED in v4.1 (CLEAN-01 through CLEAN-04)
+- ✓ THM-02: Applying a theme atomically sets accent color, opacity, font size, clock style, and stats panel visibility — v3.2 — REMOVED in v4.1 (CLEAN-01 through CLEAN-04)
+- ✓ THM-03: Active theme name persists to settings.json and restores on launch — v3.2 — REMOVED in v4.1 (CLEAN-01 through CLEAN-04)
 - ✓ STYLE-01: User can select Terse style ("half three", "quarter past") in Settings window — v3.2
 - ✓ STYLE-02: User can select Poetic style ("the small hours", "the day grows long") in Settings window — v3.2
 - ✓ STYLE-03: User can select Rude style ("nearly four, move it") in Settings window — v3.2
@@ -263,19 +270,75 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ DIAL-10: Settings > Appearance shows Hour Ticks, Minute Dots, and Hour Numbers checkboxes; visible only when Dial clock style is active, collapsed for Phrase/Nixie — v3.8
 - ✓ DIAL-11: Each checkbox reflects persisted value on open (PopulateControls); fires existing event through _suppressEvents guard on toggle; persists to settings.json and restores on restart — v3.8
 
+### Validated (v3.9)
+
+- ✓ LCD-01: User can select LCD clock style from Settings > Appearance Clock Style rail (BtnLcd added; Phrase/Dial/Nixie/LCD are four mutually exclusive buttons) — v3.9
+- ✓ LCD-02: User can toggle between 12-hour (H:MM) and 24-hour (HH:MM) in Settings when LCD is active; persists and restores on launch — v3.9
+- ✓ LCD-03: User can show or hide the seconds row (SS digits) in Settings when LCD is active; persists and restores on launch — v3.9
+- ✓ LCD-04: User can select LCD segment style (Dark/Paper/Silver) in Settings when LCD is active; persists and restores on launch — v3.9
+- ✓ LCD-05: LCD settings panel (24hr, seconds row, style) is visible only when LCD is the active clock style; collapsed for Phrase/Dial/Nixie — v3.9
+- ✓ LCD-06: LCD clock colon (between HH and MM digits) blinks on/off every second — v3.9
+- ✓ LCD-07: STEST-01 round-trip test covers all LCD AppSettings fields (LcdUse24Hr, LcdShowSeconds, LcdStyle, LcdSize) — v3.9
+- ✓ LCD-08: SettingsService.Validate() corrects invalid LcdStyle values to the Dark default — v3.9
+- ✓ JA-01: Japanese Terse phrase style covers all 12 five-minute buckets, noon, and midnight — v3.9
+- ✓ JA-02: Japanese Poetic phrase style covers all 12 five-minute buckets, noon, and midnight (provisional pending native review) — v3.9
+- ✓ JA-03: Japanese Rude phrase style covers all 12 five-minute buckets, noon, and midnight (provisional pending native review) — v3.9
+- ✓ JA-04: Phrase style selector in Settings is enabled when Japanese locale is active (all four styles: Classic/Terse/Poetic/Rude) — v3.9
+- ✓ JA-05: Selecting a Japanese phrase style persists to settings.json and is correctly restored on app restart (all routing sites updated via ResolveLocaleKey helper) — v3.9
+- ✓ JA-06: Unit tests for each Japanese style provider cover all 12 buckets plus noon and midnight cases — v3.9
+
+### Validated (v4.0)
+
+- ✓ PROX-01: When Ghost Mode is enabled and cursor enters proximity zone, widget opacity begins decreasing toward 0 — v4.0
+- ✓ PROX-02: Opacity decreases linearly as cursor approaches — `display_opacity = configured_opacity × (distance / radius)` — no snap at any point in the fade zone — v4.0
+- ✓ PROX-03: When cursor crosses the widget boundary, fade continues to 0; WS_EX_TRANSPARENT applied only when Opacity reaches exactly 0 — v4.0
+- ✓ PROX-04: When cursor retreats from proximity zone, widget fades back up to configured opacity symmetrically — v4.0
+- ✓ PROX-05: Holding Ctrl+Alt while approaching suppresses proximity fade — widget stays at configured opacity and remains interactive — v4.0
+- ✓ PROX-06: User can configure proximity fade radius via slider in Settings > Behavior; range 20–200px, default 80px — v4.0
+- ✓ PROX-07: Fade radius persists to settings.json and restores on launch; Reset to Defaults restores to 80px — v4.0
+- ✓ PROX-08: When radius slider at minimum, behavior matches current instant-snap ghost mode exactly (backward-compat path) — v4.0
+- ✓ PROX-09: Proximity fade fully gated by Ghost Mode tray toggle — cursor approach has no opacity effect when Ghost Mode is off — v4.0
+- ✓ PROX-10: Proximity fade pauses during widget drag — widget stays at configured opacity while being dragged — v4.0
+- ✓ PROX-11: Auto-contrast sampler skips sampling while widget is in proximity fade state (prevents WCAG flicker feedback loop) — v4.0
+- ✓ PROX-12: AppSettings JSON round-trip test covers GhostFadeRadiusPx; absent-field test verifies 80px init default — v4.0
+- ✓ PROX-13: ComputeProximityRatio is a pure static method with unit tests covering all boundary conditions — v4.0
+
+### Validated (v4.1)
+
+- ✓ VIS-01: Backdrop has visibly larger padding (12px) around all content elements — v4.1
+- ✓ VIS-02: Padding uses inner margins; edge snapping, ghost mode, contrast sampling, position clamping all unaffected — v4.1
+- ✓ STAT-01: Continuous stats interval slider (0.5–10.0s) in Settings > Stats — v4.1
+- ✓ STAT-02: Discrete 1s/3s/10s selector replaced — v4.1
+- ✓ STAT-03: Stats interval persists as decimal value to settings.json — v4.1
+- ✓ STAT-04: Validate() clamps 0.5–10.0 with Math.Round to 1 decimal place — v4.1
+- ✓ PHRASE-01: 5+ phrase candidates per bucket for Classic and Terse providers — v4.1
+- ✓ PHRASE-02: Randomized selection within buckets — v4.1
+- ✓ PHRASE-03: Unit tests verify complete bucket coverage — v4.1
+- ✓ PERS-01: Jive provider uses rhythmic AAVE-inspired phrasing — v4.1
+- ✓ PERS-02: Pirate provider uses authentic nautical metaphors — v4.1
+- ✓ PERS-03: Yoda provider uses strict OSV syntax inversion — v4.1
+- ✓ CLEAN-01: Named themes removed from Settings > Appearance — v4.1
+- ✓ CLEAN-02: ThemeDefinition, BuiltInThemes, ApplyNamedTheme removed — v4.1
+- ✓ CLEAN-03: Settings migration via JSON ignore-unknown-keys — v4.1
+- ✓ CLEAN-04: AppSettings.Theme field removed — v4.1
+
 ### Active
 
-- [ ] **LCD-01**: LCD clock face (7-segment, WPF-drawn, accent-colored)
-- [ ] **LCD-02**: 12-hour / 24-hour toggle in Settings
-- [ ] **LCD-03**: Blinking colon (every second)
-- [ ] **LCD-04**: Optional seconds row, toggleable in Settings
-- ✓ **JA-01**: Japanese Terse phrase style (clipped casual phrasing) — v3.9 Phase 61
-- ✓ **JA-02**: Japanese Poetic phrase style (atmospheric imagery-based) — v3.9 Phase 61
-- ✓ **JA-03**: Japanese Rude phrase style (brusque / impatient) — v3.9 Phase 61
+## Current Milestone: v4.2 Temps & Menu
+
+**Goal:** Add system temperature monitoring to the stats line and make the tray menu available via right-click on the widget itself.
+
+**Target features:**
+
+- **Right-click menu on widget** — Reuse the existing tray ContextMenuStrip when the user right-clicks the widget; identical items, checkmarks, and behavior. Suppressed while proximity-faded/click-through (RMB requires Ghost Mode off or Ctrl+Alt held, matching existing hover/interaction invariants).
+- **Temps tab in Settings** — New 4th tab (Appearance / Stats / **Temps** / Behavior). Master "Show Temps Line" toggle plus per-sensor checkboxes (CPU package, GPU, Motherboard/System, NVMe/SSD); unavailable sensors disabled with "N/A" label.
+- **Temperature stats line** — Compact one-liner below uptime (`CPU 52°  GPU 61°  NVMe 38°`). Celsius only, accent-colored, refreshed on existing stats timer. Only shows checked sensors with valid readings.
+
+**Key context:** LibreHardwareMonitorLib (MPL-2.0) as data source with graceful no-elevation fallback (sensors needing admin render "N/A", no UAC prompt). No alerts/thresholds. Piggybacks existing stats timer.
 
 ### Out of Scope
 
-- User-created/saved themes — only built-in named presets; custom theme authoring is out of scope
+- User-created/saved themes — named themes removed in v4.1; custom theme authoring adds complexity with little value
 - 24-hour format — natural English implies 12-hour
 - Click-through / no interaction — incompatible with drag (kills DragMove() event delivery)
 - Arbitrary font size input — 3-step ladder is sufficient
@@ -441,6 +504,17 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 | ClockTypeChanged replaces DialModeChanged | Single Action<ClockType> event covers all current and future clock modes; no separate event per mode needed | ✓ Validated — wired via single subscription in MainWindow |
 | DialFaceLabel VerticalAlignment=Top (not Center) | Column 1 of the Dial Face row contains a multi-line StackPanel of checkboxes; Top alignment matches the Phrase Wrap row pattern for label/control pairs | ✓ Validated — label aligned correctly at all font sizes |
 | Visibility gating in SetClockStyleButtonStates (not a separate handler) | Both the open-time populate path and the button-click path call SetClockStyleButtonStates; centralizing gating there ensures Dial Face row hides/shows correctly in all cases | ✓ Validated — row visible on Dial, collapsed on Phrase/Nixie, at open-time and on style switch |
+| ResolveLocaleKey single entry point for locale+style routing | Three MainWindow sites (ApplySettings, SetLanguage, SetPhraseStyle) previously had duplicate locale-resolution switch expressions; extracting to a private helper eliminates drift risk and enables Japanese style variants without per-site changes | ✓ Validated — all three routing sites call ResolveLocaleKey; Japanese styles work at all sites |
+| SetPhraseStyle guard expanded to allow Japanese (removes fr/es/de/pl guard only) | English style selector was originally disabled for all non-English locales; Japanese-specific style providers make style selection meaningful for Japanese; guard updated to block fr/es/de/pl only | ✓ Validated — Japanese style combo enabled when Japanese locale active; French/Spanish/German/Polish still blocked |
+| LCD colon blink via _colonVisible field in LcdClockView (no new timer) | LcdClockView already has a 1s DispatcherTimer that calls UpdateTime(); toggling a _colonVisible bool inside that method uses the existing tick as the blink driver — zero additional timer overhead | ✓ Validated — Colon1 blinks at exactly 1 Hz; no new DispatcherTimer added |
+| LcdOptionsPanel visibility gating in SetClockStyleButtonStates (same pattern as Dial Face row) | Gating in the single SetClockStyleButtonStates method ensures the panel shows/hides correctly both at open-time and on style switch, matching the established pattern from Dial Face row — v3.8 | ✓ Validated — LCD options visible on LCD style, collapsed for Phrase/Dial/Nixie, in all code paths |
+| SettingsService.Validate() guards LcdStyle string against unknown values | LcdStyle is stored as a string enum name; corrupted or manually edited settings.json could contain an unrecognized value; Validate() resets to "Dark" default without throwing, matching the existing StatsIntervalSeconds/Opacity guard pattern | ✓ Validated — Validate_InvalidLcdStyle_ResetsToDark test passes; widget loads cleanly from corrupt settings |
+| GhostFadeRadiusPx init-property with = 80 (not C# int default 0) | Absent JSON fields deserialize to 0 without explicit init default; 0 would collapse the proximity zone and activate instant-snap on upgrade from v3.9; = 80 is the safe init default | ✓ Validated — absent-field test verifies 80px on deserialize; users upgrading from v3.9 see correct 80px fade radius |
+| Chebyshev distance (max(dx,dy)) for proximity ratio | Chebyshev halo matches rectangular widget shape exactly (equal distance on all sides); Euclidean would create rounded corners with smaller effective radius on diagonals | ✓ Validated — proximity zone feels natural on a rectangular widget; PROX-13 unit tests confirm boundary behavior |
+| Always-running GhostModeController timer (not started/stopped on ghost toggle) | Starting/stopping the timer on ghost toggle creates race conditions between Activating/Restored events and the opacity callback; always-running timer with IsEnabled gate at top of OnTimerTick is the cleanest gate | ✓ Validated — PROX-09: ghost toggle reliably gates proximity with zero timer lifecycle complexity |
+| ProximityChanged fires on every tick (not just on ratio change) | Firing only on change requires tracking previous ratio and comparing — added complexity with no UX benefit at 75ms tick rate; every-tick updates are imperceptible overhead and simpler | ✓ Validated — smooth continuous fade with no code state for previous ratio; no stutter observed |
+| _proximityRatio field in MainWindow (not queried from controller) | Contrast skip predicate is evaluated outside the ProximityChanged callback; storing ratio in a field avoids threading issues and matches _isDragging / _isGhostMode field patterns already established | ✓ Validated — contrast sampler correctly skips during fade; field updated atomically in callback |
+| Restored event fires only at ratio=0.0 after ghost activation | Firing Restored on every sub-1.0 tick during cursor retreat would thrash ghost state; ratio=0.0 is the unambiguous "clear of proximity zone" signal; intermediate ratios are handled by ProximityChanged | ✓ Validated — clean two-event model: ProximityChanged for fade gradient, Restored for full opacity snap |
 
 ## Evolution
 
@@ -460,4 +534,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-24 — Phase 61 complete: Japanese Phrase Providers (Terse/Poetic/Rude)*
+*Last updated: 2026-05-07 — v4.3 Configurable Ghost Override milestone started*

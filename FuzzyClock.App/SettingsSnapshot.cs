@@ -27,17 +27,33 @@ internal sealed record SettingsSnapshot
     public bool    PagVisible                            { get; init; }
     public bool    BatteryVisible                        { get; init; }
     public bool    UptimeVisible                         { get; init; }
-    public int     StatsIntervalSeconds                  { get; init; }
+    public double  StatsIntervalSeconds                  { get; init; }
     public double  ProcessCountThreshold                 { get; init; }
     public bool    ShowDate                              { get; init; }
     public string  DateFormat                            { get; init; } = "Short";
     public bool    GhostModeEnabled                      { get; init; }
+    public int     GhostFadeRadiusPx                    { get; init; } = 80;
     public bool    AutoContrastEnabled                   { get; init; }
     public bool    AutoLaunchEnabled                     { get; init; }
-    public string? ActiveTheme                           { get; init; } = null;
     public int     BatteryAlertThreshold                 { get; init; } = 20;
     public bool    PhraseWrapEnabled                     { get; init; } = true;
     public string  PhraseWrapStyle                       { get; init; } = "midpoint";
-    public bool    BackdropAlwaysVisible                 { get; init; } = false;
-    public int     BackdropOpacityPercent                { get; init; } = 35;
+
+    // v4.2 Phase 78 — Temps tab snapshot fields (read-only projection of AppSettings + TemperatureService)
+    // Defaults here are C# type zero-values; MainWindow.GetCurrentSettingsSnapshot populates real values at open time.
+    public bool    TempsLineVisible                     { get; init; }
+    public bool    TempCpuVisible                       { get; init; }
+    public bool    TempGpuVisible                       { get; init; }
+    public bool    TempMoboVisible                      { get; init; }
+    public bool    TempNvmeVisible                      { get; init; }
+    public float   CpuTempC                             { get; init; }
+    public float   GpuTempC                             { get; init; }
+    public float   MoboTempC                            { get; init; }
+    public float   NvmeTempC                            { get; init; }
+    public bool    TempsServiceReady                    { get; init; }
+
+    // v4.3 Phase 81 (CFG-02) — modifier configuration snapshot
+    public bool UseCtrl  { get; init; }
+    public bool UseAlt   { get; init; }
+    public bool UseShift { get; init; }
 }
