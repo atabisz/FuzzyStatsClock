@@ -3,8 +3,7 @@ gsd_state_version: 1.0
 milestone: v4.4
 milestone_name: Smooth Ghost Fade Under Load
 status: planning
-last_updated: "2026-05-20T01:39:32.714Z"
-last_activity: 2026-05-20
+last_updated: "2026-05-20T04:37:56.376Z"
 progress:
   total_phases: 3
   completed_phases: 0
@@ -83,5 +82,5 @@ None
 - v4.2 Temps & Menu — shipped 2026-05-04 (562 tests, MPL-2.0 compliance)
 
 ---
-*State updated: 2026-05-20 — v4.4 roadmap created (Phases 85–87)*
+*State updated: 2026-05-20 — Phase 85 context gathered (.planning/phases/85-off-thread-sampling-refactor/85-CONTEXT.md)*
 *Phase numbering continues from v4.3's Phase 84*
