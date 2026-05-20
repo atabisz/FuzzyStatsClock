@@ -435,6 +435,58 @@ internal sealed class GhostModeController : IDisposable
     }
 
     /// <summary>
+    /// Pure static helper for the per-frame opacity lerp pump (Phase 86 / FADE-03 / D-08, D-09, D-03).
+    /// Returns the next current-ratio value given the current value, target value, lerp rate
+    /// constant <paramref name="alpha"/>, and per-frame elapsed seconds.
+    /// <para>
+    /// Body shape (D-09 + D-03 — order is load-bearing):
+    /// <list type="number">
+    /// <item><description>
+    /// Terminal-state snap (D-03): when <paramref name="target"/> equals exactly
+    /// <c>1.0</c> or exactly <c>0.0</c>, return <paramref name="target"/> directly without
+    /// running the exponential. Exact-equality on <c>double</c> is intentional and safe — the
+    /// only writers of <c>_targetRatio</c> in the consuming MainWindow are <c>ProximityChanged</c>
+    /// lambdas where the sampler's <see cref="OnSampleTick"/> produces <c>0.0</c> and <c>1.0</c>
+    /// as exact values (Phase 85 D-06 / SEM-01 / SEM-02). The snap closes the loop and preserves
+    /// crisp ghost activation and the v4.0 P67 invariant that <c>Restored</c> fires when the
+    /// ratio reaches exactly <c>0.0</c>.
+    /// </description></item>
+    /// <item><description>
+    /// Otherwise, apply the time-stable / frame-rate-independent exponential lerp from CONTEXT.md
+    /// <c>&lt;specifics&gt;</c>: <c>current + (target - current) * (1.0 - Math.Exp(-alpha * deltaSeconds))</c>.
+    /// <c>1/alpha</c> is the time-to-1/e (~63%) and <c>2.3/alpha</c> is the time-to-90%; at the
+    /// planned <c>alpha = 15.0</c>, time-to-90% is approximately 153 ms, masking frame-rate
+    /// variation under CPU load while keeping ghost activation visibly responsive.
+    /// </description></item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// Purity (D-09): the body has no field reads, no event raises, no <see cref="GhostModeController"/>
+    /// instance dependencies, and no clamping on the result (the formula is naturally bounded
+    /// between <paramref name="current"/> and <paramref name="target"/> for the planned
+    /// alpha/deltaSeconds ranges; <c>deltaSeconds</c> clamping is the consumer's responsibility).
+    /// </para>
+    /// <para>
+    /// Test reachability (D-08): declared <c>internal static</c> so <c>FuzzyClock.App.Tests</c>
+    /// can call it directly via the existing <c>InternalsVisibleTo</c> plumbing
+    /// (<c>FuzzyClock.App.csproj</c> lines 7-11). Phase 87 owns the unit-test bodies.
+    /// </para>
+    /// </summary>
+    internal static double LerpRatio(double current, double target, double alpha, double deltaSeconds)
+    {
+        // D-03: terminal-state snap. Exact-equality compare on double is intentional —
+        // _targetRatio in the consumer is only ever set from values produced by OnSampleTick,
+        // which emits exact 0.0 and 1.0 at the SEM-01 / SEM-02 transitions.
+        if (target == 1.0 || target == 0.0) return target;
+
+        // D-09: time-stable exponential lerp. Frame-rate independent — same visual feel at
+        // 60 Hz as at 144 Hz. Result is naturally bounded between current and target for the
+        // planned alpha/deltaSeconds ranges, so no Math.Clamp on the output (consumer clamps
+        // deltaSeconds upstream).
+        return current + (target - current) * (1.0 - Math.Exp(-alpha * deltaSeconds));
+    }
+
+    /// <summary>
     /// Pure static proximity ratio computation. Returns 0.0 (outside zone) to 1.0 (inside widget).
     /// Uses Chebyshev distance for rectangular proximity halo — matches the widget's own rectangular shape.
     /// Parameters use plain ints so tests need no Win32 machinery (avoids inaccessible POINT/RECT structs).
