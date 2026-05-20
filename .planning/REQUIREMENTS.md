@@ -10,10 +10,10 @@
 
 ### FADE — Frame-driven opacity rendering
 
-- [ ] **FADE-01**: A frame-driven lerp drives `this.Opacity` toward a target ratio every render frame via `CompositionTarget.Rendering`, so visible fade smoothness is governed by display refresh rate rather than sampling cadence
-- [ ] **FADE-02**: `GhostModeController` exposes a target ratio set by sampling; `MainWindow` holds the current ratio updated per render frame; the contrast-skip predicate observes the current ratio (not the target)
-- [ ] **FADE-03**: When the target ratio reaches `1.0` or `0.0`, the current ratio snaps to that terminal value rather than asymptotically approaching it — preserving crisp ghost activation and `Restored` timing
-- [ ] **FADE-04**: The `CompositionTarget.Rendering` subscription is added when ghost mode is enabled and removed when disabled, so the per-frame loop has zero overhead when the feature is off
+- [x] **FADE-01**: A frame-driven lerp drives `this.Opacity` toward a target ratio every render frame via `CompositionTarget.Rendering`, so visible fade smoothness is governed by display refresh rate rather than sampling cadence
+- [x] **FADE-02**: `GhostModeController` exposes a target ratio set by sampling; `MainWindow` holds the current ratio updated per render frame; the contrast-skip predicate observes the current ratio (not the target)
+- [x] **FADE-03**: When the target ratio reaches `1.0` or `0.0`, the current ratio snaps to that terminal value rather than asymptotically approaching it — preserving crisp ghost activation and `Restored` timing
+- [x] **FADE-04**: The `CompositionTarget.Rendering` subscription is added when ghost mode is enabled and removed when disabled, so the per-frame loop has zero overhead when the feature is off
 
 ### SAMP — Off-thread proximity sampling
 
@@ -27,7 +27,7 @@
 - [x] **SEM-01**: Ratio reaching `1.0` activates `WS_EX_TRANSPARENT`; ratio dropping below `1.0` removes it immediately (PROX-03 / D-06 / D-07 invariants from v4.0 still hold) — Plan 85-01 (encoded as `GhostTransition.Activate` / `RestoreNoEvent` / `RestoreWithEvent` in `OnSampleTick`)
 - [x] **SEM-02**: `Restored` fires only when ratio fully reaches `0.0` after ghost activation — never on intermediate sub-`1.0` ticks during cursor retreat — Plan 85-01 (encoded as `RestoreWithEvent` only when `ratio == 0.0`)
 - [x] **SEM-03**: Configurable Ctrl/Alt/Shift modifier-held check still forces ratio to `0.0` exactly as in v4.3 — no behavior change to override semantics — Plan 85-01 (`OnSampleTick` forces `ratio = 0.0` when `(useCtrl || useAlt || useShift) && modifiersHeld`)
-- [ ] **SEM-04**: `MainWindow` drag freeze (`_isDragging`), settings-window-open freeze, RMB-04 right-click menu pin (`_menuOpen`), and mouse-wheel direct opacity all behave identically — the new render pump must respect the same guards
+- [x] **SEM-04**: `MainWindow` drag freeze (`_isDragging`), settings-window-open freeze, RMB-04 right-click menu pin (`_menuOpen`), and mouse-wheel direct opacity all behave identically — the new render pump must respect the same guards
 - [x] **SEM-05**: Ghost-mode tray toggle off → no sampling, no event raises, no opacity manipulation (PROX-09 disable-gate invariant) — Plan 85-01 (`OnSampleTick` early-bails on `!IsEnabled`; `OnTimerTick` retains its own pre-seam `!IsEnabled` bail)
 
 ### TEST — Test coverage
@@ -64,10 +64,10 @@ Every v4.4 requirement maps to exactly one phase. The owning phase is the one th
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FADE-01 | Phase 86 | Pending |
-| FADE-02 | Phase 86 | Pending |
-| FADE-03 | Phase 86 | Pending |
-| FADE-04 | Phase 86 | Pending |
+| FADE-01 | Phase 86 | Complete |
+| FADE-02 | Phase 86 | Complete |
+| FADE-03 | Phase 86 | Complete |
+| FADE-04 | Phase 86 | Complete |
 | SAMP-01 | Phase 85 (Plan 85-03) | Complete |
 | SAMP-02 | Phase 85 (Plan 85-03) | Complete |
 | SAMP-03 | Phase 85 (Plan 85-03) | Complete |
@@ -75,7 +75,7 @@ Every v4.4 requirement maps to exactly one phase. The owning phase is the one th
 | SEM-01  | Phase 85 (Plan 85-01) | Complete |
 | SEM-02  | Phase 85 (Plan 85-01) | Complete |
 | SEM-03  | Phase 85 (Plan 85-01) | Complete |
-| SEM-04  | Phase 86 | Pending |
+| SEM-04  | Phase 86 | Complete |
 | SEM-05  | Phase 85 (Plan 85-01) | Complete |
 | TEST-01 | Phase 87 | Pending |
 | TEST-02 | Phase 87 | Pending |
