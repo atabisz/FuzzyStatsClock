@@ -27,8 +27,10 @@
 
 ## Phases
 
-- [x] **Phase 85: Off-thread sampling refactor** — Move `GhostModeController` sampling onto `System.Threading.Timer`, marshal UI work via `Dispatcher.BeginInvoke`, expose a tickable seam for tests (completed 2026-05-20)
-- [x] **Phase 86: Frame-driven opacity rendering** — Subscribe `MainWindow` to `CompositionTarget.Rendering` while ghost mode is enabled, lerp current opacity ratio toward target each frame (completed 2026-05-20)
+- [x] **Phase 85: Off-thread sampling refactor** — Move `GhostModeController` sampling onto `System.Threading.Timer`, marshal UI work via `Dispatcher.BeginInvoke`, expose a tickable seam for tests
+ (completed 2026-05-20)
+- [x] **Phase 86: Frame-driven opacity rendering** — Subscribe `MainWindow` to `CompositionTarget.Rendering` while ghost mode is enabled, lerp current opacity ratio toward target each frame
+ (completed 2026-05-20)
 - [ ] **Phase 87: Verification & performance acceptance** — Lerp unit tests, tickable-seam tests, full MSTest suite green, manual CPU-load smoothness check
 
 ## Phase Details
@@ -73,7 +75,9 @@
   3. Sampling pipeline core has a tickable-seam test (e.g. injecting cursor coords + window rect + modifiers-held into `OnSampleTick`) verifying ratio computation and event emission without spinning real timers/threads
   4. `dotnet test` runs the full MSTest suite (`FuzzyClock.Core.Tests` + `FuzzyClock.App.Tests`) green at milestone end — at least 574 tests, zero failures, zero regressions in the pre-existing ~445 Core + ~129 App split
   5. Manual run with a sustained 25–50% CPU load generator confirms the fade is visibly smooth (no stepping/jank, ≥30 fps subjective) for the full fade traversal — recorded as human-verified in the phase summary
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 87-01-PLAN.md — LerpRatioTests + OnSampleTickTests + _isGhostMode visibility relaxation (TEST-01, TEST-02, TEST-03, TEST-04)
+- [ ] 87-02-PLAN.md — WR-04 mid-fade toggle-off fix + PERF-01 manual smoothness run + 87-VERIFICATION.md attestation (PERF-01, TEST-04 re-asserted)
 
 ## Progress
 
@@ -84,4 +88,4 @@ Phases execute in numeric order: 85 → 86 → 87
 |-------|----------------|--------|-----------|
 | 85. Off-thread sampling refactor | 4/4 | Complete    | 2026-05-20 |
 | 86. Frame-driven opacity rendering | 2/2 | Complete    | 2026-05-20 |
-| 87. Verification & performance acceptance | 0/TBD | Not started | - |
+| 87. Verification & performance acceptance | 0/2 | Not started | - |
