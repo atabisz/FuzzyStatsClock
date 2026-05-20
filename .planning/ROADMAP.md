@@ -27,7 +27,7 @@
 
 ## Phases
 
-- [ ] **Phase 85: Off-thread sampling refactor** — Move `GhostModeController` sampling onto `System.Threading.Timer`, marshal UI work via `Dispatcher.BeginInvoke`, expose a tickable seam for tests
+- [x] **Phase 85: Off-thread sampling refactor** — Move `GhostModeController` sampling onto `System.Threading.Timer`, marshal UI work via `Dispatcher.BeginInvoke`, expose a tickable seam for tests (completed 2026-05-20)
 - [ ] **Phase 86: Frame-driven opacity rendering** — Subscribe `MainWindow` to `CompositionTarget.Rendering` while ghost mode is enabled, lerp current opacity ratio toward target each frame
 - [ ] **Phase 87: Verification & performance acceptance** — Lerp unit tests, tickable-seam tests, full MSTest suite green, manual CPU-load smoothness check
 
@@ -80,6 +80,6 @@ Phases execute in numeric order: 85 → 86 → 87
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 85. Off-thread sampling refactor | 4/4 | Ready for verification | - |
+| 85. Off-thread sampling refactor | 4/4 | Complete    | 2026-05-20 |
 | 86. Frame-driven opacity rendering | 0/TBD | Not started | - |
 | 87. Verification & performance acceptance | 0/TBD | Not started | - |

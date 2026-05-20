@@ -2,19 +2,20 @@
 gsd_state_version: 1.0
 milestone: v4.4
 milestone_name: Smooth Ghost Fade Under Load
-status: executing
-last_updated: "2026-05-20T07:35:25Z"
+status: ready_to_plan
+last_updated: 2026-05-20T07:26:27.190Z
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
   completed_plans: 4
-  percent: 100
+  percent: 0
+stopped_at: Phase 85 complete (4/4) — ready to discuss Phase 86
 ---
 
 # Project State: FuzzyStatsClock
 
-**Status:** Phase 85 complete (4/4 plans); ready for verification → Phase 86
+**Status:** Ready to plan
 **Last updated:** 2026-05-20
 
 ## Project Reference
@@ -22,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 85 — off-thread-sampling-refactor
+**Current focus:** Phase 86 — frame driven opacity rendering
 
 ## Current Milestone
 
