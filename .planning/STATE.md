@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.4
 milestone_name: Smooth Ghost Fade Under Load
 status: executing
-last_updated: "2026-05-20T06:24:30Z"
+last_updated: "2026-05-20T07:35:25Z"
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State: FuzzyStatsClock
 
-**Status:** Executing Phase 85 (Plan 03 complete; Plan 04 next)
+**Status:** Phase 85 complete (4/4 plans); ready for verification → Phase 86
 **Last updated:** 2026-05-20
 
 ## Project Reference
@@ -69,27 +69,29 @@ None
 - v4.4 Phase 85 Plan 01: Pure-logic seam landed — `internal SampleResult OnSampleTick(...)` + `GhostTransition` enum exposed via `InternalsVisibleTo`; `OnTimerTick` now gather→delegate→apply; D-10 read-once-into-locals snapshot pattern adopted ahead of Plan 02 volatile swap; single-owner write rule for `_lastProximityRatio` and `_isGhostMode = false` enforced — all 129 App + 449 Core tests pass without modification, `MainWindow.xaml.cs` byte-for-byte unchanged
 - v4.4 Phase 85 Plan 02: Volatile config fields landed — `_isGhostMode` (D-06), `_useCtrl/_useAlt/_useShift/_ghostFadeRadiusPx` (D-10), and new `_isEnabled` backing field (D-11) all declared `volatile`; `IsEnabled` converted from auto-property to manual property `{ get => _isEnabled; set => _isEnabled = value; }`; `_lastProximityRatio` deliberately left as plain `double` (sampler-thread-local per D-06); no threading changes — `OnTimerTick` still on dispatcher; `MainWindow.xaml.cs` byte-for-byte unchanged; all 129 App tests pass
 - v4.4 Phase 85 Plan 03: Threading swap landed — `DispatcherTimer? _restoreTimer` removed; `System.Threading.Timer? _timer` (D-01) constructed at Initialize with 33 ms cadence (SAMP-04), always-running for the session; `Dispatcher _dispatcher` captured once at Initialize via `Application.Current.Dispatcher` (D-09); `int _tickInFlight` Interlocked reentrancy guard (D-02) at the top of new `OnSampleThreadTick(object? state)` callback with `try { ... } finally { _tickInFlight = 0; }` release; `OnSampleThreadTick` runs Win32 sampling and `OnSampleTick` off the UI thread (SAMP-02/03), short-circuits before BeginInvoke when `transition=None && !RatioChanged` (D-08), guards against dispatcher shutdown via `HasShutdownStarted/HasShutdownFinished` (D-09), and bundles all UI work in exactly one `_dispatcher.BeginInvoke` per tick (D-07) — lambda raises `ProximityChanged`, switches on transition to call `Activate()` / clear WS_EX_TRANSPARENT / raise `Restored`. `Activate()` body unchanged (option a); `_isGhostMode` writes still owned by `OnSampleTick` (false) and `Activate()` (true). `Dispose()` placeholder swap to `_timer?.Dispose()` — Plan 04 hardens to WaitHandle form. `MainWindow.xaml.cs` byte-for-byte unchanged; all 129 App + 449 Core tests pass
+- v4.4 Phase 85 Plan 04: Synchronous disposal landed — `Dispose()` rewritten from placeholder `_timer?.Dispose()` to the WaitHandle-based synchronous form per D-03. New `_disposed` bool field for idempotency early-exit. Dispose() now: (1) returns immediately if already disposed; (2) returns immediately if `_timer == null` (Initialize never ran); (3) creates a `using ManualResetEvent(false)`, calls `_timer.Dispose(notifyObject)` + `notifyObject.WaitOne()` to block until any in-flight tick callback fully completes; (4) sets `_timer = null;` defensively. Combined with D-09 dispatcher-shutdown guard from Plan 03, the teardown race is closed in both directions: ticks already running drain before Dispose() returns; ticks that started but reach BeginInvoke after dispatcher shutdown bail at the guard. T-85-12 and T-85-14 mitigations from Plan 04's threat register confirmed; T-85-13 explicitly accepted (bounded callback ⇒ no deadlock risk). `MainWindow.xaml.cs` byte-for-byte unchanged; all 129 App + 449 Core tests pass. **Phase 85 complete (4/4 plans).**
 
 ## Session Continuity
 
-**Next action:** Execute Plan 85-04 (synchronous disposal) — harden `Dispose()` from `_timer?.Dispose()` to `_timer.Dispose(WaitHandle)` blocking until any in-flight tick completes (D-03)
+**Next action:** Phase 85 verification (verifier sub-phase) → Phase 86 (frame-driven opacity rendering)
 
 **When returning:**
 
 1. Read this STATE.md and .planning/ROADMAP.md for current position
-2. Continue with `/gsd:execute-plan 85-04` to land the synchronous disposal
-3. After 85-04, proceed to Phase 86
+2. Run Phase 85 verifier (workflow.verifier=true in config.json)
+3. Begin Phase 86 planning (frame-driven opacity rendering — consumes ProximityChanged from Phase 85)
 
 **Recent milestones:**
 
 - v4.3 Configurable Ghost Override — shipped 2026-05-07 (574 tests, 22/22 requirements)
 - v4.2 Temps & Menu — shipped 2026-05-04 (562 tests, MPL-2.0 compliance)
 
-**Last session:** 2026-05-20T06:24:30Z — Completed 85-03-PLAN.md (Threading swap: `System.Threading.Timer` + Interlocked reentrancy guard + captured dispatcher + single `BeginInvoke` per tick with D-07/D-08/D-09 enforcement)
-**Stopped at:** Plan 85-03 complete — ready for 85-04
-**Resume file:** `.planning/phases/85-off-thread-sampling-refactor/85-04-PLAN.md`
+**Last session:** 2026-05-20T07:35:25Z — Completed 85-04-PLAN.md (Synchronous disposal: `_timer.Dispose(WaitHandle)` + `WaitOne()` blocking + `_disposed` idempotency guard per D-03)
+**Stopped at:** Phase 85 complete — ready for verification → Phase 86
+**Resume file:** Phase 86 planning (TBD)
 **Blockers:** None
 
 ---
-*State updated: 2026-05-20 — Plan 85-03 complete (commit 0388207); SUMMARY at .planning/phases/85-off-thread-sampling-refactor/85-03-SUMMARY.md*
+*State updated: 2026-05-20 — Plan 85-04 complete (commit 776bbbf); SUMMARY at .planning/phases/85-off-thread-sampling-refactor/85-04-SUMMARY.md*
+*Phase 85 complete: 4/4 plans landed; threading swap + synchronous disposal in place; ready for Phase 86*
 *Phase numbering continues from v4.3's Phase 84*

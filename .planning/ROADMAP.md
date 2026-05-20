@@ -47,7 +47,7 @@
 - [x] 85-01-PLAN.md — Pure tickable seam: SampleResult struct, GhostTransition enum, OnSampleTick method (no threading change) — **completed 2026-05-20** (commits 1f893c2, 6a3ca7f; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-01-SUMMARY.md`)
 - [x] 85-02-PLAN.md — Volatile config fields: _isEnabled, _useCtrl/Alt/Shift, _ghostFadeRadiusPx, _isGhostMode (cross-thread coherence prep) — **completed 2026-05-20** (commit a8c9e93; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-02-SUMMARY.md`)
 - [x] 85-03-PLAN.md — Off-thread timer: System.Threading.Timer + Interlocked reentrancy guard + Dispatcher.BeginInvoke marshalling — **completed 2026-05-20** (commit 0388207; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-03-SUMMARY.md`)
-- [ ] 85-04-PLAN.md — Synchronous disposal: _timer.Dispose(WaitHandle) blocking until in-flight tick drains
+- [x] 85-04-PLAN.md — Synchronous disposal: _timer.Dispose(WaitHandle) blocking until in-flight tick drains — **completed 2026-05-20** (commit 776bbbf; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-04-SUMMARY.md`)
 
 ### Phase 86: Frame-driven opacity rendering
 **Goal**: The visible fade traversal glides at display refresh rate via a per-frame lerp pump driven by `CompositionTarget.Rendering`, fully decoupled from sampling cadence, with all `MainWindow` interaction guards (drag, settings window, right-click menu, mouse-wheel opacity) preserved verbatim.
@@ -80,6 +80,6 @@ Phases execute in numeric order: 85 → 86 → 87
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 85. Off-thread sampling refactor | 2/4 | In progress | - |
+| 85. Off-thread sampling refactor | 4/4 | Ready for verification | - |
 | 86. Frame-driven opacity rendering | 0/TBD | Not started | - |
 | 87. Verification & performance acceptance | 0/TBD | Not started | - |
