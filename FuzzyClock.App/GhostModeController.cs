@@ -78,6 +78,7 @@ internal sealed class GhostModeController : IDisposable
     private volatile bool _useAlt   = true;                  // D-10: CFG-04 default preserves Ctrl+Alt behavior from v4.2
     private volatile bool _useShift = false;                 // D-10: CFG-04 default Shift disabled
     private volatile bool _isEnabled = true;                 // D-11: backing field for manual IsEnabled property
+    private bool _disposed;                                  // D-03: idempotency guard for Dispose()
 
     /// <summary>Whether ghost mode is enabled. Persisted to settings.</summary>
     public bool IsEnabled { get => _isEnabled; set => _isEnabled = value; }
@@ -408,5 +409,43 @@ internal sealed class GhostModeController : IDisposable
         return Math.Clamp(ratio, 0.0, 1.0);
     }
 
-    public void Dispose() => _timer?.Dispose();
+    /// <summary>
+    /// Synchronous disposal (D-03): blocks until any in-flight tick callback fully completes
+    /// before returning. Combined with the dispatcher-shutdown guard (D-09 in OnSampleThreadTick),
+    /// this closes both directions of the teardown race — ticks already running drain before
+    /// Dispose() returns; ticks that started but reach BeginInvoke after dispatcher shutdown bail
+    /// at the guard.
+    ///
+    /// Mechanism: <see cref="System.Threading.Timer.Dispose(WaitHandle)"/> signals the supplied
+    /// WaitHandle when all callbacks have completed; this method waits on the handle to make
+    /// disposal effectively synchronous. Bounded by the 33 ms tick period plus the bounded
+    /// callback body — no risk of unbounded wait given the current tick implementation.
+    ///
+    /// Idempotency: the <c>_disposed</c> early-exit guard plus <c>_timer = null</c> after
+    /// disposal ensures that calling <c>Dispose()</c> twice does not throw. If <c>Initialize</c>
+    /// was never called (so <c>_timer</c> is null), the method returns after setting
+    /// <c>_disposed = true</c> without touching anything else.
+    /// </summary>
+    public void Dispose()
+    {
+        // D-03 idempotency: second call is a no-op.
+        if (_disposed) return;
+        _disposed = true;
+
+        // Initialize() never ran — nothing to dispose.
+        if (_timer == null) return;
+
+        // D-03: WaitHandle form of Timer.Dispose. The timer signals notifyObject when all
+        // callbacks have completed; WaitOne() blocks until that signal, making disposal
+        // effectively synchronous. The using block ensures notifyObject is disposed once
+        // WaitOne() returns.
+        using (var notifyObject = new System.Threading.ManualResetEvent(false))
+        {
+            _timer.Dispose(notifyObject);
+            notifyObject.WaitOne();
+        }
+
+        // Defensive: any resurrected reference observes null after disposal.
+        _timer = null;
+    }
 }
