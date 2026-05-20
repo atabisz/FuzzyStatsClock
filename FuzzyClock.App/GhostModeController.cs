@@ -130,71 +130,59 @@ internal sealed class GhostModeController : IDisposable
     }
 
     /// <summary>
-    /// Timer tick — runs every 75ms for the full session lifecycle.
-    /// Computes the proximity ratio via Win32 cursor and window rect queries, emits
-    /// ProximityChanged only when the ratio changes, drives ghost activation at ratio=1.0,
-    /// and removes WS_EX_TRANSPARENT immediately when ratio drops below 1.0.
+    /// Timer tick — runs every 33ms for the full session lifecycle.
+    /// Gathers Win32 inputs (cursor + window rect + modifier state), delegates pure logic
+    /// to <see cref="OnSampleTick"/>, then applies the resulting <see cref="SampleResult"/>:
+    /// raises ProximityChanged on ratio change, calls Activate() on the Activate transition,
+    /// removes WS_EX_TRANSPARENT on RestoreNoEvent / RestoreWithEvent, and additionally
+    /// raises Restored on RestoreWithEvent.
     /// </summary>
     private void OnTimerTick(object? sender, EventArgs e)
     {
         if (!IsEnabled) return;   // PROX-09: no proximity computation when ghost mode is off
 
         // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
-        // receiving mouse messages when WS_EX_TRANSPARENT is active.
+        // receiving mouse messages when WS_EX_TRANSPARENT is active. Per D-05, Win32 sampling
+        // stays in the timer callback; the seam (OnSampleTick) is pure-logic only.
         if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
 
-        double ratio;
-        // D-08 + DET-02: Short-circuit when all modifiers disabled (all-false = override disabled).
-        // When any modifier is enabled, check if enabled modifiers are held to suppress ghost fade.
-        if (_useCtrl || _useAlt || _useShift)
-        {
-            if (IsModifierHeld())
-                ratio = 0.0;  // Enabled modifiers held — suppress proximity fade
-            else
-                ratio = ComputeProximityRatio(
-                    cursor.X, cursor.Y,
-                    rect.Left, rect.Top, rect.Right, rect.Bottom,
-                    _ghostFadeRadiusPx);
-        }
-        // If all three false, no check needed — ghost always activates (override disabled per DET-02)
-        else
-        {
-            ratio = ComputeProximityRatio(
-                cursor.X, cursor.Y,
-                rect.Left, rect.Top, rect.Right, rect.Bottom,
-                _ghostFadeRadiusPx);
-        }
+        bool modifiersHeld = IsModifierHeld();
 
-        // D-04/D-05: Only emit ProximityChanged when ratio actually changes.
-        // Prevents event storms when cursor is stationary (especially at steady-state 0.0).
-        if (ratio != _lastProximityRatio)
-        {
-            _lastProximityRatio = ratio;
-            ProximityChanged?.Invoke(ratio);
-        }
+        var result = OnSampleTick(
+            cursor.X, cursor.Y,
+            rect.Left, rect.Top, rect.Right, rect.Bottom,
+            modifiersHeld);
 
-        // D-06: Ghost activation — WS_EX_TRANSPARENT applied only when ratio reaches exactly 1.0.
-        // ComputeProximityRatio returns exactly 1.0 for inside-rect; the >= guard is defensive only.
-        if (ratio >= 1.0 && !_isGhostMode)
-        {
-            Activate();
-        }
+        // Order is preserved from the pre-refactor body: ProximityChanged fires before
+        // Activate() / WS_EX_TRANSPARENT removal / Restored.
+        if (result.RatioChanged)
+            ProximityChanged?.Invoke(result.NewRatio);
 
-        // D-07: Restore — WS_EX_TRANSPARENT removed immediately when ratio drops below 1.0.
-        // Widget becomes interactive again as soon as cursor retreats from the widget boundary,
-        // even before opacity has fully restored (Phase 68 handles the opacity gradient).
-        if (ratio < 1.0 && _isGhostMode)
+        switch (result.Transition)
         {
-            _isGhostMode = false;
-            int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-            SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
-            SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            case GhostTransition.Activate:
+                Activate();
+                break;
 
-            // Restored fires only when cursor fully exits the proximity zone (ratio=0.0)
-            // after having been in ghost state. Phase 68 uses this for final opacity snap.
-            if (ratio == 0.0)
-                Restored?.Invoke();
+            case GhostTransition.RestoreNoEvent:
+            case GhostTransition.RestoreWithEvent:
+                // _isGhostMode = false was already written by OnSampleTick (single-owner per D-06).
+                // Here we only perform the Win32 style mutation (WS_EX_TRANSPARENT removal).
+                int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+                SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
+                SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+                // Restored fires only when cursor fully exits the proximity zone (ratio=0.0)
+                // after having been in ghost state — encoded as RestoreWithEvent by the seam.
+                if (result.Transition == GhostTransition.RestoreWithEvent)
+                    Restored?.Invoke();
+                break;
+
+            case GhostTransition.None:
+            default:
+                // No UI work — steady-state inside or outside the zone with no ghost-state change.
+                break;
         }
     }
 
@@ -240,6 +228,94 @@ internal sealed class GhostModeController : IDisposable
         bool shiftOk = !_useShift || shiftHeld;
 
         return ctrlOk && altOk && shiftOk;
+    }
+
+    /// <summary>
+    /// Pure-logic seam: computes the proximity ratio, edge signal, and ghost-state transition
+    /// for a single sampler tick. Inputs are plain ints + a modifier-held bool — no Win32, no
+    /// dispatcher, no events. Tests exercise this directly without any Win32 machinery (D-04, D-05).
+    ///
+    /// State writes owned by this method (D-06):
+    ///   - <c>_lastProximityRatio</c> is written only when the ratio actually changes
+    ///   - <c>_isGhostMode = false</c> is written only on the restore branches
+    ///   - <c>_isGhostMode = true</c> is NOT written here — <see cref="Activate"/> retains that
+    ///     responsibility; this method emits <see cref="GhostTransition.Activate"/> for the
+    ///     post-seam handler to translate into an <c>Activate()</c> call.
+    ///
+    /// Read pattern (D-10): each volatile-target config field (_useCtrl, _useAlt, _useShift,
+    /// _ghostFadeRadiusPx) is read exactly once at the top of the method into a local snapshot
+    /// and the locals are used for the rest of the tick. Plan 02 will add the volatile modifier
+    /// to the backing fields; this plan adopts the read-once pattern now so Plan 03's threading
+    /// swap inherits it without further refactor.
+    /// </summary>
+    internal SampleResult OnSampleTick(
+        int cursorX, int cursorY,
+        int rectLeft, int rectTop, int rectRight, int rectBottom,
+        bool modifiersHeld)
+    {
+        // PROX-09 / SEM-05: when ghost mode is disabled, return a no-op result and write nothing.
+        if (!IsEnabled)
+            return new SampleResult(0.0, false, GhostTransition.None);
+
+        // D-10: read each config field exactly once into locals; operate on locals below.
+        bool useCtrl  = _useCtrl;
+        bool useAlt   = _useAlt;
+        bool useShift = _useShift;
+        int  radiusPx = _ghostFadeRadiusPx;
+
+        double ratio;
+        // SEM-03 / DET-02: short-circuit when all modifiers disabled (override disabled).
+        // When any modifier is enabled and modifiersHeld is true, force ratio to 0.0.
+        if (useCtrl || useAlt || useShift)
+        {
+            if (modifiersHeld)
+                ratio = 0.0;
+            else
+                ratio = ComputeProximityRatio(
+                    cursorX, cursorY,
+                    rectLeft, rectTop, rectRight, rectBottom,
+                    radiusPx);
+        }
+        else
+        {
+            // All modifier flags false — modifiersHeld ignored; ghost always activates per DET-02.
+            ratio = ComputeProximityRatio(
+                cursorX, cursorY,
+                rectLeft, rectTop, rectRight, rectBottom,
+                radiusPx);
+        }
+
+        // SEM-01: edge signal — true iff ratio differs from previous tick. Captured BEFORE the
+        // _lastProximityRatio write so the returned RatioChanged reflects the edge correctly.
+        bool ratioChanged = ratio != _lastProximityRatio;
+
+        // Determine the ghost-state transition based on the current ratio and the prior _isGhostMode.
+        GhostTransition transition;
+        if (ratio >= 1.0 && !_isGhostMode)
+        {
+            // SEM-02: ratio reached 1.0 from non-ghost state → activate.
+            transition = GhostTransition.Activate;
+        }
+        else if (ratio < 1.0 && _isGhostMode)
+        {
+            // SEM-02: ratio dropped below 1.0 from ghost state → restore.
+            // RestoreWithEvent only when ratio reaches exactly 0.0 (preserves the v4.0 P67 invariant
+            // that Restored fires only at full retreat).
+            transition = (ratio == 0.0) ? GhostTransition.RestoreWithEvent : GhostTransition.RestoreNoEvent;
+
+            // D-06: single-owner write — only the seam clears _isGhostMode.
+            _isGhostMode = false;
+        }
+        else
+        {
+            transition = GhostTransition.None;
+        }
+
+        // D-06: write _lastProximityRatio only on edge to mirror the original line 157 behavior.
+        if (ratioChanged)
+            _lastProximityRatio = ratio;
+
+        return new SampleResult(ratio, ratioChanged, transition);
     }
 
     /// <summary>
