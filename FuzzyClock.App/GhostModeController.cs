@@ -80,8 +80,45 @@ internal sealed class GhostModeController : IDisposable
     private volatile bool _isEnabled = true;                 // D-11: backing field for manual IsEnabled property
     private bool _disposed;                                  // D-03: idempotency guard for Dispose()
 
-    /// <summary>Whether ghost mode is enabled. Persisted to settings.</summary>
-    public bool IsEnabled { get => _isEnabled; set => _isEnabled = value; }
+    /// <summary>
+    /// Whether ghost mode is enabled. Persisted to settings.
+    /// <para>
+    /// The setter performs change-detection (D-04): when the assigned value equals the
+    /// existing backing-field value, the setter returns early without writing the field
+    /// and without raising <see cref="EnabledChanged"/>. On an actual transition the
+    /// new value is written to the volatile <c>_isEnabled</c> backing field (preserves
+    /// the Phase 85 D-11 cross-thread coherence contract) and <see cref="EnabledChanged"/>
+    /// is raised synchronously on the calling thread (D-05).
+    /// </para>
+    /// <para>
+    /// UI-thread-write contract (D-05): all writers must invoke this setter from the UI
+    /// thread. Current writers all satisfy this — the tray toggle uses
+    /// <c>Dispatcher.Invoke</c>, <c>ApplySettings</c> runs on the UI thread, and the
+    /// settings-window callback runs on the UI thread. The setter does not marshal to the
+    /// dispatcher itself, so subscribers of <see cref="EnabledChanged"/> always observe
+    /// the event on the UI thread.
+    /// </para>
+    /// </summary>
+    public bool IsEnabled
+    {
+        get => _isEnabled;
+        set
+        {
+            // D-04: change-detect — early-return when the assigned value matches the
+            // existing field value (settings.json restore that writes the existing default
+            // produces zero events). Read once into a local for the comparison; this
+            // matches the Phase 85 D-10 read-once-into-locals snapshot pattern, even though
+            // the setter is UI-thread-only.
+            bool current = _isEnabled;
+            if (current == value) return;
+
+            // D-04 / Phase 85 D-11: on actual transition, write through to the volatile
+            // backing field, then raise EnabledChanged synchronously on the calling thread
+            // (D-05 — no Dispatcher.BeginInvoke inside the setter).
+            _isEnabled = value;
+            EnabledChanged?.Invoke(value);
+        }
+    }
 
     /// <summary>True while the window is in click-through ghost state (WS_EX_TRANSPARENT applied).</summary>
     public bool IsActive => _isGhostMode;
@@ -93,6 +130,25 @@ internal sealed class GhostModeController : IDisposable
     /// not on every sub-1.0 tick during cursor retreat. Phase 68 uses this for final opacity snap.
     /// </summary>
     public event Action? Restored;
+
+    /// <summary>
+    /// Raised when <see cref="IsEnabled"/> actually transitions (D-04). The setter performs
+    /// change-detection: when the assigned value equals the existing backing-field value, the
+    /// setter returns early and this event is NOT raised. On an actual change the event is
+    /// raised synchronously on the calling thread (D-05) with the new value as the argument.
+    /// <para>
+    /// UI-thread-write contract: all writers of <see cref="IsEnabled"/> must invoke the setter
+    /// from the UI thread. The tray toggle uses <c>Dispatcher.Invoke</c>; <c>ApplySettings</c>
+    /// and the settings-window callback already run on the UI thread. Subscribers can therefore
+    /// safely touch UI elements (e.g. attach/detach <c>CompositionTarget.Rendering</c>) inside
+    /// the handler without additional marshalling.
+    /// </para>
+    /// <para>
+    /// Phase 86 Plan 02 wires <c>MainWindow</c> to this event via <c>+=</c> to subscribe and
+    /// detach the per-frame render pump in lockstep with the user's ghost-mode toggle.
+    /// </para>
+    /// </summary>
+    public event Action<bool>? EnabledChanged;
 
     /// <summary>
     /// Fires when the proximity ratio changes. Ratio is 0.0 (outside zone) to 1.0 (inside widget).
@@ -376,6 +432,58 @@ internal sealed class GhostModeController : IDisposable
             _lastProximityRatio = ratio;
 
         return new SampleResult(ratio, ratioChanged, transition);
+    }
+
+    /// <summary>
+    /// Pure static helper for the per-frame opacity lerp pump (Phase 86 / FADE-03 / D-08, D-09, D-03).
+    /// Returns the next current-ratio value given the current value, target value, lerp rate
+    /// constant <paramref name="alpha"/>, and per-frame elapsed seconds.
+    /// <para>
+    /// Body shape (D-09 + D-03 — order is load-bearing):
+    /// <list type="number">
+    /// <item><description>
+    /// Terminal-state snap (D-03): when <paramref name="target"/> equals exactly
+    /// <c>1.0</c> or exactly <c>0.0</c>, return <paramref name="target"/> directly without
+    /// running the exponential. Exact-equality on <c>double</c> is intentional and safe — the
+    /// only writers of <c>_targetRatio</c> in the consuming MainWindow are <c>ProximityChanged</c>
+    /// lambdas where the sampler's <see cref="OnSampleTick"/> produces <c>0.0</c> and <c>1.0</c>
+    /// as exact values (Phase 85 D-06 / SEM-01 / SEM-02). The snap closes the loop and preserves
+    /// crisp ghost activation and the v4.0 P67 invariant that <c>Restored</c> fires when the
+    /// ratio reaches exactly <c>0.0</c>.
+    /// </description></item>
+    /// <item><description>
+    /// Otherwise, apply the time-stable / frame-rate-independent exponential lerp from CONTEXT.md
+    /// <c>&lt;specifics&gt;</c>: <c>current + (target - current) * (1.0 - Math.Exp(-alpha * deltaSeconds))</c>.
+    /// <c>1/alpha</c> is the time-to-1/e (~63%) and <c>2.3/alpha</c> is the time-to-90%; at the
+    /// planned <c>alpha = 15.0</c>, time-to-90% is approximately 153 ms, masking frame-rate
+    /// variation under CPU load while keeping ghost activation visibly responsive.
+    /// </description></item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// Purity (D-09): the body has no field reads, no event raises, no <see cref="GhostModeController"/>
+    /// instance dependencies, and no clamping on the result (the formula is naturally bounded
+    /// between <paramref name="current"/> and <paramref name="target"/> for the planned
+    /// alpha/deltaSeconds ranges; <c>deltaSeconds</c> clamping is the consumer's responsibility).
+    /// </para>
+    /// <para>
+    /// Test reachability (D-08): declared <c>internal static</c> so <c>FuzzyClock.App.Tests</c>
+    /// can call it directly via the existing <c>InternalsVisibleTo</c> plumbing
+    /// (<c>FuzzyClock.App.csproj</c> lines 7-11). Phase 87 owns the unit-test bodies.
+    /// </para>
+    /// </summary>
+    internal static double LerpRatio(double current, double target, double alpha, double deltaSeconds)
+    {
+        // D-03: terminal-state snap. Exact-equality compare on double is intentional —
+        // _targetRatio in the consumer is only ever set from values produced by OnSampleTick,
+        // which emits exact 0.0 and 1.0 at the SEM-01 / SEM-02 transitions.
+        if (target == 1.0 || target == 0.0) return target;
+
+        // D-09: time-stable exponential lerp. Frame-rate independent — same visual feel at
+        // 60 Hz as at 144 Hz. Result is naturally bounded between current and target for the
+        // planned alpha/deltaSeconds ranges, so no Math.Clamp on the output (consumer clamps
+        // deltaSeconds upstream).
+        return current + (target - current) * (1.0 - Math.Exp(-alpha * deltaSeconds));
     }
 
     /// <summary>

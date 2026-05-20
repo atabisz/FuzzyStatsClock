@@ -4,7 +4,7 @@ milestone: v4.4
 milestone_name: Smooth Ghost Fade Under Load
 status: executing
 stopped_at: Phase 86 context gathered
-last_updated: "2026-05-20T10:52:46.429Z"
+last_updated: "2026-05-20T10:58:50.469Z"
 progress:
   total_phases: 3
   completed_phases: 1
@@ -15,7 +15,7 @@ progress:
 
 # Project State: FuzzyStatsClock
 
-**Status:** Ready to execute
+**Status:** Executing Phase 86
 **Last updated:** 2026-05-20
 
 ## Project Reference
@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Phase 86 — frame driven opacity rendering
+**Current focus:** Phase 86 — frame-driven-opacity-rendering
 
 ## Current Milestone
 
