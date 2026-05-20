@@ -48,6 +48,21 @@ internal sealed class GhostModeController : IDisposable
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 
+    /// <summary>
+    /// Possible state transitions emitted by <see cref="OnSampleTick"/>:
+    /// None - no ghost-state change; Activate - ratio reached 1.0 and ghost was inactive;
+    /// RestoreNoEvent - ratio dropped below 1.0 from active ghost state, but ratio &gt; 0.0;
+    /// RestoreWithEvent - ratio dropped below 1.0 from active ghost state and reached exactly 0.0
+    /// (caller must invoke <see cref="Restored"/>).
+    /// </summary>
+    internal enum GhostTransition { None, Activate, RestoreNoEvent, RestoreWithEvent }
+
+    /// <summary>
+    /// Pure-logic outcome of a single sampler tick. Returned by <see cref="OnSampleTick"/>
+    /// for the timer callback (or tests) to apply Win32/event side effects post-seam.
+    /// </summary>
+    internal readonly record struct SampleResult(double NewRatio, bool RatioChanged, GhostTransition Transition);
+
     private bool _isGhostMode;
     private IntPtr _hwnd;
     private DispatcherTimer? _restoreTimer;
