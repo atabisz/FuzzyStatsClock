@@ -46,7 +46,7 @@
 **Plans**: 4 plans
 - [x] 85-01-PLAN.md — Pure tickable seam: SampleResult struct, GhostTransition enum, OnSampleTick method (no threading change) — **completed 2026-05-20** (commits 1f893c2, 6a3ca7f; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-01-SUMMARY.md`)
 - [x] 85-02-PLAN.md — Volatile config fields: _isEnabled, _useCtrl/Alt/Shift, _ghostFadeRadiusPx, _isGhostMode (cross-thread coherence prep) — **completed 2026-05-20** (commit a8c9e93; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-02-SUMMARY.md`)
-- [ ] 85-03-PLAN.md — Off-thread timer: System.Threading.Timer + Interlocked reentrancy guard + Dispatcher.BeginInvoke marshalling
+- [x] 85-03-PLAN.md — Off-thread timer: System.Threading.Timer + Interlocked reentrancy guard + Dispatcher.BeginInvoke marshalling — **completed 2026-05-20** (commit 0388207; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-03-SUMMARY.md`)
 - [ ] 85-04-PLAN.md — Synchronous disposal: _timer.Dispose(WaitHandle) blocking until in-flight tick drains
 
 ### Phase 86: Frame-driven opacity rendering

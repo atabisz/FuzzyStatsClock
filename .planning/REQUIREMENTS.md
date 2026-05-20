@@ -17,10 +17,10 @@
 
 ### SAMP — Off-thread proximity sampling
 
-- [ ] **SAMP-01**: `GhostModeController` sampling uses a `System.Threading.Timer` (or equivalent thread-pool timer) instead of a UI-thread `DispatcherTimer`, so sampling no longer competes with WPF layout/input/render
-- [ ] **SAMP-02**: `GetCursorPos`, `GetWindowRect`, and `GetAsyncKeyState` calls plus the pure ratio computation run on the sampling thread — never on the UI thread
-- [ ] **SAMP-03**: All UI-touching work — `WS_EX_TRANSPARENT` toggle, `Activate`/`Restore`, `ProximityChanged` and `Restored` event raises — marshals to the dispatcher via `Dispatcher.BeginInvoke` so WPF/Win32 thread-affinity invariants are preserved
-- [ ] **SAMP-04**: Sampling cadence is no slower than the existing 33 ms cadence — target-ratio updates are observed at least as quickly as today
+- [x] **SAMP-01**: `GhostModeController` sampling uses a `System.Threading.Timer` (or equivalent thread-pool timer) instead of a UI-thread `DispatcherTimer`, so sampling no longer competes with WPF layout/input/render
+- [x] **SAMP-02**: `GetCursorPos`, `GetWindowRect`, and `GetAsyncKeyState` calls plus the pure ratio computation run on the sampling thread — never on the UI thread
+- [x] **SAMP-03**: All UI-touching work — `WS_EX_TRANSPARENT` toggle, `Activate`/`Restore`, `ProximityChanged` and `Restored` event raises — marshals to the dispatcher via `Dispatcher.BeginInvoke` so WPF/Win32 thread-affinity invariants are preserved
+- [x] **SAMP-04**: Sampling cadence is no slower than the existing 33 ms cadence — target-ratio updates are observed at least as quickly as today
 
 ### SEM — Preserved interaction semantics
 
@@ -68,10 +68,10 @@ Every v4.4 requirement maps to exactly one phase. The owning phase is the one th
 | FADE-02 | Phase 86 | Pending |
 | FADE-03 | Phase 86 | Pending |
 | FADE-04 | Phase 86 | Pending |
-| SAMP-01 | Phase 85 | Pending |
-| SAMP-02 | Phase 85 | Pending |
-| SAMP-03 | Phase 85 | Pending |
-| SAMP-04 | Phase 85 | Pending |
+| SAMP-01 | Phase 85 (Plan 85-03) | Complete |
+| SAMP-02 | Phase 85 (Plan 85-03) | Complete |
+| SAMP-03 | Phase 85 (Plan 85-03) | Complete |
+| SAMP-04 | Phase 85 (Plan 85-03) | Complete |
 | SEM-01  | Phase 85 (Plan 85-01) | Complete |
 | SEM-02  | Phase 85 (Plan 85-01) | Complete |
 | SEM-03  | Phase 85 (Plan 85-01) | Complete |
