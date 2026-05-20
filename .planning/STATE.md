@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.4
 milestone_name: Smooth Ghost Fade Under Load
-status: ready_to_plan
-stopped_at: Phase 86 complete (2/2) — ready to discuss Phase 87
-last_updated: 2026-05-20T11:49:37.304Z
+status: planning
+stopped_at: Phase 87 context gathered
+last_updated: "2026-05-20T12:49:16.869Z"
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
   completed_plans: 6
-  percent: 33
+  percent: 67
 ---
 
 # Project State: FuzzyStatsClock
@@ -87,9 +87,9 @@ None
 - v4.3 Configurable Ghost Override — shipped 2026-05-07 (574 tests, 22/22 requirements)
 - v4.2 Temps & Menu — shipped 2026-05-04 (562 tests, MPL-2.0 compliance)
 
-**Last session:** 2026-05-20T10:23:58.720Z
-**Stopped at:** Phase 86 context gathered
-**Resume file:** .planning/phases/86-frame-driven-opacity-rendering/86-CONTEXT.md
+**Last session:** 2026-05-20T12:49:16.861Z
+**Stopped at:** Phase 87 context gathered
+**Resume file:** .planning/phases/87-verification-performance-acceptance/87-CONTEXT.md
 **Blockers:** None
 
 ---
