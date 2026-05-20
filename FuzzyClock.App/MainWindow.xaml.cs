@@ -53,7 +53,21 @@ public partial class MainWindow : Window
     private TrayMenuBuilder _trayMenu = null!;
     private bool _autoLaunchEnabled = false;
     private bool _isDragging = false;   // true between DragMove() start and end — freezes display color
-    private double _proximityRatio = 0.0;   // current proximity ratio from GhostModeController
+    // Phase 86 D-12: lerped current ratio (per-frame interpolated value driving visible Opacity).
+    // Updated only by the per-frame render pump (and Restored snap to 0.0); ProximityChanged writes _targetRatio instead.
+    private double _currentRatio = 0.0;
+    // Phase 86 D-13: target ratio set by _ghostMode.ProximityChanged (sampler-thread output marshalled
+    // by Phase 85 D-07 BeginInvoke). The per-frame render pump lerps _currentRatio toward this.
+    private double _targetRatio  = 0.0;
+    // Phase 86 D-02: alpha for time-stable exponential lerp ("smooth ~150 ms" feel).
+    // Out of scope as a settings-tunable per REQUIREMENTS.md "Future Requirements".
+    // private const so JIT inlines.
+    private const double LerpAlpha = 15.0;
+    // Phase 86 D-06: idempotency guard against double-subscribe to the per-frame render pump.
+    private bool _renderPumpAttached;
+    // Phase 86 D-01: previous frame's render-time (TimeSpan); null on first frame after
+    // subscribe → use synthesised 0.016 baseline (one 60 Hz frame) to avoid a giant first-step.
+    private TimeSpan? _previousRenderTime;
     private bool _menuOpen = false;         // true while the tray ContextMenuStrip is open via widget right-click — pins opacity (RMB-04) and prevents re-entrant Show() flicker
     private GhostModeController _ghostMode = null!;
     private ContrastRefreshController _contrast = new();
@@ -162,26 +176,31 @@ public partial class MainWindow : Window
             _contrast.Cleared      += ApplyTheme;
             _contrast.Initialize(
                 this,
-                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging || _proximityRatio > 0.0,
+                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging || _currentRatio > 0.0,
                 () => new RgbColor(_accentColor.R, _accentColor.G, _accentColor.B));
 
             // Ghost mode controller — initialize now that HWND is available
             _ghostMode.Restored += () =>
             {
-                _proximityRatio = 0.0;
+                _currentRatio = 0.0;
                 this.Opacity = _windowOpacity;
                 if (!_backdropAlwaysVisible)
                     BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
             };
             _ghostMode.Initialize(new System.Windows.Interop.WindowInteropHelper(this).Handle);
-            _ghostMode.ProximityChanged = ratio =>
-            {
-                _proximityRatio = ratio;
-                if (_isDragging) return;
-                if (_settingsWindow?.IsVisible == true) return;  // don't adjust opacity while settings window is open
-                if (_menuOpen) return;                           // RMB-04: pin opacity while right-click menu is open
-                this.Opacity = _windowOpacity * (1.0 - ratio);
-            };
+            // Phase 86 D-13: ProximityChanged sets the target only. The per-frame render pump
+            // (OnRenderingTick) lerps _currentRatio toward _targetRatio and owns Opacity writes
+            // during fade. The five interaction guards (drag / settings-open / menu-open) moved
+            // into OnRenderingTick — see SEM-04 byte-for-byte parity contract.
+            _ghostMode.ProximityChanged = ratio => { _targetRatio = ratio; };
+
+            // Phase 86 D-04 / D-06: subscribe to EnabledChanged so the render pump attaches/detaches
+            // exactly with ghost-mode toggle (FADE-04 zero-overhead-when-disabled).
+            _ghostMode.EnabledChanged += OnGhostEnabledChanged;
+            // Phase 86 D-07 belt-and-braces: ApplySettings already wrote IsEnabled before ContentRendered;
+            // if ghost was enabled at startup the controller default may have already matched the assigned
+            // value (no event raised by the change-detect setter), so attach the pump synchronously here.
+            if (_ghostMode.IsEnabled) OnGhostEnabledChanged(true);
 
             // Tray icon
             _trayMenu = new TrayMenuBuilder(new TrayMenuCallbacks
@@ -203,7 +222,7 @@ public partial class MainWindow : Window
             });
             _trayIcon = _trayMenu.Build(GetCurrentTrayState(), GetCurrentTrayState);
 
-            // RMB-04: pin _proximityRatio (via the ProximityChanged lambda's _menuOpen guard) while
+            // RMB-04: pin _currentRatio (via the ProximityChanged lambda's _menuOpen guard) while
             // the tray ContextMenuStrip is open via a widget right-click. The Opening handler at
             // TrayMenuBuilder.cs:90 (SyncCheckmarks) registered first; WinForms fires handlers in
             // registration order so checkmark sync still runs before _menuOpen = true.
@@ -219,9 +238,84 @@ public partial class MainWindow : Window
         this.Closed += (_, _) =>
         {
             _trayIcon?.Dispose();
+            // Phase 86: detach the per-frame render pump BEFORE _ghostMode.Dispose() so
+            // late render frames cannot queue work into the pump while the controller's
+            // synchronous WaitHandle drain (Phase 85 D-03) is in progress.
+            // -= on an unsubscribed event is a no-op, so the unconditional form is safe.
+            System.Windows.Media.CompositionTarget.Rendering -= OnRenderingTick;
+            _renderPumpAttached = false;
             _ghostMode.Dispose();
             _contrast.Dispose();
         };
+    }
+
+    /// <summary>
+    /// Phase 86 D-04 / D-06: attach/detach the per-frame render pump in response to
+    /// GhostModeController.EnabledChanged. Idempotent on both edges via _renderPumpAttached.
+    /// On attach, resets _previousRenderTime to null so the first frame after subscribe uses
+    /// the synthesised 0.016 baseline rather than a stale TimeSpan from a prior attach.
+    /// FADE-04: when ghost mode is disabled the subscription is removed, so the per-frame
+    /// loop has zero overhead while the feature is off.
+    /// </summary>
+    private void OnGhostEnabledChanged(bool enabled)
+    {
+        if (enabled)
+        {
+            if (_renderPumpAttached) return;
+            _previousRenderTime = null;                       // D-01: reset baseline so first frame uses 0.016 synth
+            System.Windows.Media.CompositionTarget.Rendering += OnRenderingTick;
+            _renderPumpAttached = true;
+        }
+        else
+        {
+            if (!_renderPumpAttached) return;
+            System.Windows.Media.CompositionTarget.Rendering -= OnRenderingTick;
+            _renderPumpAttached = false;
+        }
+    }
+
+    /// <summary>
+    /// Phase 86 per-frame render pump on System.Windows.Media.CompositionTarget.Rendering. Body order is load-bearing:
+    /// (1) D-10 / D-11 convergence early-return; (2) D-01 deltaSeconds tracking with first-frame
+    /// baseline + Math.Clamp [0.0, 0.1] defensive bound; (3) FADE-01 lerp via the pure
+    /// GhostModeController.LerpRatio helper (terminal-state snap inside it closes the loop at
+    /// 0.0 / 1.0 per D-03); (4) D-13 / SEM-04 guard chain mirroring the original ProximityChanged
+    /// lambda byte-for-byte (_isDragging, settings-window-open, _menuOpen) — guards short-circuit
+    /// the Opacity write but do NOT skip the lerp step, so visible state catches up the moment
+    /// the guard releases on the next frame; (5) FADE-02 Opacity write from _currentRatio (NOT
+    /// _targetRatio) — what the user actually sees.
+    /// </summary>
+    private void OnRenderingTick(object? sender, EventArgs e)
+    {
+        // (1) Convergence early-return — D-10 / D-11. Exact-equality on double is safe because
+        // the only writers produce exact 0.0 / 1.0 via the LerpRatio terminal-state snap path.
+        if (_currentRatio == _targetRatio) return;
+
+        // (2) deltaSeconds tracking — D-01.
+        var args = (System.Windows.Media.RenderingEventArgs)e;
+        double deltaSeconds = _previousRenderTime.HasValue
+            ? (args.RenderingTime - _previousRenderTime.Value).TotalSeconds
+            : 0.016;                                          // synthesised one-60-Hz-frame baseline (first frame after subscribe)
+        deltaSeconds = Math.Clamp(deltaSeconds, 0.0, 0.1);    // defensive against clock changes / VM time-warp / suspend-resume
+        _previousRenderTime = args.RenderingTime;
+
+        // (3) Lerp step — FADE-01. The helper handles D-03 terminal-state snap internally;
+        // on the snap path, _currentRatio becomes exactly _targetRatio and the next frame's
+        // convergence check exits immediately.
+        _currentRatio = GhostModeController.LerpRatio(_currentRatio, _targetRatio, LerpAlpha, deltaSeconds);
+
+        // (4) Guard chain — D-13 / SEM-04. Order mirrors the original ProximityChanged lambda
+        // (lines 180-182 pre-Phase-86) byte-for-byte: drag freeze → settings-window pin →
+        // RMB-04 menu pin. Guards short-circuit the Opacity write below, but the lerp above
+        // already advanced _currentRatio so visible state catches up the moment the guard
+        // releases on the next frame — no perceived jump.
+        if (_isDragging) return;
+        if (_settingsWindow?.IsVisible == true) return;
+        if (_menuOpen) return;
+
+        // (5) Opacity write — FADE-02. Read from _currentRatio (the lerped visible value),
+        // NOT _targetRatio (the destination set by the sampler).
+        this.Opacity = _windowOpacity * (1.0 - _currentRatio);
     }
 
     /// <summary>
@@ -1395,7 +1489,7 @@ public partial class MainWindow : Window
         if (_settingsWindow?.IsVisible == true)
             this.Opacity = _windowOpacity;
         else
-            this.Opacity = _windowOpacity * (1.0 - _proximityRatio);
+            this.Opacity = _windowOpacity * (1.0 - _currentRatio);
         SaveSettings();
     }
 
