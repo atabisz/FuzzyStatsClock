@@ -59,7 +59,9 @@
   3. When the target ratio reaches a terminal value (`1.0` or `0.0`), `_currentRatio` snaps to that exact value rather than asymptotically approaching it — ghost activation and `Restored` timing remain crisp
   4. Lerp logic is extracted as a pure static helper (`LerpRatio(double current, double target, double alpha, double deltaSeconds)` or equivalent) suitable for unit testing without any WPF/timer dependency
   5. Existing `MainWindow` interaction guards behave identically: `_isDragging` short-circuits opacity writes, settings-window visibility short-circuits opacity writes, `_menuOpen` (RMB-04 right-click menu pin) short-circuits opacity writes, and the mouse-wheel `SetOpacity` path still writes `this.Opacity` directly without contention from the per-frame loop
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 86-01-PLAN.md — GhostModeController surface: EnabledChanged event with change-detect setter (D-04, D-05) + internal static LerpRatio helper with terminal-state snap (D-08, D-09, D-03)
+- [ ] 86-02-PLAN.md — MainWindow render pump: rename _proximityRatio → _currentRatio + add _targetRatio, attach/detach CompositionTarget.Rendering via EnabledChanged, OnRenderingTick lerp + guard chain (D-01, D-02, D-06, D-07, D-10, D-11, D-12, D-13, D-14, D-15)
 
 ### Phase 87: Verification & performance acceptance
 **Goal**: The new threading + rendering model is locked in by automated tests and human-observed smoothness — no regressions in the existing 574-test suite, new pure-helper coverage, and a manual smoothness check under sustained CPU load.
@@ -81,5 +83,5 @@ Phases execute in numeric order: 85 → 86 → 87
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 85. Off-thread sampling refactor | 4/4 | Complete    | 2026-05-20 |
-| 86. Frame-driven opacity rendering | 0/TBD | Not started | - |
+| 86. Frame-driven opacity rendering | 0/2 | Not started | - |
 | 87. Verification & performance acceptance | 0/TBD | Not started | - |
