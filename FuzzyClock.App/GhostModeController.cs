@@ -1,13 +1,17 @@
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Threading;
 
 namespace FuzzyClock.App;
 
 /// <summary>
 /// Owns all Win32 ghost mode infrastructure: P/Invoke declarations, click-through style
-/// management, and the 75ms cursor polling timer that drives proximity detection, fade
-/// gradient traversal, ghost activation at ratio=1.0, and restore on cursor retreat.
-/// Timer starts in Initialize() and runs continuously until Dispose().
+/// management, and the 33 ms thread-pool sampling timer (System.Threading.Timer) that
+/// drives proximity detection, fade gradient traversal, ghost activation at ratio=1.0,
+/// and restore on cursor retreat. Timer starts in Initialize() and runs continuously
+/// until Dispose(). Sampling executes off the UI thread (SAMP-01..03); UI work marshals
+/// via a single Dispatcher.BeginInvoke per tick (D-07), with reentrancy guard (D-02) and
+/// dispatcher-shutdown guard (D-09).
 /// </summary>
 internal sealed class GhostModeController : IDisposable
 {
@@ -65,7 +69,9 @@ internal sealed class GhostModeController : IDisposable
 
     private volatile bool _isGhostMode;                      // D-06: cross-thread reader at MainWindow.xaml.cs:165
     private IntPtr _hwnd;
-    private DispatcherTimer? _restoreTimer;
+    private System.Threading.Timer? _timer;                  // D-01: thread-pool sampling timer
+    private Dispatcher _dispatcher = null!;                  // D-09: captured once at Initialize for UI marshalling
+    private int _tickInFlight;                               // D-02: Interlocked reentrancy guard (0=idle, 1=tick running)
     private double _lastProximityRatio = 0.0;                // D-06: sampler-thread-local — no cross-thread reader, no volatile
     private volatile int _ghostFadeRadiusPx = 80;            // D-10: cross-thread config; UI writes, sampler reads
     private volatile bool _useCtrl  = true;                  // D-10: CFG-04 default preserves Ctrl+Alt behavior from v4.2
@@ -119,71 +125,123 @@ internal sealed class GhostModeController : IDisposable
 
     /// <summary>
     /// Called once from ContentRendered after the HWND is available.
-    /// Creates the 75ms polling timer and starts it immediately — timer runs for the entire session.
-    /// Caller should set GhostFadeRadiusPx from AppSettings.GhostFadeRadiusPx after this call.
+    /// Captures the UI dispatcher (D-09) and creates the 33 ms System.Threading.Timer (D-01),
+    /// which starts immediately and runs for the entire session — sampling executes on the
+    /// thread pool, UI work marshals via Dispatcher.BeginInvoke. Caller should set
+    /// GhostFadeRadiusPx from AppSettings.GhostFadeRadiusPx after this call.
     /// </summary>
     public void Initialize(IntPtr hwnd)
     {
         _hwnd = hwnd;
-        _restoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
-        _restoreTimer.Tick += OnTimerTick;
-        _restoreTimer.Start();   // always-running from Initialize() until Dispose() (D-01)
+        // D-09: capture the UI dispatcher once at Initialize for shutdown-guarded BeginInvoke
+        _dispatcher = System.Windows.Application.Current.Dispatcher;
+        // D-01: System.Threading.Timer at 33 ms cadence (SAMP-04). Always-running for the
+        // session lifecycle (P67 invariant) — start-immediately constructor, no Change() calls.
+        _timer = new System.Threading.Timer(OnSampleThreadTick, null, 0, 33);
     }
 
     /// <summary>
-    /// Timer tick — runs every 33ms for the full session lifecycle.
-    /// Gathers Win32 inputs (cursor + window rect + modifier state), delegates pure logic
-    /// to <see cref="OnSampleTick"/>, then applies the resulting <see cref="SampleResult"/>:
-    /// raises ProximityChanged on ratio change, calls Activate() on the Activate transition,
-    /// removes WS_EX_TRANSPARENT on RestoreNoEvent / RestoreWithEvent, and additionally
-    /// raises Restored on RestoreWithEvent.
+    /// Thread-pool timer callback — fires every 33 ms for the full session lifecycle.
+    /// Runs on a System.Threading.Timer worker thread (SAMP-01..03): Win32 sampling
+    /// (GetCursorPos / GetWindowRect / GetAsyncKeyState) and the pure OnSampleTick call
+    /// all execute off the UI thread; only Win32 window-style mutations and event raises
+    /// marshal back to the UI via a single Dispatcher.BeginInvoke per tick (D-07), and
+    /// only when work is required (D-08 short-circuits steady state).
+    ///
+    /// Reentrancy guard (D-02): Interlocked.CompareExchange ensures at most one thread
+    /// inside the tick body. Late ticks skip when a previous tick is still in flight —
+    /// self-throttling under load. The try/finally pair releases the guard on every path.
+    ///
+    /// Shutdown guard (D-09): _dispatcher.HasShutdownStarted/HasShutdownFinished checked
+    /// before BeginInvoke to defend against teardown races (Application.Current.Shutdown
+    /// running concurrently with a tick).
     /// </summary>
-    private void OnTimerTick(object? sender, EventArgs e)
+    private void OnSampleThreadTick(object? state)
     {
-        if (!IsEnabled) return;   // PROX-09: no proximity computation when ghost mode is off
+        // D-02: skip-if-busy reentrancy guard. Non-zero return ⇒ a previous tick is still
+        // running on another thread-pool worker; this tick skips entirely.
+        if (Interlocked.CompareExchange(ref _tickInFlight, 1, 0) != 0) return;
 
-        // Use Win32 GetCursorPos + GetWindowRect — bypasses WPF input system which stops
-        // receiving mouse messages when WS_EX_TRANSPARENT is active. Per D-05, Win32 sampling
-        // stays in the timer callback; the seam (OnSampleTick) is pure-logic only.
-        if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
-
-        bool modifiersHeld = IsModifierHeld();
-
-        var result = OnSampleTick(
-            cursor.X, cursor.Y,
-            rect.Left, rect.Top, rect.Right, rect.Bottom,
-            modifiersHeld);
-
-        // Order is preserved from the pre-refactor body: ProximityChanged fires before
-        // Activate() / WS_EX_TRANSPARENT removal / Restored.
-        if (result.RatioChanged)
-            ProximityChanged?.Invoke(result.NewRatio);
-
-        switch (result.Transition)
+        try
         {
-            case GhostTransition.Activate:
-                Activate();
-                break;
+            // PROX-09 / SEM-05: when ghost mode is disabled, no Win32 work, no events,
+            // no BeginInvoke. Volatile read (Plan 02 _isEnabled) ensures sampler sees
+            // UI-thread writes coherently.
+            if (!IsEnabled) return;
 
-            case GhostTransition.RestoreNoEvent:
-            case GhostTransition.RestoreWithEvent:
-                // _isGhostMode = false was already written by OnSampleTick (single-owner per D-06).
-                // Here we only perform the Win32 style mutation (WS_EX_TRANSPARENT removal).
-                int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
-                SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
-                SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            // Win32 sampling on the thread-pool thread (SAMP-02).
+            if (!GetCursorPos(out var cursor) || !GetWindowRect(_hwnd, out var rect)) return;
 
-                // Restored fires only when cursor fully exits the proximity zone (ratio=0.0)
-                // after having been in ghost state — encoded as RestoreWithEvent by the seam.
-                if (result.Transition == GhostTransition.RestoreWithEvent)
-                    Restored?.Invoke();
-                break;
+            // GetAsyncKeyState on the sampler thread (SAMP-02).
+            bool modifiersHeld = IsModifierHeld();
 
-            case GhostTransition.None:
-            default:
-                // No UI work — steady-state inside or outside the zone with no ghost-state change.
-                break;
+            // Pure-logic seam (Plan 01) — no Win32, no dispatcher, no events. Owns
+            // _isGhostMode and _lastProximityRatio writes on the sampler thread.
+            var result = OnSampleTick(
+                cursor.X, cursor.Y,
+                rect.Left, rect.Top, rect.Right, rect.Bottom,
+                modifiersHeld);
+
+            // D-08: zero dispatcher pressure at steady state. When transition is None and
+            // the ratio is unchanged there is no UI work to do, so no BeginInvoke is issued.
+            if (result.Transition == GhostTransition.None && !result.RatioChanged) return;
+
+            // D-09: belt-and-braces against teardown races. If the dispatcher is shutting
+            // down or has shut down, do not enqueue more work — Plan 04's synchronous
+            // disposal will close the rest of the window.
+            if (_dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished) return;
+
+            // D-07: exactly one BeginInvoke per tick bundles all UI side effects. The
+            // lambda runs on the UI thread; from MainWindow's perspective the existing
+            // ProximityChanged / Restored handlers still fire on the dispatcher thread,
+            // preserving WPF affinity for Opacity / Background mutations there.
+            _dispatcher.BeginInvoke(() =>
+            {
+                // Order preserved from the pre-refactor body: ProximityChanged fires
+                // before the WS_EX_TRANSPARENT mutation / Restored raise.
+                if (result.RatioChanged)
+                    ProximityChanged?.Invoke(result.NewRatio);
+
+                switch (result.Transition)
+                {
+                    case GhostTransition.Activate:
+                        // Existing Activate() retained (option (a) per plan): performs
+                        // SetWindowLong + SetWindowPos plus an idempotent _isGhostMode = true
+                        // re-write (already set by OnSampleTick on the sampler thread —
+                        // volatile bool, atomic, harmless).
+                        Activate();
+                        break;
+
+                    case GhostTransition.RestoreNoEvent:
+                    case GhostTransition.RestoreWithEvent:
+                        // _isGhostMode = false was already written by OnSampleTick on the
+                        // sampler thread (single-owner per D-06). Here we only perform the
+                        // Win32 style mutation (WS_EX_TRANSPARENT removal).
+                        int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+                        SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
+                        SetWindowPos(_hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+                        // Restored fires only when cursor fully exits the proximity zone
+                        // (ratio=0.0) after having been in ghost state — encoded as
+                        // RestoreWithEvent by the seam.
+                        if (result.Transition == GhostTransition.RestoreWithEvent)
+                            Restored?.Invoke();
+                        break;
+
+                    case GhostTransition.None:
+                    default:
+                        // Reachable here only when RatioChanged is true with Transition == None
+                        // (D-08 short-circuited the pure None && !RatioChanged case before
+                        // BeginInvoke). The only UI work is the ProximityChanged raise above.
+                        break;
+                }
+            });
+        }
+        finally
+        {
+            // D-02: release the reentrancy guard on every path (success, return, throw).
+            _tickInFlight = 0;
         }
     }
 
@@ -196,7 +254,7 @@ internal sealed class GhostModeController : IDisposable
     /// </summary>
     public void Activate()
     {
-        // _restoreTimer.Start() removed — timer is always running from Initialize() (D-01)
+        // Timer is always running from Initialize() (D-01); no per-call start needed.
         _isGhostMode = true;
         int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
         SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT);
@@ -209,7 +267,7 @@ internal sealed class GhostModeController : IDisposable
     /// Uses GetAsyncKeyState (not Keyboard.IsKeyDown) — overlay has no keyboard focus.
     /// Uses left-side-specific VK codes (DET-05) to avoid AltGr false-positives on EU keyboards.
     /// AND logic (DET-03): ALL enabled modifiers must be held simultaneously.
-    /// Public for unit testing (TST-03); called from OnTimerTick.
+    /// Public for unit testing (TST-03); called from OnSampleThreadTick.
     /// </summary>
     public bool IsModifierHeld()
     {
@@ -350,5 +408,5 @@ internal sealed class GhostModeController : IDisposable
         return Math.Clamp(ratio, 0.0, 1.0);
     }
 
-    public void Dispose() => _restoreTimer?.Stop();
+    public void Dispose() => _timer?.Dispose();
 }
