@@ -60,4 +60,32 @@
 
 ## Traceability
 
-(Filled by roadmap)
+Every v4.4 requirement maps to exactly one phase. The owning phase is the one that introduces the capability; the requirement is verified there even if downstream phases consume or re-verify it.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FADE-01 | Phase 86 | Pending |
+| FADE-02 | Phase 86 | Pending |
+| FADE-03 | Phase 86 | Pending |
+| FADE-04 | Phase 86 | Pending |
+| SAMP-01 | Phase 85 | Pending |
+| SAMP-02 | Phase 85 | Pending |
+| SAMP-03 | Phase 85 | Pending |
+| SAMP-04 | Phase 85 | Pending |
+| SEM-01  | Phase 85 | Pending |
+| SEM-02  | Phase 85 | Pending |
+| SEM-03  | Phase 85 | Pending |
+| SEM-04  | Phase 86 | Pending |
+| SEM-05  | Phase 85 | Pending |
+| TEST-01 | Phase 87 | Pending |
+| TEST-02 | Phase 87 | Pending |
+| TEST-03 | Phase 87 | Pending |
+| TEST-04 | Phase 87 | Pending |
+| PERF-01 | Phase 87 | Pending |
+
+**Coverage:** 18/18 requirements mapped (100%) — no orphans, no duplicates.
+
+**Per-phase totals:**
+- Phase 85 — Off-thread sampling refactor: 8 requirements (SAMP-01..04, SEM-01, SEM-02, SEM-03, SEM-05)
+- Phase 86 — Frame-driven opacity rendering: 5 requirements (FADE-01..04, SEM-04)
+- Phase 87 — Verification & performance acceptance: 5 requirements (TEST-01..04, PERF-01)
