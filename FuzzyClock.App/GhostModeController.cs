@@ -63,17 +63,18 @@ internal sealed class GhostModeController : IDisposable
     /// </summary>
     internal readonly record struct SampleResult(double NewRatio, bool RatioChanged, GhostTransition Transition);
 
-    private bool _isGhostMode;
+    private volatile bool _isGhostMode;                      // D-06: cross-thread reader at MainWindow.xaml.cs:165
     private IntPtr _hwnd;
     private DispatcherTimer? _restoreTimer;
-    private double _lastProximityRatio = 0.0;
-    private int _ghostFadeRadiusPx = 80;
-    private bool _useCtrl  = true;   // CFG-04: default preserves Ctrl+Alt behavior from v4.2
-    private bool _useAlt   = true;   // CFG-04: default preserves Ctrl+Alt behavior from v4.2
-    private bool _useShift = false;  // CFG-04: default Shift disabled
+    private double _lastProximityRatio = 0.0;                // D-06: sampler-thread-local — no cross-thread reader, no volatile
+    private volatile int _ghostFadeRadiusPx = 80;            // D-10: cross-thread config; UI writes, sampler reads
+    private volatile bool _useCtrl  = true;                  // D-10: CFG-04 default preserves Ctrl+Alt behavior from v4.2
+    private volatile bool _useAlt   = true;                  // D-10: CFG-04 default preserves Ctrl+Alt behavior from v4.2
+    private volatile bool _useShift = false;                 // D-10: CFG-04 default Shift disabled
+    private volatile bool _isEnabled = true;                 // D-11: backing field for manual IsEnabled property
 
     /// <summary>Whether ghost mode is enabled. Persisted to settings.</summary>
-    public bool IsEnabled { get; set; } = true;
+    public bool IsEnabled { get => _isEnabled; set => _isEnabled = value; }
 
     /// <summary>True while the window is in click-through ghost state (WS_EX_TRANSPARENT applied).</summary>
     public bool IsActive => _isGhostMode;
