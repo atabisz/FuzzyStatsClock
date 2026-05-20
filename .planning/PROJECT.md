@@ -28,18 +28,17 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 562 MSTest tests (445 Core + 117 App) passing. CI gate enforced. REL-02 + REL-03 grep gates live in release.yml. LHM 0.9.6 pinned in FuzzyClock.App.csproj.
 
-## Current Milestone: v4.3 Configurable Ghost Override
+## Current Milestone: v4.4 Smooth Ghost Fade Under Load
 
-**Goal:** Let users customize which modifier keys suppress Ghost Mode instead of hardcoded Ctrl+Alt.
+**Goal:** Make ghost-mode proximity fade visibly smooth even when the system is under CPU contention (~25%+) by decoupling sampling from rendering and moving sampling off the UI thread.
 
 **Target features:**
 
-- **Configurable ghost override modifiers** — Three checkboxes in Settings > Behavior (Ctrl / Alt / Shift) to configure which modifier keys suppress Ghost Mode when held while hovering
-- **Backward-compatible default** — Default remains Ctrl+Alt for existing users; new users see Ctrl+Alt enabled by default
-- **Disable option** — Unchecking all three modifiers disables the override entirely (ghost mode always activates on hover with no keyboard bypass)
-- **Persisted configuration** — Setting persists to settings.json and restores on launch; `ResetToDefaults()` restores Ctrl+Alt
+- **Frame-driven opacity rendering** — Decouple visible fade from sampling cadence: `this.Opacity` lerps toward a target ratio on `CompositionTarget.Rendering`, so the fade glides at the display refresh rate regardless of when sampling fires
+- **Off-thread proximity sampling** — Replace the UI-thread `DispatcherTimer` in `GhostModeController` with `System.Threading.Timer` (or equivalent); `GetCursorPos`/`GetWindowRect` run off-thread; UI-thread work (Opacity, `WS_EX_TRANSPARENT`, events) marshals via `Dispatcher.BeginInvoke`
+- **Preserved interaction semantics** — Ratio=1.0 → `WS_EX_TRANSPARENT`, ratio<1.0 → remove immediately, `Restored` only at ratio=0.0; modifier suppression, drag freeze, settings-window pin, RMB-04 menu pin, scroll-wheel direct opacity all unchanged
 
-**Key context:** GhostModeController currently hardcodes `VK_LCONTROL` + `VK_LMENU` checks. The new implementation will read a configuration (3 bools: `UseCtrl`, `UseAlt`, `UseShift`) and check `GetAsyncKeyState` for the enabled combination. All three false = override disabled (IsCtrlAltHeld always returns false).
+**Key context:** Pure responsiveness/architecture milestone — no new user-visible features beyond "the fade now stays smooth under load". Existing pure-static unit tests on `ComputeProximityRatio` and `IsModifierHeld` must keep passing. The new threading model needs to be unit-testable. Files in scope: `FuzzyClock.App/GhostModeController.cs` and `FuzzyClock.App/MainWindow.xaml.cs` (ProximityChanged handler, Restored handler, drag/menu/settings opacity guards, SetOpacity, mouse-wheel opacity).
 
 ## Requirements
 
