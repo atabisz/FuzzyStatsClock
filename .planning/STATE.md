@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.4
 milestone_name: Smooth Ghost Fade Under Load
 status: executing
-last_updated: "2026-05-20T06:10:00Z"
+last_updated: "2026-05-20T06:18:00Z"
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State: FuzzyStatsClock
 
-**Status:** Executing Phase 85 (Plan 01 complete; Plan 02 next)
+**Status:** Executing Phase 85 (Plan 02 complete; Plan 03 next)
 **Last updated:** 2026-05-20
 
 ## Project Reference
@@ -67,27 +67,28 @@ None
 - v4.3 Phase 83: `IsModifierHeld` AND-logic with all-false short-circuit — Phase 85 must preserve under off-thread sampling
 - v4.3 Phase 84: Five `MainWindow` touchpoints for ghost integration — Phase 86 must respect drag/settings/menu/wheel guards verbatim
 - v4.4 Phase 85 Plan 01: Pure-logic seam landed — `internal SampleResult OnSampleTick(...)` + `GhostTransition` enum exposed via `InternalsVisibleTo`; `OnTimerTick` now gather→delegate→apply; D-10 read-once-into-locals snapshot pattern adopted ahead of Plan 02 volatile swap; single-owner write rule for `_lastProximityRatio` and `_isGhostMode = false` enforced — all 129 App + 449 Core tests pass without modification, `MainWindow.xaml.cs` byte-for-byte unchanged
+- v4.4 Phase 85 Plan 02: Volatile config fields landed — `_isGhostMode` (D-06), `_useCtrl/_useAlt/_useShift/_ghostFadeRadiusPx` (D-10), and new `_isEnabled` backing field (D-11) all declared `volatile`; `IsEnabled` converted from auto-property to manual property `{ get => _isEnabled; set => _isEnabled = value; }`; `_lastProximityRatio` deliberately left as plain `double` (sampler-thread-local per D-06); no threading changes — `OnTimerTick` still on dispatcher; `MainWindow.xaml.cs` byte-for-byte unchanged; all 129 App tests pass
 
 ## Session Continuity
 
-**Next action:** Execute Plan 85-02 (volatile config fields) — backing-field volatile modifiers + `IsEnabled` auto-property → `volatile bool _isEnabled` conversion per D-10 / D-11
+**Next action:** Execute Plan 85-03 (off-thread timer) — replace `DispatcherTimer` with `System.Threading.Timer`, add Interlocked reentrancy guard, route post-seam side effects through `Dispatcher.BeginInvoke`
 
 **When returning:**
 
 1. Read this STATE.md and .planning/ROADMAP.md for current position
-2. Continue with `/gsd:execute-plan 85-02` to land the volatile-fields prep
-3. After 85-02 / 85-03 / 85-04, proceed to Phase 86
+2. Continue with `/gsd:execute-plan 85-03` to land the threading swap
+3. After 85-03 / 85-04, proceed to Phase 86
 
 **Recent milestones:**
 
 - v4.3 Configurable Ghost Override — shipped 2026-05-07 (574 tests, 22/22 requirements)
 - v4.2 Temps & Menu — shipped 2026-05-04 (562 tests, MPL-2.0 compliance)
 
-**Last session:** 2026-05-20T06:10:00Z — Completed 85-01-PLAN.md (Pure-logic seam: `OnSampleTick` + `GhostTransition`/`SampleResult`)
-**Stopped at:** Plan 85-01 complete — ready for 85-02
-**Resume file:** `.planning/phases/85-off-thread-sampling-refactor/85-02-PLAN.md` (when authored)
+**Last session:** 2026-05-20T06:18:00Z — Completed 85-02-PLAN.md (Volatile config fields: `_isGhostMode/_useCtrl/_useAlt/_useShift/_ghostFadeRadiusPx/_isEnabled` + manual IsEnabled property)
+**Stopped at:** Plan 85-02 complete — ready for 85-03
+**Resume file:** `.planning/phases/85-off-thread-sampling-refactor/85-03-PLAN.md` (when authored)
 **Blockers:** None
 
 ---
-*State updated: 2026-05-20 — Plan 85-01 complete (commits 1f893c2, 6a3ca7f); SUMMARY at .planning/phases/85-off-thread-sampling-refactor/85-01-SUMMARY.md*
+*State updated: 2026-05-20 — Plan 85-02 complete (commit a8c9e93); SUMMARY at .planning/phases/85-off-thread-sampling-refactor/85-02-SUMMARY.md*
 *Phase numbering continues from v4.3's Phase 84*
