@@ -24,11 +24,11 @@
 
 ### SEM — Preserved interaction semantics
 
-- [ ] **SEM-01**: Ratio reaching `1.0` activates `WS_EX_TRANSPARENT`; ratio dropping below `1.0` removes it immediately (PROX-03 / D-06 / D-07 invariants from v4.0 still hold)
-- [ ] **SEM-02**: `Restored` fires only when ratio fully reaches `0.0` after ghost activation — never on intermediate sub-`1.0` ticks during cursor retreat
-- [ ] **SEM-03**: Configurable Ctrl/Alt/Shift modifier-held check still forces ratio to `0.0` exactly as in v4.3 — no behavior change to override semantics
+- [x] **SEM-01**: Ratio reaching `1.0` activates `WS_EX_TRANSPARENT`; ratio dropping below `1.0` removes it immediately (PROX-03 / D-06 / D-07 invariants from v4.0 still hold) — Plan 85-01 (encoded as `GhostTransition.Activate` / `RestoreNoEvent` / `RestoreWithEvent` in `OnSampleTick`)
+- [x] **SEM-02**: `Restored` fires only when ratio fully reaches `0.0` after ghost activation — never on intermediate sub-`1.0` ticks during cursor retreat — Plan 85-01 (encoded as `RestoreWithEvent` only when `ratio == 0.0`)
+- [x] **SEM-03**: Configurable Ctrl/Alt/Shift modifier-held check still forces ratio to `0.0` exactly as in v4.3 — no behavior change to override semantics — Plan 85-01 (`OnSampleTick` forces `ratio = 0.0` when `(useCtrl || useAlt || useShift) && modifiersHeld`)
 - [ ] **SEM-04**: `MainWindow` drag freeze (`_isDragging`), settings-window-open freeze, RMB-04 right-click menu pin (`_menuOpen`), and mouse-wheel direct opacity all behave identically — the new render pump must respect the same guards
-- [ ] **SEM-05**: Ghost-mode tray toggle off → no sampling, no event raises, no opacity manipulation (PROX-09 disable-gate invariant)
+- [x] **SEM-05**: Ghost-mode tray toggle off → no sampling, no event raises, no opacity manipulation (PROX-09 disable-gate invariant) — Plan 85-01 (`OnSampleTick` early-bails on `!IsEnabled`; `OnTimerTick` retains its own pre-seam `!IsEnabled` bail)
 
 ### TEST — Test coverage
 
@@ -72,11 +72,11 @@ Every v4.4 requirement maps to exactly one phase. The owning phase is the one th
 | SAMP-02 | Phase 85 | Pending |
 | SAMP-03 | Phase 85 | Pending |
 | SAMP-04 | Phase 85 | Pending |
-| SEM-01  | Phase 85 | Pending |
-| SEM-02  | Phase 85 | Pending |
-| SEM-03  | Phase 85 | Pending |
+| SEM-01  | Phase 85 (Plan 85-01) | Complete |
+| SEM-02  | Phase 85 (Plan 85-01) | Complete |
+| SEM-03  | Phase 85 (Plan 85-01) | Complete |
 | SEM-04  | Phase 86 | Pending |
-| SEM-05  | Phase 85 | Pending |
+| SEM-05  | Phase 85 (Plan 85-01) | Complete |
 | TEST-01 | Phase 87 | Pending |
 | TEST-02 | Phase 87 | Pending |
 | TEST-03 | Phase 87 | Pending |

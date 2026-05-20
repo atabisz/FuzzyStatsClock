@@ -44,7 +44,7 @@
   4. Configurable Ctrl/Alt/Shift modifier-held check still forces ratio to `0.0` when held (v4.3 override semantics unchanged); ghost-mode tray toggle off still produces zero sampling work, zero events, and zero opacity manipulation
   5. The pure-logic core of `OnTimerTick` is reachable from tests via an internal seam (e.g. `OnSampleTick(int cursorX, int cursorY, RECT, bool modifiersHeld)`) so the new threading machinery is not on the test critical path
 **Plans**: 4 plans
-- [ ] 85-01-PLAN.md — Pure tickable seam: SampleResult struct, GhostTransition enum, OnSampleTick method (no threading change)
+- [x] 85-01-PLAN.md — Pure tickable seam: SampleResult struct, GhostTransition enum, OnSampleTick method (no threading change) — **completed 2026-05-20** (commits 1f893c2, 6a3ca7f; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-01-SUMMARY.md`)
 - [ ] 85-02-PLAN.md — Volatile config fields: _isEnabled, _useCtrl/Alt/Shift, _ghostFadeRadiusPx, _isGhostMode (cross-thread coherence prep)
 - [ ] 85-03-PLAN.md — Off-thread timer: System.Threading.Timer + Interlocked reentrancy guard + Dispatcher.BeginInvoke marshalling
 - [ ] 85-04-PLAN.md — Synchronous disposal: _timer.Dispose(WaitHandle) blocking until in-flight tick drains
@@ -80,6 +80,6 @@ Phases execute in numeric order: 85 → 86 → 87
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 85. Off-thread sampling refactor | 0/4 | Not started | - |
+| 85. Off-thread sampling refactor | 1/4 | In progress | - |
 | 86. Frame-driven opacity rendering | 0/TBD | Not started | - |
 | 87. Verification & performance acceptance | 0/TBD | Not started | - |
