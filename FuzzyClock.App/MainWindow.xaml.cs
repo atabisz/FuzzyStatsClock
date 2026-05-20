@@ -53,7 +53,21 @@ public partial class MainWindow : Window
     private TrayMenuBuilder _trayMenu = null!;
     private bool _autoLaunchEnabled = false;
     private bool _isDragging = false;   // true between DragMove() start and end — freezes display color
-    private double _proximityRatio = 0.0;   // current proximity ratio from GhostModeController
+    // Phase 86 D-12: lerped current ratio (per-frame interpolated value driving visible Opacity).
+    // Updated only by the per-frame render pump (and Restored snap to 0.0); ProximityChanged writes _targetRatio instead.
+    private double _currentRatio = 0.0;
+    // Phase 86 D-13: target ratio set by _ghostMode.ProximityChanged (sampler-thread output marshalled
+    // by Phase 85 D-07 BeginInvoke). The per-frame render pump lerps _currentRatio toward this.
+    private double _targetRatio  = 0.0;
+    // Phase 86 D-02: alpha for time-stable exponential lerp ("smooth ~150 ms" feel).
+    // Out of scope as a settings-tunable per REQUIREMENTS.md "Future Requirements".
+    // private const so JIT inlines.
+    private const double LerpAlpha = 15.0;
+    // Phase 86 D-06: idempotency guard against double-subscribe to the per-frame render pump.
+    private bool _renderPumpAttached;
+    // Phase 86 D-01: previous frame's render-time (TimeSpan); null on first frame after
+    // subscribe → use synthesised 0.016 baseline (one 60 Hz frame) to avoid a giant first-step.
+    private TimeSpan? _previousRenderTime;
     private bool _menuOpen = false;         // true while the tray ContextMenuStrip is open via widget right-click — pins opacity (RMB-04) and prevents re-entrant Show() flicker
     private GhostModeController _ghostMode = null!;
     private ContrastRefreshController _contrast = new();
@@ -162,13 +176,13 @@ public partial class MainWindow : Window
             _contrast.Cleared      += ApplyTheme;
             _contrast.Initialize(
                 this,
-                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging || _proximityRatio > 0.0,
+                () => _ghostMode.IsActive || _windowOpacity == 0.0 || _isDragging || _currentRatio > 0.0,
                 () => new RgbColor(_accentColor.R, _accentColor.G, _accentColor.B));
 
             // Ghost mode controller — initialize now that HWND is available
             _ghostMode.Restored += () =>
             {
-                _proximityRatio = 0.0;
+                _currentRatio = 0.0;
                 this.Opacity = _windowOpacity;
                 if (!_backdropAlwaysVisible)
                     BackdropBorder.Background = System.Windows.Media.Brushes.Transparent;
@@ -176,7 +190,7 @@ public partial class MainWindow : Window
             _ghostMode.Initialize(new System.Windows.Interop.WindowInteropHelper(this).Handle);
             _ghostMode.ProximityChanged = ratio =>
             {
-                _proximityRatio = ratio;
+                _currentRatio = ratio;
                 if (_isDragging) return;
                 if (_settingsWindow?.IsVisible == true) return;  // don't adjust opacity while settings window is open
                 if (_menuOpen) return;                           // RMB-04: pin opacity while right-click menu is open
@@ -203,7 +217,7 @@ public partial class MainWindow : Window
             });
             _trayIcon = _trayMenu.Build(GetCurrentTrayState(), GetCurrentTrayState);
 
-            // RMB-04: pin _proximityRatio (via the ProximityChanged lambda's _menuOpen guard) while
+            // RMB-04: pin _currentRatio (via the ProximityChanged lambda's _menuOpen guard) while
             // the tray ContextMenuStrip is open via a widget right-click. The Opening handler at
             // TrayMenuBuilder.cs:90 (SyncCheckmarks) registered first; WinForms fires handlers in
             // registration order so checkmark sync still runs before _menuOpen = true.
@@ -1395,7 +1409,7 @@ public partial class MainWindow : Window
         if (_settingsWindow?.IsVisible == true)
             this.Opacity = _windowOpacity;
         else
-            this.Opacity = _windowOpacity * (1.0 - _proximityRatio);
+            this.Opacity = _windowOpacity * (1.0 - _currentRatio);
         SaveSettings();
     }
 
