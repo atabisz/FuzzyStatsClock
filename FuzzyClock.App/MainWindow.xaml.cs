@@ -287,6 +287,14 @@ public partial class MainWindow : Window
         {
             if (_renderPumpAttached) return;
             _previousRenderTime = null;                       // D-01: reset baseline so first frame uses 0.016 synth
+            // Phase 87 WR-01: defensive symmetry with the disable-edge reset below. Closes a
+            // narrow race where a sampler-thread BeginInvoke queued just before the user
+            // disabled ghost mode pumps after the disable-edge zero of _targetRatio, leaving a
+            // stale ~33-ms-old target value that a later re-enable would lerp toward for one
+            // frame (visible as a brief one-frame ghost flash on re-enable). Doubling the write
+            // on the enable edge makes the contract symmetric and closes the race.
+            _currentRatio = 0.0;
+            _targetRatio  = 0.0;
             System.Windows.Media.CompositionTarget.Rendering += OnRenderingTick;
             _renderPumpAttached = true;
         }
