@@ -12,13 +12,16 @@ namespace FuzzyClock.App.Tests;
 public class LerpRatioTests
 {
     [TestMethod]
-    [DataRow(1.0, 1.0, 15.0, 0.016, 1.0, DisplayName = "target=1.0, current=1.0 -> 1.0 (snap)")]
-    [DataRow(1.0, 1.0, 15.0, 0.016, 0.5, DisplayName = "target=1.0, current=0.5 -> 1.0 (snap)")]
-    [DataRow(1.0, 1.0, 15.0, 0.016, 0.0, DisplayName = "target=1.0, current=0.0 -> 1.0 (snap)")]
-    [DataRow(0.0, 0.0, 15.0, 0.016, 0.0, DisplayName = "target=0.0, current=0.0 -> 0.0 (snap)")]
-    [DataRow(0.0, 0.0, 15.0, 0.016, 0.5, DisplayName = "target=0.0, current=0.5 -> 0.0 (snap)")]
-    [DataRow(0.0, 0.0, 15.0, 0.016, 1.0, DisplayName = "target=0.0, current=1.0 -> 0.0 (snap)")]
-    public void LerpRatio_TerminalStateSnap(double target, double expected, double alpha, double deltaSeconds, double current)
+    // Phase 87 WR-02: parameter order mirrors the SUT signature
+    // GhostModeController.LerpRatio(current, target, alpha, deltaSeconds) so the DataRow
+    // literals are unambiguous; `expected` trails as the conventional final column.
+    [DataRow(1.0, 1.0, 15.0, 0.016, 1.0, DisplayName = "current=1.0, target=1.0 -> 1.0 (snap)")]
+    [DataRow(0.5, 1.0, 15.0, 0.016, 1.0, DisplayName = "current=0.5, target=1.0 -> 1.0 (snap)")]
+    [DataRow(0.0, 1.0, 15.0, 0.016, 1.0, DisplayName = "current=0.0, target=1.0 -> 1.0 (snap)")]
+    [DataRow(0.0, 0.0, 15.0, 0.016, 0.0, DisplayName = "current=0.0, target=0.0 -> 0.0 (snap)")]
+    [DataRow(0.5, 0.0, 15.0, 0.016, 0.0, DisplayName = "current=0.5, target=0.0 -> 0.0 (snap)")]
+    [DataRow(1.0, 0.0, 15.0, 0.016, 0.0, DisplayName = "current=1.0, target=0.0 -> 0.0 (snap)")]
+    public void LerpRatio_TerminalStateSnap(double current, double target, double alpha, double deltaSeconds, double expected)
     {
         double result = GhostModeController.LerpRatio(current, target, alpha, deltaSeconds);
         Assert.AreEqual(expected, result, 0.0001);
