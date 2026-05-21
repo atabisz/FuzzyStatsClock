@@ -15,10 +15,14 @@ public class LerpRatioTests
     // Phase 87 WR-02: parameter order mirrors the SUT signature
     // GhostModeController.LerpRatio(current, target, alpha, deltaSeconds) so the DataRow
     // literals are unambiguous; `expected` trails as the conventional final column.
-    [DataRow(1.0, 1.0, 15.0, 0.016, 1.0, DisplayName = "current=1.0, target=1.0 -> 1.0 (snap)")]
+    // Phase 87 WR-03: rows where current == target are intentionally omitted — they pass
+    // whether or not the D-03 terminal-state-snap branch exists (the lerp formula already
+    // returns target when current == target), so they cannot distinguish the snap path from
+    // the formula path. The four current != target rows below exercise the snap branch
+    // exclusively: without snap, the formula would return an interpolated value strictly
+    // between current and target rather than the exact terminal value asserted here.
     [DataRow(0.5, 1.0, 15.0, 0.016, 1.0, DisplayName = "current=0.5, target=1.0 -> 1.0 (snap)")]
     [DataRow(0.0, 1.0, 15.0, 0.016, 1.0, DisplayName = "current=0.0, target=1.0 -> 1.0 (snap)")]
-    [DataRow(0.0, 0.0, 15.0, 0.016, 0.0, DisplayName = "current=0.0, target=0.0 -> 0.0 (snap)")]
     [DataRow(0.5, 0.0, 15.0, 0.016, 0.0, DisplayName = "current=0.5, target=0.0 -> 0.0 (snap)")]
     [DataRow(1.0, 0.0, 15.0, 0.016, 0.0, DisplayName = "current=1.0, target=0.0 -> 0.0 (snap)")]
     public void LerpRatio_TerminalStateSnap(double current, double target, double alpha, double deltaSeconds, double expected)
