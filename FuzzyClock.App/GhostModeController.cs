@@ -67,7 +67,7 @@ internal sealed class GhostModeController : IDisposable
     /// </summary>
     internal readonly record struct SampleResult(double NewRatio, bool RatioChanged, GhostTransition Transition);
 
-    private volatile bool _isGhostMode;                      // D-06: cross-thread reader at MainWindow.xaml.cs:165
+    internal volatile bool _isGhostMode;                     // D-06: cross-thread reader at MainWindow.xaml.cs:165 — Phase 87 D-SEAM-02b: relaxed to internal for OnSampleTickTests setup
     private IntPtr _hwnd;
     private System.Threading.Timer? _timer;                  // D-01: thread-pool sampling timer
     private Dispatcher _dispatcher = null!;                  // D-09: captured once at Initialize for UI marshalling
