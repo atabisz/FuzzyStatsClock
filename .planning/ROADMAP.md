@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- 🚧 **v4.4 Smooth Ghost Fade Under Load** — Phases 85–87 (in progress)
+- ✅ **v4.4 Smooth Ghost Fade Under Load** — Phases 85–87 (shipped 2026-05-21) — [archive](./milestones/v4.4-ROADMAP.md)
 - ✅ **v4.3 Configurable Ghost Override** — Phases 81–84 (shipped 2026-05-07) — [archive](./milestones/v4.3-ROADMAP.md)
 - ✅ **v4.2 Temps & Menu** — Phases 75–80 (shipped 2026-05-04) — [archive](./milestones/v4.2-ROADMAP.md)
 - ✅ **v4.1 Polish & Phrases** — Phases 70–74 (shipped 2026-04-01) — [archive](./milestones/v4.1-ROADMAP.md)
@@ -19,73 +19,15 @@
 
 ---
 
-## v4.4 Smooth Ghost Fade Under Load
+## Next Milestone
 
-**Milestone Goal:** Make ghost-mode proximity fade visibly smooth under sustained CPU contention (~25–50%) by decoupling sampling cadence from rendering cadence and moving the sampling loop off the UI thread — without changing any user-visible interaction semantics or persisted settings.
+No active milestone. Run `/gsd-new-milestone` to begin v4.5.
 
-**Approach:** Three sequential phases — first refactor `GhostModeController` so sampling runs on a thread-pool timer (Phase 85), then introduce frame-driven opacity rendering in `MainWindow` so the visible fade glides at the display refresh rate (Phase 86), then verify with new pure-static unit tests, the existing 574-test regression suite, and a manual CPU-load smoke run (Phase 87).
+**Carry-forward candidates for v4.5:**
 
-## Phases
-
-- [x] **Phase 85: Off-thread sampling refactor** — Move `GhostModeController` sampling onto `System.Threading.Timer`, marshal UI work via `Dispatcher.BeginInvoke`, expose a tickable seam for tests
- (completed 2026-05-20)
-- [x] **Phase 86: Frame-driven opacity rendering** — Subscribe `MainWindow` to `CompositionTarget.Rendering` while ghost mode is enabled, lerp current opacity ratio toward target each frame
- (completed 2026-05-20)
-- [x] **Phase 87: Verification & performance acceptance** — Lerp unit tests, tickable-seam tests, full MSTest suite green, manual CPU-load smoothness check (completed 2026-05-21)
-
-## Phase Details
-
-### Phase 85: Off-thread sampling refactor
-**Goal**: `GhostModeController` samples cursor position, computes proximity ratio, and emits target-ratio updates without occupying the UI thread, while preserving every existing ghost interaction semantic (terminal-state ghost activation/restore, modifier override, drag/menu/settings guards observed downstream).
-**Depends on**: Nothing (first phase of milestone — continues from Phase 84)
-**Requirements**: SAMP-01, SAMP-02, SAMP-03, SAMP-04, SEM-01, SEM-02, SEM-03, SEM-05
-**Success Criteria** (what must be TRUE):
-  1. `GhostModeController` no longer owns a `DispatcherTimer`; sampling is driven by `System.Threading.Timer` (or equivalent thread-pool timer) at a cadence no slower than 33 ms
-  2. `GetCursorPos`, `GetWindowRect`, `GetAsyncKeyState`, and the call to `ComputeProximityRatio` execute on the sampling thread; UI-touching work (`WS_EX_TRANSPARENT` toggle, `ProximityChanged` raise, `Restored` raise) marshals to the window dispatcher via `Dispatcher.BeginInvoke`
-  3. Ratio reaching `1.0` still applies `WS_EX_TRANSPARENT`, ratio dropping below `1.0` still removes it immediately, and `Restored` still fires only on full retreat to ratio `0.0` after ghost activation (PROX-03 / D-06 / D-07 invariants from v4.0 hold byte-for-byte)
-  4. Configurable Ctrl/Alt/Shift modifier-held check still forces ratio to `0.0` when held (v4.3 override semantics unchanged); ghost-mode tray toggle off still produces zero sampling work, zero events, and zero opacity manipulation
-  5. The pure-logic core of `OnTimerTick` is reachable from tests via an internal seam (e.g. `OnSampleTick(int cursorX, int cursorY, RECT, bool modifiersHeld)`) so the new threading machinery is not on the test critical path
-**Plans**: 4 plans
-- [x] 85-01-PLAN.md — Pure tickable seam: SampleResult struct, GhostTransition enum, OnSampleTick method (no threading change) — **completed 2026-05-20** (commits 1f893c2, 6a3ca7f; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-01-SUMMARY.md`)
-- [x] 85-02-PLAN.md — Volatile config fields: _isEnabled, _useCtrl/Alt/Shift, _ghostFadeRadiusPx, _isGhostMode (cross-thread coherence prep) — **completed 2026-05-20** (commit a8c9e93; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-02-SUMMARY.md`)
-- [x] 85-03-PLAN.md — Off-thread timer: System.Threading.Timer + Interlocked reentrancy guard + Dispatcher.BeginInvoke marshalling — **completed 2026-05-20** (commit 0388207; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-03-SUMMARY.md`)
-- [x] 85-04-PLAN.md — Synchronous disposal: _timer.Dispose(WaitHandle) blocking until in-flight tick drains — **completed 2026-05-20** (commit 776bbbf; SUMMARY: `.planning/phases/85-off-thread-sampling-refactor/85-04-SUMMARY.md`)
-
-### Phase 86: Frame-driven opacity rendering
-**Goal**: The visible fade traversal glides at display refresh rate via a per-frame lerp pump driven by `CompositionTarget.Rendering`, fully decoupled from sampling cadence, with all `MainWindow` interaction guards (drag, settings window, right-click menu, mouse-wheel opacity) preserved verbatim.
-**Depends on**: Phase 85 (consumes `ProximityChanged` as target-ratio source)
-**Requirements**: FADE-01, FADE-02, FADE-03, FADE-04, SEM-04
-**Success Criteria** (what must be TRUE):
-  1. While ghost mode is enabled, `MainWindow` is subscribed to `CompositionTarget.Rendering` and lerps a `_currentRatio` field toward `_targetRatio` (set by `ProximityChanged`) every render frame; while ghost mode is disabled, the subscription is removed and the per-frame loop has zero overhead
-  2. `this.Opacity` is computed from `_currentRatio` (not the target), and the contrast-skip predicate observes `_currentRatio > 0.0` (not the target) — visible state and contrast pause are governed by what the user actually sees
-  3. When the target ratio reaches a terminal value (`1.0` or `0.0`), `_currentRatio` snaps to that exact value rather than asymptotically approaching it — ghost activation and `Restored` timing remain crisp
-  4. Lerp logic is extracted as a pure static helper (`LerpRatio(double current, double target, double alpha, double deltaSeconds)` or equivalent) suitable for unit testing without any WPF/timer dependency
-  5. Existing `MainWindow` interaction guards behave identically: `_isDragging` short-circuits opacity writes, settings-window visibility short-circuits opacity writes, `_menuOpen` (RMB-04 right-click menu pin) short-circuits opacity writes, and the mouse-wheel `SetOpacity` path still writes `this.Opacity` directly without contention from the per-frame loop
-**Plans**: 2 plans
-- [x] 86-01-PLAN.md — GhostModeController surface: EnabledChanged event with change-detect setter (D-04, D-05) + internal static LerpRatio helper with terminal-state snap (D-08, D-09, D-03)
-- [x] 86-02-PLAN.md — MainWindow render pump: rename _proximityRatio → _currentRatio + add _targetRatio, attach/detach CompositionTarget.Rendering via EnabledChanged, OnRenderingTick lerp + guard chain (D-01, D-02, D-06, D-07, D-10, D-11, D-12, D-13, D-14, D-15)
-
-### Phase 87: Verification & performance acceptance
-**Goal**: The new threading + rendering model is locked in by automated tests and human-observed smoothness — no regressions in the existing 574-test suite, new pure-helper coverage, and a manual smoothness check under sustained CPU load.
-**Depends on**: Phase 86 (verification target)
-**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, PERF-01
-**Success Criteria** (what must be TRUE):
-  1. Existing pure-static unit tests on `ComputeProximityRatio` (12 cases) and `IsModifierHeld` (configurable-override coverage) pass without modification — proves Phase 85 refactor preserved tested invariants
-  2. New unit tests cover the Phase 86 pure-static `LerpRatio` helper across convergence-toward-target, terminal-state snap (`1.0` and `0.0`), and step-size bounds; tests run inside `FuzzyClock.Core.Tests` or `FuzzyClock.App.Tests` (whichever owns the helper) with no WPF/timer setup
-  3. Sampling pipeline core has a tickable-seam test (e.g. injecting cursor coords + window rect + modifiers-held into `OnSampleTick`) verifying ratio computation and event emission without spinning real timers/threads
-  4. `dotnet test` runs the full MSTest suite (`FuzzyClock.Core.Tests` + `FuzzyClock.App.Tests`) green at milestone end — at least 574 tests, zero failures, zero regressions in the pre-existing ~445 Core + ~129 App split
-  5. Manual run with a sustained 25–50% CPU load generator confirms the fade is visibly smooth (no stepping/jank, ≥30 fps subjective) for the full fade traversal — recorded as human-verified in the phase summary
-**Plans**: 2 plans
-- [x] 87-01-PLAN.md — LerpRatioTests + OnSampleTickTests + _isGhostMode visibility relaxation (TEST-01, TEST-02, TEST-03, TEST-04)
-- [x] 87-02-PLAN.md — WR-04 mid-fade toggle-off fix + PERF-01 manual smoothness run + 87-VERIFICATION.md attestation (PERF-01, TEST-04 re-asserted)
-
-## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 85 → 86 → 87
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 85. Off-thread sampling refactor | 4/4 | Complete    | 2026-05-20 |
-| 86. Frame-driven opacity rendering | 2/2 | Complete    | 2026-05-20 |
-| 87. Verification & performance acceptance | 2/2 | Complete    | 2026-05-21 |
+- **WR-01 (Phase 86)** — `_previousRenderTime` not updated on convergence early-return path; first post-convergence frame measures multi-second delta clamped to 100 ms (~78% lerp jump on first re-engagement after long idle). Likely root cause of the v4.4 PERF-01 `barely-stepping` caveat.
+- **WR-02 (Phase 86)** — stale RMB-04 comment in `MainWindow.xaml.cs:225-230` references the (removed) `ProximityChanged` lambda's `_menuOpen` guard. One-line doc update.
+- **WR-03 (Phase 86)** — asymmetric `Closed` cleanup — explicit `CompositionTarget.Rendering -=` but no `_ghostMode.EnabledChanged -=` / `Restored -=`. Not load-bearing because `_ghostMode.Dispose()` makes the controller unreachable; closes the symmetry gap.
+- **WR-04 end-to-end UAT** — the structural patch landed in v4.4; live mid-fade toggle-off recovery test is still pending observer confirmation.
+- **12 carry-forward UAT items** — 5 absorbed from Phase 85 + 7 from Phase 86 (per D-CARRY-03), all `status: open` in `87-VERIFICATION.md` `human_verification:` block.
+- **3 Info-level code-review findings** (IN-01..IN-03) in `87-REVIEW.md`.

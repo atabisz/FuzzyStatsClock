@@ -61,6 +61,17 @@ None
 
 None
 
+## Deferred Items
+
+Items acknowledged and deferred at v4.4 milestone close on 2026-05-21:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification_gap | 85-VERIFICATION.md | human_needed (5 absorbed UAT items carried forward into 87-VERIFICATION.md per D-CARRY-03) |
+| verification_gap | 86-VERIFICATION.md | human_needed (7 absorbed UAT items carried forward into 87-VERIFICATION.md per D-CARRY-03) |
+| uat_gap | 85-HUMAN-UAT.md | diagnosed (4 pending scenarios — all absorbed into 87-VERIFICATION.md `human_verification:` block) |
+| quick_task | 1-fix-call-updatestatsdisplay-at-end-of-se | missing (pre-existing legacy task; unrelated to v4.4 scope) |
+
 ### Recent Decisions Affecting v4.4
 
 - v4.0 Phase 67: Always-running `GhostModeController` timer (not started/stopped on toggle) — Phase 85 must preserve this lifecycle invariant under the new thread-pool timer
