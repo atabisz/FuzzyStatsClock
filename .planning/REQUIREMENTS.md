@@ -32,14 +32,14 @@
 
 ### TEST — Test coverage
 
-- [ ] **TEST-01**: Existing pure-static unit tests on `ComputeProximityRatio` (12 cases) and `IsModifierHeld` (configurable-override coverage) keep passing without modification
-- [ ] **TEST-02**: New per-frame lerp logic is extracted as a pure static method (e.g. `LerpRatio`) with unit tests covering convergence toward target, terminal-state snap (`1.0` and `0.0`), and step-size bounds
-- [ ] **TEST-03**: The sampling loop's pure-logic core is reachable from tests without spinning up real timers or threads — via a tickable seam (e.g. internal `OnSampleTick` method that takes injected cursor/rect/key-state) so threading is not on the critical test path
-- [ ] **TEST-04**: Full MSTest suite (`FuzzyClock.Core.Tests` + `FuzzyClock.App.Tests`) is green at milestone end with no regressions in the existing 574 tests
+- [x] **TEST-01**: Existing pure-static unit tests on `ComputeProximityRatio` (12 cases) and `IsModifierHeld` (configurable-override coverage) keep passing without modification
+- [x] **TEST-02**: New per-frame lerp logic is extracted as a pure static method (e.g. `LerpRatio`) with unit tests covering convergence toward target, terminal-state snap (`1.0` and `0.0`), and step-size bounds
+- [x] **TEST-03**: The sampling loop's pure-logic core is reachable from tests without spinning up real timers or threads — via a tickable seam (e.g. internal `OnSampleTick` method that takes injected cursor/rect/key-state) so threading is not on the critical test path
+- [x] **TEST-04**: Full MSTest suite (`FuzzyClock.Core.Tests` + `FuzzyClock.App.Tests`) is green at milestone end with no regressions in the existing 574 tests
 
 ### PERF — Observable performance criterion
 
-- [ ] **PERF-01**: Under sustained 25–50% CPU load, ghost-fade is visibly smooth (no stepping/jank) at 30+ fps for the full fade traversal — verified by manual run with a CPU-load generator and human visual confirmation
+- [x] **PERF-01**: Under sustained 25–50% CPU load, ghost-fade is visibly smooth (no stepping/jank) at 30+ fps for the full fade traversal — verified by manual run with a CPU-load generator and human visual confirmation
 
 ---
 
@@ -77,11 +77,11 @@ Every v4.4 requirement maps to exactly one phase. The owning phase is the one th
 | SEM-03  | Phase 85 (Plan 85-01) | Complete |
 | SEM-04  | Phase 86 | Complete |
 | SEM-05  | Phase 85 (Plan 85-01) | Complete |
-| TEST-01 | Phase 87 | Pending |
-| TEST-02 | Phase 87 | Pending |
-| TEST-03 | Phase 87 | Pending |
-| TEST-04 | Phase 87 | Pending |
-| PERF-01 | Phase 87 | Pending |
+| TEST-01 | Phase 87 | Complete |
+| TEST-02 | Phase 87 | Complete |
+| TEST-03 | Phase 87 | Complete |
+| TEST-04 | Phase 87 | Complete |
+| PERF-01 | Phase 87 | Complete |
 
 **Coverage:** 18/18 requirements mapped (100%) — no orphans, no duplicates.
 

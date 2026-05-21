@@ -88,4 +88,4 @@ Phases execute in numeric order: 85 → 86 → 87
 |-------|----------------|--------|-----------|
 | 85. Off-thread sampling refactor | 4/4 | Complete    | 2026-05-20 |
 | 86. Frame-driven opacity rendering | 2/2 | Complete    | 2026-05-20 |
-| 87. Verification & performance acceptance | 2/2 | Complete   | 2026-05-21 |
+| 87. Verification & performance acceptance | 2/2 | Complete    | 2026-05-21 |
