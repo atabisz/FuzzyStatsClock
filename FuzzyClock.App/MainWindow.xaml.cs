@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -88,6 +89,29 @@ public partial class MainWindow : Window
     internal static readonly System.Windows.Media.Color PresetIce   = System.Windows.Media.Color.FromArgb(0xFF, 0x87, 0xCE, 0xEB);
     internal static readonly System.Windows.Media.Color PresetGreen = System.Windows.Media.Color.FromArgb(0xFF, 0x00, 0xC0, 0x00);
     internal static readonly System.Windows.Media.Color PresetPink  = System.Windows.Media.Color.FromArgb(0xFF, 0xFF, 0x69, 0xB4);
+
+    // Phase 87 CR-01: P/Invoke surface to clear WS_EX_TRANSPARENT from the window when ghost mode
+    // is disabled mid-active-ghost. Mirrors GhostModeController's existing OnSampleThreadTick
+    // restore-branch idiom byte-for-byte (constants, signatures, call sequence) so the behavior
+    // parity at the call site in OnGhostEnabledChanged(false) is obvious. Declarations are
+    // private — no helper-method or refactor extension intended.
+    private const int  GWL_EXSTYLE       = -20;
+    private const int  WS_EX_TRANSPARENT = 0x00000020;
+    private const uint SWP_NOSIZE        = 0x0001;
+    private const uint SWP_NOMOVE        = 0x0002;
+    private const uint SWP_NOZORDER      = 0x0004;
+    private const uint SWP_FRAMECHANGED  = 0x0020;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd, IntPtr hWndInsertAfter,
+        int X, int Y, int cx, int cy, uint uFlags);
 
     public MainWindow()
     {
@@ -274,6 +298,25 @@ public partial class MainWindow : Window
             // Phase 87 WR-04 fix (D-CARRY-01): clear residual lerp state and restore Opacity unless settings-window-pinned.
             _currentRatio = 0.0;
             _targetRatio  = 0.0;
+            // Phase 87 CR-01: when the user disables ghost mode while the window is currently
+            // click-through (_isGhostMode == true after Activate() applied WS_EX_TRANSPARENT),
+            // the sampler restore branch is unreachable from here on (it is gated by !IsEnabled
+            // in OnSampleThreadTick), so we must clear WS_EX_TRANSPARENT inline here. Mirrors
+            // the OnSampleThreadTick restore-branch Win32 idiom byte-for-byte. Also resets the
+            // controller's _isGhostMode so its view of ghost-mode state matches the window-style
+            // truth — this UI-thread write is one-shot on the disable edge (NOT in the sampler
+            // loop), so the Phase 85 D-06 single-owner-write contract for the SAMPLER thread is
+            // preserved. NOT gated by the settings-window guard below: click-through must be
+            // cleared independent of the opacity-pin contract.
+            if (_ghostMode.IsActive)
+            {
+                IntPtr hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                _ghostMode._isGhostMode = false;
+                int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+                SetWindowLong(hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TRANSPARENT);
+                SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            }
             if (_settingsWindow?.IsVisible != true)
                 this.Opacity = _windowOpacity;
         }
