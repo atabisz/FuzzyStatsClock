@@ -21,15 +21,43 @@ namespace FuzzyClock.App.Tests;
 [TestClass]
 internal class OnSampleTickTests
 {
+    // Phase 87 WR-04: encode the test geometry as named constants so the radius-dependence
+    // of each cursorX value is explicit. The 100x100 widget rect at (100,100) and the
+    // default fade radius (80px) together fix what counts as "inside", "mid" and "far" —
+    // those classifications must remain valid if anyone changes the constants below, so
+    // they are spelled out here rather than hidden in DataRow literals + a prose comment.
+    private const int RectLeft   = 100;
+    private const int RectTop    = 100;
+    private const int RectRight  = 200;
+    private const int RectBottom = 200;
+    // GhostModeController._ghostFadeRadiusPx default is 80 (see GhostModeController.cs:76).
+    // If that default changes, the cursorX values below stop classifying correctly and
+    // the test must be updated in lockstep — the named constant makes the dependency
+    // grep-discoverable.
+    private const int DefaultRadiusPx = 80;
+    // |10 - 100| = 90 > 80 -> Chebyshev distance exceeds radius -> ratio clamps to exactly 0.0
+    // -> RestoreWithEvent transition when isGhostModePre == true.
+    private const int CursorOutsideZone = 10;
+    // |75 - 100| = 25 < 80 -> distance inside radius -> ratio == 1.0 - 25/80 == 0.6875 -> mid-fade.
+    // From ghost-active state this is RestoreNoEvent (sub-1.0 from active ghost) per SEM-02.
+    private const int CursorMidZone = 75;
+    // |50 - 100| = 50 < 80 -> ratio == 1.0 - 50/80 == 0.375 -> partial-fade. From non-ghost
+    // pre-state with isGhostModePre == false the transition is None (no edge crossed).
+    private const int CursorPartialZone = 50;
+    // 150 is inside the rect (100..200) on the X axis, with cursorY also inside the rect on Y,
+    // so step 1 of ComputeProximityRatio short-circuits to 1.0 -> Activate from non-ghost.
+    private const int CursorInsideRect = 150;
+    private const int CursorYInsideRect = 150;
+
     [TestMethod]
-    [DataRow(50,  150, false, GhostModeController.GhostTransition.None,             DisplayName = "far+!ghost -> None")]
-    [DataRow(150, 150, false, GhostModeController.GhostTransition.Activate,         DisplayName = "inside+!ghost -> Activate")]
-    [DataRow(75,  150, true,  GhostModeController.GhostTransition.RestoreNoEvent,   DisplayName = "mid+ghost -> RestoreNoEvent")]
-    // Note: Plan's CONTEXT.md <specifics> proposed cursorX=50 for this row, but with the default
-    // radius of 80px the distance from rect-left=100 is only 50px, yielding ratio=0.375 (not 0.0)
-    // and producing RestoreNoEvent. Using cursorX=10 (distance 90px > radius 80px) gives ratio=0.0
-    // as the row's behavior assertion requires for RestoreWithEvent.
-    [DataRow(10,  150, true,  GhostModeController.GhostTransition.RestoreWithEvent, DisplayName = "far+ghost -> RestoreWithEvent")]
+    [DataRow(CursorPartialZone, CursorYInsideRect, false, GhostModeController.GhostTransition.None,             DisplayName = "far+!ghost -> None")]
+    [DataRow(CursorInsideRect,  CursorYInsideRect, false, GhostModeController.GhostTransition.Activate,         DisplayName = "inside+!ghost -> Activate")]
+    [DataRow(CursorMidZone,     CursorYInsideRect, true,  GhostModeController.GhostTransition.RestoreNoEvent,   DisplayName = "mid+ghost -> RestoreNoEvent")]
+    // CursorOutsideZone (10): Chebyshev distance (90px) exceeds DefaultRadiusPx (80) -> ratio
+    // clamps to exactly 0.0, producing RestoreWithEvent. Plan's CONTEXT.md <specifics> proposed
+    // cursorX=50 for this row but at default radius=80 that yields ratio=0.375 (RestoreNoEvent),
+    // not 0.0 — see the named-constant arithmetic above for why.
+    [DataRow(CursorOutsideZone, CursorYInsideRect, true,  GhostModeController.GhostTransition.RestoreWithEvent, DisplayName = "far+ghost -> RestoreWithEvent")]
     public void OnSampleTick_TransitionClasses_ReturnsExpected(
         int cursorX, int cursorY, bool isGhostModePre, GhostModeController.GhostTransition expectedTransition)
     {
@@ -38,7 +66,7 @@ internal class OnSampleTickTests
         controller._isGhostMode = isGhostModePre;
 
         // Act: invoke the pure-logic seam with the standard 100x100 widget rect at (100,100), no modifiers held
-        var result = controller.OnSampleTick(cursorX, cursorY, 100, 100, 200, 200, modifiersHeld: false);
+        var result = controller.OnSampleTick(cursorX, cursorY, RectLeft, RectTop, RectRight, RectBottom, modifiersHeld: false);
 
         // Assert: only the transition class is asserted; ratio and RatioChanged are out of D-SEAM-01 scope
         Assert.AreEqual(expectedTransition, result.Transition);
