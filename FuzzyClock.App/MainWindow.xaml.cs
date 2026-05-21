@@ -271,6 +271,11 @@ public partial class MainWindow : Window
             if (!_renderPumpAttached) return;
             System.Windows.Media.CompositionTarget.Rendering -= OnRenderingTick;
             _renderPumpAttached = false;
+            // Phase 87 WR-04 fix (D-CARRY-01): clear residual lerp state and restore Opacity unless settings-window-pinned.
+            _currentRatio = 0.0;
+            _targetRatio  = 0.0;
+            if (_settingsWindow?.IsVisible != true)
+                this.Opacity = _windowOpacity;
         }
     }
 
