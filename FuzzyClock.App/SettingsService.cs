@@ -165,11 +165,13 @@ public static class SettingsService
     /// <summary>
     /// Clamps a MonitorPosition so the window stays within the specified screen's working area.
     /// Uses WorkingArea (not Bounds) to avoid positioning under the taskbar.
+    /// Converts WorkingArea (physical pixels) to DIPs so callers passing WPF Window.Left/Top
+    /// + ActualWidth/Height (DIPs) get correct results on per-monitor-DPI-aware processes.
     /// </summary>
     public static MonitorPosition Clamp(MonitorPosition pos, double windowWidth, double windowHeight,
         System.Windows.Forms.Screen screen)
     {
-        var b = screen.WorkingArea;
+        var b = ScreenDpi.WorkingAreaInDips(screen);
         return Clamp(pos, windowWidth, windowHeight, b.Left, b.Top, b.Width, b.Height);
     }
 
@@ -180,8 +182,15 @@ public static class SettingsService
     public static MonitorPosition Clamp(MonitorPosition pos, double windowWidth, double windowHeight,
         double bLeft, double bTop, double bWidth, double bHeight)
     {
-        double left = Math.Clamp(pos.Left, bLeft, bLeft + bWidth  - windowWidth);
-        double top  = Math.Clamp(pos.Top,  bTop,  bTop  + bHeight - windowHeight);
+        // If window is wider/taller than the working area (e.g. saved monitor went away
+        // and we fell back to a smaller primary), Math.Clamp would throw (min > max).
+        // Anchor to the top-left of the working area in that case — overflow to the
+        // right/bottom is preferable to a thrown exception that strands the window
+        // off-screen at its persisted (possibly off-screen) coordinates.
+        double maxLeft = Math.Max(bLeft, bLeft + bWidth  - windowWidth);
+        double maxTop  = Math.Max(bTop,  bTop  + bHeight - windowHeight);
+        double left = Math.Clamp(pos.Left, bLeft, maxLeft);
+        double top  = Math.Clamp(pos.Top,  bTop,  maxTop);
         return pos with { Left = left, Top = top };
     }
 }

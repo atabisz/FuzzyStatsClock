@@ -127,20 +127,41 @@ public partial class MainWindow : Window
         // so ActualWidth is 0 in the constructor — positioning must be deferred.
         ContentRendered += (_, _) =>
         {
+            System.Console.Error.WriteLine(
+                $"[FuzzyClock] ContentRendered: hasUserPos={_hasUserPosition} " +
+                $"key='{_currentMonitorKey}' Left={Left} Top={Top} " +
+                $"ActualW={ActualWidth} ActualH={ActualHeight}");
             if (_hasUserPosition)
             {
-                // Clamp to the monitor where the saved position was; if monitor absent, use primary.
-                // ActualWidth/ActualHeight are valid after first layout pass.
-                var targetScreen = FindScreenForKey(_currentMonitorKey);
-                var clamped = SettingsService.Clamp(
-                    new MonitorPosition { Left = Left, Top = Top },
-                    ActualWidth, ActualHeight, targetScreen);
-                Left = clamped.Left;
-                Top  = clamped.Top;
-                // If the monitor is absent, _currentMonitorKey may not match any connected screen.
-                // FindScreenForKey already falls back to primary, so the clamp is correct.
-                // Update _currentMonitorKey to the actual screen now hosting the window.
-                _currentMonitorKey = MonitorService.GetCurrentMonitorKey(this);
+                try
+                {
+                    // Clamp to the monitor where the saved position was; if monitor absent, use primary.
+                    // ActualWidth/ActualHeight are valid after first layout pass.
+                    // DPI fix: convert the monitor's pixel WorkingArea to DIPs to match
+                    // Window.Left/Top + ActualWidth/Height units.
+                    var targetScreen = FindScreenForKey(_currentMonitorKey);
+                    var twa = ScreenDpi.WorkingAreaInDips(targetScreen);
+                    System.Console.Error.WriteLine(
+                        $"[FuzzyClock] ContentRendered: targetScreen={targetScreen.DeviceName} " +
+                        $"WorkingArea=({twa.Left},{twa.Top} {twa.Width}x{twa.Height}) DIPs");
+                    var clamped = SettingsService.Clamp(
+                        new MonitorPosition { Left = Left, Top = Top },
+                        ActualWidth, ActualHeight,
+                        twa.Left, twa.Top, twa.Width, twa.Height);
+                    Left = clamped.Left;
+                    Top  = clamped.Top;
+                    System.Console.Error.WriteLine(
+                        $"[FuzzyClock] ContentRendered: clamped to Left={Left} Top={Top}");
+                    // If the monitor is absent, _currentMonitorKey may not match any connected screen.
+                    // FindScreenForKey already falls back to primary, so the clamp is correct.
+                    // Update _currentMonitorKey to the actual screen now hosting the window.
+                    _currentMonitorKey = MonitorService.GetCurrentMonitorKey(this);
+                }
+                catch (Exception ex)
+                {
+                    System.Console.Error.WriteLine(
+                        $"[FuzzyClock] ContentRendered clamp threw: {ex.GetType().Name}: {ex.Message}");
+                }
             }
             else
             {
@@ -390,8 +411,63 @@ public partial class MainWindow : Window
         if (!string.IsNullOrEmpty(s.LastActiveMonitor) &&
             s.MonitorPositions.TryGetValue(s.LastActiveMonitor, out var savedPos))
         {
-            Left = savedPos.Left;
-            Top  = savedPos.Top;
+            // Pragmatic off-screen recovery (Phase 88): the saved Left/Top can be
+            // far outside any currently-connected monitor (resolution change, monitor
+            // unplug, GDI device-name vs friendly-name key mismatch). Clamp against
+            // the *union* of every connected screen's WorkingArea before Show() so
+            // recovery doesn't depend on FindScreenForKey resolving the saved key
+            // or on the ContentRendered clamp branch executing without throwing.
+            //
+            // DPI fix: WinForms WorkingArea is in PHYSICAL PIXELS while savedPos /
+            // Window.Left/Top are DIPs. Convert each screen's WorkingArea to DIPs
+            // before unioning so the off-desktop check is unit-consistent.
+            var screens = System.Windows.Forms.Screen.AllScreens;
+            var screenRects = screens
+                .Select(s2 => ScreenDpi.WorkingAreaInDips(s2))
+                .ToArray();
+            double vLeft   = screenRects.Min(r => r.Left);
+            double vTop    = screenRects.Min(r => r.Top);
+            double vRight  = screenRects.Max(r => r.Left + r.Width);
+            double vBottom = screenRects.Max(r => r.Top + r.Height);
+
+            // Per-axis containment test against the union — if savedPos lies fully
+            // off the virtual desktop on either axis, clamp into the primary screen.
+            // ActualWidth/Height are 0 here (pre-Show), so use a conservative
+            // 300x300 reservation that matches the widget's typical footprint.
+            const double FallbackW = 300, FallbackH = 300;
+            bool offDesktop =
+                savedPos.Left + FallbackW <= vLeft  || savedPos.Left >= vRight  ||
+                savedPos.Top  + FallbackH <= vTop   || savedPos.Top  >= vBottom;
+
+            double restoreLeft = savedPos.Left;
+            double restoreTop  = savedPos.Top;
+
+            if (offDesktop)
+            {
+                var primary = System.Windows.Forms.Screen.PrimaryScreen
+                              ?? System.Windows.Forms.Screen.AllScreens[0];
+                var pwa = ScreenDpi.WorkingAreaInDips(primary);
+                var p = SettingsService.Clamp(
+                    new MonitorPosition { Left = savedPos.Left, Top = savedPos.Top },
+                    FallbackW, FallbackH,
+                    pwa.Left, pwa.Top, pwa.Width, pwa.Height);
+                restoreLeft = p.Left;
+                restoreTop  = p.Top;
+                System.Console.Error.WriteLine(
+                    $"[FuzzyClock] ApplySettings: saved pos ({savedPos.Left},{savedPos.Top}) " +
+                    $"off virtual-desktop union [{vLeft},{vTop} {vRight}x{vBottom}] DIPs; " +
+                    $"recovered to ({restoreLeft},{restoreTop}) on primary " +
+                    $"(WorkingArea {pwa.Width}x{pwa.Height} DIPs)");
+            }
+            else
+            {
+                System.Console.Error.WriteLine(
+                    $"[FuzzyClock] ApplySettings: saved pos ({savedPos.Left},{savedPos.Top}) " +
+                    $"within virtual-desktop union [{vLeft},{vTop} {vRight}x{vBottom}] DIPs — restoring as-is");
+            }
+
+            Left = restoreLeft;
+            Top  = restoreTop;
             _currentMonitorKey = s.LastActiveMonitor;
             _hasUserPosition = true;
         }
@@ -815,11 +891,10 @@ public partial class MainWindow : Window
     /// </summary>
     private void SnapToEdge()
     {
-        var screen = System.Windows.Forms.Screen.FromPoint(
-            new System.Drawing.Point(
-                (int)(Left + ActualWidth  / 2),
-                (int)(Top  + ActualHeight / 2)));
-        var wa = screen.WorkingArea;
+        var screen = ScreenDpi.FromDipPoint(
+            Left + ActualWidth  / 2,
+            Top  + ActualHeight / 2);
+        var wa = ScreenDpi.WorkingAreaInDips(screen);
 
         double newLeft = Left;
         double newTop  = Top;
@@ -872,8 +947,7 @@ public partial class MainWindow : Window
         {
             // Re-clamp after phrase change — SizeToContent may resize the window,
             // pushing it partially off-screen if positioned near an edge.
-            var screen = System.Windows.Forms.Screen.FromPoint(
-                new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+            var screen = ScreenDpi.FromDipPoint(Left + ActualWidth / 2, Top + ActualHeight / 2);
             var clamped = SettingsService.Clamp(
                 new MonitorPosition { Left = Left, Top = Top },
                 ActualWidth, ActualHeight, screen);
@@ -1174,8 +1248,8 @@ public partial class MainWindow : Window
             UpdateLayout();
             if (_hasUserPosition)
             {
-                var screen = System.Windows.Forms.Screen.FromPoint(
-                    new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+                var screen = ScreenDpi.FromDipPoint(
+                    Left + ActualWidth / 2, Top + ActualHeight / 2);
                 var clamped = SettingsService.Clamp(
                     new MonitorPosition { Left = Left, Top = Top },
                     ActualWidth, ActualHeight, screen);
@@ -1298,8 +1372,8 @@ public partial class MainWindow : Window
             UpdateLayout();
             if (_hasUserPosition)
             {
-                var screen = System.Windows.Forms.Screen.FromPoint(
-                    new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+                var screen = ScreenDpi.FromDipPoint(
+                    Left + ActualWidth / 2, Top + ActualHeight / 2);
                 var clamped = SettingsService.Clamp(
                     new MonitorPosition { Left = Left, Top = Top },
                     ActualWidth, ActualHeight, screen);
@@ -1321,8 +1395,7 @@ public partial class MainWindow : Window
         if (visible && _hasUserPosition && StatsPanel.Visibility == Visibility.Visible)
         {
             UpdateLayout();
-            var screen = System.Windows.Forms.Screen.FromPoint(
-                new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+            var screen = ScreenDpi.FromDipPoint(Left + ActualWidth / 2, Top + ActualHeight / 2);
             var clamped = SettingsService.Clamp(
                 new MonitorPosition { Left = Left, Top = Top },
                 ActualWidth, ActualHeight, screen);
@@ -1347,8 +1420,7 @@ public partial class MainWindow : Window
         UpdateLayout();
         if (_hasUserPosition)
         {
-            var screen = System.Windows.Forms.Screen.FromPoint(
-                new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+            var screen = ScreenDpi.FromDipPoint(Left + ActualWidth / 2, Top + ActualHeight / 2);
             var clamped = SettingsService.Clamp(
                 new MonitorPosition { Left = Left, Top = Top },
                 ActualWidth, ActualHeight, screen);
@@ -1671,8 +1743,7 @@ public partial class MainWindow : Window
         UpdateLayout();
         if (_hasUserPosition)
         {
-            var screen = System.Windows.Forms.Screen.FromPoint(
-                new System.Drawing.Point((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+            var screen = ScreenDpi.FromDipPoint(Left + ActualWidth / 2, Top + ActualHeight / 2);
             var clamped = SettingsService.Clamp(
                 new MonitorPosition { Left = Left, Top = Top },
                 ActualWidth, ActualHeight, screen);

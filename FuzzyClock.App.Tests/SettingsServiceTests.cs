@@ -135,6 +135,23 @@ public class SettingsServiceTests
         Assert.AreEqual(expectedTop,  result.Top,   1e-9);
     }
 
+    // Window is wider than the working area (e.g. saved monitor disconnected →
+    // fallback to a smaller primary). Math.Clamp would throw because min > max.
+    // Expected: anchor to the working-area top-left rather than throw.
+    [TestMethod]
+    [DataRow(-9999.0, -9999.0, 2000.0, 1200.0, 0.0, 0.0, 1920.0, 1080.0, 0.0, 0.0)]
+    [DataRow( 9999.0,  9999.0, 2000.0, 1200.0, 0.0, 0.0, 1920.0, 1080.0, 0.0, 0.0)]
+    public void Clamp_WindowLargerThanScreen_AnchorsToTopLeft(
+        double left, double top, double winW, double winH,
+        double bLeft, double bTop, double bWidth, double bHeight,
+        double expectedLeft, double expectedTop)
+    {
+        var pos = new MonitorPosition { Left = left, Top = top };
+        var result = SettingsService.Clamp(pos, winW, winH, bLeft, bTop, bWidth, bHeight);
+        Assert.AreEqual(expectedLeft, result.Left, 1e-9);
+        Assert.AreEqual(expectedTop,  result.Top,  1e-9);
+    }
+
     [TestMethod]
     public void Defaults_HasEmptyMonitorPositionsAndLastActiveMonitor()
     {

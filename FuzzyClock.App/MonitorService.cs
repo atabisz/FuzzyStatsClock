@@ -23,9 +23,11 @@ public static class MonitorService
     /// </summary>
     public static string GetCurrentMonitorKey(System.Windows.Window window)
     {
-        int centerX = (int)(window.Left + window.ActualWidth  / 2);
-        int centerY = (int)(window.Top  + window.ActualHeight / 2);
-        var screen  = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point(centerX, centerY));
+        // window.Left/Top + ActualWidth/Height are DIPs; ScreenDpi.FromDipPoint
+        // converts each Screen's pixel WorkingArea into DIPs for containment.
+        var screen = ScreenDpi.FromDipPoint(
+            window.Left + window.ActualWidth  / 2,
+            window.Top  + window.ActualHeight / 2);
         return GetKeyForScreen(screen);
     }
 
