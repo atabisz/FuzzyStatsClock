@@ -20,10 +20,11 @@ public class PhraseEngineTests
     [DataRow(0,  0, "midnight")]
     public void SpecialCases_NoonAndMidnight(int hour, int minute, string keyword)
     {
-        // With randomization, check that phrase contains the expected keyword
+        // Noon candidates include "midday" (no "noon" substring) — accept either.
         string result = _provider.GetPhrase(T(hour, minute));
-        Assert.IsTrue(result.Contains(keyword, StringComparison.OrdinalIgnoreCase),
-            $"Phrase '{result}' should contain '{keyword}'");
+        bool ok = result.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || (keyword == "noon" && result.Contains("midday", StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(ok, $"Phrase '{result}' should contain '{keyword}' (or 'midday' for noon)");
     }
 
     // ----- :00 bucket (minutes 0–2) -----
