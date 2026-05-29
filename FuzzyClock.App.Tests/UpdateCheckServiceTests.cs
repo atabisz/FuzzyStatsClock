@@ -13,7 +13,9 @@ public class UpdateCheckServiceTests
 {
     // UPD-09 / DEV-03: in DEBUG, the service short-circuits without dispatching.
     // The fake handler is wired to throw if invoked — proving the short-circuit
-    // happens BEFORE any HTTP call.
+    // happens BEFORE any HTTP call. Compiled out in Release because the
+    // short-circuit doesn't apply there (and the throw would assert).
+#if DEBUG
     [TestMethod]
     public async Task CheckAsync_DebugBuild_ReturnsNullWithoutDispatchingHttpCall()
     {
@@ -27,11 +29,13 @@ public class UpdateCheckServiceTests
         Assert.AreEqual(0, fake.SendCount,
             "Service must not dispatch HTTP call in DEBUG configuration (UPD-09)");
     }
+#endif
 
-    // Contract-only: in Release config, 200 with valid tag would return parsed Version.
-    // In Debug config (the test runtime), returns null without dispatching.
+    // Happy path 200 + valid tag.
+    // - DEBUG: short-circuited at top → result null, SendCount=0.
+    // - RELEASE: dispatches and returns parsed Version 9.9.9.
     [TestMethod]
-    public async Task CheckAsync_HappyPath_200WithValidTag_ContractOnly()
+    public async Task CheckAsync_HappyPath_200WithValidTag()
     {
         const string body = """{"tag_name":"v9.9.9","prerelease":false,"draft":false}""";
         var fake = FakeHttpMessageHandler.Json(body);
@@ -39,9 +43,14 @@ public class UpdateCheckServiceTests
 
         var result = await svc.CheckAsync();
 
-        // Debug: short-circuited at top; SendCount=0; result=null.
-        // Release: would dispatch and return Version 9.9.9.
-        Assert.IsNull(result, "Debug-config: short-circuit; Release-config would return v9.9.9");
+#if DEBUG
+        Assert.IsNull(result, "Debug-config: short-circuit at top of CheckAsync (UPD-09)");
+        Assert.AreEqual(0, fake.SendCount, "Debug-config: no HTTP dispatched (UPD-09)");
+#else
+        Assert.IsNotNull(result, "Release-config: 200 with valid tag returns parsed Version");
+        Assert.AreEqual(new Version(9, 9, 9), result);
+        Assert.AreEqual(1, fake.SendCount, "Release-config: exactly one HTTP dispatch");
+#endif
     }
 
     // Contract-only: 404 / 403 / 429 all return null silently.
