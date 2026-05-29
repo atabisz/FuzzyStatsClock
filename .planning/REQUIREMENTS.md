@@ -61,7 +61,7 @@ csproj version sync + #if DEBUG safety.
 
 ### Documentation (DOCS)
 
-- [ ] **DOCS-01**: README updated to mention the new update notice line on the widget (one short paragraph) and the `Check for updates on launch` toggle in Settings → Behavior; placement consistent with v3.1 DOCS-03 / v2.8 DOCS-01 pattern (concise feature mention, not a full manual)
+- [x] **DOCS-01**: README updated to mention the new update notice line on the widget (one short paragraph) and the `Check for updates on launch` toggle in Settings → Behavior; placement consistent with v3.1 DOCS-03 / v2.8 DOCS-01 pattern (concise feature mention, not a full manual)
 
 ## v2 Requirements (deferred to v4.6+)
 
@@ -135,7 +135,7 @@ Explicitly excluded for v4.5. Documented to prevent scope creep.
 | DEV-01 | Phase 88 | Complete |
 | DEV-02 | Phase 88 | Complete |
 | DEV-03 | Phase 88 | Complete |
-| DOCS-01 | Phase 88 | Pending |
+| DOCS-01 | Phase 88 | Complete |
 
 **Coverage:**
 - v1 requirements: 34 total

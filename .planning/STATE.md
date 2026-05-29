@@ -2,21 +2,21 @@
 gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: Update Checker
-status: in-progress
-stopped_at: Plan 88-03 complete — ready to execute Plan 88-04 (human-verify + README pass)
-last_updated: "2026-05-29T03:28:58.070Z"
+status: completed
+stopped_at: Completed 88-03-PLAN.md — UpdateText UI + Settings checkbox + three-tier dispose wired (commit e7ea49c)
+last_updated: "2026-05-29T08:01:35.247Z"
 last_activity: 2026-05-29 — Plan 88-03 wired UpdateText UI + Settings checkbox + three-tier dispose (UI-01..08, PERS-06..12)
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State: FuzzyStatsClock
 
-**Status:** Plan 88-03 complete — ready to execute Plan 88-04
+**Status:** v4.5 Update Checker COMPLETE — Phase 88 closed; ready for /gsd:audit-milestone + /gsd:complete-milestone (tag v4.5)
 **Last updated:** 2026-05-29
 
 ## Project Reference
@@ -24,20 +24,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v4.5 Update Checker — Phase 88 in progress (3/4 plans done)
+**Current focus:** v4.5 Update Checker — COMPLETE (Phase 88 closed; ready for milestone audit + tag v4.5)
 
 ## Current Position
 
-Phase: 88 of 88 (GitHub Releases Update Checker)
-Plan: 3 of 4 complete (next: 88-04)
-Status: In progress
-Last activity: 2026-05-29 — Plan 88-03 wired UpdateText UI + Settings checkbox + three-tier dispose (UI-01..08, PERS-06..12)
+Phase: 88 of 88 (GitHub Releases Update Checker) — COMPLETE
+Plan: 4 of 4 complete (DOCS-01 shipped; human-verify approved with D + G deferred to v4.5.0 tag push)
+Status: Milestone complete — ready for /gsd:audit-milestone
+Last activity: 2026-05-29 — Plan 88-04 closed v4.5 milestone (DOCS-01 README mention + static-grep verification)
 
-Progress: [████████░░] 75%
+Progress: [██████████] 100%
 
 ## Current Milestone
 
-**v4.5 Update Checker** — In progress (ready to plan Phase 88)
+**v4.5 Update Checker** — COMPLETE (Phase 88 closed 2026-05-29; ready for tag push)
 
 **Single-phase milestone** (research-confirmed by all 4 researchers — STACK / FEATURES / ARCHITECTURE / PITFALLS converged on single-phase recommendation). Build order forced by C# project references (Core → App → tests → UI); 4 internal plans provide the natural seams.
 
@@ -60,6 +60,11 @@ Progress: [████████░░] 75%
 ## Accumulated Context
 
 ### Decisions
+
+Plan 88-04 decisions (2026-05-29):
+
+- **Approve without running the live human-verify checklist** — User opted to ship Phase 88 on static-grep evidence. Categories A/B/C/E/F/H approved on code-shape verification (Phase 33 dual-path = exactly 2 occurrences in MainWindow.xaml.cs; narrow 6-exception catch list verbatim with zero `catch (Exception)` in UpdateCheckService.cs; three-tier dispose registered 1+2 sites; <InformationalVersion>4.5.0 synced; RepoUrl const exact; 621 tests green).
+- **Categories D + G deferred to v4.5.0 tag push** — Category D (mid-session toggle OFF cancels in-flight CTS) requires RELEASE build to defeat `#if DEBUG return null;` short-circuit. Category G (SmartScreen / Defender first outbound HTTPS) requires fresh published exe on stock-Defender Windows. Both behaviors are observable only after `git tag v4.5.0 && git push --tags` triggers the release pipeline.
 
 Plan 88-03 decisions (2026-05-29):
 
@@ -101,15 +106,16 @@ None
 
 ## Session Continuity
 
-**Next action:** Run `/gsd:execute-phase 88` to execute Plan 88-04 (human-verify checklist + README pass + close-out).
+**Next action:** Run `/gsd:audit-milestone` followed by `/gsd:complete-milestone` to tag v4.5 and archive Phase 88.
 
 **When returning:**
 
 1. Read this STATE.md and `.planning/ROADMAP.md` for current position
-2. Plan 88-04 is the next plan to execute (human-verify live render, dual-path on contrast switch, mid-session cancel, three-tier dispose smoke, README one-liner pass)
-3. Wiring commit `e7ea49c` is on master — UpdateText UI + Settings checkbox + three-tier dispose all live
-4. UpdateCheckService remains stable from 88-02. UpdateVersionComparer remains stable from 88-01.
-5. `#if DEBUG return null;` short-circuit means UpdateText never appears in dev builds — Plan 88-04 will need either a Release-config build or a temporary preprocessor flip to live-test the notice render path.
+2. Phase 88 (single-phase v4.5 milestone) is COMPLETE — all 4 plans + all 34 v1 requirements done
+3. Two follow-ups deferred to v4.5.0 tag push:
+   - Category D — mid-session toggle OFF cancels in-flight CTS (live-observable only in RELEASE build)
+   - Category G — SmartScreen / Defender behavior on first outbound HTTPS to api.github.com (requires fresh published exe on stock Defender)
+4. The release pipeline (release.yml triggered by `git tag v4.5.0 && git push --tags`) naturally produces the published artifact for both deferrals.
 
 **Recent milestones:**
 
@@ -117,10 +123,10 @@ None
 - v4.3 Configurable Ghost Override — shipped 2026-05-07 (574 tests, 22/22 requirements)
 - v4.2 Temps & Menu — shipped 2026-05-04 (562 tests, MPL-2.0 compliance)
 
-**Last session:** 2026-05-29T03:28:58.064Z
-**Stopped at:** Completed 88-03-PLAN.md — UpdateText UI + Settings checkbox + three-tier dispose wired (commit e7ea49c)
+**Last session:** 2026-05-29T08:01:35.247Z
+**Stopped at:** v4.5 Update Checker milestone complete — Plan 88-04 closed (DOCS-01 shipped; human-verify approved with D + G deferred to v4.5.0 tag push)
 **Resume file:** None
 **Blockers:** None
 
 ---
-*State updated: 2026-05-29 — Plan 88-03 complete (UI-01..08, PERS-06..12 done); 469 Core + 152 App = 621 tests pass; ready to execute 88-04*
+*State updated: 2026-05-29 — Phase 88 complete (34/34 v1 requirements done); 469 Core + 152 App = 621 tests pass; ready for /gsd:audit-milestone*
