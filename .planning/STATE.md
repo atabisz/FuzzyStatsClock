@@ -2,20 +2,21 @@
 gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: Update Checker
-status: ready-to-plan
+status: planning
 stopped_at: Roadmap created — Phase 88 ready to plan
-last_updated: 2026-05-29
+last_updated: "2026-05-29T03:00:16.945Z"
+last_activity: 2026-05-29 — ROADMAP.md created; 34/34 requirements mapped to Phase 88
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State: FuzzyStatsClock
 
-**Status:** Ready to plan Phase 88
+**Status:** Plan 88-01 complete — ready to execute Plan 88-02
 **Last updated:** 2026-05-29
 
 ## Project Reference
@@ -23,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v4.5 Update Checker — Phase 88 ready to plan
+**Current focus:** v4.5 Update Checker — Phase 88 in progress (1/4 plans done)
 
 ## Current Position
 
 Phase: 88 of 88 (GitHub Releases Update Checker)
-Plan: 0 of 4
-Status: Ready to plan
-Last activity: 2026-05-29 — ROADMAP.md created; 34/34 requirements mapped to Phase 88
+Plan: 1 of 4 complete (next: 88-02)
+Status: In progress
+Last activity: 2026-05-29 — Plan 88-01 shipped UpdateVersionComparer (UPD-01, UPD-02)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 25%
 
 ## Current Milestone
 
@@ -60,6 +61,10 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Decisions
 
+Plan 88-01 decisions (2026-05-29):
+
+- **Explicit `Normalize()` helper for `IsNewer`** — RESEARCH.md §1's lifted skeleton (`return latest > running;`) failed Test 20: System.Version's operator> treats `Build=-1` (absent) as strictly less than `Build=0`, so `Version("4.5.0") > Version("4.5")` is true, contradicting the plan's `must_haves.truths` invariant `'4.5' == '4.5.0' == '4.5.0.0'`. Resolution: private `Normalize(Version)` that promotes `-1` components to `0` before comparison. 8 extra lines, zero new dependencies.
+
 Recent roadmap-level decisions (2026-05-29):
 
 - **Single-phase milestone** — All 4 research files (STACK, FEATURES, ARCHITECTURE, PITFALLS) converged on single phase with HIGH confidence. Build order is forced by C# project references; whole feature is smaller than any single v4.4 phase. Plan-level seams provide natural boundaries.
@@ -80,13 +85,13 @@ None
 
 ## Session Continuity
 
-**Next action:** Run `/gsd:plan-phase 88` to plan the four plans for Phase 88.
+**Next action:** Run `/gsd:execute-phase 88` to execute Plan 88-02 (UpdateCheckService).
 
 **When returning:**
 
-1. Read this STATE.md and .planning/ROADMAP.md for current position
-2. Run `/gsd:plan-phase 88` to start phase planning
-3. Plans 88-01 → 88-04 execute sequentially (project-reference order forces 01 → 02 → 03; 04 is human-verify)
+1. Read this STATE.md and `.planning/ROADMAP.md` for current position
+2. Plan 88-02 is the next plan to execute (App-layer service + Settings + csproj version sync)
+3. UpdateVersionComparer.TryParseTag / IsNewer are stable and tested — consume via `using FuzzyClock.Core;`
 
 **Recent milestones:**
 
@@ -95,9 +100,9 @@ None
 - v4.2 Temps & Menu — shipped 2026-05-04 (562 tests, MPL-2.0 compliance)
 
 **Last session:** 2026-05-29
-**Stopped at:** Roadmap created — Phase 88 ready to plan
-**Resume file:** .planning/ROADMAP.md (Phase 88 details)
+**Stopped at:** Completed 88-01-PLAN.md — UpdateVersionComparer shipped
+**Resume file:** None
 **Blockers:** None
 
 ---
-*State updated: 2026-05-29 — ROADMAP.md created, Phase 88 ready to plan, 34/34 requirements mapped*
+*State updated: 2026-05-29 — Plan 88-01 complete (UPD-01, UPD-02 done); 469/469 Core tests pass; ready to execute 88-02*

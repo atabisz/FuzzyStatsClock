@@ -10,8 +10,8 @@
 
 Pure version compare in Core; HTTP-using service in App; silent-failure posture.
 
-- [ ] **UPD-01**: `UpdateVersionComparer` pure static class in `FuzzyClock.Core` exposes `bool TryParseTag(string? tag, out Version version)` — strips leading `v`/`V`, accepts 2-/3-/4-component tags, rejects pre-release suffixes (`-beta`, `-rc1`), rejects build metadata (`+sha`), returns false on null/empty/garbage input
-- [ ] **UPD-02**: `UpdateVersionComparer.IsNewer(Version running, Version latest)` returns true iff `latest > running` (running version greater-than-or-equal returns false; equal returns false)
+- [x] **UPD-01**: `UpdateVersionComparer` pure static class in `FuzzyClock.Core` exposes `bool TryParseTag(string? tag, out Version version)` — strips leading `v`/`V`, accepts 2-/3-/4-component tags, rejects pre-release suffixes (`-beta`, `-rc1`), rejects build metadata (`+sha`), returns false on null/empty/garbage input
+- [x] **UPD-02**: `UpdateVersionComparer.IsNewer(Version running, Version latest)` returns true iff `latest > running` (running version greater-than-or-equal returns false; equal returns false)
 - [ ] **UPD-03**: `UpdateCheckService` in `FuzzyClock.App` performs a single anonymous HTTPS GET to `https://api.github.com/repos/{owner}/FuzzyClock/releases/latest` per app launch, with required headers `User-Agent: FuzzyClock/{AssemblyVersion}` and `Accept: application/vnd.github+json`
 - [ ] **UPD-04**: Network call uses a service-owned long-lived `HttpClient` (single static instance, `Timeout = 5s`, `SocketsHttpHandler.PooledConnectionLifetime = 15min`); constructor accepts optional `HttpMessageHandler` for test injection (`FakeHttpMessageHandler` seam)
 - [ ] **UPD-05**: Hard 5-second timeout via `CancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(5))` linked to an app-shutdown CTS via `CancellationTokenSource.CreateLinkedTokenSource`, so app shutdown during in-flight check unwinds within milliseconds, not 5 seconds
@@ -102,8 +102,8 @@ Explicitly excluded for v4.5. Documented to prevent scope creep.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UPD-01 | Phase 88 | Pending |
-| UPD-02 | Phase 88 | Pending |
+| UPD-01 | Phase 88 | Complete |
+| UPD-02 | Phase 88 | Complete |
 | UPD-03 | Phase 88 | Pending |
 | UPD-04 | Phase 88 | Pending |
 | UPD-05 | Phase 88 | Pending |

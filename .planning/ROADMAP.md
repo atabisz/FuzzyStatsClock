@@ -66,7 +66,7 @@ Phases execute in numeric order. v4.5 has a single phase (88) with 4 internal pl
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 88. GitHub Releases Update Checker | v4.5 | 0/4 | Not started | - |
+| 88. GitHub Releases Update Checker | 1/4 | In Progress|  | - |
 
 ---
 
