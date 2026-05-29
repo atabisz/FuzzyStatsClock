@@ -483,4 +483,26 @@ public class AppSettingsTests
         Assert.AreEqual(-1f, snap.MoboTempC, "Snapshot records the service's actual value at capture time");
     }
 
+    // ----- v4.5 Phase 88-02 UpdateChecksEnabled persistence tests -----
+
+    // PERS-04: round-trip test — UpdateChecksEnabled survives serialize → deserialize.
+    [TestMethod]
+    public void RoundTrip_UpdateChecksEnabled_Matches()
+    {
+        var original = new AppSettings { UpdateChecksEnabled = false };  // flipped from default true
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsFalse(result.UpdateChecksEnabled);
+    }
+
+    // PERS-05: absent-field test — defaults to TRUE when key is absent.
+    [TestMethod]
+    public void Deserialize_MissingUpdateChecksEnabled_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.UpdateChecksEnabled,
+            "UpdateChecksEnabled should default to true when absent from JSON (init default per PERS-01); " +
+            "v4.4 users upgrading must NOT silently opt-out of update checks (mirrors UptimeVisible/UseCtrl pattern)");
+    }
+
 }
