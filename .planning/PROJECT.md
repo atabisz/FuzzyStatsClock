@@ -10,6 +10,8 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 ## Current State
 
+**v4.5 shipped: 2026-05-29** — Update Checker: once-per-launch GitHub Releases API lookup with accent-colored "vX.Y.Z available" notice line as 8th/final `StatsPanel` child immediately below `TempsText`; Settings → Behavior `Check for updates on launch` toggle (default ON) for opt-out with immediate persistence + mid-session `CancelInFlight` on toggle-OFF; silent-failure posture across all error paths (network errors, timeouts, 403/404/429, malformed JSON, draft/prerelease tags) via narrow 6-exception catch list (`HttpRequestException`/`TaskCanceledException`/`OperationCanceledException`/`JsonException`/`FormatException`/`ArgumentException`) with zero `catch (Exception)`; full Phase 33 dual-path participation (`UpdateText.Foreground` assigned in BOTH `ApplyTheme` AND `ApplyDisplayColor`); three-tier dispose mirroring `TemperatureService` (`OnClosing` + `SessionEnding` + `ProcessExit`) with `Interlocked.CompareExchange` idempotency; `#if DEBUG return null;` early at top of `CheckAsync` prevents dev-build screenshot pollution; `<InformationalVersion>` synced 3.6.0 → 4.5.0 to match `<Version>`; `Assembly.GetName().Version` is canonical "running version" source; `RepoUrl` hard-coded as `internal const` to `atabisz/FuzzyStatsClock` (UPD-10 security — never read from `settings.json`); long-lived static `HttpClient` with `SocketsHttpHandler.PooledConnectionLifetime = 15min` + linked CTS (5s `CancelAfter` + shutdown CTS); source-gen `JsonSerializerContext` for trim/AOT safety; `UpdateVersionComparer` pure-static helper in `FuzzyClock.Core` (REL-03 LHM-free invariant preserved); 621 MSTest passing (469 Core + 152 App), 34/34 v4.5 requirements complete. Categories D + G (mid-session CTS cancel under RELEASE; SmartScreen/Defender first outbound HTTPS) deferred to v4.5.0 tag push — observable only at RELEASE build / fresh published exe time.
+
 **v4.4 shipped: 2026-05-21** — Smooth Ghost Fade Under Load: ghost-mode proximity sampling moved off the UI thread (`GhostModeController` now runs on `System.Threading.Timer` at 33 ms cadence with `Interlocked` reentrancy guard, `volatile` cross-thread fields, and synchronous `Timer.Dispose(WaitHandle)` teardown that drains in-flight ticks before returning); visible fade decoupled from sampling cadence (`MainWindow` lerps `_currentRatio` toward `_targetRatio` on `CompositionTarget.Rendering` per frame via the pure `LerpRatio` helper with terminal-state snap, attached only while ghost mode is enabled); all five interaction guards (`_isDragging`, settings-window-open, `_menuOpen`, mouse-wheel direct write, contrast-skip predicate observing `_currentRatio`) preserved verbatim. `OnGhostEnabledChanged(false)` resets lerp state and clears `WS_EX_TRANSPARENT` so disabling ghost mid-fade recovers full opacity. PERF-01 manual run under sustained 25–50% CPU load on 85 Hz monitor produced `barely-stepping` verdict (mostly smooth, occasional brief freeze that resumes — likely caused by deferred Phase 86 advisory WR-01, carried forward to v4.5). 587 MSTest passing (449 Core + 138 App), 18/18 v4.4 requirements complete.
 
 **v4.4 Phase 85 complete: 2026-05-20** — Off-thread sampling refactor: `GhostModeController` sampling moved from `DispatcherTimer` (UI thread) to `System.Threading.Timer` (thread pool) at 33 ms cadence; `Interlocked.CompareExchange` reentrancy guard wraps the tick callback; pure-logic `OnSampleTick` seam (`SampleResult` record struct + `GhostTransition` enum) extracted from `OnTimerTick` and exposed `internal` for tests; cross-thread-read fields (`_isGhostMode`, `_useCtrl/Alt/Shift`, `_ghostFadeRadiusPx`, `_isEnabled`) declared `volatile`; UI-touching work bundled into a single `_dispatcher.BeginInvoke` per tick guarded by D-08 short-circuit and D-09 shutdown checks; `Dispose()` uses synchronous `Timer.Dispose(WaitHandle)` + `WaitOne()` to drain in-flight callbacks. `MainWindow.xaml.cs` byte-for-byte unchanged. 578 MSTest passing (449 Core + 129 App). All 8 phase requirements satisfied (SAMP-01..04, SEM-01..03, SEM-05). 1 known gap (UAT G1: SEM-05 disable-gate doesn't restore widget when toggled while ghosted) — tracked for follow-up.
@@ -30,20 +32,14 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 **v3.2 shipped: 2026-03-09** — Settings window (3-tab), named themes (removed in v4.1), battery low alert, English phrase personalities (Terse/Poetic/Rude), multilingual phrases (fr/es/de/ja/pl)
 
-562 MSTest tests (445 Core + 117 App) passing. CI gate enforced. REL-02 + REL-03 grep gates live in release.yml. LHM 0.9.6 pinned in FuzzyClock.App.csproj.
+621 MSTest tests (469 Core + 152 App) passing. CI gate enforced. REL-02 + REL-03 grep gates live in release.yml. LHM 0.9.6 pinned in FuzzyClock.App.csproj. `<Version>` and `<InformationalVersion>` both 4.5.0.
 
-## Current Milestone: v4.5 Update Checker
+## Next Milestone Goals
 
-**Goal:** Notify the user when a newer FuzzyClock release is available on GitHub by rendering a one-line accent-colored "vX.Y.Z available" notice at the bottom of the stats panel; provide a Settings toggle to disable the check entirely.
+v4.5 shipped 2026-05-29. The next milestone is TBD — start with `/gsd:new-milestone` to define scope, requirements, and roadmap. Possible candidates carried forward:
 
-**Target features:**
-
-- **GitHub release lookup on launch** — Once per app launch (no background polling), fetch the latest release tag from the FuzzyClock GitHub Releases API; compare against the running assembly version; cache result for the session
-- **Update notice line** — New 8th/last child of StatsPanel, immediately below TempsText. Renders as `vX.Y.Z available` in plain text, accent-colored, participating in `ApplyTheme` + `ApplyDisplayColor` (Phase 33 critical pattern). Hidden via `Visibility.Collapsed` when running version equals or exceeds latest, when check is disabled, or when the check failed (silent failure — no error indicator)
-- **Settings > Behavior toggle** — New "Check for updates on launch" checkbox in Settings > Behavior tab; default ON; immediate persistence; toggling OFF hides the notice and skips the check on next launch
-- **Silent failure posture** — Network errors, rate limits, malformed responses, and offline conditions all result in zero visible feedback; the notice line stays collapsed and the app continues normally (mirrors TemperatureService's `IsReady`/`-1f` discipline)
-
-**Key context:** Pure additive feature — no breaking changes to existing surfaces. Files likely in scope: new `FuzzyClock.App/UpdateCheckService.cs` (HttpClient + JSON parse), new TextBlock `UpdateText` in `MainWindow.xaml` StatsPanel, new `UpdateChecksEnabled` AppSettings field, new `ChkUpdateChecksEnabled` checkbox in `SettingsWindow.xaml` Behavior tab, version comparison helper in `FuzzyClock.Core` for testability. Network call must be async with reasonable timeout (~5s) and must not block UI thread or app startup.
+- **PERF-FOLLOW-01** — investigate occasional brief freeze observed during ghost-mode fade under sustained 25–50% CPU load (deferred from v4.4 PERF-01 `barely-stepping` verdict; suspected cause: deferred Phase 86 advisory WR-01)
+- **UPD-FUTURE-01..04** — clickable update notice, manual "Check now", pre-release toggle, snooze/dismiss state (deferred from v4.5)
 
 ## Requirements
 
@@ -326,6 +322,43 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ CLEAN-03: Settings migration via JSON ignore-unknown-keys — v4.1
 - ✓ CLEAN-04: AppSettings.Theme field removed — v4.1
 
+### Validated (v4.5)
+
+- ✓ UPD-01: TryParseTag (v-prefix strip; 2/3/4-component; prerelease/build-metadata reject) pure-static in FuzzyClock.Core — v4.5
+- ✓ UPD-02: IsNewer strict-greater compare — v4.5
+- ✓ UPD-03: User-Agent + Accept GitHub API headers — v4.5
+- ✓ UPD-04: Long-lived static HttpClient with SocketsHttpHandler.PooledConnectionLifetime=15min — v4.5
+- ✓ UPD-05: Linked CTS with CancelAfter(5s) + shutdown CTS — v4.5
+- ✓ UPD-06: Source-gen JsonSerializerContext for GitHubRelease POCO; no reflection deserialization — v4.5
+- ✓ UPD-07: Narrow 6-exception catches (HttpRequestException/TaskCanceledException/OperationCanceledException/JsonException/FormatException/ArgumentException); zero `catch (Exception)` — v4.5
+- ✓ UPD-08: Idempotent dispose via Interlocked.CompareExchange on int _disposed — v4.5
+- ✓ UPD-09: `#if DEBUG return null;` early at top of CheckAsync prevents dev-build screenshot pollution — v4.5
+- ✓ UPD-10: RepoUrl internal const `https://api.github.com/repos/atabisz/FuzzyStatsClock/releases/latest`; never read from settings.json — v4.5
+- ✓ UI-01: UpdateText TextBlock as 8th and final StatsPanel child immediately below TempsText — v4.5
+- ✓ UI-02: "v{version} available" text rendered when newer release found — v4.5
+- ✓ UI-03: UpdateText.Visibility Collapsed default; Visible only on strict-newer — v4.5
+- ✓ UI-04: Phase 33 dual-path Foreground assignment in BOTH ApplyTheme AND ApplyDisplayColor — v4.5
+- ✓ UI-05: Re-clamp on Visible flip via existing SettingsService.Clamp — v4.5
+- ✓ UI-06: ContentRendered kickoff via Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle) — v4.5
+- ✓ UI-07: Service callback marshals to UI thread via Dispatcher.Invoke before touching UpdateText — v4.5
+- ✓ UI-08: Outer try/catch (Exception) at kickoff boundary as defense in depth — v4.5
+- ✓ PERS-01: AppSettings.UpdateChecksEnabled init-property bool with explicit `= true` for absent-field upgrade safety — v4.5
+- ✓ PERS-02: SettingsService.Defaults() returns UpdateChecksEnabled = true — v4.5
+- ✓ PERS-03: Validate() unchanged — bool can't be invalid — v4.5
+- ✓ PERS-04: AppSettings JSON round-trip test for UpdateChecksEnabled — v4.5
+- ✓ PERS-05: Absent-field test verifies UpdateChecksEnabled defaults to true on missing key — v4.5
+- ✓ PERS-06: ChkUpdateChecksEnabled checkbox in Settings → Behavior with label "Check for updates on launch" — v4.5
+- ✓ PERS-07: SettingsWindow.UpdateChecksEnabledChanged event with `_suppressEvents`-guarded handlers — v4.5
+- ✓ PERS-08: SettingsSnapshot.UpdateChecksEnabled field; populated by GetCurrentSettingsSnapshot — v4.5
+- ✓ PERS-09: MainWindow.OpenSettings immediate-persist `_settings = _settings with { UpdateChecksEnabled = v }; SaveSettings();` — v4.5
+- ✓ PERS-10: Mid-session toggle OFF cancels in-flight CTS via CancelInFlight() and collapses UpdateText — v4.5
+- ✓ PERS-11: ResetToDefaults restores UpdateChecksEnabled = true and refreshes Settings snapshot — v4.5
+- ✓ PERS-12: Launch-OFF skips kickoff but constructs service for dispose registration — v4.5
+- ✓ DEV-01: `<InformationalVersion>` synced 3.6.0 → 4.5.0 to match `<Version>` — v4.5
+- ✓ DEV-02: Assembly.GetName().Version is canonical "running version" source; never AssemblyInformationalVersion — v4.5
+- ✓ DEV-03: Service-shape DEBUG-skip test in FuzzyClock.App.Tests verifies CheckAsync returns null in DEBUG builds — v4.5
+- ✓ DOCS-01: README updated with one-paragraph mention of update notice line + "Check for updates on launch" Settings toggle — v4.5
+
 ### Out of Scope
 
 - User-created/saved themes — named themes removed in v4.1; custom theme authoring adds complexity with little value
@@ -529,4 +562,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-29 — v4.5 Update Checker milestone started*
+*Last updated: 2026-05-29 — v4.5 Update Checker milestone shipped*

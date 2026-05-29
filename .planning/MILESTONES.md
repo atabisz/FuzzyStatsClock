@@ -1,5 +1,46 @@
 # Milestones
 
+## v4.5 Update Checker (Shipped: 2026-05-29)
+
+**Phases completed:** 1 phase (88), 4 plans, 15 tasks, 621 MSTest green (469 Core + 152 App)
+
+**Git range:** v4.4 → v4.5 (16 commits, 30 files, +5,992 / -585 lines)
+
+**Key accomplishments:**
+
+- `UpdateVersionComparer` pure-static helper in `FuzzyClock.Core` (`TryParseTag`/`IsNewer`/private `Normalize`) with 16 DataRow rows + 4 ordering tests; REL-03 invariant preserved (zero `<PackageReference>` in `FuzzyClock.Core.csproj`) (Phase 88 Plan 01: UPD-01, UPD-02)
+- `UpdateCheckService` in `FuzzyClock.App` — long-lived static `HttpClient` with `SocketsHttpHandler.PooledConnectionLifetime = 15min`, linked CTS (5s `CancelAfter` + shutdown CTS), source-gen `JsonSerializerContext` for `GitHubRelease` POCO, narrow 6-exception catch list (`HttpRequestException`, `TaskCanceledException`, `OperationCanceledException`, `JsonException`, `FormatException`, `ArgumentException`) with zero `catch (Exception)`, `#if DEBUG return null;` early at top of `CheckAsync`, `Interlocked.CompareExchange` idempotent Dispose, `RepoUrl` internal const `https://api.github.com/repos/atabisz/FuzzyStatsClock/releases/latest`. 8 service-shape tests via `FakeHttpMessageHandler` seam (Phase 88 Plan 02: UPD-03..10, DEV-01..03)
+- `AppSettings.UpdateChecksEnabled = true` init-property field with explicit default for absent-field upgrade safety; round-trip + absent-field tests in `FuzzyClock.App.Tests/AppSettingsTests.cs` (Phase 88 Plan 02: PERS-01..05)
+- `<InformationalVersion>` synced 3.6.0 → 4.5.0 to match `<Version>4.5.0</Version>`; `Assembly.GetName().Version` confirmed canonical for "running version" (Phase 88 Plan 02: DEV-01, DEV-02)
+- `UpdateText` TextBlock as 8th and final `StatsPanel` child immediately below `TempsText`, byte-for-byte clone of `TempsText`/`UptimeText` styling; `Visibility=Collapsed` default, flips to `Visible` only on strict-newer; `ContentRendered` kickoff via `Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle)` with outer `try/catch` defense in depth; `Dispatcher.Invoke` marshals callback back to UI thread; re-clamp on visibility flip via existing `SettingsService.Clamp` (Phase 88 Plan 03: UI-01..08)
+- Phase 33 dual-path coverage — `UpdateText.Foreground = brush;` assigned in BOTH `ApplyTheme` (line 2010) AND `ApplyDisplayColor` (line 2049), exactly 2 occurrences, so the notice tracks user accent color through preset/custom selection AND auto-contrast black/white switching (Phase 88 Plan 03: UI-04)
+- Settings → Behavior tab `ChkUpdateChecksEnabled` checkbox with label `Check for updates on launch`, cloning `ChkAutoLaunchEnabled` placement; `_suppressEvents`-guarded handler raising `UpdateChecksEnabledChanged` event; `MainWindow.OpenSettings` immediate-persist + mid-session `CancelInFlight` + collapse on toggle-OFF; `ResetToDefaults` restores `UpdateChecksEnabled = true` (Phase 88 Plan 03: PERS-06..12)
+- Three-tier dispose registered (`MainWindow.OnClosing` tier 1, `App.SessionEnding` tier 2, `AppDomain.CurrentDomain.ProcessExit` tier 3) mirroring `TemperatureService` precedent; `Interlocked.CompareExchange` ensures idempotency across all three calls (Phase 88 Plan 03: UPD-08, UI-06..08)
+- README updated with one-paragraph user-facing mention of the update notice line and the Settings toggle (Phase 88 Plan 04: DOCS-01)
+
+**Key technical decisions:**
+
+- Repo coordinate hard-coded as `internal const` to `atabisz/FuzzyStatsClock` (verified against live `git remote get-url origin`) — never read from `settings.json` per UPD-10 security invariant (prevents redirect-via-malicious-settings)
+- `#if DEBUG return null;` short-circuit at top of `CheckAsync` prevents dev-box screenshots showing nonsensical "vX.Y.Z available" notices when running an untagged dev build; service-shape DEBUG-skip test in `FuzzyClock.App.Tests` runs in DEBUG configuration as the natural test-runtime assertion
+- Single-phase milestone rationale: build order is FORCED by C# project references (`FuzzyClock.Core` → `FuzzyClock.App` → tests → UI); the whole feature is smaller than any single v4.4 phase, so plan-level seams (88-01 → 88-02 → 88-03 → 88-04) provided all the natural boundaries needed
+- `UpdateText` uses 100% accent (full alpha), NOT the 0x8C/55% muted treatment used on `DateText` — the update notice is intentionally visually equal in priority to `TempsText`/`UptimeText`, not subordinate
+- Phase 33 dual-path is the most fragile invariant: `Foreground` MUST be assigned in BOTH `ApplyTheme` (preset/custom theme path) AND `ApplyDisplayColor` (auto-contrast path) — verification gate enforced via grep returning exactly 2 matches
+
+**Deferred to v4.5.0 tag push** (per user sign-off in Plan 88-04 human-verify checkpoint):
+
+- Category D — mid-session toggle OFF cancels in-flight CTS (requires RELEASE build to bypass `#if DEBUG` short-circuit so an in-flight CTS exists to cancel; wiring statically verified at `MainWindow.xaml.cs:764`)
+- Category G — SmartScreen / Defender behavior on first outbound HTTPS to `api.github.com` (requires fresh published exe on stock-Defender Windows; observable only after `git tag v4.5.0 && git push --tags` triggers release pipeline)
+
+**Out-of-scope items deferred to v4.6+:**
+
+- PERF-FOLLOW-01 — investigate occasional brief freeze observed during ghost-mode fade under sustained 25–50% CPU load (v4.4 PERF-01 `barely-stepping` verdict; v4.5 doesn't touch the fade-render path)
+- UPD-FUTURE-01 — clickable notice opens GitHub release URL in browser (v4.5 is plain text)
+- UPD-FUTURE-02 — manual "Check now" tray menu item (v4.5 is once-per-launch only)
+- UPD-FUTURE-03 — pre-release / beta-channel toggle (v4.5 uses `/releases/latest` server-filtered endpoint)
+- UPD-FUTURE-04 — snooze / dismiss `DismissedVersion` field (adds state complexity)
+
+---
+
 ## v4.3 Configurable Ghost Override (Shipped: 2026-05-07)
 
 **Phases completed:** 4 phases (81–84), 5 plans, 574 MSTest green (445 Core + 129 App)
