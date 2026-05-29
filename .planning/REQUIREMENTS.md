@@ -12,14 +12,14 @@ Pure version compare in Core; HTTP-using service in App; silent-failure posture.
 
 - [x] **UPD-01**: `UpdateVersionComparer` pure static class in `FuzzyClock.Core` exposes `bool TryParseTag(string? tag, out Version version)` — strips leading `v`/`V`, accepts 2-/3-/4-component tags, rejects pre-release suffixes (`-beta`, `-rc1`), rejects build metadata (`+sha`), returns false on null/empty/garbage input
 - [x] **UPD-02**: `UpdateVersionComparer.IsNewer(Version running, Version latest)` returns true iff `latest > running` (running version greater-than-or-equal returns false; equal returns false)
-- [ ] **UPD-03**: `UpdateCheckService` in `FuzzyClock.App` performs a single anonymous HTTPS GET to `https://api.github.com/repos/{owner}/FuzzyClock/releases/latest` per app launch, with required headers `User-Agent: FuzzyClock/{AssemblyVersion}` and `Accept: application/vnd.github+json`
-- [ ] **UPD-04**: Network call uses a service-owned long-lived `HttpClient` (single static instance, `Timeout = 5s`, `SocketsHttpHandler.PooledConnectionLifetime = 15min`); constructor accepts optional `HttpMessageHandler` for test injection (`FakeHttpMessageHandler` seam)
-- [ ] **UPD-05**: Hard 5-second timeout via `CancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(5))` linked to an app-shutdown CTS via `CancellationTokenSource.CreateLinkedTokenSource`, so app shutdown during in-flight check unwinds within milliseconds, not 5 seconds
-- [ ] **UPD-06**: Service uses `System.Text.Json` source-generated `JsonSerializerContext` for the `GitHubRelease` POCO (`tag_name`, `prerelease`, `draft`); no reflection-based deserialization; trim/AOT-safe even with `PublishTrimmed=false` today
-- [ ] **UPD-07**: Service catches `HttpRequestException`, `TaskCanceledException`, `OperationCanceledException`, `JsonException`, `FormatException`, `ArgumentException` only — never `catch (Exception)`; on any caught exception, returns `Version?` = null (silent failure)
-- [ ] **UPD-08**: Service is idempotently disposable via `Interlocked.CompareExchange` on `int _disposed` — three-tier dispose registered from `MainWindow.OnClosing`, `App.SessionEnding`, `AppDomain.CurrentDomain.ProcessExit` (mirrors `TemperatureService` pattern)
-- [ ] **UPD-09**: Service skips the network call entirely (`return null` at top of method) when compiled in `#if DEBUG` configuration — prevents dev-box screenshots showing nonsensical "v4.4.0 available" notices when running an untagged dev build
-- [ ] **UPD-10**: GitHub repo coordinates (`owner/repo`) are hard-coded as an `internal const string` in `UpdateCheckService` — never read from `settings.json` (security: prevents malicious settings file from redirecting the check to a hostile endpoint)
+- [x] **UPD-03**: `UpdateCheckService` in `FuzzyClock.App` performs a single anonymous HTTPS GET to `https://api.github.com/repos/{owner}/FuzzyClock/releases/latest` per app launch, with required headers `User-Agent: FuzzyClock/{AssemblyVersion}` and `Accept: application/vnd.github+json`
+- [x] **UPD-04**: Network call uses a service-owned long-lived `HttpClient` (single static instance, `Timeout = 5s`, `SocketsHttpHandler.PooledConnectionLifetime = 15min`); constructor accepts optional `HttpMessageHandler` for test injection (`FakeHttpMessageHandler` seam)
+- [x] **UPD-05**: Hard 5-second timeout via `CancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(5))` linked to an app-shutdown CTS via `CancellationTokenSource.CreateLinkedTokenSource`, so app shutdown during in-flight check unwinds within milliseconds, not 5 seconds
+- [x] **UPD-06**: Service uses `System.Text.Json` source-generated `JsonSerializerContext` for the `GitHubRelease` POCO (`tag_name`, `prerelease`, `draft`); no reflection-based deserialization; trim/AOT-safe even with `PublishTrimmed=false` today
+- [x] **UPD-07**: Service catches `HttpRequestException`, `TaskCanceledException`, `OperationCanceledException`, `JsonException`, `FormatException`, `ArgumentException` only — never `catch (Exception)`; on any caught exception, returns `Version?` = null (silent failure)
+- [x] **UPD-08**: Service is idempotently disposable via `Interlocked.CompareExchange` on `int _disposed` — three-tier dispose registered from `MainWindow.OnClosing`, `App.SessionEnding`, `AppDomain.CurrentDomain.ProcessExit` (mirrors `TemperatureService` pattern)
+- [x] **UPD-09**: Service skips the network call entirely (`return null` at top of method) when compiled in `#if DEBUG` configuration — prevents dev-box screenshots showing nonsensical "v4.4.0 available" notices when running an untagged dev build
+- [x] **UPD-10**: GitHub repo coordinates (`owner/repo`) are hard-coded as an `internal const string` in `UpdateCheckService` — never read from `settings.json` (security: prevents malicious settings file from redirecting the check to a hostile endpoint)
 
 ### Widget UI Notice (UI)
 
@@ -38,11 +38,11 @@ UpdateText TextBlock + Phase 33 dual-path coverage.
 
 AppSettings field + Settings checkbox + reset behavior.
 
-- [ ] **PERS-01**: New `bool UpdateChecksEnabled { get; init; } = true;` field in `AppSettings` record — explicit `= true` is mandatory so v4.4 users upgrading via JSON round-trip don't silently lose update checks (mirrors `UptimeVisible`/`GhostModeEnabled`/`UseCtrl` pattern)
-- [ ] **PERS-02**: `SettingsService.Defaults()` returns an `AppSettings` with `UpdateChecksEnabled = true`
-- [ ] **PERS-03**: `SettingsService.Validate()` requires no new guard for this field (a bool cannot be invalid); existing Validate() return shape unchanged
-- [ ] **PERS-04**: `AppSettings` JSON round-trip test verifies `UpdateChecksEnabled` survives serialize → deserialize cycle (extends existing STEST-01 round-trip test or adds STEST-09)
-- [ ] **PERS-05**: Absent-field test verifies that deserializing a JSON document with no `UpdateChecksEnabled` key yields an `AppSettings` instance with `UpdateChecksEnabled == true` (mirrors STEST-02 / STEST-08 pattern)
+- [x] **PERS-01**: New `bool UpdateChecksEnabled { get; init; } = true;` field in `AppSettings` record — explicit `= true` is mandatory so v4.4 users upgrading via JSON round-trip don't silently lose update checks (mirrors `UptimeVisible`/`GhostModeEnabled`/`UseCtrl` pattern)
+- [x] **PERS-02**: `SettingsService.Defaults()` returns an `AppSettings` with `UpdateChecksEnabled = true`
+- [x] **PERS-03**: `SettingsService.Validate()` requires no new guard for this field (a bool cannot be invalid); existing Validate() return shape unchanged
+- [x] **PERS-04**: `AppSettings` JSON round-trip test verifies `UpdateChecksEnabled` survives serialize → deserialize cycle (extends existing STEST-01 round-trip test or adds STEST-09)
+- [x] **PERS-05**: Absent-field test verifies that deserializing a JSON document with no `UpdateChecksEnabled` key yields an `AppSettings` instance with `UpdateChecksEnabled == true` (mirrors STEST-02 / STEST-08 pattern)
 - [ ] **PERS-06**: New `<CheckBox x:Name="ChkUpdateChecksEnabled">` added to `SettingsWindow.xaml` Behavior tab with label `Check for updates on launch` — placement and styling clone the existing `ChkAutoLaunchEnabled` checkbox
 - [ ] **PERS-07**: `SettingsWindow` exposes `event Action<bool>? UpdateChecksEnabledChanged;` — fired from `Checked`/`Unchecked` handlers, suppressed during `PopulateControls` via existing `_suppressEvents` guard
 - [ ] **PERS-08**: `SettingsSnapshot` immutable record gains an `UpdateChecksEnabled` bool field; `MainWindow.GetCurrentSettingsSnapshot()` populates it from `_settings.UpdateChecksEnabled`
@@ -55,9 +55,9 @@ AppSettings field + Settings checkbox + reset behavior.
 
 csproj version sync + #if DEBUG safety.
 
-- [ ] **DEV-01**: `FuzzyClock.App/FuzzyClock.App.csproj` `<InformationalVersion>` synced to match `<Version>` (currently stale at `3.6.0` while `<Version>` is the active version) — one-line edit; CI tag-push override behavior unchanged
-- [ ] **DEV-02**: `Assembly.GetExecutingAssembly().GetName().Version` is the canonical source for "running version" — never `AssemblyInformationalVersion` (which is hand-edited and known stale)
-- [ ] **DEV-03**: Service `#if DEBUG` skip is unit-test-validated by a service-shape test in `FuzzyClock.App.Tests` that verifies the method returns null in DEBUG builds (test runs in DEBUG configuration so this is the natural assertion)
+- [x] **DEV-01**: `FuzzyClock.App/FuzzyClock.App.csproj` `<InformationalVersion>` synced to match `<Version>` (currently stale at `3.6.0` while `<Version>` is the active version) — one-line edit; CI tag-push override behavior unchanged
+- [x] **DEV-02**: `Assembly.GetExecutingAssembly().GetName().Version` is the canonical source for "running version" — never `AssemblyInformationalVersion` (which is hand-edited and known stale)
+- [x] **DEV-03**: Service `#if DEBUG` skip is unit-test-validated by a service-shape test in `FuzzyClock.App.Tests` that verifies the method returns null in DEBUG builds (test runs in DEBUG configuration so this is the natural assertion)
 
 ### Documentation (DOCS)
 
@@ -104,14 +104,14 @@ Explicitly excluded for v4.5. Documented to prevent scope creep.
 |-------------|-------|--------|
 | UPD-01 | Phase 88 | Complete |
 | UPD-02 | Phase 88 | Complete |
-| UPD-03 | Phase 88 | Pending |
-| UPD-04 | Phase 88 | Pending |
-| UPD-05 | Phase 88 | Pending |
-| UPD-06 | Phase 88 | Pending |
-| UPD-07 | Phase 88 | Pending |
-| UPD-08 | Phase 88 | Pending |
-| UPD-09 | Phase 88 | Pending |
-| UPD-10 | Phase 88 | Pending |
+| UPD-03 | Phase 88 | Complete |
+| UPD-04 | Phase 88 | Complete |
+| UPD-05 | Phase 88 | Complete |
+| UPD-06 | Phase 88 | Complete |
+| UPD-07 | Phase 88 | Complete |
+| UPD-08 | Phase 88 | Complete |
+| UPD-09 | Phase 88 | Complete |
+| UPD-10 | Phase 88 | Complete |
 | UI-01 | Phase 88 | Pending |
 | UI-02 | Phase 88 | Pending |
 | UI-03 | Phase 88 | Pending |
@@ -120,11 +120,11 @@ Explicitly excluded for v4.5. Documented to prevent scope creep.
 | UI-06 | Phase 88 | Pending |
 | UI-07 | Phase 88 | Pending |
 | UI-08 | Phase 88 | Pending |
-| PERS-01 | Phase 88 | Pending |
-| PERS-02 | Phase 88 | Pending |
-| PERS-03 | Phase 88 | Pending |
-| PERS-04 | Phase 88 | Pending |
-| PERS-05 | Phase 88 | Pending |
+| PERS-01 | Phase 88 | Complete |
+| PERS-02 | Phase 88 | Complete |
+| PERS-03 | Phase 88 | Complete |
+| PERS-04 | Phase 88 | Complete |
+| PERS-05 | Phase 88 | Complete |
 | PERS-06 | Phase 88 | Pending |
 | PERS-07 | Phase 88 | Pending |
 | PERS-08 | Phase 88 | Pending |
@@ -132,9 +132,9 @@ Explicitly excluded for v4.5. Documented to prevent scope creep.
 | PERS-10 | Phase 88 | Pending |
 | PERS-11 | Phase 88 | Pending |
 | PERS-12 | Phase 88 | Pending |
-| DEV-01 | Phase 88 | Pending |
-| DEV-02 | Phase 88 | Pending |
-| DEV-03 | Phase 88 | Pending |
+| DEV-01 | Phase 88 | Complete |
+| DEV-02 | Phase 88 | Complete |
+| DEV-03 | Phase 88 | Complete |
 | DOCS-01 | Phase 88 | Pending |
 
 **Coverage:**
