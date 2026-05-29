@@ -45,6 +45,7 @@ A minimal WPF desktop widget that displays the current time as a fuzzy English p
 - **Single instance** — launching the app when it is already running brings the existing window to the front instead of opening a second instance
 - **Battery low alert** — battery stat row background turns red when charge drops below a configurable threshold (10%/15%/20%) and the device is unplugged; configurable in Settings Behavior tab
 - **Dark-mode Settings** — the Settings window uses a dark background with light text matching the widget's minimal aesthetic
+- **Update notice** — when a newer FuzzyClock release is published on GitHub, a one-line accent-colored "vX.Y.Z available" notice appears at the bottom of the stats panel; checked once per launch. The check can be disabled in Settings > Behavior > "Check for updates on launch" (default ON).
 
 ## Requirements
 
@@ -128,7 +129,7 @@ Open from the tray menu ("Open Settings..."). The window has three tabs:
 
 **Stats** — Stats panel toggle, individual row visibility (CPU / GPU / Memory / Paging / Battery / Uptime), update interval, process count threshold, date visibility, and date format.
 
-**Behavior** — Phrase language (Auto / English / French / Spanish / German / Japanese / Polish), ghost mode, ghost override modifiers (customize which modifier keys suppress ghost fade: Left Ctrl / Left Alt / Left Shift), auto-contrast, auto-launch at login, and battery alert threshold (10% / 15% / 20%).
+**Behavior** — Phrase language (Auto / English / French / Spanish / German / Japanese / Polish), ghost mode, ghost override modifiers (customize which modifier keys suppress ghost fade: Left Ctrl / Left Alt / Left Shift), auto-contrast, auto-launch at login, check for updates on launch, and battery alert threshold (10% / 15% / 20%).
 
 ## Project Structure
 
