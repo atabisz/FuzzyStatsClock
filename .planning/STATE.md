@@ -1,109 +1,93 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.4
-milestone_name: Smooth Ghost Fade Under Load
-status: milestone_complete
-stopped_at: Milestone complete (Phase 87 was final phase)
-last_updated: 2026-05-21T03:28:12.774Z
+milestone: v4.5
+milestone_name: Update Checker
+status: defining_requirements
+stopped_at: Milestone v4.5 started — gathering requirements
+last_updated: 2026-05-29
 progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
-  percent: 67
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State: FuzzyStatsClock
 
-**Status:** Milestone complete
-**Last updated:** 2026-05-20
+**Status:** Defining requirements
+**Last updated:** 2026-05-29
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-07)
+See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** Milestone complete
+**Current focus:** v4.5 Update Checker — defining requirements
+
+## Current Position
+
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-29 — Milestone v4.5 started
 
 ## Current Milestone
 
-**v4.4 Smooth Ghost Fade Under Load** — In progress
+**v4.5 Update Checker** — In progress (defining requirements)
 
-- Phases: 85, 86, 87 (continues from v4.3's Phase 84)
-- Requirements: 18 total — FADE (4), SAMP (4), SEM (5), TEST (4), PERF (1)
-- Coverage: 18/18 mapped to phases (100%)
-- Test baseline at milestone start: 574 MSTest (445 Core + 129 App)
+Decisions captured during questioning:
 
-### Phase Plan
-
-| Phase | Goal | Requirements |
-|-------|------|--------------|
-| 85 — Off-thread sampling refactor | `GhostModeController` sampling moves to `System.Threading.Timer`; UI work marshals via `Dispatcher.BeginInvoke`; tickable seam exposed | SAMP-01..04, SEM-01, SEM-02, SEM-03, SEM-05 |
-| 86 — Frame-driven opacity rendering | `MainWindow` lerps current ratio toward target via `CompositionTarget.Rendering`; terminal-state snap; existing guards preserved | FADE-01..04, SEM-04 |
-| 87 — Verification & performance acceptance | `LerpRatio` unit tests; tickable-seam tests; full MSTest suite green; manual smoothness check under 25–50% CPU load | TEST-01..04, PERF-01 |
+- Cadence: once per app launch (no background polling)
+- Notice rendering: plain accent-colored text, no link, no click handler
+- Default state: enabled by default
+- Failure mode: silent — no visible feedback when check fails
+- Placement: below TempsText, last child of StatsPanel
+- Visibility: hidden when running version equals or exceeds latest
+- Settings location: new toggle in Settings > Behavior tab
+- Text format: `vX.Y.Z available`
 
 ## Recent Milestone
 
-**v4.3 Configurable Ghost Override** — Shipped 2026-05-07
+**v4.4 Smooth Ghost Fade Under Load** — Shipped 2026-05-21
 
-- 4 phases (81–84), 5 plans
-- 574 MSTest passing (445 Core + 129 App)
-- 22/22 requirements validated
-- Tag: v4.3
+- 3 phases (85–87)
+- 587 MSTest passing (449 Core + 138 App)
+- 18/18 requirements validated
+- Tag: v4.4
 
 ## Accumulated Context
 
 ### Active TODOs
 
-None
+- v4.4 PERF-01 carry-forward: occasional brief freeze observed during fade under sustained 25–50% CPU load (`barely-stepping` verdict). Suspected cause: deferred Phase 86 advisory WR-01. Worth confirming whether v4.5 timeframe touches the render path or whether this stays deferred to v4.6+.
+- Pre-existing `PhraseEngineTests.SpecialCases_NoonAndMidnight(12,0,"noon")` flake — per project memory, fixed in v4.5.0 (commit `62ccf6e`); confirm during plan-phase that no follow-up is needed.
 
 ### Known Blockers
 
 None
 
-## Deferred Items
-
-Items acknowledged and deferred at v4.4 milestone close on 2026-05-21:
-
-| Category | Item | Status |
-|----------|------|--------|
-| verification_gap | 85-VERIFICATION.md | human_needed (5 absorbed UAT items carried forward into 87-VERIFICATION.md per D-CARRY-03) |
-| verification_gap | 86-VERIFICATION.md | human_needed (7 absorbed UAT items carried forward into 87-VERIFICATION.md per D-CARRY-03) |
-| uat_gap | 85-HUMAN-UAT.md | diagnosed (4 pending scenarios — all absorbed into 87-VERIFICATION.md `human_verification:` block) |
-| quick_task | 1-fix-call-updatestatsdisplay-at-end-of-se | missing (pre-existing legacy task; unrelated to v4.4 scope) |
-
-### Recent Decisions Affecting v4.4
-
-- v4.0 Phase 67: Always-running `GhostModeController` timer (not started/stopped on toggle) — Phase 85 must preserve this lifecycle invariant under the new thread-pool timer
-- v4.0 Phase 67: `Restored` fires only at ratio=0.0 after ghost activation — Phase 85 must preserve byte-for-byte
-- v4.3 Phase 83: `IsModifierHeld` AND-logic with all-false short-circuit — Phase 85 must preserve under off-thread sampling
-- v4.3 Phase 84: Five `MainWindow` touchpoints for ghost integration — Phase 86 must respect drag/settings/menu/wheel guards verbatim
-- v4.4 Phase 85 Plan 01: Pure-logic seam landed — `internal SampleResult OnSampleTick(...)` + `GhostTransition` enum exposed via `InternalsVisibleTo`; `OnTimerTick` now gather→delegate→apply; D-10 read-once-into-locals snapshot pattern adopted ahead of Plan 02 volatile swap; single-owner write rule for `_lastProximityRatio` and `_isGhostMode = false` enforced — all 129 App + 449 Core tests pass without modification, `MainWindow.xaml.cs` byte-for-byte unchanged
-- v4.4 Phase 85 Plan 02: Volatile config fields landed — `_isGhostMode` (D-06), `_useCtrl/_useAlt/_useShift/_ghostFadeRadiusPx` (D-10), and new `_isEnabled` backing field (D-11) all declared `volatile`; `IsEnabled` converted from auto-property to manual property `{ get => _isEnabled; set => _isEnabled = value; }`; `_lastProximityRatio` deliberately left as plain `double` (sampler-thread-local per D-06); no threading changes — `OnTimerTick` still on dispatcher; `MainWindow.xaml.cs` byte-for-byte unchanged; all 129 App tests pass
-- v4.4 Phase 85 Plan 03: Threading swap landed — `DispatcherTimer? _restoreTimer` removed; `System.Threading.Timer? _timer` (D-01) constructed at Initialize with 33 ms cadence (SAMP-04), always-running for the session; `Dispatcher _dispatcher` captured once at Initialize via `Application.Current.Dispatcher` (D-09); `int _tickInFlight` Interlocked reentrancy guard (D-02) at the top of new `OnSampleThreadTick(object? state)` callback with `try { ... } finally { _tickInFlight = 0; }` release; `OnSampleThreadTick` runs Win32 sampling and `OnSampleTick` off the UI thread (SAMP-02/03), short-circuits before BeginInvoke when `transition=None && !RatioChanged` (D-08), guards against dispatcher shutdown via `HasShutdownStarted/HasShutdownFinished` (D-09), and bundles all UI work in exactly one `_dispatcher.BeginInvoke` per tick (D-07) — lambda raises `ProximityChanged`, switches on transition to call `Activate()` / clear WS_EX_TRANSPARENT / raise `Restored`. `Activate()` body unchanged (option a); `_isGhostMode` writes still owned by `OnSampleTick` (false) and `Activate()` (true). `Dispose()` placeholder swap to `_timer?.Dispose()` — Plan 04 hardens to WaitHandle form. `MainWindow.xaml.cs` byte-for-byte unchanged; all 129 App + 449 Core tests pass
-- v4.4 Phase 85 Plan 04: Synchronous disposal landed — `Dispose()` rewritten from placeholder `_timer?.Dispose()` to the WaitHandle-based synchronous form per D-03. New `_disposed` bool field for idempotency early-exit. Dispose() now: (1) returns immediately if already disposed; (2) returns immediately if `_timer == null` (Initialize never ran); (3) creates a `using ManualResetEvent(false)`, calls `_timer.Dispose(notifyObject)` + `notifyObject.WaitOne()` to block until any in-flight tick callback fully completes; (4) sets `_timer = null;` defensively. Combined with D-09 dispatcher-shutdown guard from Plan 03, the teardown race is closed in both directions: ticks already running drain before Dispose() returns; ticks that started but reach BeginInvoke after dispatcher shutdown bail at the guard. T-85-12 and T-85-14 mitigations from Plan 04's threat register confirmed; T-85-13 explicitly accepted (bounded callback ⇒ no deadlock risk). `MainWindow.xaml.cs` byte-for-byte unchanged; all 129 App + 449 Core tests pass. **Phase 85 complete (4/4 plans).**
-
 ## Session Continuity
 
-**Next action:** Phase 85 verification (verifier sub-phase) → Phase 86 (frame-driven opacity rendering)
+**Next action:** Define requirements (REQUIREMENTS.md), then spawn roadmapper for ROADMAP.md.
 
 **When returning:**
 
-1. Read this STATE.md and .planning/ROADMAP.md for current position
-2. Run Phase 85 verifier (workflow.verifier=true in config.json)
-3. Begin Phase 86 planning (frame-driven opacity rendering — consumes ProximityChanged from Phase 85)
+1. Read this STATE.md and .planning/PROJECT.md for current position
+2. Continue `/gsd:new-milestone` workflow at the requirements step
+3. After roadmap approved, run `/gsd:plan-phase [N]` to start the first phase
 
 **Recent milestones:**
 
+- v4.4 Smooth Ghost Fade Under Load — shipped 2026-05-21 (587 tests, 18/18 requirements)
 - v4.3 Configurable Ghost Override — shipped 2026-05-07 (574 tests, 22/22 requirements)
 - v4.2 Temps & Menu — shipped 2026-05-04 (562 tests, MPL-2.0 compliance)
 
-**Last session:** 2026-05-20T12:49:16.861Z
-**Stopped at:** Phase 87 context gathered
-**Resume file:** .planning/phases/87-verification-performance-acceptance/87-CONTEXT.md
+**Last session:** 2026-05-29
+**Stopped at:** Milestone v4.5 started — defining requirements
+**Resume file:** .planning/PROJECT.md (Current Milestone section)
 **Blockers:** None
 
 ---
-*State updated: 2026-05-20 — Plan 85-04 complete (commit 776bbbf); SUMMARY at .planning/phases/85-off-thread-sampling-refactor/85-04-SUMMARY.md*
-*Phase 85 complete: 4/4 plans landed; threading swap + synchronous disposal in place; ready for Phase 86*
-*Phase numbering continues from v4.3's Phase 84*
+*State updated: 2026-05-29 — v4.5 Update Checker milestone started*
+*Phase numbering will continue from v4.4's Phase 87*

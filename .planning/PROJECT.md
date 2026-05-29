@@ -32,17 +32,18 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 
 562 MSTest tests (445 Core + 117 App) passing. CI gate enforced. REL-02 + REL-03 grep gates live in release.yml. LHM 0.9.6 pinned in FuzzyClock.App.csproj.
 
-## Current Milestone: v4.4 Smooth Ghost Fade Under Load
+## Current Milestone: v4.5 Update Checker
 
-**Goal:** Make ghost-mode proximity fade visibly smooth even when the system is under CPU contention (~25%+) by decoupling sampling from rendering and moving sampling off the UI thread.
+**Goal:** Notify the user when a newer FuzzyClock release is available on GitHub by rendering a one-line accent-colored "vX.Y.Z available" notice at the bottom of the stats panel; provide a Settings toggle to disable the check entirely.
 
 **Target features:**
 
-- **Frame-driven opacity rendering** — Decouple visible fade from sampling cadence: `this.Opacity` lerps toward a target ratio on `CompositionTarget.Rendering`, so the fade glides at the display refresh rate regardless of when sampling fires
-- **Off-thread proximity sampling** — Replace the UI-thread `DispatcherTimer` in `GhostModeController` with `System.Threading.Timer` (or equivalent); `GetCursorPos`/`GetWindowRect` run off-thread; UI-thread work (Opacity, `WS_EX_TRANSPARENT`, events) marshals via `Dispatcher.BeginInvoke`
-- **Preserved interaction semantics** — Ratio=1.0 → `WS_EX_TRANSPARENT`, ratio<1.0 → remove immediately, `Restored` only at ratio=0.0; modifier suppression, drag freeze, settings-window pin, RMB-04 menu pin, scroll-wheel direct opacity all unchanged
+- **GitHub release lookup on launch** — Once per app launch (no background polling), fetch the latest release tag from the FuzzyClock GitHub Releases API; compare against the running assembly version; cache result for the session
+- **Update notice line** — New 8th/last child of StatsPanel, immediately below TempsText. Renders as `vX.Y.Z available` in plain text, accent-colored, participating in `ApplyTheme` + `ApplyDisplayColor` (Phase 33 critical pattern). Hidden via `Visibility.Collapsed` when running version equals or exceeds latest, when check is disabled, or when the check failed (silent failure — no error indicator)
+- **Settings > Behavior toggle** — New "Check for updates on launch" checkbox in Settings > Behavior tab; default ON; immediate persistence; toggling OFF hides the notice and skips the check on next launch
+- **Silent failure posture** — Network errors, rate limits, malformed responses, and offline conditions all result in zero visible feedback; the notice line stays collapsed and the app continues normally (mirrors TemperatureService's `IsReady`/`-1f` discipline)
 
-**Key context:** Pure responsiveness/architecture milestone — no new user-visible features beyond "the fade now stays smooth under load". Existing pure-static unit tests on `ComputeProximityRatio` and `IsModifierHeld` must keep passing. The new threading model needs to be unit-testable. Files in scope: `FuzzyClock.App/GhostModeController.cs` and `FuzzyClock.App/MainWindow.xaml.cs` (ProximityChanged handler, Restored handler, drag/menu/settings opacity guards, SetOpacity, mouse-wheel opacity).
+**Key context:** Pure additive feature — no breaking changes to existing surfaces. Files likely in scope: new `FuzzyClock.App/UpdateCheckService.cs` (HttpClient + JSON parse), new TextBlock `UpdateText` in `MainWindow.xaml` StatsPanel, new `UpdateChecksEnabled` AppSettings field, new `ChkUpdateChecksEnabled` checkbox in `SettingsWindow.xaml` Behavior tab, version comparison helper in `FuzzyClock.Core` for testability. Network call must be async with reasonable timeout (~5s) and must not block UI thread or app startup.
 
 ## Requirements
 
@@ -325,20 +326,6 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - ✓ CLEAN-03: Settings migration via JSON ignore-unknown-keys — v4.1
 - ✓ CLEAN-04: AppSettings.Theme field removed — v4.1
 
-### Active
-
-## Current Milestone: v4.2 Temps & Menu
-
-**Goal:** Add system temperature monitoring to the stats line and make the tray menu available via right-click on the widget itself.
-
-**Target features:**
-
-- **Right-click menu on widget** — Reuse the existing tray ContextMenuStrip when the user right-clicks the widget; identical items, checkmarks, and behavior. Suppressed while proximity-faded/click-through (RMB requires Ghost Mode off or Ctrl+Alt held, matching existing hover/interaction invariants).
-- **Temps tab in Settings** — New 4th tab (Appearance / Stats / **Temps** / Behavior). Master "Show Temps Line" toggle plus per-sensor checkboxes (CPU package, GPU, Motherboard/System, NVMe/SSD); unavailable sensors disabled with "N/A" label.
-- **Temperature stats line** — Compact one-liner below uptime (`CPU 52°  GPU 61°  NVMe 38°`). Celsius only, accent-colored, refreshed on existing stats timer. Only shows checked sensors with valid readings.
-
-**Key context:** LibreHardwareMonitorLib (MPL-2.0) as data source with graceful no-elevation fallback (sensors needing admin render "N/A", no UAC prompt). No alerts/thresholds. Piggybacks existing stats timer.
-
 ### Out of Scope
 
 - User-created/saved themes — named themes removed in v4.1; custom theme authoring adds complexity with little value
@@ -348,6 +335,11 @@ The time phrase is always visible on the desktop, readable at a glance, with no 
 - Font family selector — single clean font (Segoe UI Light) is part of the design
 - Reset all stats to visible via Show Stats — individual toggles are independent; simpler model
 - ContrastSamplerService architecture refactor — flicker fix required only a guard in `ContrastRefreshController.Tick`; no structural changes to the sampling pipeline
+- Auto-update / one-click upgrade — v4.5 only notifies; user installs the new version manually (per-user Inno Setup installer pattern preserved)
+- Background polling for new releases — once-per-launch only; no DispatcherTimer, no scheduled re-check
+- In-app changelog or release notes display — too much surface area for v4.5; user follows the GitHub release link in their browser if interested
+- Pre-release / draft release detection — checker considers only published, non-prerelease tags
+- Failure indicator on the widget — silent failure posture; offline/rate-limited/malformed responses produce zero visible feedback
 
 ## Context
 
@@ -537,4 +529,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-07 — v4.3 Configurable Ghost Override milestone started*
+*Last updated: 2026-05-29 — v4.5 Update Checker milestone started*
