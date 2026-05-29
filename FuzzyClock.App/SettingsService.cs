@@ -159,7 +159,8 @@ public static class SettingsService
         TempCpuVisible   = true,
         TempGpuVisible   = true,
         TempMoboVisible  = false,
-        TempNvmeVisible  = false
+        TempNvmeVisible  = false,
+        UpdateChecksEnabled = true
     };
 
     /// <summary>

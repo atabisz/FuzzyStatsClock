@@ -61,5 +61,11 @@ public record AppSettings
     public bool UseCtrl  { get; init; } = true;   // Left-Ctrl enabled by default
     public bool UseAlt   { get; init; } = true;   // Left-Alt enabled by default
     public bool UseShift { get; init; } = false;  // Left-Shift disabled by default
+
+    // v4.5 Phase 88 — Update checker on-launch toggle (PERS-01).
+    // Default = true: explicit init mandatory so v4.4 users upgrading via JSON
+    // round-trip don't silently lose update checks (mirrors UptimeVisible /
+    // GhostModeEnabled / UseCtrl pattern).
+    public bool UpdateChecksEnabled { get; init; } = true;
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"
