@@ -295,6 +295,20 @@
                        Foreground="White"
                        Text=""
                        TextAlignment="Left" />
+
+            <!-- v4.5 Phase 88 — Update notice. 8th and final child of StatsPanel.
+                 Visibility=Collapsed by default; flips to Visible only when service callback
+                 finds a strictly-newer GitHub release. Cloned styling from TempsText/UptimeText
+                 byte-for-byte except Visibility default differs (Collapsed vs Visible).
+                 Foreground is set in BOTH ApplyTheme AND ApplyDisplayColor (Phase 33 critical). -->
+            <TextBlock x:Name="UpdateText"
+                       Margin="0,2,0,0"
+                       Visibility="Collapsed"
+                       FontFamily="Segoe UI Light"
+                       FontSize="11"
+                       Foreground="White"
+                       Text=""
+                       TextAlignment="Left" />
             </StackPanel>
             </Grid>
         </Border>

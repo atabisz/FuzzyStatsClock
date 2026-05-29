@@ -76,6 +76,7 @@ public partial class App : Application
             var mw = MainWindow as MainWindow;
             mw?.SaveSettings();
             mw?.DisposeTemperatureService();
+            mw?.DisposeUpdateCheckService();   // v4.5 Phase 88 — UPD-08 tier 2 of three-tier dispose
         };
 
         // Tier 3 of TemperatureService three-tier dispose: ProcessExit fires on
@@ -91,6 +92,10 @@ public partial class App : Application
     private void OnProcessExit(object? sender, EventArgs e)
     {
         try { (MainWindow as MainWindow)?.DisposeTemperatureService(); } catch { }
+        // v4.5 Phase 88 — UPD-08 tier 3 of three-tier dispose. Mirrors the
+        // TemperatureService line above byte-for-byte; ProcessExit has a
+        // collective ~2s budget so the empty catch is mandatory.
+        try { (MainWindow as MainWindow)?.DisposeUpdateCheckService(); } catch { }
     }
 
     private static void SignalRunningInstance()

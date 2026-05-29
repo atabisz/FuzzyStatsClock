@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private DispatcherTimer _statsTimer = null!;
     private StatsService _statsService = null!;
     private TemperatureService _temperatureService = null!;
+    private UpdateCheckService _updateService = null!;   // v4.5 Phase 88 — once-per-launch GitHub Releases checker
     private double _statsIntervalSeconds = 2.0;  // default matches AppSettings.StatsIntervalSeconds default
     private double _processCountThreshold = 5.0; // default matches AppSettings.ProcessCountThresholdPercent default
     private bool _batteryAlertActive    = false;
@@ -192,6 +193,17 @@ public partial class MainWindow : Window
             // TemperatureService.Dispose ensures LHM's Computer.Close() runs
             // exactly once across those three tiers.
             _temperatureService = new TemperatureService();
+
+            // v4.5 Phase 88 — UpdateCheckService construction is unconditional so
+            // dispose tiers 2/3 never reference null; the kickoff itself is
+            // gated on the persisted setting (PERS-12). Service ctor returns <1ms;
+            // it does NOT issue any HTTP call until KickoffUpdateCheck dispatches.
+            _updateService = new UpdateCheckService();
+            if (_settings.UpdateChecksEnabled)
+            {
+                KickoffUpdateCheck();
+            }
+
             _statsTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(_statsIntervalSeconds)
@@ -648,6 +660,8 @@ public partial class MainWindow : Window
         MoboTempC              = _temperatureService?.MoboTempC ?? -1f,
         NvmeTempC              = _temperatureService?.NvmeTempC ?? -1f,
         TempsServiceReady      = _temperatureService?.IsReady   ?? false,
+        // v4.5 Phase 88 (PERS-08) — Update checker on-launch toggle projection
+        UpdateChecksEnabled    = _settings.UpdateChecksEnabled,
     };
 
     private void OpenSettings()
@@ -735,6 +749,22 @@ public partial class MainWindow : Window
             string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
             if (v) AutoLaunchService.Enable(exePath); else AutoLaunchService.Disable();
             SaveSettings();
+        };
+        // v4.5 Phase 88 (PERS-09 + PERS-10) — Update checker on-launch toggle.
+        // Immediate-persist (Phase 78 pattern); when toggled OFF mid-session,
+        // cancel any in-flight HTTP call AND collapse the notice line. Once-per-launch
+        // invariant means toggling back ON mid-session is a no-op (no re-kickoff).
+        _settingsWindow.UpdateChecksEnabledChanged += v =>
+        {
+            _settings = _settings with { UpdateChecksEnabled = v };
+            SaveSettings();
+
+            if (!v)
+            {
+                _updateService?.CancelInFlight();
+                UpdateText.Visibility = Visibility.Collapsed;
+                UpdateText.Text = "";
+            }
         };
         _settingsWindow.BatteryAlertThresholdChanged += t => SetBatteryAlertThreshold(t);
         // v4.2 Phase 78 — Temps tab persistence handlers (widget render wiring lands in Phase 79)
@@ -1208,6 +1238,58 @@ public partial class MainWindow : Window
             : Visibility.Collapsed;
     }
 
+    // v4.5 Phase 88 — Update checker UI plumbing.
+    // Kicks off the once-per-launch GitHub Releases query at ApplicationIdle so
+    // first paint never gates on the network call (UI-06). Service callback
+    // marshals back to the UI thread before touching XAML (UI-07). Outer
+    // catch (Exception) is defense in depth (UI-08) — the service already
+    // swallows the narrow six-exception set, so anything reaching here would
+    // otherwise surface as TaskScheduler.UnobservedTaskException.
+    private void KickoffUpdateCheck()
+    {
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, async () =>
+        {
+            try
+            {
+                var newer = await _updateService.CheckAsync().ConfigureAwait(false);
+                if (newer is null) return;
+
+                var running = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!;
+                if (!FuzzyClock.Core.UpdateVersionComparer.IsNewer(running, newer)) return;
+
+                // UI-07: marshal back to the WPF Dispatcher thread before touching UpdateText.
+                Dispatcher.Invoke(() => ShowUpdateNotice(newer));
+            }
+            catch (Exception)
+            {
+                // UI-08 silent-failure posture. The service already catches its narrow
+                // six-exception set; anything reaching here is a bug we'd rather not
+                // surface as a global TaskScheduler.UnobservedTaskException.
+            }
+        });
+    }
+
+    private void ShowUpdateNotice(Version newer)
+    {
+        // UI-02: synthesise the leading "v" prefix; Version.ToString() omits it.
+        UpdateText.Text = $"v{newer} available";
+        UpdateText.Visibility = Visibility.Visible;
+
+        // UI-05: re-clamp because adding the line increases window height by ~13px.
+        // Mirrors the SetStatsVisible re-clamp block at MainWindow.xaml.cs:1247-1258.
+        UpdateLayout();
+        if (_hasUserPosition)
+        {
+            var screen = ScreenDpi.FromDipPoint(
+                Left + ActualWidth / 2, Top + ActualHeight / 2);
+            var clamped = SettingsService.Clamp(
+                new MonitorPosition { Left = Left, Top = Top },
+                ActualWidth, ActualHeight, screen);
+            Left = clamped.Left;
+            Top  = clamped.Top;
+        }
+    }
+
     private static float ComputeAvg(Queue<float> q, int count)
     {
         // Average the last `count` elements (most recent time window).
@@ -1435,6 +1517,7 @@ public partial class MainWindow : Window
         _statsTimer?.Stop();
         _statsService?.Dispose();
         _temperatureService?.Dispose();   // tier 1 of three-tier dispose (D-15)
+        _updateService?.Dispose();        // v4.5 Phase 88 — UPD-08 tier 1 of three-tier dispose
         SaveSettings();
         base.OnClosing(e);
     }
@@ -1443,6 +1526,12 @@ public partial class MainWindow : Window
     // The Interlocked guard inside TemperatureService.Dispose makes this safe
     // to call multiple times from different tiers across the shutdown sequence.
     internal void DisposeTemperatureService() => _temperatureService?.Dispose();
+
+    // v4.5 Phase 88 — External entry point for UpdateCheckService tiers 2 and 3
+    // (App.SessionEnding + AppDomain.ProcessExit). The Interlocked guard inside
+    // UpdateCheckService.Dispose makes this safe to call multiple times from
+    // different tiers across the shutdown sequence.
+    internal void DisposeUpdateCheckService() => _updateService?.Dispose();
 
     private void ResetToDefaults()
     {
@@ -1524,6 +1613,7 @@ public partial class MainWindow : Window
             UseCtrl  = true,
             UseAlt   = true,
             UseShift = false,
+            UpdateChecksEnabled = true, // v4.5 Phase 88 (PERS-11) — restore default-ON
         };
         // If Settings window is open, refresh so the UI reflects the reset values
         // AND re-evaluates N/A state via RefreshControls → PopulateControls → ApplyTempCheckboxNaState
@@ -1917,6 +2007,7 @@ public partial class MainWindow : Window
         // Uptime row text (accent color)
         UptimeText.Foreground = brush;
         TempsText.Foreground  = brush;   // v4.2 Phase 79 — TEMP-LINE-06 (Phase 33 critical pattern)
+        UpdateText.Foreground = brush;   // v4.5 Phase 88 — UI-04 (Phase 33 critical pattern; mirror in ApplyDisplayColor)
 
         // Date text (dimmed accent — 55% alpha, same treatment as QualifierText)
         var dateBrush = new System.Windows.Media.SolidColorBrush(
@@ -1955,6 +2046,7 @@ public partial class MainWindow : Window
         MemText.Foreground = brush; PagText.Foreground = brush; BattText.Foreground = brush;
         UptimeText.Foreground = brush;
         TempsText.Foreground  = brush;   // v4.2 Phase 79 — TEMP-LINE-06 (Phase 33 critical pattern)
+        UpdateText.Foreground = brush;   // v4.5 Phase 88 — UI-04 (Phase 33 critical pattern; mirror in ApplyTheme)
 
         // Date text (dimmed display override — 55% alpha)
         var dateDisplayColor = System.Windows.Media.Color.FromArgb(0x8C, rgb.R, rgb.G, rgb.B);

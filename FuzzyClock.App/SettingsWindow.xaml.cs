@@ -66,6 +66,9 @@ public sealed partial class SettingsWindow : Window
     public event Action<bool>?   UseAltChanged;
     public event Action<bool>?   UseShiftChanged;
 
+    // v4.5 Phase 88 (PERS-07) — Update checker on-launch toggle
+    public event Action<bool>?   UpdateChecksEnabledChanged;
+
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
     {
@@ -217,6 +220,9 @@ public sealed partial class SettingsWindow : Window
         GhostOverridePanel.IsEnabled = s.GhostModeEnabled;   // master gates sub-panel (site 1/2)
         ChkAutoContrast.IsChecked = s.AutoContrastEnabled;
         ChkAutoLaunch.IsChecked   = s.AutoLaunchEnabled;
+
+        // v4.5 Phase 88 (PERS-08) — populate update checker checkbox from snapshot
+        ChkUpdateChecksEnabled.IsChecked = s.UpdateChecksEnabled;
 
         // Battery alert threshold radio buttons
         RbAlert10.IsChecked = s.BatteryAlertThreshold == 10;
@@ -612,6 +618,15 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         AutoLaunchChanged?.Invoke(ChkAutoLaunch.IsChecked == true);
+    }
+
+    // v4.5 Phase 88 (PERS-07) — Update checker on-launch toggle handler.
+    // Cloned shape from ChkAutoLaunch_Changed; _suppressEvents guard required so
+    // PopulateControls assignment in SettingsWindow ctor doesn't fire the event.
+    private void ChkUpdateChecksEnabled_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        UpdateChecksEnabledChanged?.Invoke(ChkUpdateChecksEnabled.IsChecked == true);
     }
 
     // ── Ghost override modifiers ───────────────────────────────────────────

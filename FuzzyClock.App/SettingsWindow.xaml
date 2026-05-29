@@ -478,6 +478,14 @@
                           Content="Auto-Launch at Login"
                           Checked="ChkAutoLaunch_Changed" Unchecked="ChkAutoLaunch_Changed"/>
 
+                <!-- v4.5 Phase 88 — Update checker on-launch toggle (PERS-06).
+                     Cloned shape from ChkAutoLaunch byte-for-byte. -->
+                <CheckBox x:Name="ChkUpdateChecksEnabled"
+                          Content="Check for updates on launch"
+                          Margin="0,4,0,0"
+                          Checked="ChkUpdateChecksEnabled_Changed"
+                          Unchecked="ChkUpdateChecksEnabled_Changed"/>
+
                 <!-- Battery Alert threshold -->
                 <TextBlock Text="Battery Alert" FontWeight="SemiBold" Margin="0,16,0,4"/>
                 <TextBlock Text="Alert when unplugged and battery is at or below:"
