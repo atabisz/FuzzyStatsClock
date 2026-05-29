@@ -28,7 +28,7 @@
     <Version>4.5.0</Version>
     <AssemblyVersion>4.5.0.0</AssemblyVersion>
     <FileVersion>4.5.0.0</FileVersion>
-    <InformationalVersion>3.6.0</InformationalVersion>
+    <InformationalVersion>4.5.0</InformationalVersion>
     <Product>FuzzyClock</Product>
     <Description>Fuzzy time and system stats desktop overlay</Description>
     <Copyright>Alex Tabisz</Copyright>
