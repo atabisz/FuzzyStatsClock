@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: Update Checker
 status: in-progress
-stopped_at: Plan 88-02 complete — ready to execute Plan 88-03 (UI wiring)
-last_updated: "2026-05-29T03:13:00.000Z"
-last_activity: 2026-05-29 — Plan 88-02 shipped UpdateCheckService + AppSettings.UpdateChecksEnabled + csproj sync
+stopped_at: Plan 88-03 complete — ready to execute Plan 88-04 (human-verify + README pass)
+last_updated: "2026-05-29T03:28:58.070Z"
+last_activity: 2026-05-29 — Plan 88-03 wired UpdateText UI + Settings checkbox + three-tier dispose (UI-01..08, PERS-06..12)
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 50
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State: FuzzyStatsClock
 
-**Status:** Plan 88-02 complete — ready to execute Plan 88-03
+**Status:** Plan 88-03 complete — ready to execute Plan 88-04
 **Last updated:** 2026-05-29
 
 ## Project Reference
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** The time phrase is always visible on the desktop, readable at a glance, with no visual chrome getting in the way.
-**Current focus:** v4.5 Update Checker — Phase 88 in progress (2/4 plans done)
+**Current focus:** v4.5 Update Checker — Phase 88 in progress (3/4 plans done)
 
 ## Current Position
 
 Phase: 88 of 88 (GitHub Releases Update Checker)
-Plan: 2 of 4 complete (next: 88-03)
+Plan: 3 of 4 complete (next: 88-04)
 Status: In progress
-Last activity: 2026-05-29 — Plan 88-02 shipped UpdateCheckService (UPD-03..10, PERS-01..05, DEV-01..03)
+Last activity: 2026-05-29 — Plan 88-03 wired UpdateText UI + Settings checkbox + three-tier dispose (UI-01..08, PERS-06..12)
 
-Progress: [█████░░░░░] 50%
+Progress: [████████░░] 75%
 
 ## Current Milestone
 
@@ -60,6 +60,14 @@ Progress: [█████░░░░░] 50%
 ## Accumulated Context
 
 ### Decisions
+
+Plan 88-03 decisions (2026-05-29):
+
+- **Service constructed unconditionally; kickoff conditionally (PERS-12)** — `_updateService = new UpdateCheckService();` runs in ContentRendered regardless of `_settings.UpdateChecksEnabled`, so dispose tiers 2/3 never reference null. Only the `KickoffUpdateCheck()` call is gated. Matches the locked CONTEXT decision: "service constructed and registered for dispose, but no kickoff `BeginInvoke` is scheduled" when toggle is OFF at launch.
+- **Outer `catch (Exception)` at kickoff IS deliberate (UI-08 vs UPD-07)** — UPD-07 forbids `catch (Exception)` in the SERVICE; UI-08 explicitly REQUIRES it at the fire-and-forget kickoff lambda boundary. Different code, different rule. RESEARCH Pitfall 9 calls this out: defense-in-depth so an unexpected bug doesn't surface as `TaskScheduler.UnobservedTaskException`.
+- **`$"v{newer} available"` synthesis chosen over verbatim tag passthrough** — RESEARCH §Open Questions Q5 noted both shapes were acceptable. Picked synthesis: changing the 88-02 service surface from `Task<Version?>` to `Task<(Version, string)?>` mid-phase would have been Rule 4 architectural creep. Cost: a user-typed `V4.6.0` renders as `v4.6.0`. Acceptable per CONTEXT's Claude's Discretion allowance.
+- **Re-clamp block lifted byte-for-byte from `SetStatsVisible:1247-1258`** — `ShowUpdateNotice` calls `UpdateLayout()` then runs the same `if (_hasUserPosition) { ScreenDpi.FromDipPoint → SettingsService.Clamp → Left/Top assign }` shape. UI-05 specifically called for re-using the proven re-clamp helper.
+- **Mid-session cancel handler clears Text alongside Visibility** — `UpdateText.Visibility = Collapsed; UpdateText.Text = "";` makes the post-cancel state idempotent against the race where a `ShowUpdateNotice` continuation is already queued on the Dispatcher when the user toggles OFF.
 
 Plan 88-02 decisions (2026-05-29):
 
@@ -93,15 +101,15 @@ None
 
 ## Session Continuity
 
-**Next action:** Run `/gsd:execute-phase 88` to execute Plan 88-03 (UI wiring + dispose tiers).
+**Next action:** Run `/gsd:execute-phase 88` to execute Plan 88-04 (human-verify checklist + README pass + close-out).
 
 **When returning:**
 
 1. Read this STATE.md and `.planning/ROADMAP.md` for current position
-2. Plan 88-03 is the next plan to execute (UI wiring: UpdateText TextBlock, ContentRendered kickoff, Phase 33 dual-path foreground, three-tier dispose, Settings checkbox, ResetToDefaults)
-3. UpdateCheckService is stable and tested — consume via `_updateService = new UpdateCheckService();` then `await _updateService.CheckAsync()` returning `Task<Version?>`. Public surface: `RepoUrl` const, two ctors, `CheckAsync`, `CancelInFlight`, `Dispose` (idempotent)
-4. AppSettings.UpdateChecksEnabled is queryable at launch (default = true)
-5. UpdateVersionComparer.TryParseTag / IsNewer remain stable from 88-01 — consume via `using FuzzyClock.Core;`
+2. Plan 88-04 is the next plan to execute (human-verify live render, dual-path on contrast switch, mid-session cancel, three-tier dispose smoke, README one-liner pass)
+3. Wiring commit `e7ea49c` is on master — UpdateText UI + Settings checkbox + three-tier dispose all live
+4. UpdateCheckService remains stable from 88-02. UpdateVersionComparer remains stable from 88-01.
+5. `#if DEBUG return null;` short-circuit means UpdateText never appears in dev builds — Plan 88-04 will need either a Release-config build or a temporary preprocessor flip to live-test the notice render path.
 
 **Recent milestones:**
 
@@ -109,10 +117,10 @@ None
 - v4.3 Configurable Ghost Override — shipped 2026-05-07 (574 tests, 22/22 requirements)
 - v4.2 Temps & Menu — shipped 2026-05-04 (562 tests, MPL-2.0 compliance)
 
-**Last session:** 2026-05-29
-**Stopped at:** Completed 88-02-PLAN.md — UpdateCheckService + AppSettings.UpdateChecksEnabled + csproj sync shipped
+**Last session:** 2026-05-29T03:28:58.064Z
+**Stopped at:** Completed 88-03-PLAN.md — UpdateText UI + Settings checkbox + three-tier dispose wired (commit e7ea49c)
 **Resume file:** None
 **Blockers:** None
 
 ---
-*State updated: 2026-05-29 — Plan 88-02 complete (UPD-03..10, PERS-01..05, DEV-01..03 done); 469 Core + 152 App = 621 tests pass; ready to execute 88-03*
+*State updated: 2026-05-29 — Plan 88-03 complete (UI-01..08, PERS-06..12 done); 469 Core + 152 App = 621 tests pass; ready to execute 88-04*

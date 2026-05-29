@@ -25,14 +25,14 @@ Pure version compare in Core; HTTP-using service in App; silent-failure posture.
 
 UpdateText TextBlock + Phase 33 dual-path coverage.
 
-- [ ] **UI-01**: New `<TextBlock x:Name="UpdateText">` added as 8th and final child of `StatsPanel` in `MainWindow.xaml`, immediately below `TempsText`; styling cloned byte-for-byte from `TempsText`/`UptimeText` (Margin=0,2,0,0; FontFamily=Segoe UI Light; FontSize=11; design-time Foreground=White; TextAlignment=Left; Text="")
-- [ ] **UI-02**: `UpdateText.Text` set to `"{newerTag} available"` where `{newerTag}` is the GitHub `tag_name` verbatim (preserves `v` prefix, e.g. `"v4.6.0 available"`)
-- [ ] **UI-03**: `UpdateText.Visibility` is `Collapsed` by default and only flips to `Visible` when the service callback fires with a tag whose parsed `Version` is strictly newer than `Assembly.GetExecutingAssembly().GetName().Version`
-- [ ] **UI-04**: `UpdateText.Foreground = brush;` is added to BOTH `ApplyTheme` AND `ApplyDisplayColor` (Phase 33 critical pattern) so the notice participates in accent-color theming and auto-contrast switching
-- [ ] **UI-05**: When `UpdateText.Visibility` flips to `Visible`, the existing window-position clamp invariant is preserved — re-clamp via `SettingsService.Clamp` so a near-edge widget doesn't clip the new line off-screen
-- [ ] **UI-06**: Service kickoff fires from `MainWindow.ContentRendered` via `Dispatcher.BeginInvoke` at `DispatcherPriority.ApplicationIdle` — first paint never gated on network call dispatch
-- [ ] **UI-07**: When the service completion callback fires, it marshals to the UI thread via `Dispatcher.Invoke` before touching `UpdateText.Text` or `UpdateText.Visibility`
-- [ ] **UI-08**: Fire-and-forget kickoff is wrapped in an outer `try/catch (Exception)` at the boundary so any unexpected exception in the kickoff path doesn't surface as `TaskScheduler.UnobservedTaskException` (defense in depth — the service already catches narrow exceptions internally)
+- [x] **UI-01**: New `<TextBlock x:Name="UpdateText">` added as 8th and final child of `StatsPanel` in `MainWindow.xaml`, immediately below `TempsText`; styling cloned byte-for-byte from `TempsText`/`UptimeText` (Margin=0,2,0,0; FontFamily=Segoe UI Light; FontSize=11; design-time Foreground=White; TextAlignment=Left; Text="")
+- [x] **UI-02**: `UpdateText.Text` set to `"{newerTag} available"` where `{newerTag}` is the GitHub `tag_name` verbatim (preserves `v` prefix, e.g. `"v4.6.0 available"`)
+- [x] **UI-03**: `UpdateText.Visibility` is `Collapsed` by default and only flips to `Visible` when the service callback fires with a tag whose parsed `Version` is strictly newer than `Assembly.GetExecutingAssembly().GetName().Version`
+- [x] **UI-04**: `UpdateText.Foreground = brush;` is added to BOTH `ApplyTheme` AND `ApplyDisplayColor` (Phase 33 critical pattern) so the notice participates in accent-color theming and auto-contrast switching
+- [x] **UI-05**: When `UpdateText.Visibility` flips to `Visible`, the existing window-position clamp invariant is preserved — re-clamp via `SettingsService.Clamp` so a near-edge widget doesn't clip the new line off-screen
+- [x] **UI-06**: Service kickoff fires from `MainWindow.ContentRendered` via `Dispatcher.BeginInvoke` at `DispatcherPriority.ApplicationIdle` — first paint never gated on network call dispatch
+- [x] **UI-07**: When the service completion callback fires, it marshals to the UI thread via `Dispatcher.Invoke` before touching `UpdateText.Text` or `UpdateText.Visibility`
+- [x] **UI-08**: Fire-and-forget kickoff is wrapped in an outer `try/catch (Exception)` at the boundary so any unexpected exception in the kickoff path doesn't surface as `TaskScheduler.UnobservedTaskException` (defense in depth — the service already catches narrow exceptions internally)
 
 ### Settings + Persistence (PERS)
 
@@ -43,13 +43,13 @@ AppSettings field + Settings checkbox + reset behavior.
 - [x] **PERS-03**: `SettingsService.Validate()` requires no new guard for this field (a bool cannot be invalid); existing Validate() return shape unchanged
 - [x] **PERS-04**: `AppSettings` JSON round-trip test verifies `UpdateChecksEnabled` survives serialize → deserialize cycle (extends existing STEST-01 round-trip test or adds STEST-09)
 - [x] **PERS-05**: Absent-field test verifies that deserializing a JSON document with no `UpdateChecksEnabled` key yields an `AppSettings` instance with `UpdateChecksEnabled == true` (mirrors STEST-02 / STEST-08 pattern)
-- [ ] **PERS-06**: New `<CheckBox x:Name="ChkUpdateChecksEnabled">` added to `SettingsWindow.xaml` Behavior tab with label `Check for updates on launch` — placement and styling clone the existing `ChkAutoLaunchEnabled` checkbox
-- [ ] **PERS-07**: `SettingsWindow` exposes `event Action<bool>? UpdateChecksEnabledChanged;` — fired from `Checked`/`Unchecked` handlers, suppressed during `PopulateControls` via existing `_suppressEvents` guard
-- [ ] **PERS-08**: `SettingsSnapshot` immutable record gains an `UpdateChecksEnabled` bool field; `MainWindow.GetCurrentSettingsSnapshot()` populates it from `_settings.UpdateChecksEnabled`
-- [ ] **PERS-09**: `MainWindow.OpenSettings` subscribes to `UpdateChecksEnabledChanged` with the immediate-persist pattern: `_settings = _settings with { UpdateChecksEnabled = v }; SaveSettings();` — same shape as the 5 Phase 78 Temps event handlers
-- [ ] **PERS-10**: When the user toggles the checkbox OFF mid-session, the active in-flight CTS (if any) is cancelled and `UpdateText.Visibility` collapses immediately; toggling back ON mid-session is a no-op (the once-per-launch invariant means re-enabling takes effect on next launch)
-- [ ] **PERS-11**: `MainWindow.ResetToDefaults()` restores `UpdateChecksEnabled = true` and refreshes the Settings snapshot via `RefreshControls(GetCurrentSettingsSnapshot())` so the checkbox UI re-evaluates
-- [ ] **PERS-12**: When `_settings.UpdateChecksEnabled == false` at app launch, the network call is skipped entirely — the service is constructed and registered for dispose, but no kickoff `BeginInvoke` is scheduled
+- [x] **PERS-06**: New `<CheckBox x:Name="ChkUpdateChecksEnabled">` added to `SettingsWindow.xaml` Behavior tab with label `Check for updates on launch` — placement and styling clone the existing `ChkAutoLaunchEnabled` checkbox
+- [x] **PERS-07**: `SettingsWindow` exposes `event Action<bool>? UpdateChecksEnabledChanged;` — fired from `Checked`/`Unchecked` handlers, suppressed during `PopulateControls` via existing `_suppressEvents` guard
+- [x] **PERS-08**: `SettingsSnapshot` immutable record gains an `UpdateChecksEnabled` bool field; `MainWindow.GetCurrentSettingsSnapshot()` populates it from `_settings.UpdateChecksEnabled`
+- [x] **PERS-09**: `MainWindow.OpenSettings` subscribes to `UpdateChecksEnabledChanged` with the immediate-persist pattern: `_settings = _settings with { UpdateChecksEnabled = v }; SaveSettings();` — same shape as the 5 Phase 78 Temps event handlers
+- [x] **PERS-10**: When the user toggles the checkbox OFF mid-session, the active in-flight CTS (if any) is cancelled and `UpdateText.Visibility` collapses immediately; toggling back ON mid-session is a no-op (the once-per-launch invariant means re-enabling takes effect on next launch)
+- [x] **PERS-11**: `MainWindow.ResetToDefaults()` restores `UpdateChecksEnabled = true` and refreshes the Settings snapshot via `RefreshControls(GetCurrentSettingsSnapshot())` so the checkbox UI re-evaluates
+- [x] **PERS-12**: When `_settings.UpdateChecksEnabled == false` at app launch, the network call is skipped entirely — the service is constructed and registered for dispose, but no kickoff `BeginInvoke` is scheduled
 
 ### Dev-Build Hygiene (DEV)
 
@@ -112,26 +112,26 @@ Explicitly excluded for v4.5. Documented to prevent scope creep.
 | UPD-08 | Phase 88 | Complete |
 | UPD-09 | Phase 88 | Complete |
 | UPD-10 | Phase 88 | Complete |
-| UI-01 | Phase 88 | Pending |
-| UI-02 | Phase 88 | Pending |
-| UI-03 | Phase 88 | Pending |
-| UI-04 | Phase 88 | Pending |
-| UI-05 | Phase 88 | Pending |
-| UI-06 | Phase 88 | Pending |
-| UI-07 | Phase 88 | Pending |
-| UI-08 | Phase 88 | Pending |
+| UI-01 | Phase 88 | Complete |
+| UI-02 | Phase 88 | Complete |
+| UI-03 | Phase 88 | Complete |
+| UI-04 | Phase 88 | Complete |
+| UI-05 | Phase 88 | Complete |
+| UI-06 | Phase 88 | Complete |
+| UI-07 | Phase 88 | Complete |
+| UI-08 | Phase 88 | Complete |
 | PERS-01 | Phase 88 | Complete |
 | PERS-02 | Phase 88 | Complete |
 | PERS-03 | Phase 88 | Complete |
 | PERS-04 | Phase 88 | Complete |
 | PERS-05 | Phase 88 | Complete |
-| PERS-06 | Phase 88 | Pending |
-| PERS-07 | Phase 88 | Pending |
-| PERS-08 | Phase 88 | Pending |
-| PERS-09 | Phase 88 | Pending |
-| PERS-10 | Phase 88 | Pending |
-| PERS-11 | Phase 88 | Pending |
-| PERS-12 | Phase 88 | Pending |
+| PERS-06 | Phase 88 | Complete |
+| PERS-07 | Phase 88 | Complete |
+| PERS-08 | Phase 88 | Complete |
+| PERS-09 | Phase 88 | Complete |
+| PERS-10 | Phase 88 | Complete |
+| PERS-11 | Phase 88 | Complete |
+| PERS-12 | Phase 88 | Complete |
 | DEV-01 | Phase 88 | Complete |
 | DEV-02 | Phase 88 | Complete |
 | DEV-03 | Phase 88 | Complete |
