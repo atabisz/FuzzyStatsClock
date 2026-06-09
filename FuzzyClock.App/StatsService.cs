@@ -63,7 +63,7 @@ public sealed class StatsService : IDisposable
         if (_gpuAvailable)
         {
             _gpuCounters = BuildGpuCounters();
-            foreach (var c in _gpuCounters) c.NextValue();  // prime GPU rate counters
+            PrimeGpuCounters();  // prime GPU rate counters (tolerant of mid-prime instance vanish)
         }
 
         GpuPercent = _gpuAvailable ? 0f : -1f;
@@ -135,8 +135,24 @@ public sealed class StatsService : IDisposable
             // GPU instance disappeared (driver update / sleep-wake). Re-enumerate.
             DisposeGpuCounters();
             _gpuCounters = BuildGpuCounters();
-            foreach (var c in _gpuCounters) c.NextValue();  // re-prime
+            PrimeGpuCounters();  // re-prime (tolerant — see PrimeGpuCounters)
             GpuPercent = 0f;
+        }
+    }
+
+    private void PrimeGpuCounters()
+    {
+        // A GPU Engine instance can vanish between BuildGpuCounters() enumerating it
+        // and this first sample (pid-scoped, churns on driver reset / sleep-wake).
+        // Priming is a throwaway sample — drop any that fail per-counter. Without this
+        // the recovery path shared the very bug it recovers from: an unhandled
+        // InvalidOperationException from the re-prime escaped the dispatcher tick and
+        // crashed the process (WER APPCRASH 2026-06-09, FuzzyClock.exe 4.5.0.0).
+        // Next Refresh() re-enumerates, so a dropped prime self-heals within a tick.
+        foreach (var c in _gpuCounters)
+        {
+            try { c.NextValue(); }
+            catch (InvalidOperationException) { /* instance gone mid-prime — skip */ }
         }
     }
 
