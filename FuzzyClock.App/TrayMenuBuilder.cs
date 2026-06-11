@@ -155,7 +155,7 @@ internal sealed class TrayMenuBuilder
         aboutItem.Click += (_, _) => System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             var ver = typeof(TrayMenuBuilder).Assembly.GetName().Version;
-            var versionStr = ver is null ? "2.5" : $"{ver.Major}.{ver.Minor}";
+            var versionStr = ver is null ? "0.0.0" : $"{ver.Major}.{ver.Minor}.{ver.Build}";
             System.Windows.MessageBox.Show(
                 $"FuzzyClock v{versionStr}\n\nA fuzzy time & system stats desktop overlay.\n\nBuilt as a Claude + GSD experiment\nby Alex Tabisz.",
                 "About FuzzyClock",

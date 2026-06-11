@@ -25,10 +25,12 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <NoWarn>NU1510</NoWarn>
-    <Version>4.5.2</Version>
-    <AssemblyVersion>4.5.2.0</AssemblyVersion>
-    <FileVersion>4.5.2.0</FileVersion>
-    <InformationalVersion>4.5.2</InformationalVersion>
+    <!-- Single source of truth: bump only <Version>. The rest derive from it,
+         mirroring the CI release workflow which injects ${tag} / ${tag}.0. -->
+    <Version>4.5.3</Version>
+    <AssemblyVersion>$(Version).0</AssemblyVersion>
+    <FileVersion>$(Version).0</FileVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
     <Product>FuzzyClock</Product>
     <Description>Fuzzy time and system stats desktop overlay</Description>
     <Copyright>Alex Tabisz</Copyright>
