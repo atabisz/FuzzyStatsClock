@@ -38,6 +38,17 @@ public partial class App : Application
 
         base.OnStartup(e);
 
+        // Last-resort UI-thread safety net. A transient throw on a DispatcherTimer
+        // tick (e.g. GDI+ ExternalException from the auto-contrast sampler) was
+        // fatal because nothing caught it — v4.5.2 crashed this way. Handling it
+        // here keeps the widget alive across any single bad tick; we log and
+        // continue rather than letting the process die.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            LogUnhandled(args.Exception);
+            args.Handled = true;
+        };
+
         // Hidden owner window: suppresses overlay from both taskbar and Alt+Tab switcher.
         // ShowInTaskbar=False alone does not suppress the Alt+Tab entry — the window-owner
         // trick is the pure-WPF pattern for complete taskbar/switcher suppression.
@@ -87,6 +98,24 @@ public partial class App : Application
         // the handler survives MainWindow disposal without holding a rooted
         // reference; we look up MainWindow at exit time.
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+    }
+
+    // Best-effort append to %LOCALAPPDATA%\FuzzyClock\crash.log. Wrapped in its own
+    // try/catch: logging must never become the source of a second failure inside the
+    // unhandled-exception handler.
+    private static void LogUnhandled(Exception ex)
+    {
+        try
+        {
+            string dir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "FuzzyClock");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(dir, "crash.log"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Handled UI-thread exception:{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch { /* logging is best-effort — never throw from the safety net */ }
     }
 
     private void OnProcessExit(object? sender, EventArgs e)

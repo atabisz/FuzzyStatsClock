@@ -87,6 +87,16 @@ internal static class ContrastSamplerService
                 (byte)(totalG / count),
                 (byte)(totalB / count));
         }
+        catch
+        {
+            // GDI/GDI+ interop (FromHbitmap/GetPixel) can throw transiently on
+            // display-state changes (monitor connect/disconnect, DPI/resolution
+            // change, RDP session, lock screen). Return the same neutral grey
+            // every other failure path uses so one bad tick skips contrast
+            // adjustment instead of crashing the process. The finally below still
+            // releases all GDI handles on this path.
+            return new RgbColor(128, 128, 128);
+        }
         finally
         {
             if (hOld != IntPtr.Zero && memDC != IntPtr.Zero) SelectObject(memDC, hOld);

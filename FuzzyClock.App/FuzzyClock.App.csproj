@@ -27,7 +27,7 @@
     <NoWarn>NU1510</NoWarn>
     <!-- Single source of truth: bump only <Version>. The rest derive from it,
          mirroring the CI release workflow which injects ${tag} / ${tag}.0. -->
-    <Version>4.5.3</Version>
+    <Version>4.5.4</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
     <InformationalVersion>$(Version)</InformationalVersion>
