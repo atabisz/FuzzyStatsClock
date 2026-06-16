@@ -1,0 +1,49 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-16T03:38:59.778Z",
+  "phase": null,
+  "phase_name": "Software-rendering fix for disappearing-text-under-load bug",
+  "phase_dir": null,
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "blocked",
+  "completed_tasks": [
+    {"id": 1, "name": "Diagnose bars-only / no-text bug from 09:16 screenshot", "status": "done"},
+    {"id": 2, "name": "Add AppSettings.SoftwareRenderingEnabled (default true) + Defaults + Snapshot", "status": "done"},
+    {"id": 3, "name": "MainWindow: OnSourceInitialized + ApplyRenderMode + SetSoftwareRendering; cache in ApplySettings; project in snapshot; persist in SaveSettings; reset-to-ON in ResetToDefaults", "status": "done"},
+    {"id": 4, "name": "SettingsWindow: SoftwareRenderingChanged event + populate + handler + XAML checkbox", "status": "done"},
+    {"id": 5, "name": "3 tests (round-trip, absent-defaults-true, snapshot init)", "status": "done"},
+    {"id": 6, "name": "Build Debug (0 errors) + App tests 159/159 on rerun", "status": "done"}
+  ],
+  "remaining_tasks": [
+    {"id": 7, "name": "VERIFY root cause: launch the NEW build, reproduce under load, capture a fresh screenshot while broken", "status": "not_started"},
+    {"id": 8, "name": "If software-rendering ON still breaks -> pivot to UI-thread-stall hypothesis (dispatcher starvation), not render mode", "status": "not_started"},
+    {"id": 9, "name": "Check %LOCALAPPDATA%/FuzzyClock/crash.log for handled exceptions at moment text vanishes", "status": "not_started"},
+    {"id": 10, "name": "Once verified: bump csproj <Version> 4.5.4 -> 4.6.0, commit, tag", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "Fix is UNVERIFIED against real rendering behavior — confirmed only via build + unit tests. User reports 'still a problem' but the latest screenshot is still the pre-fix 09:16 one; unknown whether the new build was even running.", "type": "technical", "workaround": "Launch freshly-built FuzzyClock.App and reproduce under load before trusting the fix"}
+  ],
+  "human_actions_pending": [
+    {"action": "Run the new build, stress GPU/system load, capture a NEW screenshot while text is missing", "context": "Needed to confirm whether SoftwareOnly render mode fixed it or the root cause is a UI-thread stall", "blocking": true}
+  ],
+  "decisions": [
+    {"decision": "Software rendering exposed as a toggle, default ON", "rationale": "User chose 'Software render, but as a setting' — stability-safe default with an escape hatch"},
+    {"decision": "Wired end-to-end mirroring the UpdateChecksEnabled toggle pattern", "rationale": "Lowest-risk path; matches every existing touchpoint convention in this codebase"}
+  ],
+  "uncommitted_files": [
+    "FuzzyClock.App/AppSettings.cs",
+    "FuzzyClock.App/SettingsService.cs",
+    "FuzzyClock.App/SettingsSnapshot.cs",
+    "FuzzyClock.App/MainWindow.xaml.cs",
+    "FuzzyClock.App/SettingsWindow.xaml",
+    "FuzzyClock.App/SettingsWindow.xaml.cs",
+    "FuzzyClock.App.Tests/AppSettingsTests.cs",
+    "FuzzyClock.App/GhostModeController.cs (NOT MINE — separate UseWin modifier work stream)",
+    "FuzzyClock.App.Tests/GhostModeControllerTests.cs (NOT MINE — separate UseWin work stream)",
+    ".planning/STATE.md"
+  ],
+  "next_action": "Launch the freshly-built FuzzyClock.App, reproduce the no-text-under-load condition, and capture a NEW screenshot. If software rendering is ON and it still breaks, the GPU glyph-drop hypothesis is wrong — pivot to UI-thread/dispatcher-stall investigation around the stats/phrase update timers.",
+  "context_notes": "I diagnosed a WPF hardware-render glyph-drop on the transparent always-on-top overlay (vector bars paint, glyph layer doesn't; window-move forces re-composite). Fix forces HwndTarget.RenderMode=SoftwareOnly. BUT this was never confirmed against real rendering — only build+tests. The same symptom is ALSO consistent with UI-thread starvation under load, which SoftwareOnly would NOT fix. Do not assume the fix works. NOTE: working tree contains an unrelated UseWin modifier addition (GhostModeController + tests) from a separate work stream — leave it alone unless asked. Version NOT bumped (still 4.5.4). Memory written: gotcha_text_vanishes_under_load.md."
+}
