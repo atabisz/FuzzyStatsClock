@@ -61,11 +61,21 @@ public record AppSettings
     public bool UseCtrl  { get; init; } = true;   // Left-Ctrl enabled by default
     public bool UseAlt   { get; init; } = true;   // Left-Alt enabled by default
     public bool UseShift { get; init; } = false;  // Left-Shift disabled by default
+    public bool UseWin   { get; init; } = false;  // Left-Windows-key disabled by default (C# bool default = absent-field default, no upgrade hazard)
 
     // v4.5 Phase 88 — Update checker on-launch toggle (PERS-01).
     // Default = true: explicit init mandatory so v4.4 users upgrading via JSON
     // round-trip don't silently lose update checks (mirrors UptimeVisible /
     // GhostModeEnabled / UseCtrl pattern).
     public bool UpdateChecksEnabled { get; init; } = true;
+
+    // v4.6 — Force WPF software rendering (RenderMode.SoftwareOnly) for this window.
+    // Default = true: on the GPU (hardware) render path, this per-pixel-transparent
+    // always-on-top layered overlay can silently drop its glyph layer under heavy
+    // GPU/memory pressure — text vanishes while vector bars keep painting, and only a
+    // window move forces a re-composite. Software rendering eliminates that class of
+    // bug at the root for negligible CPU cost on a widget this small. Explicit init
+    // default true mirrors the GhostModeEnabled / UpdateChecksEnabled upgrade pattern.
+    public bool SoftwareRenderingEnabled { get; init; } = true;
 }
 // LastActiveMonitor = "": sentinel for "no saved monitor — use PositionTopRight() on primary"

@@ -65,9 +65,13 @@ public sealed partial class SettingsWindow : Window
     public event Action<bool>?   UseCtrlChanged;
     public event Action<bool>?   UseAltChanged;
     public event Action<bool>?   UseShiftChanged;
+    public event Action<bool>?   UseWinChanged;
 
     // v4.5 Phase 88 (PERS-07) — Update checker on-launch toggle
     public event Action<bool>?   UpdateChecksEnabledChanged;
+
+    // v4.6 — Software-rendering toggle
+    public event Action<bool>?   SoftwareRenderingChanged;
 
     // ─────────────────────────────────────────────────────────────────────
     internal SettingsWindow(SettingsSnapshot snapshot)
@@ -217,12 +221,16 @@ public sealed partial class SettingsWindow : Window
         ChkUseCtrl.IsChecked  = s.UseCtrl;
         ChkUseAlt.IsChecked   = s.UseAlt;
         ChkUseShift.IsChecked = s.UseShift;
+        ChkUseWin.IsChecked   = s.UseWin;
         GhostOverridePanel.IsEnabled = s.GhostModeEnabled;   // master gates sub-panel (site 1/2)
         ChkAutoContrast.IsChecked = s.AutoContrastEnabled;
         ChkAutoLaunch.IsChecked   = s.AutoLaunchEnabled;
 
         // v4.5 Phase 88 (PERS-08) — populate update checker checkbox from snapshot
         ChkUpdateChecksEnabled.IsChecked = s.UpdateChecksEnabled;
+
+        // v4.6 — populate software-rendering checkbox from snapshot
+        ChkSoftwareRendering.IsChecked = s.SoftwareRenderingEnabled;
 
         // Battery alert threshold radio buttons
         RbAlert10.IsChecked = s.BatteryAlertThreshold == 10;
@@ -629,6 +637,13 @@ public sealed partial class SettingsWindow : Window
         UpdateChecksEnabledChanged?.Invoke(ChkUpdateChecksEnabled.IsChecked == true);
     }
 
+    // v4.6 — Software-rendering toggle handler. Cloned shape from ChkAutoLaunch_Changed.
+    private void ChkSoftwareRendering_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SoftwareRenderingChanged?.Invoke(ChkSoftwareRendering.IsChecked == true);
+    }
+
     // ── Ghost override modifiers ───────────────────────────────────────────
     private void ChkUseCtrl_Changed(object sender, RoutedEventArgs e)
     {
@@ -646,6 +661,12 @@ public sealed partial class SettingsWindow : Window
     {
         if (_suppressEvents) return;
         UseShiftChanged?.Invoke(ChkUseShift.IsChecked == true);
+    }
+
+    private void ChkUseWin_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        UseWinChanged?.Invoke(ChkUseWin.IsChecked == true);
     }
 
     // ── Phrase wrap controls ───────────────────────────────────────────────

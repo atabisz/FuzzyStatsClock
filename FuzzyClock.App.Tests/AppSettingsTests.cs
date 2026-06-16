@@ -52,6 +52,7 @@ public class AppSettingsTests
             UseCtrl  = false,  // flipped from default true to prove serialization
             UseAlt   = false,  // flipped from default true
             UseShift = true,   // flipped from default false
+            UseWin   = true,   // flipped from default false
         };
 
         string json = JsonSerializer.Serialize(original);
@@ -88,6 +89,7 @@ public class AppSettingsTests
         Assert.AreEqual(original.UseCtrl,  result.UseCtrl,  "UseCtrl");
         Assert.AreEqual(original.UseAlt,   result.UseAlt,   "UseAlt");
         Assert.AreEqual(original.UseShift, result.UseShift, "UseShift");
+        Assert.AreEqual(original.UseWin,   result.UseWin,   "UseWin");
     }
 
     // STEST-02: Deserialize JSON that omits the UptimeVisible field entirely.
@@ -134,6 +136,15 @@ public class AppSettingsTests
         var result = JsonSerializer.Deserialize<AppSettings>(json)!;
         Assert.IsFalse(result.UseShift,
             "UseShift should default to false when absent from JSON (init default = C# bool default)");
+    }
+
+    [TestMethod]
+    public void Deserialize_MissingUseWin_DefaultsToFalse()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsFalse(result.UseWin,
+            "UseWin should default to false when absent from JSON (init default = C# bool default)");
     }
 
     [TestMethod]
@@ -406,12 +417,14 @@ public class AppSettingsTests
         {
             UseCtrl  = false,
             UseAlt   = true,
-            UseShift = true
+            UseShift = true,
+            UseWin   = true
         };
 
         Assert.IsFalse(snapshot.UseCtrl,  "UseCtrl init-settable");
         Assert.IsTrue(snapshot.UseAlt,    "UseAlt init-settable");
         Assert.IsTrue(snapshot.UseShift,  "UseShift init-settable");
+        Assert.IsTrue(snapshot.UseWin,    "UseWin init-settable");
     }
 
     // ----- v4.2 Phase 78-02 GetCurrentSettingsSnapshot mapping-contract tests -----
@@ -503,6 +516,36 @@ public class AppSettingsTests
         Assert.IsTrue(result.UpdateChecksEnabled,
             "UpdateChecksEnabled should default to true when absent from JSON (init default per PERS-01); " +
             "v4.4 users upgrading must NOT silently opt-out of update checks (mirrors UptimeVisible/UseCtrl pattern)");
+    }
+
+    // ----- v4.6 SoftwareRenderingEnabled persistence tests -----
+
+    // Round-trip: SoftwareRenderingEnabled survives serialize → deserialize.
+    [TestMethod]
+    public void RoundTrip_SoftwareRenderingEnabled_Matches()
+    {
+        var original = new AppSettings { SoftwareRenderingEnabled = false };  // flipped from default true
+        var result   = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(original))!;
+        Assert.IsFalse(result.SoftwareRenderingEnabled);
+    }
+
+    // Absent-field: defaults to TRUE when key is absent (the stability-safe default).
+    [TestMethod]
+    public void Deserialize_MissingSoftwareRenderingEnabled_DefaultsToTrue()
+    {
+        const string json = """{"FontSize":32}""";
+        var result = JsonSerializer.Deserialize<AppSettings>(json)!;
+        Assert.IsTrue(result.SoftwareRenderingEnabled,
+            "SoftwareRenderingEnabled should default to true when absent from JSON (init default); " +
+            "users upgrading must land on the stability-safe software render path, not the C# bool default false");
+    }
+
+    // Snapshot projection carries the field (init-settable).
+    [TestMethod]
+    public void SettingsSnapshot_SoftwareRenderingEnabled_IsInitSettable()
+    {
+        var snap = new SettingsSnapshot { SoftwareRenderingEnabled = false };
+        Assert.IsFalse(snap.SoftwareRenderingEnabled, "SoftwareRenderingEnabled should survive init on the snapshot");
     }
 
 }

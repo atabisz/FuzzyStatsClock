@@ -15,20 +15,24 @@ namespace FuzzyClock.App.Tests;
 public class GhostModeControllerTests
 {
     [TestMethod]
-    [DataRow(false, false, false, false)]  // all-false case (DET-02): override disabled
-    [DataRow(true,  false, false, false)]  // Ctrl-only enabled, not held → false
-    [DataRow(false, true,  false, false)]  // Alt-only enabled, not held → false
-    [DataRow(false, false, true,  false)]  // Shift-only enabled, not held → false
-    [DataRow(true,  true,  false, false)]  // Ctrl+Alt enabled, neither held → false
-    [DataRow(true,  false, true,  false)]  // Ctrl+Shift enabled, neither held → false
-    [DataRow(false, true,  true,  false)]  // Alt+Shift enabled, neither held → false
-    [DataRow(true,  true,  true,  false)]  // All three enabled, none held → false
+    [DataRow(false, false, false, false, false)]  // all-false case (DET-02): override disabled
+    [DataRow(true,  false, false, false, false)]  // Ctrl-only enabled, not held → false
+    [DataRow(false, true,  false, false, false)]  // Alt-only enabled, not held → false
+    [DataRow(false, false, true,  false, false)]  // Shift-only enabled, not held → false
+    [DataRow(false, false, false, true,  false)]  // Win-only enabled, not held → false
+    [DataRow(true,  true,  false, false, false)]  // Ctrl+Alt enabled, neither held → false
+    [DataRow(true,  false, true,  false, false)]  // Ctrl+Shift enabled, neither held → false
+    [DataRow(false, true,  true,  false, false)]  // Alt+Shift enabled, neither held → false
+    [DataRow(false, false, true,  true,  false)]  // Shift+Win enabled, neither held → false
+    [DataRow(true,  false, false, true,  false)]  // Ctrl+Win enabled, neither held → false
+    [DataRow(true,  true,  true,  false, false)]  // Ctrl+Alt+Shift enabled, none held → false
+    [DataRow(true,  true,  true,  true,  false)]  // All four enabled, none held → false
     public void IsModifierHeld_VariousConfigs_ReturnsExpected(
-        bool useCtrl, bool useAlt, bool useShift, bool expected)
+        bool useCtrl, bool useAlt, bool useShift, bool useWin, bool expected)
     {
         // Arrange: controller with config
         var controller = new GhostModeController();
-        controller.UpdateModifierConfig(useCtrl, useAlt, useShift);
+        controller.UpdateModifierConfig(useCtrl, useAlt, useShift, useWin);
 
         // Act: call IsModifierHeld (no keys actually pressed in CI)
         // NOTE: GetAsyncKeyState returns 0 when keys not pressed

@@ -468,7 +468,11 @@
                               Checked="ChkUseAlt_Changed" Unchecked="ChkUseAlt_Changed"/>
                     <CheckBox x:Name="ChkUseShift"
                               Content="Left Shift"
+                              Margin="0,0,0,2"
                               Checked="ChkUseShift_Changed" Unchecked="ChkUseShift_Changed"/>
+                    <CheckBox x:Name="ChkUseWin"
+                              Content="Left Windows key"
+                              Checked="ChkUseWin_Changed" Unchecked="ChkUseWin_Changed"/>
                 </StackPanel>
                 <CheckBox x:Name="ChkAutoContrast"
                           Content="Auto-Contrast — WCAG luminance sampling"
@@ -485,6 +489,16 @@
                           Margin="0,4,0,0"
                           Checked="ChkUpdateChecksEnabled_Changed"
                           Unchecked="ChkUpdateChecksEnabled_Changed"/>
+
+                <!-- v4.6 — Software-rendering toggle. Default ON: prevents the widget's
+                     text from vanishing (bars only) under heavy GPU/system load. -->
+                <CheckBox x:Name="ChkSoftwareRendering"
+                          Content="Software rendering (fixes text disappearing under load)"
+                          Margin="0,4,0,0"
+                          Checked="ChkSoftwareRendering_Changed"
+                          Unchecked="ChkSoftwareRendering_Changed"/>
+                <TextBlock Text="Recommended ON. Turn off only if the widget feels sluggish on a fast GPU."
+                           Foreground="#FF999999" FontSize="11" Margin="16,2,0,0" TextWrapping="Wrap"/>
 
                 <!-- Battery Alert threshold -->
                 <TextBlock Text="Battery Alert" FontWeight="SemiBold" Margin="0,16,0,4"/>

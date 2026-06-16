@@ -80,6 +80,11 @@ public partial class MainWindow : Window
     private string _lastSegmentKey    = "";
     private bool _backdropAlwaysVisible;
     private int  _backdropOpacityPercent = 35;
+    // v4.6: when true, force this window onto the WPF software render path
+    // (HwndTarget.RenderMode = SoftwareOnly) to prevent GPU-pressure glyph drops on
+    // this transparent always-on-top overlay. Cached from settings in ApplySettings;
+    // applied in OnSourceInitialized (HWND ready) and live via SetSoftwareRendering.
+    private bool _softwareRenderingEnabled = true;
 
     private readonly List<System.Windows.Shapes.Line>        _hourTickElements   = new();
     private readonly List<System.Windows.Shapes.Ellipse>     _minuteDotElements  = new();
@@ -408,6 +413,50 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// v4.6: apply the cached software-rendering preference as soon as the HWND exists.
+    /// OnSourceInitialized is the earliest point where PresentationSource.FromVisual(this)
+    /// returns the HwndSource whose CompositionTarget (an HwndTarget) exposes RenderMode.
+    /// We cannot do this in the constructor (no HWND yet) nor reliably defer to ContentRendered
+    /// (we want the very first frame already on the chosen path). ApplySettings has run before
+    /// Show(), so _softwareRenderingEnabled reflects the persisted setting here.
+    /// </summary>
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        ApplyRenderMode(_softwareRenderingEnabled);
+    }
+
+    /// <summary>
+    /// v4.6: sets the window's HwndTarget.RenderMode. SoftwareOnly forces the WPF
+    /// software rasterizer (no GPU surface) — the fix for the transparent-overlay glyph-drop
+    /// bug. Default restores Hardware-when-available. RenderMode is settable live, so toggling
+    /// takes effect on the next frame with no restart. No-op (swallowed) if the HwndTarget is
+    /// not yet available — OnSourceInitialized re-applies once it is.
+    /// </summary>
+    private void ApplyRenderMode(bool softwareOnly)
+    {
+        if (PresentationSource.FromVisual(this) is not System.Windows.Interop.HwndSource src)
+            return;
+        var target = src.CompositionTarget;
+        if (target == null) return;
+        target.RenderMode = softwareOnly
+            ? System.Windows.Interop.RenderMode.SoftwareOnly
+            : System.Windows.Interop.RenderMode.Default;
+    }
+
+    /// <summary>
+    /// v4.6: live toggle entry point wired from the tray menu and Settings window.
+    /// Caches the new preference, applies it immediately, and persists.
+    /// </summary>
+    internal void SetSoftwareRendering(bool enabled)
+    {
+        _softwareRenderingEnabled = enabled;
+        _settings = _settings with { SoftwareRenderingEnabled = enabled };
+        ApplyRenderMode(enabled);
+        SaveSettings();
+    }
+
+    /// <summary>
     /// Called by App.xaml.cs before Show() to apply saved settings.
     /// Sets font size on both TextBlocks. If a saved position exists (Left != -1),
     /// applies it to Window.Left/Top and sets both position guards to true.
@@ -553,7 +602,7 @@ public partial class MainWindow : Window
         this.Opacity   = s.Opacity;
         _ghostMode.IsEnabled = s.GhostModeEnabled;
         _ghostMode.GhostFadeRadiusPx = s.GhostFadeRadiusPx;
-        _ghostMode.UpdateModifierConfig(s.UseCtrl, s.UseAlt, s.UseShift);
+        _ghostMode.UpdateModifierConfig(s.UseCtrl, s.UseAlt, s.UseShift, s.UseWin);
 
         _autoLaunchEnabled = s.AutoLaunchEnabled;
         // Restore registry entry to match persisted setting.
@@ -567,6 +616,10 @@ public partial class MainWindow : Window
         _contrast.IsEnabled = s.AutoContrastEnabled;
         // Sampler timer is wired in ContentRendered; here we just cache the setting.
         // Initialize() reads IsEnabled to decide whether to start the timer immediately.
+
+        // v4.6: cache software-rendering preference. OnSourceInitialized (fires after Show())
+        // reads this to set HwndTarget.RenderMode before the first frame paints.
+        _softwareRenderingEnabled = s.SoftwareRenderingEnabled;
 
         // Parse AccentColor hex string to Color struct
         // SettingsService.Load() guards against null/empty; catch here for belt-and-suspenders safety
@@ -645,6 +698,7 @@ public partial class MainWindow : Window
         UseCtrl                = _settings.UseCtrl,
         UseAlt                 = _settings.UseAlt,
         UseShift               = _settings.UseShift,
+        UseWin                 = _settings.UseWin,
         AutoContrastEnabled    = _contrast.IsEnabled,
         AutoLaunchEnabled      = _autoLaunchEnabled,
         PhraseWrapEnabled      = _phraseWrapEnabled,
@@ -662,6 +716,8 @@ public partial class MainWindow : Window
         TempsServiceReady      = _temperatureService?.IsReady   ?? false,
         // v4.5 Phase 88 (PERS-08) — Update checker on-launch toggle projection
         UpdateChecksEnabled    = _settings.UpdateChecksEnabled,
+        // v4.6 — software-rendering toggle projection
+        SoftwareRenderingEnabled = _softwareRenderingEnabled,
     };
 
     private void OpenSettings()
@@ -728,21 +784,28 @@ public partial class MainWindow : Window
         {
             _settings = _settings with { UseCtrl = v };
             SaveSettings();
-            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift, _settings.UseWin);
         };
         _settingsWindow.UseAltChanged += v =>
         {
             _settings = _settings with { UseAlt = v };
             SaveSettings();
-            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift, _settings.UseWin);
         };
         _settingsWindow.UseShiftChanged += v =>
         {
             _settings = _settings with { UseShift = v };
             SaveSettings();
-            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift);
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift, _settings.UseWin);
+        };
+        _settingsWindow.UseWinChanged += v =>
+        {
+            _settings = _settings with { UseWin = v };
+            SaveSettings();
+            _ghostMode.UpdateModifierConfig(_settings.UseCtrl, _settings.UseAlt, _settings.UseShift, _settings.UseWin);
         };
         _settingsWindow.AutoContrastChanged   += v => { _contrast.SetEnabled(v); SaveSettings(); };
+        _settingsWindow.SoftwareRenderingChanged += v => SetSoftwareRendering(v);   // v4.6 — SetSoftwareRendering persists internally
         _settingsWindow.AutoLaunchChanged     += v =>
         {
             _autoLaunchEnabled = v;
@@ -861,6 +924,7 @@ public partial class MainWindow : Window
             DateFormat           = _dateFormat,
             PhraseWrapEnabled    = _phraseWrapEnabled,
             PhraseWrapStyle      = _phraseWrapStyle,
+            SoftwareRenderingEnabled = _softwareRenderingEnabled,
             MonitorPositions     = positions,
             LastActiveMonitor    = _currentMonitorKey
         };
@@ -1564,7 +1628,7 @@ public partial class MainWindow : Window
         // Re-enable ghost mode
         _ghostMode.IsEnabled = true;
         _ghostMode.GhostFadeRadiusPx = 80;
-        _ghostMode.UpdateModifierConfig(true, true, false);  // INT-04: restore Ctrl+Alt defaults
+        _ghostMode.UpdateModifierConfig(true, true, false, false);  // INT-04: restore Ctrl+Alt defaults (Shift+Win off)
 
         // Reset auto-launch: disable on reset
         _autoLaunchEnabled = false;
@@ -1572,6 +1636,9 @@ public partial class MainWindow : Window
 
         // Reset auto-contrast: disable on reset (SetEnabled fires Cleared → ApplyTheme)
         _contrast.SetEnabled(false);
+
+        // v4.6: restore software-rendering default ON (the stability-safe default).
+        SetSoftwareRendering(true);
 
         // Reset process count threshold to default (5%)
         SetProcessThreshold(5.0);
@@ -1613,6 +1680,7 @@ public partial class MainWindow : Window
             UseCtrl  = true,
             UseAlt   = true,
             UseShift = false,
+            UseWin   = false,
             UpdateChecksEnabled = true, // v4.5 Phase 88 (PERS-11) — restore default-ON
         };
         // If Settings window is open, refresh so the UI reflects the reset values

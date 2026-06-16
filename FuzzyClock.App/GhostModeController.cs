@@ -25,6 +25,7 @@ internal sealed class GhostModeController : IDisposable
     private const int  VK_LCONTROL       = 0xA2;   // Left Ctrl only — avoids right-side ambiguity
     private const int  VK_LMENU          = 0xA4;   // Left Alt only — VK_MENU matches AltGr on EU keyboards
     private const int  VK_LSHIFT         = 0xA0;   // Left Shift only — consistency with left-side-only pattern
+    private const int  VK_LWIN           = 0x5B;   // Left Windows key — left-side-only for consistency (RWIN=0x5C unused)
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -77,6 +78,7 @@ internal sealed class GhostModeController : IDisposable
     private volatile bool _useCtrl  = true;                  // D-10: CFG-04 default preserves Ctrl+Alt behavior from v4.2
     private volatile bool _useAlt   = true;                  // D-10: CFG-04 default preserves Ctrl+Alt behavior from v4.2
     private volatile bool _useShift = false;                 // D-10: CFG-04 default Shift disabled
+    private volatile bool _useWin   = false;                 // D-10: configurable Windows-key modifier, disabled by default
     private volatile bool _isEnabled = true;                 // D-11: backing field for manual IsEnabled property
     private bool _disposed;                                  // D-03: idempotency guard for Dispose()
 
@@ -169,15 +171,19 @@ internal sealed class GhostModeController : IDisposable
 
     /// <summary>
     /// Sets which modifier keys suppress ghost mode when held during hover.
+    /// Any combination of Ctrl, Alt, Shift, and the Windows key (left-side VK codes).
     /// Called from MainWindow.ApplySettings() on startup and from Settings window
     /// event handlers when user changes checkboxes. All-false = override disabled
     /// (ghost always activates regardless of held keys per DET-02).
+    /// Future: collapse the four positional bools into a ModifierConfig record so the
+    /// next modifier addition is a one-type, compiler-checked change.
     /// </summary>
-    public void UpdateModifierConfig(bool useCtrl, bool useAlt, bool useShift)
+    public void UpdateModifierConfig(bool useCtrl, bool useAlt, bool useShift, bool useWin)
     {
         _useCtrl  = useCtrl;
         _useAlt   = useAlt;
         _useShift = useShift;
+        _useWin   = useWin;
     }
 
     /// <summary>
@@ -329,21 +335,23 @@ internal sealed class GhostModeController : IDisposable
     public bool IsModifierHeld()
     {
         // DET-02 short-circuit: all-false = override disabled (always return false)
-        if (!_useCtrl && !_useAlt && !_useShift)
+        if (!_useCtrl && !_useAlt && !_useShift && !_useWin)
             return false;
 
         // For each modifier: check if enabled AND currently held
         bool ctrlHeld  = _useCtrl  && (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
         bool altHeld   = _useAlt   && (GetAsyncKeyState(VK_LMENU)    & 0x8000) != 0;
         bool shiftHeld = _useShift && (GetAsyncKeyState(VK_LSHIFT)   & 0x8000) != 0;
+        bool winHeld   = _useWin   && (GetAsyncKeyState(VK_LWIN)     & 0x8000) != 0;
 
         // AND logic: each enabled modifier must be held
         // If disabled (_useX is false), the modifier is automatically "satisfied"
         bool ctrlOk  = !_useCtrl  || ctrlHeld;
         bool altOk   = !_useAlt   || altHeld;
         bool shiftOk = !_useShift || shiftHeld;
+        bool winOk   = !_useWin   || winHeld;
 
-        return ctrlOk && altOk && shiftOk;
+        return ctrlOk && altOk && shiftOk && winOk;
     }
 
     /// <summary>
@@ -377,12 +385,13 @@ internal sealed class GhostModeController : IDisposable
         bool useCtrl  = _useCtrl;
         bool useAlt   = _useAlt;
         bool useShift = _useShift;
+        bool useWin   = _useWin;
         int  radiusPx = _ghostFadeRadiusPx;
 
         double ratio;
         // SEM-03 / DET-02: short-circuit when all modifiers disabled (override disabled).
         // When any modifier is enabled and modifiersHeld is true, force ratio to 0.0.
-        if (useCtrl || useAlt || useShift)
+        if (useCtrl || useAlt || useShift || useWin)
         {
             if (modifiersHeld)
                 ratio = 0.0;

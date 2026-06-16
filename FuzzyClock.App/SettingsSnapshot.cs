@@ -56,8 +56,13 @@ internal sealed record SettingsSnapshot
     public bool UseCtrl  { get; init; }
     public bool UseAlt   { get; init; }
     public bool UseShift { get; init; }
+    public bool UseWin   { get; init; }
 
     // v4.5 Phase 88 (PERS-08) — Update checker on-launch toggle snapshot.
     // Populated from _settings.UpdateChecksEnabled by MainWindow.GetCurrentSettingsSnapshot().
     public bool UpdateChecksEnabled { get; init; }
+
+    // v4.6 — Software-rendering toggle snapshot.
+    // Populated from _settings.SoftwareRenderingEnabled by MainWindow.GetCurrentSettingsSnapshot().
+    public bool SoftwareRenderingEnabled { get; init; } = true;
 }
