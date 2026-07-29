@@ -1,0 +1,45 @@
+# Line-ending policy: LF in the repository, CRLF in the working tree.
+# Files on disk stay native Windows CRLF; git stores LF so diffs, merges and
+# blame stay clean. `text=auto` (never bare `text`) keeps git's binary
+# auto-detection active — bare `text` forces normalization even on files git
+# knows are binary, which irreversibly corrupts UTF-16 content on add.
+* text=auto eol=crlf
+
+*.cs     text=auto eol=crlf
+*.csproj text=auto eol=crlf
+*.slnx   text=auto eol=crlf
+*.xaml   text=auto eol=crlf
+*.json   text=auto eol=crlf
+*.md     text=auto eol=crlf
+*.txt    text=auto eol=crlf
+*.ps1    text=auto eol=crlf
+*.iss    text=auto eol=crlf
+
+# LF for GitHub Actions workflows: release.yml has 4 `shell: bash` steps, and
+# CRLF leaks a stray \r into bash variable expansion.
+*.yml    text=auto eol=lf
+*.yaml   text=auto eol=lf
+
+# Explicit binary rules. Git's auto-detection only looks for a NUL byte in the
+# first 8000 bytes, so it fails OPEN on NUL-free binaries (.snk/.pfx keys) —
+# those get EOL-mangled on add, which cannot be undone.
+*.png  binary
+*.ico  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.bmp  binary
+*.cur  binary
+*.exe  binary
+*.dll  binary
+*.pdb  binary
+*.pfx  binary
+*.snk  binary
+*.zip  binary
+*.msi  binary
+*.nupkg binary
+*.pdf  binary
+*.ttf  binary
+*.otf  binary
+*.woff binary
+*.woff2 binary
