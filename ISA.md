@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 11/34
+progress: 12/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T21:39:00+10:00
+updated: 2026-08-28T22:09:40+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -338,24 +338,37 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 2 — Core translation
 
-- [~] **ISC-11. `FuzzyClock.Core` is translated in full, and the denominator is the measured one —
+- [x] **ISC-11. `FuzzyClock.Core` is translated in full, and the denominator is the measured one —
   re-measured after Option C, because a stale denominator is how a deletion turns into missing work.**
   **27 files / 2,467 LOC = 1,987 across 18 phrase providers + 480 across 9 logic files.** Was 28 files
   / 2,510 = 1,987 + 523 across 10; `TemperatureFormatter.cs` (43 LOC) is deleted under Option C, so it
   is not a file left to translate and must not be counted as one. The phrase-provider half is
   untouched — temps never entered it.
-  - **Where it stands: the phrase half is done and 8 of the 9 logic files are, by LOC 1,987 + 283 of
-    480.** Done: `IPhraseProvider` → `core/phrase/types.ts`, `PhraseEngine` → `core/phrase/engine.ts`
-    (both under ISC-13), then `UptimeFormatter` → `core/uptime.ts`, `DialGeometry` → `core/dial.ts`,
-    `DateFormatter` → `core/date.ts`, `SevenSegmentEncoder` → `core/seven-segment.ts`,
-    `UpdateVersionComparer` → `core/update-version.ts`, `PhraseWrapService` → `core/phrase-wrap.ts`.
-    **Left: 197 LOC in one file** — `ContrastService`, which is also the one with the thinnest C# suite
-    (10 cases against 197 lines), so it needs the most oracle work rather than the least.
-  - **`update-version.ts` and `phrase-wrap.ts` are not consumed yet, and that is not drift.** The
-    update check is Phase 7 (ISC-27) and phrase wrapping is Phase 4; both C# units are standalone in
-    `FuzzyClock.Core` too. What would be drift is translating them and *not* recording that nothing
-    imports them, since an unimported module's tests can pass while the wiring is wrong — so the
-    import-side claim stays with the phase that does the wiring, not with this one.
+  - **CLOSED. All 27 files / 2,467 LOC are translated: 1,987 across 18 phrase providers + 480 across
+    9 logic files.** `IPhraseProvider` → `core/phrase/types.ts`, `PhraseEngine` →
+    `core/phrase/engine.ts` (both under ISC-13), `UptimeFormatter` → `core/uptime.ts`, `DialGeometry`
+    → `core/dial.ts`, `DateFormatter` → `core/date.ts`, `SevenSegmentEncoder` →
+    `core/seven-segment.ts`, `UpdateVersionComparer` → `core/update-version.ts`, `PhraseWrapService`
+    → `core/phrase-wrap.ts`, `ContrastService` → `core/contrast.ts`.
+  - **`ContrastService` was last on purpose and cost the most oracle work, as predicted.** 197 LOC
+    against a 10-case C# suite, and the suite is weak in a specific way: for both override-entry
+    cases it asserts only that the returned colour *differs* from the accent and clears 4.5:1, never
+    which colour. Every override value in `contrast.test.ts` is therefore probe-measured; none of it
+    could have been read off the C# tests. The port also carries a **behavioural fix the C# did not
+    need**: `Math.Round` is round-half-to-even and `Math.round` is not, and that is not academic here
+    — measured over exactly the inputs `adjustAccent` generates, **215 of 4,096** grey-axis calls and
+    **44,017 of 4,194,304** cube calls round differently, and on a white background **4,807 of
+    262,144** accents end up a different colour. `roundHalfToEven` is load-bearing, not defensive.
+  - **`update-version.ts`, `phrase-wrap.ts` and `contrast.ts` are not consumed yet, and that is not
+    drift.** The update check is Phase 7 (ISC-27), phrase wrapping is Phase 4, auto-contrast is Phase
+    8-9 and still [FOG]; all three C# units are standalone in `FuzzyClock.Core` too. What would be
+    drift is translating them and *not* recording that nothing imports them, since an unimported
+    module's tests can pass while the wiring is wrong — so the import-side claim stays with the phase
+    that does the wiring, not with this one. **`contrast.ts` follows the auto-contrast feature's
+    fate**: if that feature is cut (it is first on the cut list, and Alex's live settings have it
+    disabled), this module is deleted with it. Translating it anyway was the cheaper order — the
+    probe harness was already standing, and the float-heavy internals are where a rushed Phase 8 port
+    would have missed the rounding.
 - [~] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
   contributes **12** of those cases and retires with the feature. Translated alongside each unit, not
   afterwards — a test written after the code it checks is a rubber stamp (AC-5).
@@ -367,19 +380,27 @@ misses it, because every feature either ported or was consciously retired with t
     **436**, 33 short. `dotnet test --list-tests` cannot settle it either: it lists *methods*, so a
     `[DataRow]` method counts once. Per-class counts come from a TRX parse (37 classes, 469 results,
     0 unmapped), which is what the per-unit figures below are read from.
-  - **Progress: 75 of the 457 translated, and `bun test` is at 208 pass / 0 fail** (96 from ISC-13 and
-    the typeperf fixtures, 112 new). The 75 are `UptimeFormatterTests` 7, `DialGeometryTests` 6,
+  - **Progress: 85 of the 457 translated, and `bun test` is at 289 pass / 0 fail** (96 from ISC-13 and
+    the typeperf fixtures, 193 new). The 85 are `UptimeFormatterTests` 7, `DialGeometryTests` 6,
     `DateFormatterTests` 6, `SevenSegmentEncoderTests` 13, `UpdateVersionComparerTests` 20,
-    `PhraseWrapServiceTests` 23 — each file's full case count from the TRX, none partially taken. The
-    other 37 new cases are **additions, not translations**, and are counted separately on purpose: a
-    port that invents its own tests and counts them toward a translation target can reach the number
-    without translating anything.
+    `PhraseWrapServiceTests` 23, `ContrastServiceTests` 10 — each file's full case count from the TRX,
+    none partially taken. The other 108 new cases are **additions, not translations**, and are counted
+    separately on purpose: a port that invents its own tests and counts them toward a translation
+    target can reach the number without translating anything.
   - **The additions are not guesses either — from `update-version.ts` on, every added expectation was
     measured against the compiled C#.** A throwaway console project outside the repo (`$TEMP/fc-verprobe`,
-    `dotnet run -- version|phrases`) `<Compile Include>`s the real `.cs` files and prints what they
-    actually return, so an added case is a *recorded* C# behaviour rather than my reading of the
+    `dotnet run -- version|phrases|contrast`) `<Compile Include>`s the real `.cs` files and prints what
+    they actually return, so an added case is a *recorded* C# behaviour rather than my reading of the
     algorithm. That is what turned up the `int.MaxValue` component ceiling, .NET's acceptance of
-    `"4. 5"`, and the two `PhraseWrapService` branches its own suite never reaches.
+    `"4. 5"`, the two `PhraseWrapService` branches its own suite never reaches, and — on the contrast
+    pass — every override colour, the exact grey where `adjustAccent` reverses direction, and the
+    banker's-rounding divergence counts.
+  - **The contrast pass is where measuring earned its keep twice in a row.** I asserted a derived
+    0.5-luminance crossover at grey 186/187; the suite failed and the probe said 187/188. I then
+    assumed a 128 grey accent would adjust on both sides of it; it exhausts on 187, and the probe
+    supplied the accent that does work (60 grey → darkened to 47 on bg 188, lightened to 73 on bg
+    187 — one background step apart, opposite directions, which is the tight pin on the constant).
+    Two wrong derivations, both caught before commit, neither by reading the code again.
 - [x] **ISC-13. Phrase output matches the C# original across a full sweep. RESTATED — the original
   wording was impossible; the oracle was built first, and the port now satisfies it.** This is the claim
   that makes ISC-12 more than self-agreement, so it is the one worth getting right before any TypeScript
@@ -820,6 +841,37 @@ misses it, because every feature either ported or was consciously retired with t
   was named in advance is evidence the code is understood, whereas the same survivor discovered
   afterwards is indistinguishable from a rationalisation. It immediately earned itself — `phrase-wrap`
   produced one **unpredicted** survivor, and it was a genuinely vacuous test rather than an equivalence.
+- **An equivalent mutant is now written as an asserted property, not as a paragraph.** The next step past
+  predicting survivors: for each of `contrast.ts`'s ten, the equivalence itself is a test that sweeps the
+  reachable input space and fails if the property ever stops holding — the ties are unreachable *because*
+  no integer triple hits 4.5 or 5.5, and that is swept rather than argued. An explanation in a comment
+  decays silently when a constant moves; a swept assertion goes red. The mutation harness's own reason
+  strings now point at the test that carries the proof.
+- **`ContrastService` was ported even though the feature it serves is `[FOG]` and first on the cut list.**
+  Alex's live settings have auto-contrast disabled, so this module may be deleted at Phase 8-9 along with
+  the feature. Translating it now was still the cheaper order: the C# oracle harness was already standing
+  from the two previous files, and the float-heavy internals are exactly where a rushed later port would
+  have missed the rounding rule — which it would have, since the C# suite's own assertions cannot detect
+  it. If the feature is cut, `electron/src/core/contrast.ts` and its test go with it.
+- **`roundHalfToEven` is a hand-written helper rather than `Math.round`, and the reason is measured.**
+  See the Verification row for the counts. This is the single highest-value finding of the Core
+  translation so far, because nothing in the C# test suite and nothing in a careful reading of the
+  algorithm would have surfaced it — only running both rounding rules over the reachable input space did.
+- **`ContrastState` becomes a string union, not a numeric enum.** `"normal"`/`"override"` survive a
+  settings round trip and an IPC hop as themselves; `0`/`1` would arrive as untyped numbers on the other
+  side of both, and a mis-set default would silently read as a valid state.
+- **The C#'s `internal` helpers (`AdjustAccent`, `ColorToHsl`, `HslToColor`) are exported.** They were
+  unreachable from the C# tests and so untested there. Exporting them is what lets the port pin the HSL
+  round trip directly — verified against the compiled C# over all 16,777,216 colours with zero
+  disagreements, which is a stronger statement than the original ever made about itself.
+- **Two provably dead guards are kept, with the proof written next to them instead of the guard being
+  deleted.** `colorToHsl`'s `denom === 0` check cannot fire (denom is 0 only for pure black and white,
+  both of which have `delta === 0` and take the earlier branch — and the C#'s own comment claiming
+  otherwise is simply wrong), and the `% 6` on the `max === r` hue arm is the identity there. Both stay so
+  the code reads as the canonical conversion, both are documented as unreachable, and both are asserted
+  as properties. Same call for `computeDisplayColor`'s redundant exit-guard state test (M5): it cannot
+  change an answer, it names which of the two hysteresis rules a reader is looking at, and the comment
+  says which mutation proved it and which neighbouring mutation is *not* redundant.
 
 ## Verification
 
@@ -845,6 +897,7 @@ measured on this branch at or after that base.
 
 | ISC-11 / ISC-12 (the four small logic files) | `bun test` (137 pass / 0 fail) and `bun run typecheck` (exit 0) from `electron/`; the denominator from `dotnet test FuzzyClock.Core.Tests` (469 pass) with per-class counts out of a TRX parse; then `bun $TEMP/fc-mutate-core.ts` — eight injected defects, uniqueness-checked anchors, `finally` restore | **the C# expectations are the oracle and they were measured on this host, not assumed**: `DateFormatterTests` asserts "Sat, Mar 7" and it passes under en-AU, so the strings the port is held to are what the original actually produces where it runs. **Mutation, 8/8 caught** — floor-for-trunc on the uptime minutes, days shown at zero, the hour hand's interpolation term dropped, the minute hand off by a factor, the month index off by one, ISO losing its zero padding, `Short` delegating its order to the locale, one wrong seven-segment mask. **The order assertion is a counter-case, not a value check**: `formatDate("Short", …, "en-AU")` must *differ* from `Intl`'s whole-date output for the same locale, which is the only assertion that fails for a port that reorders — every value assertion passes on an en-US box. **The mask table is transcribed, not imported**: comparing the module's own table to itself would pass for any table, and `SUPPORTED_CHARACTERS` is asserted equal to the transcribed list so a row added without a test row fails. **A survivor produced a doc fix, not a test patch** — see § Changelog. **Bounded**: `bun test` green says nothing about what the panel *shows*; the renderer now calls both ports, and the evidence for that is a 12s launch reaching `PROBE-PAINTS 9` with no `did-fail-load`, which proves the module loaded and rendered, not that the glyphs are right |
 | ISC-11 / ISC-12 (`update-version.ts`, `phrase-wrap.ts`) | `bun test` (208 pass / 0 fail), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; the C# oracle from `$TEMP/fc-verprobe` (`dotnet run -- version` and `-- phrases`, which `<Compile Include>`s the real `UpdateVersionComparer.cs` and `PhraseWrapService.cs`); then `bun $TEMP/fc-mutate-uvc.ts` (19 mutations) and `bun $TEMP/fc-mutate-wrap.ts` (18) | **the added expectations are recorded C# output, not my reading of the algorithm** — the probe is what established the `int.MaxValue` ceiling on all four components, .NET accepting `"4. 5"` as 4.5, and the two `PhraseWrapService` branches its own suite never reaches (a marker that consumes the whole phrase; two boundaries equidistant from the midpoint). **Mutation: 17/19 and 15/18 caught, and the survivors were named BEFORE the run with their reasons** — that is the change from the previous row, where the survivor was a discovery. Predicted: the `-`/`+` guard and the empty-after-trim check in `parseTag` (both subsumed by the shape regex), the `trimEnd()`/`marker.length - 1` pair in `splitNatural`, and the dead `best = 0` initializer. None of the four predictions was refuted and no unpredicted survivor appeared in the second run. **The masked pair is measured as a pair**: `trimEnd()` and the `-1` do the same job, so each survives alone while removing BOTH is caught — reporting the two solo survivors without that third mutation would describe the suite as weaker than it is. **One vacuous assertion was found and replaced**: the case-insensitivity test used "HALF PAST ELEVEN", whose midpoint fallback returns the same two lines as its marker split, so a case-*sensitive* implementation passed it; the replacement uses "ALMOST A QUARTER BEFORE TWELVE", where the two paths disagree (measured), and it also pins the midpoint answer it must not be. **Bounded**: neither module is imported by anything yet, so these greens say nothing about wiring — that evidence belongs to ISC-27 (update check) and Phase 4 (wrapping) |
+| ISC-11 / ISC-12 (`contrast.ts`) | `bun test` (289 pass / 0 fail / 154,574 expect() across 10 files), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; the C# oracle at `$TEMP/fc-verprobe` extended with `Contrast.cs` and `dotnet run -c Release -- contrast`, which `<Compile Include>`s the real `ContrastService.cs`; then `bun $TEMP/fc-mutate-contrast.ts` (48 mutations) | **the rounding divergence is the discriminator, and it is quantified rather than noted**: C# `Math.Round` is half-to-even and JS `Math.round` is not, and a lightness step of 5 units is 12.75/255, so channel values land on `x.5` constantly. Measured over exactly the inputs `adjustAccent` generates — **215 of 4,096** grey-axis calls and **44,017 of 4,194,304** cube calls round differently, and it reaches the *output*: on a white background **4,807 of 262,144** accents get a different adjusted colour (`0,0,128` → `0,0,102` here vs `0,0,103` under `Math.round`). A port that used `Math.round` would have been green on any test written from the algorithm. **The C# suite could not have supplied these values**: it asserts only that the override colour *differs* from the accent and clears 4.5, and its hysteresis-retain test discards the colour entirely (`var (_, newState)`), so every override colour in the port's tests is a recorded C# output. **Two coverage gaps were closed by reasoning before mutating, not after**: nothing exercised `linearize`'s linear arm (needs a channel ≤ 10) and nothing reached `clamp` (needs a first-step overshoot); both were measured against the C# and asserted, so the mutation run did not have to find them. **Mutation: 38/48 caught, 0 skipped, all ten survivors predicted with their reasons.** Four are exact-threshold ties unreachable at 8-bit precision, and the rest are the `% 6` no-op, the dead `denom === 0` guard, the `0.04045` boundary, the fallback tie-break, hue-arm continuity at 60, and M5. **Every equivalence is an asserted swept property, not an excuse** — a `describe("the branches that provably cannot be told apart")` block that goes red if any of those properties ever stops holding, which is the change from the previous row, where an equivalent mutant produced a documentation fix. **M5 was found unpredicted and promoted rather than quietly rationalised**: dropping `&& currentState === "override"` from the exit guard survived, and analysis showed it *cannot* change an answer (a ratio above 5.5 is above 4.5, so the next guard returns the identical pair) — the same test in the guard below is caught (M7), which is what distinguishes redundancy from a hole. **Positive control on the rounding helper**, so `roundHalfToEven` is pinned to disagree with `Math.round` on a case that reaches a colour. **Bounded**: this module has no caller, and it serves a feature that may be cut — see Decisions |
 
 ### Still outstanding
 
@@ -1296,3 +1349,28 @@ measured on this branch at or after that base.
   one visible as a finding within seconds instead of being explained away in the same paragraph as the
   other three. Masked pairs are covered by a third mutation that applies both edits at once, so two
   mutually-masking survivors cannot be reported as a coverage gap when the combination is in fact caught.
+- **conjectured** that grey 187 is the first background whose relative luminance exceeds 0.5, and wrote
+  the `adjustAccent` direction test around a 186/187 pair. **refuted-by** the suite failing on the spot:
+  187 is 0.49693299506087041, and 188 at 0.50288645803256871 is the first above. I had solved
+  `0.2126 + 0.7152 + 0.0722 = 1` times a linearized channel in my head instead of asking the probe for the
+  crossover, which is a two-line loop it can run over all 256 greys. **Then did it again in the fix**: I
+  assumed a mid-grey accent (128) would adjust in both directions one background step apart, and it
+  exhausts all eight steps on 187, so that assertion failed too. Measured properly, accent 60 darkens to
+  47 on background 188 and lightens to 73 on background 187 — opposite directions one step apart, which
+  is a far tighter pin on the `> 0.5` constant than the pair I was reaching for. Both mistakes are now in
+  the test's own comment, because the pattern is the interesting part: **two consecutive derived values,
+  both wrong, both cheap to measure, and the oracle was already compiled and sitting there.** The suite
+  caught them, so nothing shipped — but a derivation that agrees with itself is exactly what the oracle
+  exists to replace.
+- **conjectured** that every `>=`/`>` in `contrast.ts` that survived mutation was an unreachable
+  threshold tie, and that this was the whole story for the file's survivors. **refuted-by** M5 surviving
+  **unpredicted**: dropping `&& currentState === "override"` from the hysteresis exit guard left the suite
+  green, and it is not a tie at all. It is a genuinely redundant guard — a ratio above 5.5 is also above
+  4.5, so an incoming `"normal"` that skips the exit rule is caught by the next rule and returns the
+  identical pair. **This is a new class among the equivalent mutants found so far**: the previous four
+  were about a wrong comment (three) and a vacuous assertion (one); this one is about production logic
+  that provably cannot change an answer. The discriminator against "so delete it" is M7, which removes the
+  same state test from the guard *below* and is caught — so the two tests are not interchangeable, and the
+  redundant one earns its place by naming which of the two hysteresis rules a reader is in. Fixed by
+  documenting the guard, asserting the equivalence as a sweep, and promoting M5 to a predicted survivor;
+  the second run reports zero unpredicted survivors and zero refuted predictions.
