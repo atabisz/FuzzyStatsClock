@@ -14,13 +14,12 @@
 /** Every metric is a percentage 0-100, or -1 for "no source on this platform". */
 export const UNAVAILABLE = -1
 
-export interface Temperatures {
-  cpu: number
-  gpu: number
-  mobo: number
-  nvme: number
-}
-
+/**
+ * No temperature fields, by decision rather than by omission (Option C, Alex's call after ISC-9
+ * measured 51 CPU sensors present and every one reading NULL unelevated). They are absent rather than
+ * stubbed at -1 on the reasoning the sentinel doc above sets out in reverse: `-1` means "no source on
+ * this platform", which invites a platform that does have one, and there is now no source on any.
+ */
 export interface StatsSample {
   cpu: number
   mem: number
@@ -29,15 +28,7 @@ export interface StatsSample {
   pag: number
   battery: number
   pluggedIn: boolean
-  temps: Temperatures
   uptimeSec: number
-}
-
-export const EMPTY_TEMPS: Temperatures = {
-  cpu: UNAVAILABLE,
-  gpu: UNAVAILABLE,
-  mobo: UNAVAILABLE,
-  nvme: UNAVAILABLE,
 }
 
 /**

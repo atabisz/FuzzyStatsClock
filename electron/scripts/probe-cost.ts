@@ -53,11 +53,14 @@
  * every 3s. Electron is doing three times the update work per unit time.
  *
  * **For Electron:** the WPF build polls LibreHardwareMonitor for temperatures
- * (`TempsLineVisible: true` in his settings) and Electron has no temperature source
- * yet — that is ISC-9, still undecided. So some part of WPF's cost buys a feature
- * Electron does not have. This probe cannot separate it without editing his live
- * settings, which it will not do. It is reported as a bound on the margin, and it is
- * why an ISC-6 PASS is conditional on ISC-9 rather than final.
+ * (`TempsLineVisible: true` in his settings) and Electron has none. That was open
+ * when this probe was written and is now closed the other way: ISC-9 measured every
+ * CPU sensor reading NULL unelevated, and Alex chose Option C — no temperatures in the
+ * port, ever. So the asymmetry is permanent rather than pending, and it still cuts the
+ * same direction: some part of WPF's cost buys a feature Electron will not have. This
+ * probe cannot separate it without editing his live settings, which it will not do, so
+ * it stays a bound on the margin — but an ISC-6 PASS is no longer conditional on a
+ * later decision, because the decision has been made.
  */
 
 import { spawn } from "node:child_process"
@@ -492,8 +495,8 @@ console.log("=== A4: ISC-6 — is the Electron build cheaper than the WPF build?
     )
     console.log(
       `\n  asymmetries: electron repaints at 1s vs WPF's configured 3s (against electron); ` +
-        `\n  WPF polls LibreHardwareMonitor temps and electron has no temp source yet ` +
-        `(for electron, bounded at ISC-9).`,
+        `\n  WPF polls LibreHardwareMonitor temps and electron has none by decision ` +
+        `(for electron; ISC-9 Option C, so this bound is permanent, not pending).`,
     )
 
     /**

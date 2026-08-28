@@ -27,7 +27,7 @@
 import { BrowserWindow, app, ipcMain, screen } from "electron"
 import { join } from "node:path"
 import { Win32StatsSource } from "./telemetry/win32.js"
-import { EMPTY_TEMPS, UNAVAILABLE, type StatsSample, type StatsSource } from "../shared.js"
+import { UNAVAILABLE, type StatsSample, type StatsSource } from "../shared.js"
 import {
   IS_WIN,
   applyPlatformWindowTraits,
@@ -75,7 +75,6 @@ const latest: StatsSample = {
   pag: UNAVAILABLE,
   battery: UNAVAILABLE,
   pluggedIn: false,
-  temps: { ...EMPTY_TEMPS },
   uptimeSec: 0,
 }
 

@@ -31,13 +31,6 @@ const UNAVAILABLE = -1
 /** Bar track width, from index.html. A bar is this times the percentage. */
 const TRACK_WIDTH = 113
 
-interface Temperatures {
-  cpu: number
-  gpu: number
-  mobo: number
-  nvme: number
-}
-
 interface StatsSample {
   cpu: number
   mem: number
@@ -45,7 +38,6 @@ interface StatsSample {
   pag: number
   battery: number
   pluggedIn: boolean
-  temps: Temperatures
   uptimeSec: number
 }
 
@@ -82,7 +74,6 @@ const rows: Record<"cpu" | "gpu" | "mem" | "pag" | "batt", Row> = {
 const phraseEl = element<SVGTextElement>("phrase")
 const dateEl = element<SVGTextElement>("date")
 const uptimeEl = element<SVGTextElement>("uptime")
-const tempsEl = element<SVGTextElement>("temps")
 
 /** Last value written to each node, so an unchanged write can be skipped. */
 const written = new Map<Element, string>()
@@ -129,15 +120,6 @@ function formatUptime(seconds: number): string {
   return `up ${String(minutes)}m`
 }
 
-function formatTemps(temps: Temperatures): string {
-  const parts: string[] = []
-  if (temps.cpu !== UNAVAILABLE) parts.push(`cpu ${String(Math.round(temps.cpu))}°`)
-  if (temps.gpu !== UNAVAILABLE) parts.push(`gpu ${String(Math.round(temps.gpu))}°`)
-  if (temps.mobo !== UNAVAILABLE) parts.push(`mb ${String(Math.round(temps.mobo))}°`)
-  if (temps.nvme !== UNAVAILABLE) parts.push(`ssd ${String(Math.round(temps.nvme))}°`)
-  return parts.join("  ")
-}
-
 /**
  * Placeholder for the fuzzy phrase engine, which is Phase 2.
  *
@@ -166,7 +148,6 @@ function render(sample: StatsSample): void {
   renderRow(rows.batt, sample.battery)
 
   setText(uptimeEl, formatUptime(sample.uptimeSec))
-  setText(tempsEl, formatTemps(sample.temps))
 
   // Acknowledged from inside a frame callback, not straight after the writes above.
   // The writes only dirty nodes; `requestAnimationFrame` runs as part of the

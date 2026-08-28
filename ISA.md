@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 10/34
+progress: 11/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T19:49:49+10:00
+updated: 2026-08-28T20:58:26+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -347,9 +347,10 @@ misses it, because every feature either ported or was consciously retired with t
 - [ ] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
   contributes **12** of those cases and retires with the feature. Translated alongside each unit, not
   afterwards — a test written after the code it checks is a rubber stamp (AC-5).
-- [~] **ISC-13. Phrase output matches the C# original across a full sweep. RESTATED — the original
-  wording was impossible, and the oracle it demanded now exists.** This is the claim that makes ISC-12
-  more than self-agreement, so it is the one worth getting right before any TypeScript is written.
+- [x] **ISC-13. Phrase output matches the C# original across a full sweep. RESTATED — the original
+  wording was impossible; the oracle was built first, and the port now satisfies it.** This is the claim
+  that makes ISC-12 more than self-agreement, so it is the one worth getting right before any TypeScript
+  is written.
   - **What was wrong.** It said "byte-identical … every minute of 24h × 6 locales × 11 styles". Two
     errors. The registry has **18 flat locale keys**, not a 6 × 11 = 66 matrix — read by reflecting
     `PhraseEngine._providers` and cross-checked against `SetLocale` accepting all 18 and rejecting a
@@ -363,9 +364,31 @@ misses it, because every feature either ported or was consciously retired with t
     rows** — the *complete candidate set* per bucket for the 10 random providers, both `GetPhrase`
     and `GetStructuredPhrase`). Pinning the whole permitted set is a tighter constraint than pinning
     one sample from it.
-  - **DONE so far: the oracle.** `tools/GoldenGen`, run against the untouched C# tree, exit 0 with
-    `no problems reported`. **Still open: nothing has been translated yet**, so the box is `[~]` — the
-    oracle exists and the comparison has not run.
+  - **The oracle.** `tools/GoldenGen`, run against the untouched C# tree, exit 0 with
+    `no problems reported`. Re-run at the close of the port (`b66579e`): both files came back
+    **byte-identical** to the committed ones, and non-vacuously so — appending a line to
+    `phrase-golden-segments.tsv` (25,928 lines) and re-running restored it to 25,927 with
+    `git status` clean, which is what proves the generator writes the paths the tests read rather
+    than a diff passing because nothing was written.
+  - **The comparison, and it has now run.** `electron/src/core/phrase/` — five files: the reflected
+    `tables.generated.ts`, `types.ts`, `factories.ts`, `specs.ts`, `engine.ts`. **96 green in
+    `bun test`, 0 fail**, of which 44 are the golden suite: the segment key for all 1440 minutes ×
+    18 locales, and the complete phrase and structured-pair set for every bucket of the 10 drawing
+    locales. `bun run typecheck` exits 0 and `--listFiles` shows all five source files and both test
+    files in the 220 the compiler read, so neither result is vacuous.
+  - **Discriminating power is measured, not argued (claim 18).** A green sweep over 38,904 fixture
+    rows written by the same hand as the port is worth nothing until it can be shown to fail. **Twelve
+    injected defects, all twelve caught**: a shifted German bucket bound, a one-character typo in an
+    `en-classic` candidate, a duplicated sixth candidate in a five-candidate bucket, `en-poetic`'s
+    `:witching` key changed to `:midnight`, one extra `r` in a hand-transcribed Pirate noon string,
+    an `{h1}` template emphasising the wrong hour, noon shifted to minute 721, an exclusive bucket
+    bound, `hour12` losing its 0→12 mapping, a qualifier keeping its trailing space, and `{ho}`
+    resolved out of order. **The first pass caught only 11**, and the survivor was informative rather
+    than a hole — see the o'clock-guard entry in § Decisions.
+  - **The arity assertion is why the `Picker` seam exists.** Driving the picker by index recovers each
+    bucket's whole candidate space *and* `items.length`. A set comparison alone accepts a port with a
+    duplicated sixth candidate in a five-candidate bucket — same set, wrong distribution — which is
+    exactly mutation 3, and it fails on the count.
   - The generator also settled three facts the port needs: the 8 single-template locales
     (`de es fr ja-classic ja-poetic ja-rude ja-terse pl`) are **verified** deterministic rather than
     assumed, 200 draws per minute yielding one value equal to their own segment key; the candidate set
@@ -578,7 +601,29 @@ misses it, because every feature either ported or was consciously retired with t
   now" for the 15 cells that can have one, which is precisely the meaning a permanent `-1` would
   erode. `TempsLineVisible` therefore becomes an **ignored key** on settings import (ISC-18), not a
   missing one: his live file has it, the importer must not choke on it, and it must not resurrect a
-  UI row.
+  UI row. **This became true of the tree only later** — `e6bfa77` asserted it in a commit message
+  without containing it, see § Changelog. Landed for real across six deletions: `Temperatures` and
+  `EMPTY_TEMPS` and the `temps` field out of `shared.ts` (replaced by a doc block saying the absence is
+  a decision, so the next reader does not read it as an oversight), the `EMPTY_TEMPS` import and
+  initialiser out of `main.ts`, the duplicated interface + `tempsEl` + `formatTemps()` + its `setText`
+  call out of `renderer.ts`, and the orphaned `<text id="temps">` node out of `index.html`. Verified as
+  a running app, not just a compiling one: `bun run typecheck` 0, `bun test` 96/0, and a 12s launch
+  reaching `PROBE-READY` and `PROBE-PAINTS 9` with no `did-fail-load` — which is the arm that matters,
+  because `element()` throws on a missing id, so a half-done deletion would have killed the renderer
+  module at load and frozen paints at 0 while the transparent window still showed.
+- **`bun run start` now goes through `scripts/start.ts`, because `electron dist/main.js` does not work
+  in the shell this repo is developed in.** Found by using it: the smoke launch above, run from a
+  VSCode-descended shell, died in `node:internal/modules/esm/translators` under a `Node.js v20.18.3`
+  banner — `ELECTRON_RUN_AS_NODE=1`, the same variable `lib/electron-launch.ts` was written for, reaching
+  the one launch path that did not use it. The probes were defended and the dev entry point was not, so
+  the fix routes `start` through `spawnElectron` rather than adding a second `delete env[...]`: one place
+  strips the variable and every launcher shares it. **The before/after is a real positive control, not an
+  argument** — the identical shell with the identical variable still set produced the Node crash on the
+  old script form and a live app (`PROBE-READY`, `PROBE-PAINTS 9`) on the new one, minutes apart. Two
+  details are load-bearing and commented as such: stdio is forwarded rather than discarded, because a
+  discarded stream is what let this crash pass for a clean exit the first time it happened; and `SIGINT`
+  is forwarded to the child, so `before-quit` runs and the two `typeperf` children are reaped instead of
+  outliving the terminal.
 - **The AC-2 denominator was re-measured rather than reasoned about, and the inherited number was
   wrong.** 469 Core + 163 App = **632**, not the 633 carried in earlier notes; 54 of those cases are
   temps (12 + 21 + 10 + 11), so the parity target is **578**. Recorded as a correction rather than
@@ -639,7 +684,52 @@ misses it, because every feature either ported or was consciously retired with t
   repo-wide `*` rule would bring them back CRLF in the working copy, every hash would move, and the
   byte-identical-rerun check — the only evidence that the random sampling saturated — would fail for a
   reason having nothing to do with phrases. A verification that can be broken by a line-ending policy
-  is not a verification.
+  is not a verification. The golden test now asserts the absence of CR on read, so the day that policy
+  slips the failure names the cause instead of naming a phrase.
+- **Three routes to the same C# data, on purpose.** `tools/TableExport` reaches the strings by
+  **reflecting fields**; `tools/GoldenGen` reaches them by **calling providers** and saturating random
+  draws; the ~40 noon/midnight specials are **transcribed by hand** from source. Any one of the three
+  going wrong fails the comparison. The tempting simplification — have TableExport sample the specials
+  too — would have given the fixture and the spec one shared origin and made every `:noon`,
+  `:midnight` and `:witching` row a check on its own provenance. Mutation 5 (one extra `r` in a Pirate
+  noon string) is that separation paying off.
+- **The specials census is the exporter's own output, not a reading of the source.** I first wrote
+  "seven providers hold their noon/midnight candidates in method locals." The run proved **only
+  `en-classic` and `en-terse` declare them as static fields, so it is 16 of 18** — locals carry no
+  metadata to reflect. The number is now quoted from the run in both the emitted header and the class
+  doc, because a hand-counted census in a file about mechanical extraction is the one figure nobody
+  re-checks.
+- **`tools/TableExport` is outside `FuzzyClock.slnx` for the same reason GoldenGen is,** and dies with
+  the WPF tree at ISC-31. What survives is `tables.generated.ts`, checked in, with its regeneration
+  command in the header. Reflection rather than a source parser or hands: a human mistypes one of 899
+  strings, a regex mishandles a nested bracket silently, and reflection reads what the CLR actually
+  built. It emits **data only** — no template substitution, no bucket walk, no special-case branch —
+  because a generator that emitted behaviour too would leave the port agreeing with itself.
+- **`makeProvider` checks its preconditions at construction, and that is the one deliberate
+  behavioural divergence in the phrase layer.** The C# throws from `GetPhrase` at the first uncovered
+  minute and picks from an empty array at noon — real failures that would first appear an hour or a
+  day into a run. Nothing in the generated tables can trigger either, which is precisely why the
+  guards had never once executed; `phrase-factories.test.ts` now feeds them bad tables on purpose,
+  with a well-formed spec as the positive control so the six throws are demonstrably rejecting the
+  defect and not the shape.
+- **The surviving mutant was a finding about the code, not a hole in the test.** Disabling
+  `en-classic`'s o'clock guard left all 78 assertions green. Reading
+  `EnglishPhraseProvider.GetStructuredPhrase` explains it: for `"{h} o'clock"` the guard returns
+  `("", Replace("{h}", …))` and the fallback returns the same thing plus a `{h1}` replacement that has
+  nothing to act on — so **the branch is redundant in the C# too**, an equivalent mutant rather than a
+  gap. Two things followed. My comment claimed the guard stopped the phrase collapsing to
+  `("", "three")`, which it cannot: `"{h} o'clock"` does not end with `{h}`, so no split arm would
+  ever have claimed it. That comment is now the measured truth. And the branch is kept rather than
+  deleted, because it *is* live for any `oClockTemplate` ending in an hour token — a distinction
+  `phrase-factories.test.ts` pins with the same template under both settings, which is what turned the
+  survivor into a caught mutation.
+- **`segmentKeyMode` is written out per locale rather than derived from `declaredShape`.** The two line
+  up exactly today — all 8 `"template"` locales key on the phrase, all 10 `"candidates"` locales key on
+  the bucket index — but that alignment is an observation about the original, not a rule the port
+  should inherit silently. So it is spelled out per spec and the equivalence is asserted as a fact
+  about today's C#. `specShapeMismatches` reports the contradiction if a regeneration ever breaks it,
+  and each of its four rules has a spec built to trip it — asserting only that it returns nothing would
+  be satisfied by a function that returns nothing unconditionally (claim 19).
 
 ## Verification
 
@@ -661,6 +751,7 @@ measured on this branch at or after that base.
 | ISC-8 | `bun electron/scripts/probe-size.ts` from `electron/` — arms C1..C5, after `bun run dist:win` | **containment is the discriminator** (C4): a wrong `files:` glob yields a plausible installer size for a package that launches to nothing, so all six runtime files are verified present *inside* `app.asar` — and the asar header is parsed directly, because a `bunx asar` that is not installed degrades into "no files found", indistinguishable from the failure being tested. **Baseline identity** (C2): both WPF artefacts are re-read off disk and compared to their recorded byte counts, so citing a stale or different `publish/` surfaces as a FAIL instead of silently becoming the baseline — both matched exactly. **Like-for-like denominators**: installer-vs-installer and payload-vs-payload, never one of each, since an installer measured against an uncompressed tree flatters whichever side is compressed; and `publish/` is measured as a tree to confirm the single-file exe *is* the whole WPF payload (3 files, 0.1MB of pdbs beside it) rather than one file out of several. **The split that dates the finding** (C5): the app is 0.009% of the payload, so the ratio is a floor that improves for Electron as the port fills in — without it, today's 1.40× would be quoted at Phase 9 as though it were static |
 | ISC-10 (macOS half only) | `mcp__mac-codex__codex` against an Apple M1, macOS 26.6.2 arm64, Electron pinned to 33.4.11. **Not re-runnable from this machine** — it needs that dispatch and a host with the same TCC state. Four scripts and four fixture captures in a `mktemp -d`; arms M1..M7 | **the render gate is the discriminator, and it comes first** (M1): a transparent frameless window that loaded nothing is visually identical to a working overlay and *cheaper*, so 578 rAF paints acknowledged from inside the renderer plus zero `did-fail-load` is what licenses every arm after it. **Readback off the live window, never off the source** (M2) — and the readback itself found two typings-implied APIs (`getAlwaysOnTopLevel`, `getActivationPolicy`) that **do not exist at runtime**, which is exactly the class of error a source-reading probe cannot produce. **External corroboration for the two claims a process cannot make about itself** (M3/M4): LaunchServices `ApplicationType="UIElement"` and a separate Swift binary reading `NSRunningApplication.activationPolicy == .accessory`, rather than trusting `app.dock.isVisible()`, which is the process agreeing with itself. **Policy and UI are split, not merged** (M4): the accessory policy is `[MEASURED]`, the Cmd-Tab switcher is `[INCONCLUSIVE]`, because `screencapture -x` is TCC-denied on that host — three arms (M4b, M5, M6) are reported unproven for that one reason rather than inferred from the mechanism. **Positive control on the telemetry** (M7): 1.25% idle vs 26.73% with one core deliberately busy, so a collapsed pipeline returning near-zero for everything cannot pass. **Counter-case that reversed a plan row**: `os.freemem()` was cross-read against `vm_stat` on the same snapshot and disagreed 3.1%-free vs 69.14%-occupied — a single-source read would have shipped a memory cell showing 97% used on an idle Mac. **A refuted absence**: `powermetrics` was confirmed root-only *and* an unprivileged `ioreg` path was found anyway, so "no source exists" was tested rather than concluded from the documented one failing |
 | ISC-13 (the oracle half) | `dotnet run` on `tools/GoldenGen` (Release), then re-run and compare hashes. Writes `electron/test/fixtures/phrase-golden-{segments,candidates}.tsv`. Exit 0 means every internal check passed; exit 1 prints the problems and still writes the files | **byte-identical reruns are the discriminator, and they are the only available evidence of completeness** — the candidate sets are collected by sampling a random provider to saturation, so the question that decides whether this oracle is worth anything is whether saturation happened. Two independent runs produced identical bytes (`66ba906040fe15c45d6378a63ccf7466` candidates, `fa810b263d2805d13acbc9d7abd009bb` segments, second run verified via `md5sum -c`); a short set would have differed between runs. **Denominator from the source, values from the provider**: reflection reads each bucket's declared candidate count and every bucket saturated to *exactly* it, which is simultaneously the saturation proof and a check that no table holds a duplicate or unreachable candidate. **The grouping hypothesis is tested, not assumed**: every `(segment key, hour12)` group must agree across all 1440 minutes, so a wrong hour formula fails loudly instead of silently dropping the minutes that disagreed. **Positive control on the registry read**: all 18 reflected locales are fed back through the public `SetLocale`, *and* a bogus locale must be rejected — without the second half, a `SetLocale` that returned true for everything would make the first half vacuous. **Determinism claimed for the 8 single-template locales is measured**: 200 draws per minute per locale, each yielding one distinct value equal to its own segment key, rather than read off the source. **Hand-derivation cross-check**: `en-classic:0` hour 3 was derived by hand from `EnglishPhraseProvider.cs` and matched the file's 5 phrases and 5 structured pairs exactly. **Bounded**: this row covers the oracle only — no TypeScript has been compared against it, which is why ISC-13 is `[~]` |
+| ISC-13 (the port half) | `bun test` (96 pass / 0 fail) and `bun run typecheck` (exit 0), then `bun $TEMP/fc-mutate.ts` — twelve injected defects, each applied to one file, suite run, file restored from an in-memory copy in a `finally` | **the mutation run is the evidence; the green run is only its precondition.** 44 assertions over 38,904 fixture rows, written by the same hand as the port, prove nothing until they can be made to fail — so all twelve defects were injected and all twelve turn the suite red, each naming a plausible test. **Every anchor is uniqueness-checked**: a mutation whose search string does not appear exactly once is reported `SKIP` and counted as a survivor, so a typo in the harness cannot read as a pass. **The suite's own instruments are guarded rather than trusted**: the fixture parse requires the exact field count on every row (a ragged row is how a comparison reports "0 mismatches" over 0 rows) and rejects CR; `at(hour, minute)` asserts its own round-trip, so a host whose zone shifted on the chosen date fails by name instead of mismatching every phrase; `enumerateAll` asserts exactly one draw per provider call, since the port takes a second draw in `getStructuredPhrase` by design and index enumeration would silently cover half the space if that became two. **The denominator is asserted, not assumed**: each locale's sweep ends `expect(checked).toBe(1440)`, and the PENDING/extra sets must both be empty — a suite iterating only over what it had ported would report all-green on a port of one locale. **Two independently generated artifacts are made to agree on which locales draw**: GoldenGen decided by redrawing each minute and watching the phrase move, TableExport by the C# field's static type, and the test asserts the two sets are the same 10. **Bounded**: `PhraseWrapService` and the display-side formatting are outside this, so ISC-13's green says nothing about how a phrase is wrapped or rendered — that stays with ISC-11/ISC-12 |
 
 ### Still outstanding
 
@@ -771,7 +862,14 @@ measured on this branch at or after that base.
   scope, which measures the default build; belongs to ISC-29.
 - **No icon and no code signature yet**, both of which add bytes and change the measured size. So the
   76.4MB figure will move upward once packaging is real, and ISC-29 should re-run `probe-size.ts`
-  rather than carrying this number forward.
+  rather than carrying this number forward. The phrase layer is a third reason the same way: `b66579e`
+  adds ~37KB of generated tables plus four source files that were not in the tree when 76.4MB was
+  measured. It is noise against 76.4MB and it is still a stale denominator, so it is named here rather
+  than left for someone to notice — the re-run ISC-29 already owes covers it, and no *new* work is owed.
+- **Claim 17 checked against `b66579e`, and no green reverts.** The commit adds nine files and modifies
+  none, so every Phase 1 measurement — which was taken on the Electron shell, the C# tree and the
+  telemetry path, all untouched — still describes the code it was taken from. The one number the commit
+  does perturb is the packaged size, handled in the entry above.
 - **The mac `dmg` and linux `AppImage` targets are configured but never built.** They cannot be built
   from this host, so their sizes are unknown — not estimated, unknown. Whoever runs ISC-10's hosts
   should run `probe:size` there too, since the artefacts differ enough per platform that a Windows
@@ -1033,3 +1131,41 @@ measured on this branch at or after that base.
   ISA. Which is the actual lesson, and it is not "be careful with escapes" — a rule I had just written
   a paragraph about and still broke on the next keystroke. It is that **the check has to be mechanical
   and it has to cover every file, not just the one the topic is about.**
+- **corrected** two prose semicolons a mechanical style pass had eaten. To match the tree's
+  no-semicolon style I stripped every line-final `;` from the four hand-written phrase files — 129 of
+  them — with a scratch script that did not distinguish code from prose. It reported its 36 ASI hazards
+  honestly, and all 36 were benign. What it did not report was the damage it did inside doc comments:
+  `types.ts` lost the semicolon after "`(string Qualifier, string Emphasis)`" and `engine.ts` the one
+  after "the provider was swapped", each turning one sentence into two clauses that run together.
+  **Instance nine of the same family** — an instrument that fails silently under a variable I did not
+  set. What makes it worth an entry is how the scope was closed: not by re-reading four files hoping to
+  spot a missing semicolon, but by **counting**. The script reported its removals per file (14 / 68 / 18
+  / 29); counting the code statements that legitimately ended in `;` gave 13 / 68 / 18 / 28. Two files
+  matched exactly and are therefore provably untouched in prose; the other two were over by exactly one,
+  which is the whole population of possible damage and pinned it to the two lines already found. A
+  denominator turned "probably fine" into a closed set.
+- **conjectured** that a green golden suite was evidence the phrase port was correct. **refuted-by**
+  claim 18 before the commit: 44 assertions over 38,904 fixture rows all passed on the *first* run, and
+  both sides — the port and the specs — were written by me from the same source tree in the same
+  sitting, so the suite agreeing with the port is partly the suite agreeing with itself. Twelve injected
+  defects settled it, and the eleventh result was the useful one: **the o'clock guard could be disabled
+  with no test noticing**, because for `en-classic`'s own template that branch is identical to the
+  fallback in the C# as well. So the suite was right and my *comment* was wrong — it claimed the guard
+  prevented an outcome that template can never produce. Fixed the comment, kept the branch (it is live
+  for any template ending in an hour token), and pinned that case directly, which took the run to 12/12.
+  Recorded because the finding was only reachable by trying to break a suite that had just gone green.
+- **conjectured**, in a commit message — which is what makes it worth an entry rather than a quiet fix —
+  that `e6bfa77` had removed the temperature feature from the port. Its body states "The four temperature
+  fields leave `StatsSample` entirely rather than being stubbed at `-1`", in the present tense, as a
+  description of its own tree. **refuted-by** `git show --stat e6bfa77`: it touched `.gitattributes`, the
+  plan, this ISA, `electron/package.json`, `FuzzyClock.Temps/`, `probe-sidecar.ts` and fixtures, and never
+  `shared.ts`, `main.ts` or `renderer.ts` — all three of which still carried `Temperatures`,
+  `EMPTY_TEMPS`, the `temps` field, `formatTemps()` and a `#temps` SVG node. **The sentence was true of
+  the decision and false of the commit**, and the distinction is not pedantry: a message is the only
+  record most readers will consult, so that commit published a deletion nobody could find, in the same
+  breath as arguing that a half-removed feature "reads as working to the next person in the tree." Its
+  own reasoning applied to itself. Fixed by finishing the deletion here rather than by softening the
+  message, since the message describes what should be true and now is. **The general form, which has bitten
+  the Feed work too:** a claim about a *tree* must be checked against `--stat`, not against intent — the
+  work item was authorized, planned, written up in three documents and simply never carried out in code,
+  and every document read as though it had been.

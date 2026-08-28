@@ -19,7 +19,8 @@
     <!--
       The display, as SVG. Mirrors `FuzzyClock.App/MainWindow.xaml`: a rounded black
       panel, the phrase, the date, then five stat rows of label / track / bar /
-      percentage, then the uptime and temps lines.
+      percentage, then the uptime line. The WPF panel has a temps line below it; this
+      one does not, and will not — see Option C in the ISA.
 
       Geometry, so the numbers below are not arbitrary: the WPF stats panel is 184
       wide inside 12px padding, its label column 35, its percentage column 36. That
@@ -75,7 +76,6 @@
       </g>
 
       <text id="uptime" class="line" x="12" y="210">up —</text>
-      <text id="temps" class="line" x="12" y="226"></text>
     </svg>
     <script src="renderer.js"></script>
   </body>

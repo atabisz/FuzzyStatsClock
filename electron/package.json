@@ -12,7 +12,7 @@
     "build:preload": "bun build src/preload.ts --outfile dist/preload.cjs --format cjs --target node --external electron",
     "build:renderer": "bun build src/renderer/renderer.ts --outfile dist/renderer.js --target browser",
     "build:assets": "bun scripts/copy-assets.ts",
-    "start": "bun run build && electron dist/main.js",
+    "start": "bun run build && bun scripts/start.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "probe:typeperf": "bun scripts/probe-typeperf.ts",
