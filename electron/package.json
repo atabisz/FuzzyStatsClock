@@ -1,0 +1,25 @@
+{
+  "name": "fuzzyclock",
+  "version": "5.0.0-alpha.0",
+  "private": true,
+  "description": "FuzzyClock — a fuzzy-time desktop overlay with a live stats panel, rendered as SVG",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "bun run build:main && bun run build:preload && bun run build:renderer",
+    "build:main": "bun build src/main/main.ts --outfile dist/main.js --target node --external electron",
+    "build:preload": "bun build src/preload.ts --outfile dist/preload.cjs --format cjs --target node --external electron",
+    "build:renderer": "bun build src/renderer/renderer.ts --outfile dist/renderer.js --target browser",
+    "start": "bun run build && electron dist/main.js",
+    "test": "bun test",
+    "probe:typeperf": "bun scripts/probe-typeperf.ts",
+    "probe:cost": "bun scripts/probe-cost.ts",
+    "probe:displays": "bun run build:main && electron scripts/probe-displays.cjs"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "@types/node": "^24.0.0",
+    "electron": "^33.4.11",
+    "typescript": "^5.6.0"
+  }
+}
