@@ -34,6 +34,12 @@
 # Scoped to the captures themselves, not the whole directory — the README beside them is
 # ordinary prose and follows the CRLF policy above.
 electron/test/fixtures/*.csv -text
+# The macOS captures are LF because macOS emits LF, and one of them is delimited by a
+# literal TAB (`pmset -g batt`). The `*.txt text=auto eol=crlf` rule above would rewrite
+# every one of them to CRLF in the working tree, so a parser written against these bytes
+# would be tested against line endings the tool never produces. Same reasoning as the CSVs,
+# different platform.
+electron/test/fixtures/macos-*.txt -text
 
 # LF for GitHub Actions workflows: release.yml has 4 `shell: bash` steps, and
 # CRLF leaks a stray \r into bash variable expansion.

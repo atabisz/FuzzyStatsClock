@@ -7,7 +7,7 @@ phase: build
 progress: 10/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T17:34:00+10:00
+updated: 2026-08-28T19:24:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -22,8 +22,9 @@ a branch, merged to `master` at parity with the WPF projects deleted at that poi
 
 Two failure modes are specific to this shape of work. First, a port that *looks* three-platform because
 it compiles, while every macOS and Linux behavioural claim was written on a Windows box. Second, a port
-that deletes a working app before the replacement has earned the 633 tests the original passes — the
-deletion is the irreversible step and it comes last for that reason.
+that deletes a working app before the replacement has earned the **632** tests the original passes (of
+which 578 survive Option C — see AC-2) — the deletion is the irreversible step and it comes last for
+that reason.
 
 ## Vision
 
@@ -45,6 +46,14 @@ misses it, because every feature either ported or was consciously retired with t
   `v5.0-electron-port`. Falsifier: any commit on `master` before the parity merge.
 - **AC-2. The WPF app is not deleted before the replacement passes what it passes.** Falsifier: a
   commit deleting `FuzzyClock.App` while the port's green test count is below the translated spec.
+  **The denominator is measured, and both halves of it moved today.** Re-run at this base:
+  `dotnet test FuzzyClock.slnx -c Release` gives **469 Core + 163 App = 632**, not the 633 this ISA
+  and the plan both inherited — so the figure every AC-2 comparison rests on was off by one and is
+  now measured rather than quoted. And **54 of those 632 cover temperatures**, which Alex retired
+  today (Option C): `TemperatureFormatterTests` 12, `TemperatureServiceTests` 21, `TempsLineTests`
+  10, and 11 temps-key cases in `AppSettingsTests`. **AC-2's target is therefore 578, not 632** — a
+  consciously retired feature must not read as 54 missing tests, which is exactly how a raw count
+  comparison would read it. Falsifier unchanged; the number it compares against is now stated.
 - **AC-3. No macOS or Linux behaviour is claimed green from a Windows probe.** API-surface evidence
   (Electron typings, `@platform` annotations) is labelled as such and never as behavioural. Falsifier:
   a `[x]` on a mac/linux runtime arm whose only evidence ran on win32.
@@ -64,14 +73,24 @@ misses it, because every feature either ported or was consciously retired with t
   command output, this run.
 - [x] **ISC-2. The WPF disposition is settled.** Retired at parity, deleted on merge — stated in the
   goal verbatim ("remove the wpf version"), which closes Phase 0's fourth question.
-- [~] **ISC-3. The remaining three Phase 0 calls are Alex's and are surfaced, not assumed.** Temps
-  option (A/B/C/D), Linux XWayland-only, auto-contrast in/out of 1.0. **None of them gates Phases 1-3**,
-  and Phase 1 produces the sidecar size the temps call depends on — so the build proceeds and the
-  questions are asked when their evidence exists, rather than blocking now. Closes when he answers.
-  **The temps call now HAS its evidence, and it is not the evidence the plan expected** (ISC-9): the
-  question is no longer "is 17MB worth full fidelity" but "is 17MB plus an elevation prompt worth CPU
-  temperature, when GPU-only is free either way". The other two calls still have no new evidence —
-  Linux XWayland needs ISC-10's host, and auto-contrast is pure scope.
+- [~] **ISC-3. The remaining three Phase 0 calls are Alex's and are surfaced, not assumed. One of the
+  three is now ANSWERED: temps is C, drop them.** **None of them gates Phases 1-3**, and Phase 1
+  produced the sidecar size the temps call depended on — so the build proceeded and the questions were
+  asked when their evidence existed, rather than blocking at Phase 0.
+  - **Temps — CLOSED 2026-08-28. Alex chose C.** He was given the reframed question, not the plan's
+    original one: unelevated, Option A and Option D return the same GPU-only reading (ISC-9's D5), so
+    A only earns its 17MB if CPU temperature is worth a UAC prompt at every launch of an autostarting
+    overlay. **The answer retires a shipped v4.2 feature**, which the Vision explicitly allows for —
+    "every feature either ported or was consciously retired with the reason written down" — and this
+    is the reason, written down. Acted on in the same session: `electron/sidecar/` and
+    `scripts/probe-sidecar.ts` deleted, `probe:sidecar` removed from `package.json`.
+  - **Linux XWayland-only — still open.** No new evidence; it needs ISC-10's Linux host, which does
+    not exist yet.
+  - **Auto-contrast in/out of 1.0 — still open, and it acquired evidence today without being asked.**
+    ISC-10's macOS run found `screencapture` **TCC-denied** on that host, and that is the same
+    permission `desktopCapturer` needs. So on macOS the feature starts from *denied* and needs a user
+    prompt, not just an entitlement — which makes the "cut it" side of Alex's call cheaper than the
+    plan assumed. Recorded here rather than pushed at him: the call is still his and it is Phase 8.
 
 ### Phase 1 — Telemetry + platform spike (THE GO/NO-GO)
 
@@ -234,24 +253,99 @@ misses it, because every feature either ported or was consciously retired with t
     motherboard sensors. A trimmed build could silently return sentinels on hardware this host cannot
     present, and D-14's silent-failure posture means nobody would notice. So the 4.40× saving is
     real and its risk is unmeasurable from this machine.
-  - **It bounds ISC-6's temps asymmetry, which was the other reason this claim existed.** ISC-6
-    measured Electron *without* a temps source while the WPF baseline had `TemperatureService`
-    running in-process. Upper bound on the sidecar's cost: 106.8ms per 2000ms interval = **5.34% of
-    one core**, and that is an over-estimate because it charges wall-clock as CPU. Even at the
-    ceiling, Electron + sidecar ≈ 13.6% against WPF's 19.92% — **so the asymmetry narrows the CPU win
-    but does not flip it.**
+  - **It bounds ISC-6's temps asymmetry — and under Option C the bound applies to the other side of
+    the comparison than the one it was computed for.** ISC-6 measured Electron *without* a temps
+    source while the WPF baseline had `TemperatureService` running in-process. The original use was
+    "what would Electron pay to add it": 106.8ms per 2000ms interval = **5.34% of one core** ceiling,
+    an over-estimate since it charges wall-clock as CPU, giving Electron + sidecar ≈ 13.6% against
+    WPF's 19.92% — narrowing the win, not flipping it. **Electron is now never paying that**, so the
+    same figure instead bounds how much of the *WPF* baseline buys a feature the port does not have.
+    At Alex's live 3s interval that ceiling is 106.8/3000 = **≤3.56% of one core**, so a temps-free
+    WPF baseline is **≥16.36%** of the measured 19.92%, and the 2.43× CPU win becomes **≥2.0×**. Worth
+    keeping precisely because the sidecar mirrors `TemperatureService.cs`'s resolver line for line —
+    without that fidelity the number would bound nothing on the WPF side.
   - Bounds: Windows, one host, unelevated, `dotnet 10.0.400`. The sidecar is win32-only by
     construction — Linux reads `/sys/class/hwmon` from TypeScript and never touches this project, and
     macOS has no temperature source at all.
-- [ ] **ISC-10. The shell flags are smoked on macOS and on an X11 Linux session.** The only way the
-  plan's `[UNPROBED]` rows become real. `mcp__mac-codex__codex` can cover the macOS half on Alex's
-  go-ahead; Linux needs a host.
+- [~] **ISC-10. The shell flags are smoked on macOS and on an X11 Linux session. The macOS half is
+  DONE; the Linux half has no host, so the claim stays open.** Dispatched to
+  `mcp__mac-codex__codex` on Alex's explicit go-ahead. Host: **Apple M1 laptop, 8GB, 8 logical cores,
+  macOS 26.6.2 build 25G83, arm64**, with Electron pinned to **exactly 33.4.11** so the evidence is
+  comparable to the Windows-side typings claims. Seven arms; **4 measured, 3 INCONCLUSIVE and stated
+  as such.**
+  - **M1 — the window renders (the gate).** 578 rAF paints over 10,000.8ms, acknowledged from inside
+    `requestAnimationFrame`, zero `did-fail-load` events. Every visual arm below is reported subject
+    to this, which is the lesson of the doubled-path detour: a transparent window with nothing in it
+    is visually identical to a working overlay and *cheaper*.
+  - **M2 — flags read back off the live window, not off the source.** `isAlwaysOnTop: true`, bounds
+    exactly `100,100,400×200`, `isFullScreen: false`, `app.dock.isVisible(): false`,
+    `process.versions.electron: 33.4.11`. **Two API surfaces I would have used do not exist at
+    runtime in 33.4.11**: `win.getAlwaysOnTopLevel` and `app.getActivationPolicy` are both
+    `undefined`. So the always-on-top *level* cannot be verified from Electron at all — only that the
+    flag is on. And **`isFocused` differed between two runs on the same host**, so it is not an
+    overlay invariant and no claim may rest on it.
+  - **M3 — out of the Dock, confirmed from OUTSIDE the process.** LaunchServices reports
+    `ApplicationType="UIElement"` and `bundleID="com.github.Electron"` for the live pid. That is the
+    arm that matters; `app.dock.isVisible() === false` is the process agreeing with itself.
+    **`osascript`/System Events is not a usable verification channel on this host** — the requested
+    `tell application "System Events" to get name of every application process whose background only
+    is false` **hung with no stdout and no stderr for ~22s** and had to be killed, consistent with an
+    ungranted Automation TCC. Worth knowing before anything in this port reaches for AppleScript.
+  - **M4 — Cmd-Tab: the policy is measured, the switcher is NOT, and the two are not the same claim.**
+    An external Swift binary read `NSRunningApplication(processIdentifier:).activationPolicy` =
+    `rawValue 1` = **`.accessory`**, corroborated by M3's `UIElement`. But nobody observed the Cmd-Tab
+    switcher, because screen capture is denied on that host. `[MEASURED]` for the policy,
+    `[INCONCLUSIVE]` for the behaviour. This is the discipline AC-3 is about, applied one level
+    finer than AC-3 asks: the arm ran on the right OS and *still* only reaches the mechanism.
+  - **M5 — over a fullscreen window: INCONCLUSIVE, and the API acceptance is not the answer.** A
+    second Electron process went native-fullscreen (`isFullScreen: true` read back), the overlay's
+    `setVisibleOnAllWorkspaces(true, {visibleOnFullScreen: true})` did not throw, and the overlay
+    still read `isVisible: true` while painting 588 frames. **None of that establishes it was
+    composited above.** `screencapture -x` failed: `could not create image from display`. Reported as
+    the unproven arm it is rather than dressed as a pass.
+  - **M6 — the `forward: true` mousemove path is unusable on macOS too, and the shipping mechanism
+    is live.** Forwarding delivered **1** renderer `mousemove` across an eight-lap programmatic
+    cursor sweep (Windows measured **0** on a 3440×1440 primary). Different number, same verdict —
+    and the finding is stronger for the disagreement than it would be for a match, because two
+    platforms failing the same way for the same reason was the weaker hypothesis. What I actually
+    intend to ship measured healthy: `screen.getCursorScreenPoint()` polled at 100ms gave **61
+    changes / 42 unique coordinates across 98 samples**. Cursor position was restored afterwards.
+    Click-through *into another application* was not instrumented — `[INCONCLUSIVE]`.
+  - **M7 — four macOS telemetry fixtures captured, and two of them changed a plan row.** Checked in
+    under `electron/test/fixtures/macos-*.txt`, LF-preserved via a new `.gitattributes` rule. The
+    positive control ran: aggregate CPU read **1.25%** idle and **26.73%** with one core deliberately
+    busy, so the pipeline did not collapse both samples toward zero.
+    - **`os.freemem()` is not a memory signal on macOS.** 264,617,984 of 8,589,934,592 bytes =
+      **3.1% free** on a healthy, responsive machine. `vm_stat` occupancy on the same snapshot is
+      **69.14%**. The plan had `os.totalmem/freemem` as primary with `vm_stat` as a supplement for
+      the compressor; that is now inverted. A cell reading 97% used on an idle Mac is worse than `--`.
+    - **macOS GPU% is NOT a permanent `-1`.** `powermetrics` is confirmed root-only (`powermetrics
+      must be invoked as the superuser`, exit 1, no `sudo` attempted) — but `ioreg -r -c
+      AGXAccelerator -l` returns `"Device Utilization %"=26`, `"Renderer Utilization %"=25`,
+      `"Tiler Utilization %"=26` **with no privileges at all.** Undocumented IOKit, Apple-silicon-only
+      driver class, one host of evidence — so it is a *candidate* source, recorded and not adopted,
+      and the `-1` fallback stays mandatory rather than vestigial.
+    - `vm_stat` **page size is 16384, not 4096** on Apple silicon, and it reports `Pages stored in
+      compressor` (450,232) and `Pages occupied by compressor` (165,245) as different numbers — only
+      the second is a physical footprint. `sysctl vm.swapusage` carries `M` suffixes and a trailing
+      `(encrypted)` token. `pmset -g batt` is **TAB-delimited** and prints `0:00 remaining` while
+      charged, which must not read as "no time left". Every one of those is a parser trap that a
+      hand-written fixture would not have contained.
+  - Bounds, stated because the temptation is to let this stand for "macOS works": **one Mac, one OS
+    version, Apple silicon only, and screen capture denied throughout** — which is precisely why the
+    three visual arms are inconclusive rather than absent. An Intel Mac has a different GPU driver
+    class and is untested. **The Linux half of this claim has no host and no evidence.**
 
 ### Phase 2 — Core translation
 
-- [ ] **ISC-11. `FuzzyClock.Core` is translated in full, and the denominator is the measured one.**
-  28 files / 2,510 LOC = 1,987 across 18 phrase providers + 523 across 10 logic files.
-- [ ] **ISC-12. ≥469 translated Core tests pass under `bun test`.** Translated alongside each unit, not
+- [ ] **ISC-11. `FuzzyClock.Core` is translated in full, and the denominator is the measured one —
+  re-measured after Option C, because a stale denominator is how a deletion turns into missing work.**
+  **27 files / 2,467 LOC = 1,987 across 18 phrase providers + 480 across 9 logic files.** Was 28 files
+  / 2,510 = 1,987 + 523 across 10; `TemperatureFormatter.cs` (43 LOC) is deleted under Option C, so it
+  is not a file left to translate and must not be counted as one. The phrase-provider half is
+  untouched — temps never entered it.
+- [ ] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
+  contributes **12** of those cases and retires with the feature. Translated alongside each unit, not
   afterwards — a test written after the code it checks is a rubber stamp (AC-5).
 - [ ] **ISC-13. Phrase output is byte-identical to the C# original across a full sweep.** Golden file
   generated from the C# side: every minute of 24h × 6 locales × 11 styles. This is the claim that makes
@@ -297,8 +391,12 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 6 — Stats panel + per-platform sources
 
-- [ ] **ISC-27. All 18 telemetry cells resolve.** Each shows a live number on its platform or renders
-  `--` through the existing `-1` sentinel path.
+- [ ] **ISC-27. All 15 telemetry cells resolve.** Was 18; the three temperature cells retire with
+  Option C. Each shows a live number on its platform or renders `--` through the existing `-1` sentinel
+  path. Two rows moved under ISC-10's M7 and the claim inherits both: **macOS MEM must come from
+  `vm_stat`, not `os.freemem()`** (which read 3.1% free on a healthy 8GB Mac), and **macOS GPU% may
+  resolve after all** via unprivileged `ioreg -c AGXAccelerator` — a candidate, not an adoption, so the
+  `-1` path stays reachable and tested on that cell rather than being treated as dead code.
 - [ ] **ISC-28. Every per-platform parser is fixture-driven and runs on every platform.** Captured
   `/proc/meminfo`, `typeperf` CSV, `pmset -g batt`, `hwmon` tree checked in. This is what makes three
   platforms testable from one.
@@ -333,7 +431,7 @@ misses it, because every feature either ported or was consciously retired with t
 - **Phase 1 before the shell, deliberately.** The window flags, tray, click-through and ghost design
   are already proven in `garry-desktop`, so building them first would feel like progress while learning
   nothing. The only open question that can kill the port is what the telemetry actually costs.
-- **`electron/` as a sibling tree, WPF untouched.** Keeps the shipping app shipping and keeps the 633
+- **`electron/` as a sibling tree, WPF untouched.** Keeps the shipping app shipping and keeps the 632
   C# tests alive as a translation oracle rather than a memory (ISC-13 depends on running them).
 - **`electron/scripts/` probes are `bun`-runnable with no Electron import.** Same rule
   `garry-desktop/src/platform.ts` follows: the platform and parsing layers stay loadable without an
@@ -437,6 +535,48 @@ misses it, because every feature either ported or was consciously retired with t
   different fixes. Adding a mode that prints the inventory was cheaper than reasoning about which one
   was happening — and it is what turned "temps mostly don't work" into "51 sensors present, all
   refused, unelevated."
+- **Option C acted on in full: the sidecar tree, its probe and its npm script are deleted, not left
+  dormant.** Alex chose "C, drop temps" after ISC-9, so `electron/sidecar/` (231-line `Program.cs` +
+  csproj), `electron/scripts/probe-sidecar.ts` and `package.json`'s `probe:sidecar` are gone. Kept
+  nothing behind a flag: a dormant sidecar is a second temperature implementation that no test covers
+  and no platform builds, and the next person to read the tree would reasonably assume it works.
+  Everything is recoverable from **`64c747e`**, which is cited at ISC-9 and in the plan so the code is
+  a `git checkout` away rather than a rewrite. **The sidecar's entire value was informational, and it
+  delivered:** it existed to produce a number, the number it produced was "51 CPU sensors present and
+  all NULL unelevated", and that retired the feature it was built to serve. A probe that argues against
+  its own subject is a successful probe, not wasted work.
+- **The four temperature fields leave `StatsSample` entirely rather than being stubbed at `-1`.** A
+  field that is permanently `-1` on every platform reads as *unimplemented* — an invitation to finish
+  it — whereas an absent field reads as a decision. The `-1` sentinel keeps meaning "no source right
+  now" for the 15 cells that can have one, which is precisely the meaning a permanent `-1` would
+  erode. `TempsLineVisible` therefore becomes an **ignored key** on settings import (ISC-18), not a
+  missing one: his live file has it, the importer must not choke on it, and it must not resurrect a
+  UI row.
+- **The AC-2 denominator was re-measured rather than reasoned about, and the inherited number was
+  wrong.** 469 Core + 163 App = **632**, not the 633 carried in earlier notes; 54 of those cases are
+  temps (12 + 21 + 10 + 11), so the parity target is **578**. Recorded as a correction rather than
+  quietly substituted, because the failure this prevents is specific and one-directional: a raw
+  before/after count at merge time would read a retired feature as 54 missing tests, and the safe-looking
+  response to that is to write 54 tests for code that no longer exists.
+- **The `ioreg` GPU source is recorded as a candidate and NOT adopted.** `ioreg -r -c AGXAccelerator -l`
+  gives macOS GPU utilisation unprivileged, which is better than the `-1` the plan had — but it is an
+  **undocumented IOKit path on an Apple-silicon-only driver class**, with field names that are not
+  contractual and one host of evidence. So it is checked in as a fixture with the caveat written next
+  to it, and the `-1` fallback stays mandatory. Adopting a source on its first sighting is how a cell
+  becomes silently broken on the first Intel Mac it meets.
+- **macOS MEM comes from `vm_stat`, and `os.freemem()` is rejected outright rather than kept as a
+  fallback.** It read **3.1% free on a healthy 8GB machine**. A wrong-but-plausible 97% is worse than
+  `--`, and a fallback that is confidently wrong is worse than no fallback — it would activate exactly
+  when `vm_stat` is unavailable and there is nothing to contradict it. Note also that `Pages stored in
+  compressor` ≠ `Pages occupied by compressor`; only the second is a physical footprint.
+- **The macOS dispatch ran `danger-full-access` / `approval-policy: never`, and the constraints were
+  put in the prompt instead.** It needed network (npm) and WindowServer access, so a sandbox would have
+  failed for reasons unrelated to the question. What bounded it was written rather than enforced: all
+  writes confined to a `mktemp -d`, no global installs, **no interaction with any permission prompt**,
+  and no temperature probing at all — that decision was already made and re-opening it on a second
+  host would have been scope I was not given. The TCC denials are therefore a real property of that
+  host, not something a granted prompt papered over, which is why three arms are inconclusive instead
+  of green.
 - **The 40% disk regression is surfaced to Alex, not adjudicated here.** Phase 1 is the go/no-go, and
   the two numbers now point opposite ways: ~2× cheaper on CPU, 1.40× more disk. Which one matters is
   his call about the product — a desktop overlay's disk cost is paid once and its CPU cost is paid
@@ -459,15 +599,47 @@ measured on this branch at or after that base.
 | ISC-7 | `bun electron/scripts/probe-displays.ts` — arms B1..B5 | **the uniqueness arm is the discriminator, and it is the one the claim as written did not have.** "Non-empty and stable" passes on 2 of 3 of his displays while still being unusable, so the probe asks separately whether a label *distinguishes* one monitor from another — and 2× `"LG HDR WQHD"` is what makes the answer no. **Counter-case from the original**: WPF's own `MonitorService.cs:90-115` duplicate-suffix pass exists only for this case, so the ambiguity is a known production property, not a probe artefact. **The fallback branch is measured before being selected** — composite uniqueness and restart stability are both checked, rather than assumed to work because the preferred branch failed. **Two cold launches**, so the enumeration is genuinely re-done and not read twice from one process |
 | ISC-7.1 | same probe, arm B6 | **cross-artifact**: the live settings file and the live enumeration are read in the same run and matched against each other, so "these keys are unproducible" is measured against what Electron actually reported on this desk rather than against the API docs. **Two independent failures, one visible only via geometry**: the key mismatch would be caught by any comparison, but the orphaned `display5` position is only visible by testing the stored point against current bounds — and it is the one that would have shipped as a window restored off-screen |
 | ISC-6.1 | same probe, A4's memory lines | the claim is that the method **cannot** decide, and the probe demonstrates it rather than asserting it: it prints both bounds and both intervals, and the overlap is visible in the output. A single RSS number for either side would pass a naive comparison in whichever direction it was chosen — which is the failure being refused |
-| ISC-9 | `bun run probe:sidecar` from `electron/` — arms D1..D5 (two `dotnet publish` runs, ~2 min) | **the reading arm is the discriminator** (D2): the WPF original's D-14 posture makes a totally dead temperature source *look* like a machine without sensors, so a sidecar emitting well-formed JSON full of `-1` has a size and a latency that describe nothing. Everything else is reported subject to D2, and it passed on a real GPU value. **Enumerated-vs-absent** (D5) is the distinction the decision turns on and the normal output cannot show: 51 CPU sensors present and all NULL is a driver refusal, 0 motherboard sensors is absent hardware, and both render `-1` — hence a `--dump` mode rather than an inference from the sentinel. **Trim safety compared on behaviour, not on exit status** (D4): a trimmed publish that succeeds and then silently returns sentinels is the actual failure mode, so the two builds are compared on which sources came back live, and the claim is explicitly bounded to this host's hardware because the IL2104 warnings cover exactly the paths it cannot exercise. **Percentiles not a mean** (D3): the question is whether a read can overrun its 2s interval, and a 106.8ms mean hides a 472ms worst case. **Oracle fidelity**: the priority lists and resolution walk are copied from `TemperatureService.cs` rather than redesigned, so a difference in reading is a port defect and not a design variation |
+| ISC-9 | **No longer re-runnable on this branch — `probe:sidecar` and the sidecar tree were deleted under Option C. The probe is at `64c747e:electron/scripts/probe-sidecar.ts` and restoring it is a `git checkout 64c747e -- electron/`.** Arms D1..D5 (two `dotnet publish` runs, ~2 min) | **the reading arm is the discriminator** (D2): the WPF original's D-14 posture makes a totally dead temperature source *look* like a machine without sensors, so a sidecar emitting well-formed JSON full of `-1` has a size and a latency that describe nothing. Everything else is reported subject to D2, and it passed on a real GPU value. **Enumerated-vs-absent** (D5) is the distinction the decision turns on and the normal output cannot show: 51 CPU sensors present and all NULL is a driver refusal, 0 motherboard sensors is absent hardware, and both render `-1` — hence a `--dump` mode rather than an inference from the sentinel. **Trim safety compared on behaviour, not on exit status** (D4): a trimmed publish that succeeds and then silently returns sentinels is the actual failure mode, so the two builds are compared on which sources came back live, and the claim is explicitly bounded to this host's hardware because the IL2104 warnings cover exactly the paths it cannot exercise. **Percentiles not a mean** (D3): the question is whether a read can overrun its 2s interval, and a 106.8ms mean hides a 472ms worst case. **Oracle fidelity**: the priority lists and resolution walk are copied from `TemperatureService.cs` rather than redesigned, so a difference in reading is a port defect and not a design variation |
 | ISC-8 | `bun electron/scripts/probe-size.ts` from `electron/` — arms C1..C5, after `bun run dist:win` | **containment is the discriminator** (C4): a wrong `files:` glob yields a plausible installer size for a package that launches to nothing, so all six runtime files are verified present *inside* `app.asar` — and the asar header is parsed directly, because a `bunx asar` that is not installed degrades into "no files found", indistinguishable from the failure being tested. **Baseline identity** (C2): both WPF artefacts are re-read off disk and compared to their recorded byte counts, so citing a stale or different `publish/` surfaces as a FAIL instead of silently becoming the baseline — both matched exactly. **Like-for-like denominators**: installer-vs-installer and payload-vs-payload, never one of each, since an installer measured against an uncompressed tree flatters whichever side is compressed; and `publish/` is measured as a tree to confirm the single-file exe *is* the whole WPF payload (3 files, 0.1MB of pdbs beside it) rather than one file out of several. **The split that dates the finding** (C5): the app is 0.009% of the payload, so the ratio is a floor that improves for Electron as the port fills in — without it, today's 1.40× would be quoted at Phase 9 as though it were static |
+| ISC-10 (macOS half only) | `mcp__mac-codex__codex` against an Apple M1, macOS 26.6.2 arm64, Electron pinned to 33.4.11. **Not re-runnable from this machine** — it needs that dispatch and a host with the same TCC state. Four scripts and four fixture captures in a `mktemp -d`; arms M1..M7 | **the render gate is the discriminator, and it comes first** (M1): a transparent frameless window that loaded nothing is visually identical to a working overlay and *cheaper*, so 578 rAF paints acknowledged from inside the renderer plus zero `did-fail-load` is what licenses every arm after it. **Readback off the live window, never off the source** (M2) — and the readback itself found two typings-implied APIs (`getAlwaysOnTopLevel`, `getActivationPolicy`) that **do not exist at runtime**, which is exactly the class of error a source-reading probe cannot produce. **External corroboration for the two claims a process cannot make about itself** (M3/M4): LaunchServices `ApplicationType="UIElement"` and a separate Swift binary reading `NSRunningApplication.activationPolicy == .accessory`, rather than trusting `app.dock.isVisible()`, which is the process agreeing with itself. **Policy and UI are split, not merged** (M4): the accessory policy is `[MEASURED]`, the Cmd-Tab switcher is `[INCONCLUSIVE]`, because `screencapture -x` is TCC-denied on that host — three arms (M4b, M5, M6) are reported unproven for that one reason rather than inferred from the mechanism. **Positive control on the telemetry** (M7): 1.25% idle vs 26.73% with one core deliberately busy, so a collapsed pipeline returning near-zero for everything cannot pass. **Counter-case that reversed a plan row**: `os.freemem()` was cross-read against `vm_stat` on the same snapshot and disagreed 3.1%-free vs 69.14%-occupied — a single-source read would have shipped a memory cell showing 97% used on an idle Mac. **A refuted absence**: `powermetrics` was confirmed root-only *and* an unprivileged `ioreg` path was found anyway, so "no source exists" was tested rather than concluded from the documented one failing |
 
 ### Still outstanding
 
-- **Every macOS and Linux runtime arm is unprobed** (ISC-10, and the platform halves of ISC-15..20,
-  ISC-27..30). What exists is API-surface evidence from Electron 33.4.11's typings. `[DEFERRED-VERIFY]`
-  — Phase 1.6 opens them; a Mac is reachable via `mcp__mac-codex__codex` on Alex's go-ahead, a Linux
-  host is not currently identified.
+- **The Linux runtime arms are entirely unprobed, and there is no host.** ISC-10's Linux half plus the
+  Linux halves of ISC-15..20 and ISC-27..30. What exists for Linux is API-surface evidence from Electron
+  33.4.11's typings and nothing else — no window ever opened. `[DEFERRED-VERIFY]`, and unlike the macOS
+  half this one cannot be closed by a dispatch: **no Linux host is identified.** The two rows that will
+  hurt are XWayland (`setIgnoreMouseEvents` and always-on-top behave differently under Wayland
+  compositors) and ISC-30's hand-written `~/.config/autostart/*.desktop`, since `setLoginItemSettings`
+  is `@platform darwin,win32` — there is no API to call. **macOS is no longer in this bullet**: ISC-10's
+  macOS half is measured (see the Verification row), which narrows the gap rather than closing it — one
+  M1 on one OS version, Apple silicon only.
+- **Three macOS arms are blocked on a TCC grant, not on effort.** M4(b) the Cmd-Tab switcher, M5
+  layering over a fullscreen window, M6 click-through into another application. All three need a screen
+  capture and `screencapture -x` answers `could not create image from display` on that host. They are
+  `[INCONCLUSIVE]`, deliberately not downgraded to "probably fine because the mechanism is right" —
+  M4's own split (policy measured, switcher not) is the template. Closing them means Screen Recording
+  granted to the harness on a Mac, which is Alex's grant to give on his own machine, and the same grant
+  ISC-23's auto-contrast path will need anyway since `desktopCapturer` dies on the identical denial.
+  **`osascript`/System Events is also unusable there** — it hung ~22s with no output, so nothing in this
+  port should route verification through AppleScript.
+- **One busy JS thread on the M1 measured 26.73% aggregate CPU where ~12.5% was expected, and I cannot
+  explain it.** 8 logical cores, so one saturated thread should read about an eighth. The control still
+  did its job — 1.25% idle against 26.73% busy is unambiguous, which is all M7 needed it for — but the
+  *absolute* figure is unexplained. The M1's 4 performance + 4 efficiency split and how macOS attributes
+  time across them is the obvious suspect and was not tested. Recorded rather than smoothed over,
+  because any future macOS CPU-percentage cell inherits whatever this is: a 26.73% reading may not mean
+  what the same number means on the Windows box.
+- **The macOS host cannot extend ISC-6's cost comparison.** It is an **8GB, 8-logical-core M1**; the
+  Windows measurement is a 32-core i9-13950HX with an RTX 5000 Ada. There is no WPF baseline on macOS to
+  compare against in any case (that is the point of the port), so the 2.43× headline is a Windows number
+  and stays one. If a macOS cost figure is ever wanted it needs its own baseline and its own claim.
+- **Two Electron 33.4.11 APIs the typings imply are absent at runtime, so no flag probe may use them.**
+  `win.getAlwaysOnTopLevel` and `app.getActivationPolicy` are both `undefined`. Consequence for ISC-15:
+  the always-on-top **level** cannot be read back from Electron at all — only that the flag is set — so
+  if the level matters it needs external evidence, the way M3/M4 used LaunchServices and
+  `NSRunningApplication`. And **`win.isFocused()` differed between two runs on the same host**, so it is
+  not an overlay invariant and nothing may assert on it.
 - **The GPU recycle interval will need tuning even once ISC-5 closes, and ISC-6 now says how much is at
   stake.** **76% of Electron's measured CPU is the recycle, not the app** — reproduced exactly across
   both runs (4.27s of 5.61 in run 2; 5.83s of 7.63 in run 1), attributed to the replacement `typeperf`
@@ -484,8 +656,14 @@ measured on this branch at or after that base.
   update work per unit time and still measured cheaper. *For Electron:* the WPF build polls
   LibreHardwareMonitor for temperatures (`TempsLineVisible: true` in his settings) and Electron has no
   temperature source yet, so some part of WPF's cost buys a feature Electron does not have. The probe
-  cannot separate that without editing his live settings, which it will not do. **ISC-9 is where the
-  second one gets bounded**, which is why the ISC-6 pass is conditional on ISC-9 rather than final.
+  cannot separate that without editing his live settings, which it will not do. **Option C makes the
+  second asymmetry permanent rather than temporary** — Electron is never getting temperatures, so this
+  is not a gap that closes at Phase 6; it is a standing overstatement of the 2.43× in Electron's favour.
+  **It is bounded, not open:** ISC-9's 106.8ms mean read at his 3s interval is ≤3.56% of one core, so
+  the temps-free WPF baseline is ≥16.36% and the win is **≥2.0×** rather than 2.43×. What stays
+  unmeasured is the exact figure inside that bound, and it stays that way deliberately — measuring it
+  means flipping `TempsLineVisible` off in his live settings and re-running the WPF baseline, and that
+  file is read-only to every probe. A bound that survives the worst case is enough for a go/no-go.
 - **ISC-7's stability is bounded at "across a process restart", which is weaker than it sounds.** Two
   cold Electron launches, minutes apart, one display arrangement. It does **not** cover a reboot, a cable
   swap, a monitor power-cycle, or a resolution change — and the composite key is *designed* to break on
@@ -515,25 +693,15 @@ measured on this branch at or after that base.
   `\Processor(_Total)\% Processor Time` fails on a non-English Windows. The locale-independent form is the
   numeric index path via the `Perflib\009` / `CurrentLanguage` registry maps — a lookup table, not a
   redesign, and it needs a non-English host to verify on. Recorded in `win32.ts` as a known limitation.
-- **The temps decision is now the one question worth interrupting him for, and its shape changed.**
-  Not "A/B/C/D given a 17MB sidecar" but: unelevated, Option A and Option D deliver the same GPU-only
-  reading, so A only earns its 17MB if CPU temperature is worth a UAC prompt at every launch. A fourth
-  path exists that the plan's table does not list — **ship the sidecar unelevated and accept GPU-only,
-  keeping full fidelity available to anyone who runs elevated** — which is what v4.2 does today by
-  accident rather than by decision.
-- **CPU temperature elevated is unmeasured.** The ring-0 refusal is inferred from 51 enumerated
-  sensors all reading NULL while `elevated: false`, which is strong but is not the same as having seen
-  the values appear with admin rights. Confirming it means an elevated run, and that means a UAC
-  prompt on Alex's desktop — his to trigger, not mine.
-- **Trimming's safety is bounded to this host's hardware and cannot be widened from here.** IL2104
-  warnings cover `LibreHardwareMonitorLib`, `System.Management` and `HidSharp`; the paths they guard
-  are Storage/NVMe, AMD GPU and motherboard super-I/O, none of which this box presents. Worth a
-  re-run of `probe:sidecar` on any machine with an NVMe temperature sensor before the trimmed build
-  ships — a false green here costs a silently dead sensor in the field.
-- **`Computer.Open()` varies 542–1794ms across runs on one machine**, against the 4272ms prior. The
-  driver-load state is the likely variable and it was not controlled. Whatever timeout the parent
-  uses must be set from the cold case, and nobody has measured the cold case on this host — the
-  4272ms figure is from a different box.
+- **The temps decision is CLOSED — Option C, drop temps. Do not re-raise it, and do not treat the four
+  bullets it retired as open work.** They were: the A/B/C/D question itself; CPU temperature unmeasured
+  elevated (the ring-0 refusal is still inferred from 51 NULL sensors and will now stay inferred, since
+  nothing in the port needs the answer); trimming's IL2104 safety unwidenable from this host's hardware;
+  and `Computer.Open()` varying 542–1794ms against a 4272ms prior from a different box. All four were
+  properties of a sidecar that no longer exists. **Each was a real residual and none is a defect being
+  waived** — they are moot, which is a different disposition, and worth distinguishing because a moot
+  item that reads as waived invites someone to come back and pay it. If temps ever return, they return
+  from `64c747e` and every one of those four is open again unchanged.
 - **The disk regression needs Alex's read before Phase 2 is worth starting.** 1.40× larger on both
   measures, against ~2× cheaper on CPU. Not a blocker and not a question I should stop on, but it is
   the first Phase 1 result that goes the wrong way, and it is the kind of thing better surfaced now
@@ -688,3 +856,58 @@ measured on this branch at or after that base.
   over `bunx asar` for the same reason the whole probe exists — an instrument that fails silently
   under a variable you did not set will be believed. Third instance of that pattern this phase, after
   `ELECTRON_RUN_AS_NODE` and the doubled path.
+- **conjectured** that ISC-9's finding would decide *between Options A and D* — the two that keep the
+  feature — since the reframed question I wrote into Still outstanding was "does A earn its 17MB over D."
+  **refuted-by** Alex answering **C, drop temps**, which was not on the axis I had narrowed to. The
+  useful part is what the narrowing did: I had reasoned my way from four options down to two and then
+  presented the two, and the option that won was one I had implicitly retired. **A probe's job was
+  finished the moment it produced the number; picking which options the number was allowed to decide
+  between was not part of that job.** The wider consequence is the pleasant one — the sidecar's entire
+  value turned out to be informational, and what it informed was the removal of the feature it was
+  built to serve. 231 lines of `Program.cs` and a whole probe deleted at `64c747e`, and the run that
+  produced them is the reason the deletion is defensible rather than a guess.
+- **conjectured** that macOS GPU utilisation was a permanent `-1`, written into the plan as a settled
+  row on the strength of `powermetrics` being root-only. **refuted-by** M7 finding `ioreg -r -c
+  AGXAccelerator -l` returning `"Device Utilization %"=26` **with no privileges at all**. The
+  `powermetrics` finding was correct and correctly measured (`must be invoked as the superuser`, exit
+  1) — the error was concluding *no source exists* from *the documented source fails*. Those are
+  different claims and only the second was tested. The general form is the mirror of the enumerated-vs-
+  absent distinction that decided temps: **a failed lookup of the known path is not an absence proof,
+  and the cheap follow-up is to enumerate rather than to reason.** Not adopted on one sighting — an
+  undocumented Apple-silicon-only IOKit key path is a candidate, so the `-1` fallback stays mandatory.
+- **conjectured** that `os.totalmem()`/`os.freemem()` was the primary macOS memory source, with
+  `vm_stat` a supplement for compressor detail. **refuted-by** the numbers on one healthy machine:
+  `freemem` reported **3.1% free** where `vm_stat` occupancy on the same snapshot was **69.14%**. Roles
+  inverted, and `freemem` dropped entirely rather than kept as a fallback — a fallback that is
+  confidently wrong activates exactly when nothing is available to contradict it. What caught this was
+  cross-reading two sources in one snapshot instead of trusting the portable-looking one; on Windows
+  and Linux `freemem` is roughly what it sounds like, so nothing but a same-instant comparison on macOS
+  would have shown it. A memory cell reading 97% used on an idle Mac is worse than `--`.
+- **conjectured** that the zero-`mousemove` result under `setIgnoreMouseEvents(…, {forward: true})` was
+  a Windows property, which is why ISC-24 was worded against "measured delivering zero events here."
+  **refuted-by** macOS delivering **1** event across an eight-lap sweep — which does not restore the
+  API, it generalises the verdict. And the disagreement is what makes it worth recording: two platforms
+  producing the *same* number would have been the weaker evidence, since a shared zero invites "the
+  harness never moved the cursor." One event proves the harness worked and the channel is still useless.
+  Cursor polling via `screen.getCursorScreenPoint()` measured healthy on both (61 changes / 42 unique
+  points over 98 samples at 100ms), so the design does not change — only the strength of the reason.
+- **corrected** the C# test denominator, which does not reproduce. Earlier notes and AC-2 carried
+  **633**; measuring it gives **632** (469 Core + 163 App). Recorded rather than silently substituted
+  because AC-2 is a parity gate and the merge is the irreversible step — a target number quoted from
+  memory is exactly the kind of figure that gets defended later. The temps-covered subset is 54 cases
+  (12 + 21 + 10 + 11), so the real target is **578**, and the reason to nail that down now is that a raw
+  before/after count at merge time reads a retired feature as 54 missing tests.
+- **conjectured** that the four hand-transcribed macOS fixtures had arrived CRLF, on the strength of
+  `grep -c $'\r'` returning 23/2/1/1. **refuted-by** noticing those were each file's exact **line**
+  count — `grep -c` counts matching lines, and with an unquoted/mis-escaped pattern it was matching
+  every line. A byte-level count (`[...readFileSync(f)].filter(x => x === 13).length`) shows **0 CRs**:
+  the files were LF all along and the "conversion" I ran changed nothing, which is why its own output
+  claimed identical byte counts *and* zero CRs simultaneously — a self-contradiction that was the real
+  tell. My first attempt to check that read `p.filter?.length` and printed `1`, which is the **arity of
+  `Uint8Array.prototype.filter`**, not a CR count; `Buffer` inherits it, so the expression was
+  well-formed and measured nothing. **Instances five and six of the family already named four times
+  above** (`ELECTRON_RUN_AS_NODE`, the doubled `dist/dist` path, TypeScript 7.0.2, a possibly-absent
+  `bunx asar`), and the first two that were mine rather than a tool's. Both would have been believed:
+  one would have "fixed" line endings that were already correct, and the other would have confirmed it.
+  `.gitattributes` now pins `electron/test/fixtures/macos-*.txt -text` so the repo-wide
+  `*.txt text=auto eol=crlf` rule cannot rewrite captures to line endings `vm_stat` never emits.

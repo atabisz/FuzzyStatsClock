@@ -13,7 +13,7 @@
 - **The cheap alternative died with this requirement.** WebView2 hosted inside the existing WPF shell reaches the SVG-display goal for roughly a tenth of the work — and it is Windows-only. Asking for macOS and Linux is what makes the full Electron rewrite the only path.
 - **Linux is the *easiest* telemetry platform of the three, not the hardest.** CPU, memory, swap, battery and **temperatures** are all unprivileged reads under `/proc` and `/sys`. Windows needs a long-lived `typeperf` child plus a ring-0 driver for temps. **macOS is the hard one** — no unprivileged temperature source and no GPU utilisation without root `powermetrics`.
 - **Exactly two capabilities are declared absent on Linux by Electron's own typings**, and they are the only hard API gaps in the whole port: `setLoginItemSettings` (`@platform darwin,win32`) → auto-launch needs a hand-written `.desktop` file; `setContentProtection` (`@platform darwin,win32`) → no self-exclusion from screen capture, which is auto-contrast's feedback-loop guard. Everything else is present-but-unproven, a cheaper class of problem.
-- **One decision gates the plan and only Alex can make it: temperatures.** See § The one decision below.
+- **One decision gated the plan and only Alex could make it: temperatures. ~~Open~~ DECIDED 2026-08-28 — Option C, drop them, on evidence Phase 1 produced.** See § The one decision below; the sidecar was built and measured before being deleted, and the reason it lost was not its size.
 - **Do not build the shell first.** The overlay window, tray, click-through and ghost-mode designs are already proven in `~/code/garry-desktop`, so building them first *feels* like progress while learning nothing. **Phase 1 is the telemetry spike, and it is the go/no-go.**
 - **Cost centre is not the shell and not the display.** It is 2,510 LOC of `FuzzyClock.Core` plus **633 tests** (469 Core + 164 App) to re-earn, and the three Windows telemetry paths.
 
@@ -32,9 +32,13 @@
 | **C. Drop temps** | `--` | `--` | `--` | Cheapest of all; deletes a shipped feature and its settings UI. |
 | **D. `nvidia-smi` for GPU temp only** | GPU temp only, NVIDIA only | same | same | Nearly free — `nvidia-smi` is present here and answers in 0.378s `[MEASURED]` — but vendor-locked and no CPU/mobo/NVMe. |
 
-**Recommendation: A.** The sidecar is the one place a second language earns its keep — the logic already exists, the process boundary naturally isolates the **608ms mean `Update()` cost** the WPF app already worked around with a dedicated 2s loop `[MEASURED: TemperatureService.cs header]`, and .NET never ships to macOS or Linux. **A is not free and its size is unknown; Phase 1 produces the number before this is committed to.**
+**Recommendation was A.** The sidecar looked like the one place a second language earns its keep — the logic already exists, the process boundary naturally isolates the **608ms mean `Update()` cost** the WPF app already worked around with a dedicated 2s loop `[MEASURED: TemperatureService.cs header]`, and .NET never ships to macOS or Linux. The recommendation came with its own condition: **A is not free and its size is unknown; Phase 1 produces the number before this is committed to.**
 
-Everything downstream of this decision is unaffected: the stats panel already renders `-1f` as unavailable, so a platform with no temperature source degrades through a path that already exists and is already tested.
+### DECIDED 2026-08-28: **C — drop temps.** Alex's call, on Phase 1 evidence that the table above did not have.
+
+The number Phase 1 produced was not the one that decided it. Option A came in at a very affordable **17.0MB trimmed** with a **106.8ms** mean read — both better than this table assumed. What decided it was `probe-sidecar.ts`'s coverage arm: **unelevated, the CPU node enumerates 51 temperature sensors and every one reads NULL.** Only GPU answered (NVAPI needs no ring-0 driver). So "full fidelity" in row A is conditional on an elevation manifest — a UAC prompt at every launch of an autostarting overlay — and **without it row A delivers exactly what row D delivers nearly free.** Full evidence: ISA ISC-9. The sidecar was built, measured and then deleted; its code is at `64c747e` if the decision is ever revisited.
+
+Everything downstream is unaffected, and that was true whichever row won: the stats panel already renders `-1f` as unavailable, so a platform with no temperature source degrades through a path that already exists and is already tested. Under C that path is the only path, on all three platforms.
 
 ---
 
@@ -67,7 +71,7 @@ FuzzyStatsClock/
         stats/              # the stats panel
       platform.ts           # IS_WIN / IS_MAC / IS_LINUX seam, no Electron import
       shared.ts             # types crossing the preload bridge
-    sidecar/                # (Option A only) .NET console temp reader, win32-only
+                            # (no sidecar/ — Option C was chosen; see § The one decision)
     test/                   # bun test — translated Core tests + fixture-driven parser tests
 ```
 
@@ -96,22 +100,39 @@ export interface StatsSample {
   gpu: number
   pag: number      // swap / pagefile
   battery: number
-  temps: { cpu: number; gpu: number; mobo: number; nvme: number }
   uptimeSec: number
 }
 ```
 
-18 cells, every one filled — a source or an explicit `-1`:
+**`temps` is gone from the sample, not stubbed at `-1`.** Option C retires the feature rather than shipping four permanently-unavailable cells, so the four temperature fields leave `StatsSample`, the stats panel loses its temps line and the settings UI loses its temps tab. A field that is `-1` on every platform forever is dead weight that reads as an unimplemented feature; a deleted field reads as a decision. `TempsLineVisible` in the existing settings file is therefore an ignored key on import (ISC-18), not a migrated one.
+
+**15** cells, every one filled — a source or an explicit `-1`. Was 18; the Temps row's three cells left with the feature:
 
 | Metric | Windows | macOS | Linux |
 |---|---|---|---|
 | **CPU %** | `os.cpus()` delta `[TYPED]` | `os.cpus()` delta `[TYPED]` | `os.cpus()` or `/proc/stat` `[TYPED]` |
-| **MEM %** | `Memory\% Committed Bytes In Use` via `typeperf` child `[MEASURED]` — see the semantics warning below | `os.totalmem/freemem` + `vm_stat` for the compressor `[UNPROBED]` | `/proc/meminfo` `MemAvailable` `[UNPROBED]` |
-| **Swap / PAG %** | `Paging File(_Total)\% Usage` via the same child `[MEASURED]` | `sysctl vm.swapusage` `[UNPROBED]` | `/proc/meminfo` `SwapTotal`−`SwapFree` `[UNPROBED]` |
-| **GPU %** | `GPU Engine(*engtype_3D)\Utilization Percentage` via the child `[MEASURED — with a defect, below]` | **`-1`** — needs root `powermetrics`; no unprivileged API `[UNPROBED]` | `/sys/class/drm/card*/device/gpu_busy_percent` (amdgpu) → `nvidia-smi` → else `-1` `[UNPROBED]` |
-| **Battery %** | `Get-CimInstance Win32_Battery`, polled at 60s `[UNPROBED]` — `powerMonitor.isOnBatteryPower()` returns only a boolean, no percentage `[MEASURED: electron.d.ts:10033]` | `pmset -g batt`, 60s `[UNPROBED]` | `/sys/class/power_supply/BAT*/capacity` `[UNPROBED]` |
-| **Temps** | LHM sidecar, 2s (Option A) `[MEASURED: 608ms mean per read]` | **`-1`** `[UNPROBED]` | `/sys/class/hwmon/*/temp*_input` — unprivileged, no driver `[UNPROBED]` |
-| *(Uptime)* | `os.uptime()` `[TYPED]` | `os.uptime()` `[TYPED]` | `os.uptime()` `[TYPED]` |
+| **MEM %** | `Memory\% Committed Bytes In Use` via `typeperf` child `[MEASURED]` — see the semantics warning below | **`vm_stat`, and `os.freemem()` is NOT usable** `[MEASURED: macOS 26.6.2 arm64]` — see below | `/proc/meminfo` `MemAvailable` `[UNPROBED]` |
+| **Swap / PAG %** | `Paging File(_Total)\% Usage` via the same child `[MEASURED]` | `sysctl vm.swapusage` `[MEASURED: macOS 26.6.2 arm64]` — `total = 1024.00M  used = 413.44M  free = 610.56M  (encrypted)`, so `M` suffixes and a trailing token to handle | `/proc/meminfo` `SwapTotal`−`SwapFree` `[UNPROBED]` |
+| **GPU %** | `GPU Engine(*engtype_3D)\Utilization Percentage` via the child `[MEASURED — with a defect, below]` | **not `-1` after all** — `powermetrics` is confirmed root-only `[MEASURED]`, but `ioreg -r -c AGXAccelerator -l` exposes `Device Utilization %` **unprivileged** `[MEASURED: macOS 26.6.2, Apple M1]`. Undocumented and Apple-silicon-only, so `-1` stays the fallback | `/sys/class/drm/card*/device/gpu_busy_percent` (amdgpu) → `nvidia-smi` → else `-1` `[UNPROBED]` |
+| **Battery %** | `Get-CimInstance Win32_Battery`, polled at 60s `[UNPROBED]` — `powerMonitor.isOnBatteryPower()` returns only a boolean, no percentage `[MEASURED: electron.d.ts:10033]` | `pmset -g batt`, 60s `[MEASURED: macOS 26.6.2 arm64]` — **TAB-delimited**, and `0:00 remaining` appears while charged, so it must not be read as "no time left" | `/sys/class/power_supply/BAT*/capacity` `[UNPROBED]` |
+| ~~**Temps**~~ | **retired — Option C** | **retired** | **retired** |
+| *(Uptime)* | `os.uptime()` `[TYPED]` | `os.uptime()` `[MEASURED: 733,625s]` | `os.uptime()` `[TYPED]` |
+
+**Two macOS measurements changed a cell each, in opposite directions.**
+
+`os.freemem()` returned **264,617,984 of 8,589,934,592 bytes — 3.1% free — on a healthy,
+responsive machine.** It is not a memory-pressure signal on macOS; it is the free-page count,
+and macOS keeps that near zero on purpose. So the macOS MEM cell is computed from `vm_stat`,
+not from `os.freemem()`, and the plan's original "`os.totalmem/freemem` + `vm_stat` for the
+compressor" had the primary and the supplement the wrong way round. The occupancy figure is
+`(active + wired + occupied-by-compressor) / total pages` — **69.14%** on the captured
+snapshot, against the 3.1% `os.freemem()` implies. A cell that reads 97% used when the machine
+is fine is worse than a cell that reads `--`.
+
+`ioreg -r -c AGXAccelerator -l` returns GPU utilisation **with no privileges**, which the plan
+had written off. It is an undocumented IOKit path on an Apple-silicon-only driver class, so it
+is a candidate rather than a decision — but a candidate is not a `-1`, and the row above says
+so now. Fixture and caveats: `electron/test/fixtures/README.md`.
 
 ### Three rules that fall out of the measurements
 
@@ -120,7 +141,7 @@ export interface StatsSample {
 | Cadence | Metrics | Mechanism |
 |---|---|---|
 | 1s (0.5s on hover) | CPU, MEM, GPU, PAG | **one long-lived child**, streaming |
-| 2s | temps | sidecar, its own process (mirrors the WPF app's existing `BackgroundLoopIntervalMs = 2000`) |
+| ~~2s~~ | ~~temps~~ | **no longer exists — Option C.** The 2s tier had exactly one occupant, so retiring temps retires a whole cadence and the process that served it |
 | 60s | battery | spawn-per-poll is fine at this cadence |
 | free | uptime | in-process |
 
@@ -135,9 +156,9 @@ export interface StatsSample {
 | Feature | Port path | Degradation |
 |---|---|---|
 | Frameless transparent always-on-top overlay | `transparent`, `frame: false`, `skipTaskbar`, `hasShadow: false`, `setAlwaysOnTop(true,"screen-saver")` `[MEASURED: garry-desktop/src/main.ts:179-228]` | none known |
-| Kept out of Alt-Tab / Cmd-Tab | win/linux `type: "toolbar"`; macOS `app.dock.hide()` (accessory activation policy) `[MEASURED: garry-desktop/src/platform.ts:43-60]` | none known |
-| Visible over a maximised window | win: `screen-saver` level; mac: `setVisibleOnAllWorkspaces(true)` `[MEASURED: platform.ts:70-78]` | **Linux WM-dependent** — his own comment declines to assert it `[UNPROBED]` |
-| Click-through | `setIgnoreMouseEvents(true, {forward: true})` `[TYPED]` | **Never rely on the `forward` mousemove path** — measured delivering *zero* events on his 3440×1440 primary `[MEASURED: garry-desktop/src/shared.ts:156-167]`. Poll the cursor instead. |
+| Kept out of Alt-Tab / Cmd-Tab | win/linux `type: "toolbar"`; macOS `app.dock.hide()` (accessory activation policy) `[MEASURED: garry-desktop/src/platform.ts:43-60]` | On macOS the **policy** is confirmed from outside the process — `NSRunningApplication.activationPolicy` = `accessory`, LaunchServices `ApplicationType="UIElement"` `[MEASURED: macOS 26.6.2]` — but the **switcher UI itself was not observed** `[INCONCLUSIVE]`. Those are different claims and only the first is measured. |
+| Visible over a maximised window | win: `screen-saver` level; mac: `setVisibleOnAllWorkspaces(true, {visibleOnFullScreen: true})` `[MEASURED: platform.ts:70-78]` | **Linux WM-dependent** — his own comment declines to assert it `[UNPROBED]`. **macOS is also still unproven** `[INCONCLUSIVE]`: with a second app in native fullscreen the overlay read back `isVisible: true` and painted 588 frames, but `screencapture` was denied (`could not create image from display`), so nothing established it was *composited above*. |
+| Click-through | `setIgnoreMouseEvents(true, {forward: true})` `[TYPED]` | **Never rely on the `forward` mousemove path — now measured on both platforms.** Zero events on Windows (3440×1440) `[MEASURED: garry-desktop/src/shared.ts:156-167]`; **one** event on macOS across an eight-lap programmatic cursor sweep `[MEASURED: macOS 26.6.2]`. Different numbers, same conclusion. Poll the cursor instead — `screen.getCursorScreenPoint()` at 100ms gave 61 changes / 42 unique points over 98 samples on macOS `[MEASURED]`. |
 | Ghost mode (proximity fade) | main polls the cursor, computes the Chebyshev proximity ratio, pushes the *target* over IPC; renderer owns the interpolation | none — **both codebases independently arrived at cursor polling**, so the design transfers 1:1. `GhostModeController.ComputeProximityRatio` and `LerpRatio` are already pure static seams and port verbatim `[MEASURED]` |
 | Right-click menu on the overlay | renderer-measured hit boxes → `ipcMain` → toggle `setIgnoreMouseEvents` wholesale `[MEASURED: garry-desktop/src/main.ts:539-556]` | The WPF `Background="#01000000"` alpha=1 hit-test trick has no analogue and needs none — CSS hit-testing works on fully transparent regions with `pointer-events`. |
 | Tray icon + menu | `Tray` + `Menu` `[TYPED]` | **Linux click semantics differ** — the typings note the click event fires on "activation", and Linux needs libappindicator present `[MEASURED: electron.d.ts:13228]` |
@@ -147,7 +168,7 @@ export interface StatsSample {
 | Opacity | CSS `opacity` in the renderer, **not** `win.setOpacity()` | This is an *improvement*, see below |
 | Auto-launch | `app.setLoginItemSettings` `[MEASURED: electron.d.ts:1634 — @platform darwin,win32]` | **No Linux API.** Write `~/.config/autostart/fuzzyclock.desktop` by hand. Also: **CrowdStrike Falcon blocks `garry-desktop`'s autostart spawn pair on this machine** — a packaged installer is a different case, but this must be re-proven, not assumed. |
 | Update check (GitHub Releases) | `net.request` or `fetch`; `UpdateVersionComparer.cs` is 57 LOC of pure logic | none |
-| Auto-contrast (screen sampling) | `desktopCapturer.getSources({types:['screen'], thumbnailSize})` + `setContentProtection(true)` to exclude our own window from the capture | **This is the elegant win and the platform casualty at once.** `setContentProtection` uses `WDA_EXCLUDEFROMCAPTURE` on Win10 2004+, and is `@platform darwin,win32` `[MEASURED: electron.d.ts:2998-3004]`. Excluding our own window replaces the entire `ContrastRefreshController.HasAppWindowBeneath()` Z-order walk that exists solely to stop a BitBlt feedback loop. **On Linux there is no exclusion, so the feedback loop returns** → ship Linux with auto-contrast off. macOS additionally needs a Screen Recording TCC grant. **Low priority regardless: his live settings have `AutoContrastEnabled: false`** `[MEASURED]`. |
+| Auto-contrast (screen sampling) | `desktopCapturer.getSources({types:['screen'], thumbnailSize})` + `setContentProtection(true)` to exclude our own window from the capture | **This is the elegant win and the platform casualty at once.** `setContentProtection` uses `WDA_EXCLUDEFROMCAPTURE` on Win10 2004+, and is `@platform darwin,win32` `[MEASURED: electron.d.ts:2998-3004]`. Excluding our own window replaces the entire `ContrastRefreshController.HasAppWindowBeneath()` Z-order walk that exists solely to stop a BitBlt feedback loop. **On Linux there is no exclusion, so the feedback loop returns** → ship Linux with auto-contrast off. **macOS needs a Screen Recording TCC grant, and on the probed Mac that grant is absent** — `screencapture -x` failed `could not create image from display` `[MEASURED: macOS 26.6.2]`. That is the same permission `desktopCapturer` needs, so on macOS this feature starts from *denied* and requires a user prompt, not merely a manifest entry. **Low priority regardless: his live settings have `AutoContrastEnabled: false`** `[MEASURED]`. |
 
 ### Two places the port should be *better* than the original
 
@@ -174,7 +195,7 @@ export interface StatsSample {
 ## macOS specifics
 
 - `app.dock.hide()` after `whenReady()` for accessory-app behaviour; `setVisibleOnAllWorkspaces(true)` for the "over a fullscreen app" trait `[MEASURED: platform.ts]`
-- **No temperatures and no GPU utilisation without root.** Two `--` cells in the stats panel by design, not by omission.
+- **No GPU utilisation without root.** One `--` cell in the stats panel by design, not by omission. macOS also has no unprivileged temperature source, which is now moot rather than a degradation — Option C retires temps everywhere, so there is no macOS-specific gap left to explain.
 - **Notarization is a new, recurring cost that does not exist today:** an Apple Developer ID (currently ~USD 99/yr). Without it, macOS users hit Gatekeeper on first launch. This is a real line item, not a technical footnote.
 - Screen Recording TCC prompt if auto-contrast is ever enabled there.
 
@@ -186,15 +207,16 @@ Ordered **risk-first**. The largest block of code (Core translation) is delibera
 
 ### Phase 0 — Decide (no code)
 Four calls, all Alex's: the temps option (A/B/C/D), Linux = XWayland-only yes/no, auto-contrast in or out of 1.0, and whether WPF is retired at parity or kept as the Windows build.
+**Two are answered:** WPF is retired at parity and deleted on merge (stated in the goal verbatim), and **temps is C** (2026-08-28, on Phase 1 evidence). Two remain open — Linux XWayland and auto-contrast — and **neither gates Phases 1-3**, which is why the build proceeded rather than blocking on Phase 0.
 **Exits on:** the four answers written into this document.
 
 ### Phase 1 — Telemetry + platform spike — **THE GO/NO-GO**
 - **P1.1** Electron window running a 1s stat repaint **plus** the long-lived `typeperf` child, measured over 20s for CPU% and RSS. *(This is the feasibility run's first `[DEFERRED-VERIFY]`: the 3.5% Electron figure was measured on a **parked** overlay — it bounds Electron's floor, it does not predict this port's cost.)* **If this exceeds 24.2% of one core, the premise dies here.**
 - **P1.2** Long-lived `typeperf` child: CSV parse, and prove the GPU-instance recycle actually recovers a counter that read 0 at spawn.
-- **P1.3** *(Option A only)* Sidecar prototype — **measure its packaged size and per-read latency.**
+- **P1.3** ~~*(Option A only)*~~ **DONE, and it decided against itself.** Sidecar prototype built and measured: 17.0MB trimmed, 106.8ms mean read — then deleted, because the same probe found the CPU sensors enumerate and all read NULL unelevated. Deciding a build step by building it is the point of a spike; this one earned its cost by removing a feature rather than by shipping one.
 - **P1.4** `screen.getAllDisplays()` on his 3-display setup: is `Display.label` non-empty and stable across a reboot? *(Second `[DEFERRED-VERIFY]` carried in.)*
 - **P1.5** One `electron-builder` run to get a **real** installer size against the measured 200MB exe / 57MB Inno installer. *(Third `[DEFERRED-VERIFY]`; the ~85MB figure quoted during feasibility is a prior, not a measurement.)*
-- **P1.6** Smoke the shell flags on macOS and on an X11 Linux session — the *only* way the `[UNPROBED]` rows in this document become real. `mcp__mac-codex__codex` can cover the macOS half from here.
+- **P1.6** Smoke the shell flags on macOS and on an X11 Linux session — the *only* way the `[UNPROBED]` rows in this document become real. **macOS half DONE 2026-08-28** via `mcp__mac-codex__codex` on an Apple M1 laptop, macOS 26.6.2 arm64, Electron pinned to exactly 33.4.11: window renders (578 rAF paints, no `did-fail-load`), flags read back off the live window, accessory activation policy confirmed externally, cursor polling live, four telemetry fixtures captured. Three arms came back INCONCLUSIVE and stay that way — Cmd-Tab UI, over-fullscreen layering, and click-through into another app — all three because screen capture is TCC-denied on that host. **Linux half still has no host.**
 
 **Exits on:** measured CPU%/RSS for the real workload, a sidecar size number, a `display.label` reading, an installer size, and a per-platform smoke result. Any `[UNPROBED]` row still unprobed after this phase is a row that will be discovered in Phase 6 instead.
 
@@ -252,7 +274,7 @@ Of the 164 `FuzzyClock.App.Tests`, the pure-seam ones port directly; the Windows
 
 **Buys:** one codebase on three platforms · ~20% of the idle CPU `[MEASURED, floor only]` · a display native to SVG · a plausible fix for PERF-01 · a far cheaper settings UI · auto-contrast's feedback-loop guard reduced from a Z-order walk to one API call (on 2 of 3 platforms).
 
-**Costs:** 2,510 LOC of Core translated · 633 tests re-earned · 7,605 LOC of `FuzzyClock.App` deleted and ~2,500–3,000 LOC of TS written in its place · temps on Windows only via a second language · GPU and temps unavailable on macOS · auto-contrast unavailable on Linux · Wayland users on XWayland · an Apple Developer ID · three packaging targets with no precedent in his tree · CrowdStrike autostart re-proof.
+**Costs:** 2,510 LOC of Core translated · 633 tests re-earned · 7,605 LOC of `FuzzyClock.App` deleted and ~2,500–3,000 LOC of TS written in its place · **temperatures retired on all three platforms, a shipped v4.2 feature deliberately given up (Option C)** · GPU unavailable on macOS · auto-contrast unavailable on Linux · Wayland users on XWayland · an Apple Developer ID · three packaging targets with no precedent in his tree · CrowdStrike autostart re-proof · **1.40× more disk than the WPF installer** `[MEASURED: ISC-8]`.
 
 ---
 
