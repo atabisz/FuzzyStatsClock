@@ -7,7 +7,7 @@ phase: build
 progress: 11/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T21:17:00+10:00
+updated: 2026-08-28T21:39:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -344,11 +344,18 @@ misses it, because every feature either ported or was consciously retired with t
   / 2,510 = 1,987 + 523 across 10; `TemperatureFormatter.cs` (43 LOC) is deleted under Option C, so it
   is not a file left to translate and must not be counted as one. The phrase-provider half is
   untouched — temps never entered it.
-  - **Where it stands: the phrase half is done and 6 of the 9 logic files are, by LOC 1,987 + 150 of
+  - **Where it stands: the phrase half is done and 8 of the 9 logic files are, by LOC 1,987 + 283 of
     480.** Done: `IPhraseProvider` → `core/phrase/types.ts`, `PhraseEngine` → `core/phrase/engine.ts`
     (both under ISC-13), then `UptimeFormatter` → `core/uptime.ts`, `DialGeometry` → `core/dial.ts`,
-    `DateFormatter` → `core/date.ts`, `SevenSegmentEncoder` → `core/seven-segment.ts`. **Left: 330 LOC
-    in three files** — `UpdateVersionComparer` (57), `PhraseWrapService` (76), `ContrastService` (197).
+    `DateFormatter` → `core/date.ts`, `SevenSegmentEncoder` → `core/seven-segment.ts`,
+    `UpdateVersionComparer` → `core/update-version.ts`, `PhraseWrapService` → `core/phrase-wrap.ts`.
+    **Left: 197 LOC in one file** — `ContrastService`, which is also the one with the thinnest C# suite
+    (10 cases against 197 lines), so it needs the most oracle work rather than the least.
+  - **`update-version.ts` and `phrase-wrap.ts` are not consumed yet, and that is not drift.** The
+    update check is Phase 7 (ISC-27) and phrase wrapping is Phase 4; both C# units are standalone in
+    `FuzzyClock.Core` too. What would be drift is translating them and *not* recording that nothing
+    imports them, since an unimported module's tests can pass while the wiring is wrong — so the
+    import-side claim stays with the phase that does the wiring, not with this one.
 - [~] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
   contributes **12** of those cases and retires with the feature. Translated alongside each unit, not
   afterwards — a test written after the code it checks is a rubber stamp (AC-5).
@@ -360,12 +367,19 @@ misses it, because every feature either ported or was consciously retired with t
     **436**, 33 short. `dotnet test --list-tests` cannot settle it either: it lists *methods*, so a
     `[DataRow]` method counts once. Per-class counts come from a TRX parse (37 classes, 469 results,
     0 unmapped), which is what the per-unit figures below are read from.
-  - **Progress: 32 of the 457 translated, and `bun test` is at 137 pass / 0 fail** (96 from ISC-13 and
-    the typeperf fixtures, 41 new). The 32 are `UptimeFormatterTests` 7, `DialGeometryTests` 6,
-    `DateFormatterTests` 6, `SevenSegmentEncoderTests` 13 — each file's full case count from the TRX,
-    none partially taken. The other 9 new cases are **additions, not translations**, and are counted
-    separately on purpose: a port that invents its own tests and counts them toward a translation target
-    can reach the number without translating anything.
+  - **Progress: 75 of the 457 translated, and `bun test` is at 208 pass / 0 fail** (96 from ISC-13 and
+    the typeperf fixtures, 112 new). The 75 are `UptimeFormatterTests` 7, `DialGeometryTests` 6,
+    `DateFormatterTests` 6, `SevenSegmentEncoderTests` 13, `UpdateVersionComparerTests` 20,
+    `PhraseWrapServiceTests` 23 — each file's full case count from the TRX, none partially taken. The
+    other 37 new cases are **additions, not translations**, and are counted separately on purpose: a
+    port that invents its own tests and counts them toward a translation target can reach the number
+    without translating anything.
+  - **The additions are not guesses either — from `update-version.ts` on, every added expectation was
+    measured against the compiled C#.** A throwaway console project outside the repo (`$TEMP/fc-verprobe`,
+    `dotnet run -- version|phrases`) `<Compile Include>`s the real `.cs` files and prints what they
+    actually return, so an added case is a *recorded* C# behaviour rather than my reading of the
+    algorithm. That is what turned up the `int.MaxValue` component ceiling, .NET's acceptance of
+    `"4. 5"`, and the two `PhraseWrapService` branches its own suite never reaches.
 - [x] **ISC-13. Phrase output matches the C# original across a full sweep. RESTATED — the original
   wording was impossible; the oracle was built first, and the port now satisfies it.** This is the claim
   that makes ISC-12 more than self-agreement, so it is the one worth getting right before any TypeScript
@@ -771,6 +785,41 @@ misses it, because every feature either ported or was consciously retired with t
   about today's C#. `specShapeMismatches` reports the contradiction if a regeneration ever breaks it,
   and each of its four rules has a spec built to trip it — asserting only that it returns nothing would
   be satisfied by a function that returns nothing unconditionally (claim 19).
+- **`TryParseTag`'s `out Version` becomes `Version | null`, and the trigger was a NullReferenceException
+  in my own probe.** The C# assigns `new Version(0, 0)` on entry and calls it a "sentinel out-value —
+  caller must check return" (`UpdateVersionComparer.cs:16`). That comment is false for every rejection
+  that reaches `Version.TryParse`, because `TryParse` writes **null** into the out-parameter on failure
+  and clobbers the sentinel; "garbage", "4" and "4.x.0" all come back null. The out is annotated
+  non-nullable, so a caller that trusted the comment and skipped the bool dereferences null — which is
+  exactly what happened the first time the probe ran. **Not fixed in the WPF tree, deliberately**: it is
+  latent, not live (`UpdateCheckService.cs:138` is the only production caller and it does check the
+  bool), the WPF version is deleted at ISC-31, and editing it would put a change into a tree that is
+  about to be removed. The port makes the trap unrepresentable instead, and that same caller is the
+  proof the nullable return is the shape the app wanted anyway.
+- **`System.Version`'s -1 for an absent component is carried into the port rather than normalized away
+  at parse time.** Normalizing early would make `isNewer` a plain field compare and delete the -1
+  distinction — along with the discriminating power of the two asserts that cover it, which are the
+  C#'s own. Measured: raw `4.5.0 > 4.5` is **true** in .NET, so the promotion is not cosmetic. It is
+  also live rather than theoretical, since the app compares a 4-component assembly version against a
+  3-component release tag (`MainWindow.xaml.cs:1321-1322`).
+- **The port is deliberately stricter than the C# on one input, and it is written down rather than
+  smoothed over.** .NET parses each version component with `NumberStyles.Integer`, which allows leading
+  whitespace inside a component, so `TryParseTag("4. 5")` returns 4.5 — measured, not inferred. That is
+  an accident of the number parser rather than a rule anyone wrote, it cannot come out of a GitHub tag,
+  and the direction is the safe one: rejecting a tag the C# accepted means no update is offered, never a
+  bogus one. A test pins the divergence so it stays visible instead of surfacing as a bug report.
+- **Case-insensitive marker matching is done length-preservingly, not via `toLowerCase().startsWith()`.**
+  The C# matches `OrdinalIgnoreCase` and then slices the **original** phrase by `marker.Length`, which is
+  sound only because ordinal folding cannot change a string's length. JS lowercasing can — 'İ' (U+0130)
+  becomes two code units — so the obvious translation would let a matched prefix and the slice length
+  disagree. Comparing `phrase.slice(0, marker.length).toLowerCase()` keeps every index on the original
+  string, and on the inputs where the two could differ at all they agree ('ß' matches "ss" in neither).
+- **Survivors are now predicted before the mutation run, not explained after it.** Both harnesses take an
+  `expectSurvives` reason per mutation, written before execution, and report unpredicted survivors and
+  refuted predictions as separate lines. This changes what a survivor means: an equivalent mutant that
+  was named in advance is evidence the code is understood, whereas the same survivor discovered
+  afterwards is indistinguishable from a rationalisation. It immediately earned itself — `phrase-wrap`
+  produced one **unpredicted** survivor, and it was a genuinely vacuous test rather than an equivalence.
 
 ## Verification
 
@@ -795,6 +844,7 @@ measured on this branch at or after that base.
 | ISC-13 (the port half) | `bun test` (96 pass / 0 fail) and `bun run typecheck` (exit 0), then `bun $TEMP/fc-mutate.ts` — twelve injected defects, each applied to one file, suite run, file restored from an in-memory copy in a `finally` | **the mutation run is the evidence; the green run is only its precondition.** 44 assertions over 38,904 fixture rows, written by the same hand as the port, prove nothing until they can be made to fail — so all twelve defects were injected and all twelve turn the suite red, each naming a plausible test. **Every anchor is uniqueness-checked**: a mutation whose search string does not appear exactly once is reported `SKIP` and counted as a survivor, so a typo in the harness cannot read as a pass. **The suite's own instruments are guarded rather than trusted**: the fixture parse requires the exact field count on every row (a ragged row is how a comparison reports "0 mismatches" over 0 rows) and rejects CR; `at(hour, minute)` asserts its own round-trip, so a host whose zone shifted on the chosen date fails by name instead of mismatching every phrase; `enumerateAll` asserts exactly one draw per provider call, since the port takes a second draw in `getStructuredPhrase` by design and index enumeration would silently cover half the space if that became two. **The denominator is asserted, not assumed**: each locale's sweep ends `expect(checked).toBe(1440)`, and the PENDING/extra sets must both be empty — a suite iterating only over what it had ported would report all-green on a port of one locale. **Two independently generated artifacts are made to agree on which locales draw**: GoldenGen decided by redrawing each minute and watching the phrase move, TableExport by the C# field's static type, and the test asserts the two sets are the same 10. **Bounded**: `PhraseWrapService` and the display-side formatting are outside this, so ISC-13's green says nothing about how a phrase is wrapped or rendered — that stays with ISC-11/ISC-12 |
 
 | ISC-11 / ISC-12 (the four small logic files) | `bun test` (137 pass / 0 fail) and `bun run typecheck` (exit 0) from `electron/`; the denominator from `dotnet test FuzzyClock.Core.Tests` (469 pass) with per-class counts out of a TRX parse; then `bun $TEMP/fc-mutate-core.ts` — eight injected defects, uniqueness-checked anchors, `finally` restore | **the C# expectations are the oracle and they were measured on this host, not assumed**: `DateFormatterTests` asserts "Sat, Mar 7" and it passes under en-AU, so the strings the port is held to are what the original actually produces where it runs. **Mutation, 8/8 caught** — floor-for-trunc on the uptime minutes, days shown at zero, the hour hand's interpolation term dropped, the minute hand off by a factor, the month index off by one, ISO losing its zero padding, `Short` delegating its order to the locale, one wrong seven-segment mask. **The order assertion is a counter-case, not a value check**: `formatDate("Short", …, "en-AU")` must *differ* from `Intl`'s whole-date output for the same locale, which is the only assertion that fails for a port that reorders — every value assertion passes on an en-US box. **The mask table is transcribed, not imported**: comparing the module's own table to itself would pass for any table, and `SUPPORTED_CHARACTERS` is asserted equal to the transcribed list so a row added without a test row fails. **A survivor produced a doc fix, not a test patch** — see § Changelog. **Bounded**: `bun test` green says nothing about what the panel *shows*; the renderer now calls both ports, and the evidence for that is a 12s launch reaching `PROBE-PAINTS 9` with no `did-fail-load`, which proves the module loaded and rendered, not that the glyphs are right |
+| ISC-11 / ISC-12 (`update-version.ts`, `phrase-wrap.ts`) | `bun test` (208 pass / 0 fail), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; the C# oracle from `$TEMP/fc-verprobe` (`dotnet run -- version` and `-- phrases`, which `<Compile Include>`s the real `UpdateVersionComparer.cs` and `PhraseWrapService.cs`); then `bun $TEMP/fc-mutate-uvc.ts` (19 mutations) and `bun $TEMP/fc-mutate-wrap.ts` (18) | **the added expectations are recorded C# output, not my reading of the algorithm** — the probe is what established the `int.MaxValue` ceiling on all four components, .NET accepting `"4. 5"` as 4.5, and the two `PhraseWrapService` branches its own suite never reaches (a marker that consumes the whole phrase; two boundaries equidistant from the midpoint). **Mutation: 17/19 and 15/18 caught, and the survivors were named BEFORE the run with their reasons** — that is the change from the previous row, where the survivor was a discovery. Predicted: the `-`/`+` guard and the empty-after-trim check in `parseTag` (both subsumed by the shape regex), the `trimEnd()`/`marker.length - 1` pair in `splitNatural`, and the dead `best = 0` initializer. None of the four predictions was refuted and no unpredicted survivor appeared in the second run. **The masked pair is measured as a pair**: `trimEnd()` and the `-1` do the same job, so each survives alone while removing BOTH is caught — reporting the two solo survivors without that third mutation would describe the suite as weaker than it is. **One vacuous assertion was found and replaced**: the case-insensitivity test used "HALF PAST ELEVEN", whose midpoint fallback returns the same two lines as its marker split, so a case-*sensitive* implementation passed it; the replacement uses "ALMOST A QUARTER BEFORE TWELVE", where the two paths disagree (measured), and it also pins the midpoint answer it must not be. **Bounded**: neither module is imported by anything yet, so these greens say nothing about wiring — that evidence belongs to ISC-27 (update check) and Phase 4 (wrapping) |
 
 ### Still outstanding
 
@@ -1224,3 +1274,25 @@ measured on this branch at or after that base.
   the days and hours lines the two functions are equivalent for every reachable input — a negative
   component fails the `> 0` guard whichever way it rounded — so that is recorded as having nothing for a
   test to hold, rather than left looking like missing coverage.
+- **conjectured** that `phrase-wrap.test.ts` held the port to case-insensitive marker matching, asserting
+  `computeSplit("HALF PAST ELEVEN", "natural")` is `"HALF PAST"` / `"ELEVEN"`. **refuted-by** the
+  mutation run: deleting the `.toLowerCase()` from `startsWithIgnoreCase` left the suite **green**. With
+  the fold gone no marker matches, the midpoint fallback runs, and for that phrase it returns the same
+  two lines — mid 8, boundaries at 5 and 10, the nearer one splitting after "PAST". The assertion was
+  right about the values and blind to the mechanism, so a case-*sensitive* implementation passed it.
+  Replaced with "ALMOST A QUARTER BEFORE TWELVE", where natural gives `"ALMOST A QUARTER BEFORE"` /
+  `"TWELVE"` and midpoint gives `"ALMOST A QUARTER"` / `"BEFORE TWELVE"` — both measured against the
+  compiled C# — and the midpoint answer is pinned as the one it must not be. M13 dies on the replacement.
+  **What makes this the sharpest instance yet: the very same coincidence is labelled two tests above, in
+  my own words** — the `allowNatural=false` case is annotated "same answer here, by coincidence", which is
+  why the C# suite pairs it with a second phrase where the paths diverge. I wrote that down, then chose a
+  phrase with the identical defect for the case-folding test one screen later. Reading carefully is not a
+  substitute for trying to break it; a green suite and a correct-looking assertion agreed with each other
+  and were both uninformative.
+- **criterion-now** a mutation run reports **predicted** and **unpredicted** survivors separately, with
+  the reason for each prediction written before execution. Equivalent mutants are unavoidable — three of
+  the four survivors across these two modules are genuinely equivalent — but naming them in advance is
+  what distinguishes understanding the code from rationalising a result, and it is what made the fourth
+  one visible as a finding within seconds instead of being explained away in the same paragraph as the
+  other three. Masked pairs are covered by a third mutation that applies both edits at once, so two
+  mutually-masking survivors cannot be reported as a coverage gap when the combination is in fact caught.
