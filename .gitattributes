@@ -15,6 +15,26 @@
 *.ps1    text=auto eol=crlf
 *.iss    text=auto eol=crlf
 
+# Electron port (v5.0). Listed explicitly rather than left to the `*` rule above
+# so the policy for these types is stated where someone looks for it.
+*.ts     text=auto eol=crlf
+*.js     text=auto eol=crlf
+*.cjs    text=auto eol=crlf
+*.mjs    text=auto eol=crlf
+*.html   text=auto eol=crlf
+*.css    text=auto eol=crlf
+*.svg    text=auto eol=crlf
+
+# Captured telemetry fixtures: byte-exact, no normalization in either direction.
+# These are real `typeperf` / `pmset` / `hwmon` output, and the parsers are written
+# against their exact bytes — `typeperf` emits a bare \r line before its header, which
+# is why the CSV parser splits on /\r?\n/ at all. Let git normalize these and the
+# fixture quietly stops covering the case it was captured for. `-text` disables EOL
+# conversion without claiming the content is binary, so diffs stay readable.
+# Scoped to the captures themselves, not the whole directory — the README beside them is
+# ordinary prose and follows the CRLF policy above.
+electron/test/fixtures/*.csv -text
+
 # LF for GitHub Actions workflows: release.yml has 4 `shell: bash` steps, and
 # CRLF leaks a stray \r into bash variable expansion.
 *.yml    text=auto eol=lf
@@ -41,5 +61,11 @@
 *.pdf  binary
 *.ttf  binary
 *.otf  binary
+# bun's legacy lockfile is a NUL-free binary — exactly the case the note above
+# describes, where git's auto-detection fails open and EOL-mangles it on add.
+# The modern text lockfile is LF-only by bun's own writer; forcing CRLF would
+# make every `bun install` dirty the file.
+bun.lockb binary
+bun.lock  text=auto eol=lf
 *.woff binary
 *.woff2 binary

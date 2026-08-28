@@ -24,3 +24,9 @@ TestResults/
 
 # Scratch / throwaway experiments (spike enumerators, one-shot probes)
 scratch/
+
+# Electron port (v5.0). electron/bun.lock IS committed — it is the reproducible-install
+# record, and the Electron version is load-bearing for every platform claim.
+node_modules/
+electron/dist/
+electron/release/
