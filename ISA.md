@@ -7,7 +7,7 @@ phase: build
 progress: 12/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T22:36:08+10:00
+updated: 2026-08-28T22:56:45+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -380,24 +380,26 @@ misses it, because every feature either ported or was consciously retired with t
     **436**, 33 short. `dotnet test --list-tests` cannot settle it either: it lists *methods*, so a
     `[DataRow]` method counts once. Per-class counts come from a TRX parse (37 classes, 469 results,
     0 unmapped), which is what the per-unit figures below are read from.
-  - **Progress: 153 of the 457 translated, and `bun test` is at 360 pass / 0 fail** (96 from ISC-13 and
-    the typeperf fixtures, 264 new). The 153 are `UptimeFormatterTests` 7, `DialGeometryTests` 6,
+  - **Progress: 170 of the 457 translated, and `bun test` is at 386 pass / 0 fail** (96 from ISC-13 and
+    the typeperf fixtures, 290 new). The 170 are `UptimeFormatterTests` 7, `DialGeometryTests` 6,
     `DateFormatterTests` 6, `SevenSegmentEncoderTests` 13, `UpdateVersionComparerTests` 20,
     `PhraseWrapServiceTests` 23, `ContrastServiceTests` 10, `PhraseEngineTests` 51,
-    `GetStructuredPhraseTests` 17 — each file's full case count from the TRX, none partially taken. The
-    other 111 new cases are **additions, not translations**, and are counted separately on purpose: a
-    port that invents its own tests and counts them toward a translation target can reach the number
-    without translating anything.
-  - **304 remain, and all of them are on the phrase side** — **nine `.cs` files holding twenty-seven
-    `[TestClass]`es**, by size: `PhraseEngineCoordinatorTests` 17; eight 16-case locale providers
-    (French, German, Japanese ×4, Polish, Spanish) = 128; `EnglishPhraseProviderExpandedTests` 13; two
-    12-case; three 11-case; three 10-case; one 8; six 7-case; one 5; one 4. 153 + 12 retired + 304 = 469.
-    **The file and class counts were re-measured here rather than carried, and the carried pair was
-    wrong** — I had "ten files / thirty classes", and neither number was ever right. Measured: the 37
-    `[TestClass]` attributes divide 18 files into 8 translated (9 classes, since `PhraseEngineTests.cs`
-    holds two), 1 retired, and **9 files / 27 classes** remaining, whose per-class TRX counts sum to
-    exactly 304. The check that matters is that the per-file sum equals the TRX's own class total; a
-    remainder computed by subtracting a remembered figure agrees with itself no matter how stale it is.
+    `GetStructuredPhraseTests` 17, `PhraseEngineCoordinatorTests` 17 — each file's full case count from
+    the TRX, none partially taken. The other 120 new cases are **additions, not translations**, and are
+    counted separately on purpose: a port that invents its own tests and counts them toward a
+    translation target can reach the number without translating anything.
+  - **287 remain, and all of them are on the phrase side** — **eight `.cs` files holding twenty-six
+    `[TestClass]`es**, per file: `MultilingualPhraseProviderTests` 8 classes / 128 (French, German,
+    Japanese ×4, Polish, Spanish, 16 each), `PhraseStyleProviderTests` 9 classes / 64, `SegmentKeyTests`
+    4 classes / 37 (Rude 10, Terse 10, Classic 10, Poetic 7), then five single-class expanded files —
+    `English` 13, `Yoda` 12, `Jive` 11, `Pirate` 11, `Terse` 11. 8 + 9 + 4 + 5 = 26 classes and
+    128 + 64 + 37 + 58 = 287 cases; 170 + 12 retired + 287 = 469. **The file and class counts were
+    re-measured rather than carried, and the carried pair was wrong** — I had "ten files / thirty
+    classes", and neither number was ever right. Measured: the 37 `[TestClass]` attributes divide 18
+    files into 9 translated (10 classes, since `PhraseEngineTests.cs` holds two), 1 retired, and **8
+    files / 26 classes** remaining. Given per file *and* per class on purpose: the two decompositions of
+    the same 287 have to agree, and a remainder computed by subtracting a remembered figure agrees with
+    itself no matter how stale it is.
   - **The additions are not guesses either — from `update-version.ts` on, every added expectation was
     measured against the compiled C#.** A throwaway console project outside the repo (`$TEMP/fc-verprobe`,
     `dotnet run -- version|phrases|contrast`) `<Compile Include>`s the real `.cs` files and prints what
@@ -893,7 +895,7 @@ misses it, because every feature either ported or was consciously retired with t
   seeded single-draw test pins an arbitrary implementation detail of the picker. **The guard against
   self-flattery is that the universal is verified against the C#-generated fixture before the test is
   written, never derived from the port's own tables** — five universals, all held, and if one had not, the
-  case would have been translated in its sampled form with the failure recorded. **The remaining 304
+  case would have been translated in its sampled form with the failure recorded. **The remaining 287
   phrase cases follow this rule**, so the next unit does not re-litigate it.
 
 - **Test instruments live in `test/support/`, once, as soon as a second suite needs them.** `indexPicker`,
@@ -903,6 +905,24 @@ misses it, because every feature either ported or was consciously retired with t
   `getStructuredPhrase` on purpose. If that guard drifts in one copy and not the other, the affected suite
   enumerates part of the candidate space and still reports green — the failure mode the guard exists to
   prevent, reintroduced by duplicating the guard.
+
+- **A prediction whose reason names another file is TWO claims, and the second one gets run.** Established on
+  M17 in the previous unit and it paid here. E9's prediction was "survives this suite, caught by
+  `phrase-engine.test.ts` and `phrase-golden.test.ts`". The verdict was right; the reason was false, and
+  running it was the only thing that could show that — both files miss it, because both build providers
+  through `makeProvider` and never import `engine.ts`. A survivor filed with an unverified reason is
+  indistinguishable from a survivor filed with a true one, and the difference here was a real hole in the
+  coordinator's structured-phrase delegation. **So a recorded survivor reason that names a file is not
+  finished until that file has been run alone against the mutation.**
+
+- **Where the C# throws and the port cannot usefully throw, the port diverges deliberately and says so.**
+  `PhraseEngine.SetLocale(null)` throws `ArgumentNullException` in C# because `Dictionary.TryGetValue(null)`
+  does; `engine.ts` returns false and leaves the active locale alone. Not an oversight and not smoothed
+  over: the value arrives from settings JSON, whose `locale` field is not type-checked by anything, and the
+  C# method's own doc contract is that an unusable locale must leave the clock running. The C# fails its own
+  contract for exactly one input. Recorded in the test file, asserted, and listed as the unit's one
+  divergence — a divergence that is written down is a decision, and one that is not is a defect waiting to
+  be found by someone else.
 
 ## Verification
 
@@ -930,6 +950,7 @@ measured on this branch at or after that base.
 | ISC-11 / ISC-12 (`update-version.ts`, `phrase-wrap.ts`) | `bun test` (208 pass / 0 fail), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; the C# oracle from `$TEMP/fc-verprobe` (`dotnet run -- version` and `-- phrases`, which `<Compile Include>`s the real `UpdateVersionComparer.cs` and `PhraseWrapService.cs`); then `bun $TEMP/fc-mutate-uvc.ts` (19 mutations) and `bun $TEMP/fc-mutate-wrap.ts` (18) | **the added expectations are recorded C# output, not my reading of the algorithm** — the probe is what established the `int.MaxValue` ceiling on all four components, .NET accepting `"4. 5"` as 4.5, and the two `PhraseWrapService` branches its own suite never reaches (a marker that consumes the whole phrase; two boundaries equidistant from the midpoint). **Mutation: 17/19 and 15/18 caught, and the survivors were named BEFORE the run with their reasons** — that is the change from the previous row, where the survivor was a discovery. Predicted: the `-`/`+` guard and the empty-after-trim check in `parseTag` (both subsumed by the shape regex), the `trimEnd()`/`marker.length - 1` pair in `splitNatural`, and the dead `best = 0` initializer. None of the four predictions was refuted and no unpredicted survivor appeared in the second run. **The masked pair is measured as a pair**: `trimEnd()` and the `-1` do the same job, so each survives alone while removing BOTH is caught — reporting the two solo survivors without that third mutation would describe the suite as weaker than it is. **One vacuous assertion was found and replaced**: the case-insensitivity test used "HALF PAST ELEVEN", whose midpoint fallback returns the same two lines as its marker split, so a case-*sensitive* implementation passed it; the replacement uses "ALMOST A QUARTER BEFORE TWELVE", where the two paths disagree (measured), and it also pins the midpoint answer it must not be. **Bounded**: neither module is imported by anything yet, so these greens say nothing about wiring — that evidence belongs to ISC-27 (update check) and Phase 4 (wrapping) |
 | ISC-11 / ISC-12 (`contrast.ts`) | `bun test` (289 pass / 0 fail / 154,574 expect() across 10 files), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; the C# oracle at `$TEMP/fc-verprobe` extended with `Contrast.cs` and `dotnet run -c Release -- contrast`, which `<Compile Include>`s the real `ContrastService.cs`; then `bun $TEMP/fc-mutate-contrast.ts` (48 mutations) | **the rounding divergence is the discriminator, and it is quantified rather than noted**: C# `Math.Round` is half-to-even and JS `Math.round` is not, and a lightness step of 5 units is 12.75/255, so channel values land on `x.5` constantly. Measured over exactly the inputs `adjustAccent` generates — **215 of 4,096** grey-axis calls and **44,017 of 4,194,304** cube calls round differently, and it reaches the *output*: on a white background **4,807 of 262,144** accents get a different adjusted colour (`0,0,128` → `0,0,102` here vs `0,0,103` under `Math.round`). A port that used `Math.round` would have been green on any test written from the algorithm. **The C# suite could not have supplied these values**: it asserts only that the override colour *differs* from the accent and clears 4.5, and its hysteresis-retain test discards the colour entirely (`var (_, newState)`), so every override colour in the port's tests is a recorded C# output. **Two coverage gaps were closed by reasoning before mutating, not after**: nothing exercised `linearize`'s linear arm (needs a channel ≤ 10) and nothing reached `clamp` (needs a first-step overshoot); both were measured against the C# and asserted, so the mutation run did not have to find them. **Mutation: 38/48 caught, 0 skipped, all ten survivors predicted with their reasons.** Four are exact-threshold ties unreachable at 8-bit precision, and the rest are the `% 6` no-op, the dead `denom === 0` guard, the `0.04045` boundary, the fallback tie-break, hue-arm continuity at 60, and M5. **Every equivalence is an asserted swept property, not an excuse** — a `describe("the branches that provably cannot be told apart")` block that goes red if any of those properties ever stops holding, which is the change from the previous row, where an equivalent mutant produced a documentation fix. **M5 was found unpredicted and promoted rather than quietly rationalised**: dropping `&& currentState === "override"` from the exit guard survived, and analysis showed it *cannot* change an answer (a ratio above 5.5 is above 4.5, so the next guard returns the identical pair) — the same test in the guard below is caught (M7), which is what distinguishes redundancy from a hole. **Positive control on the rounding helper**, so `roundHalfToEven` is pinned to disagree with `Math.round` on a case that reaches a colour. **Bounded**: this module has no caller, and it serves a feature that may be cut — see Decisions |
 | ISC-11 / ISC-12 (`PhraseEngineTests` + `GetStructuredPhraseTests`, 68 cases) | `bun test` (360 pass / 0 fail / 174,135 expect() across 11 files), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; then `bun $TEMP/fc-mutate-engine.ts` — 28 mutations across `factories.ts`, `types.ts` and `tables.generated.ts`, **with `test/phrase-engine.test.ts` as the ONLY suite**; then `bun $TEMP/fc-mutate-engine-full.ts` for the two that survived everything | **the suite was deliberately narrowed, because the wide run would have flattered it.** This layer already passed a 12-defect run under ISC-13 with the golden fixture in play, so a full-suite mutation run measures the fixture and says nothing about the 68 new cases. Withholding it asks the only question worth asking: **22/28 caught by these cases alone, 0 skipped, 6 survivors, all 6 predicted with reasons written beforehand, 0 refuted.** **Every sampled C# assertion is translated as a universal, and the strengthening is a recorded property of the original rather than an improvement invented by the port**: the C# draws one candidate from a random bucket and asserts a substring — its own comments say "with randomization, check that phrase contains the hour word", a claim about *every* candidate that the original can only sample. All five such universals were checked against the C#-generated fixture **before** any test was written, and all five hold. **The strengthening is quantified, and it is uniform**: an arity probe over all 146 en-classic buckets (12 buckets × 12 hours + noon + midnight) returns exactly 5 everywhere, so each translated case is a 5× tightening and provably non-vacuous — asserted as `expect([...arities]).toEqual([5])` rather than left as a measurement, so a bucket that lost a candidate fails there instead of quietly weakening 68 assertions (mutation M25 confirms it fails). **The mutation that justifies the whole design is M23**: one candidate in the :45 bucket changed from `{h1}` to `{h}`. The universal catches it every time; the C#'s sampled form catches it one time in five. **Each survivor was chased to the file that does catch it, rather than filed as a boundary and left**: M15/M16 (trailing space in the qualifier — the C# asserts only non-emptiness) and M22 (the ordinal `{ho}` index, dead for en-classic) and M28 (noon/midnight segment-key swap — no C# class in this file asserts a key) are caught by `phrase-golden.test.ts`; M17 (the `oClockTemplate` branch) is caught by `phrase-factories.test.ts:96`, which is the *predicted* file, verified by running that file alone. **One mutation in 28 survives the entire suite, and it is proved to be a no-op rather than reported as a gap**: reversing `resolve`'s substitution order. None of `{h}`, `{h1}`, `{ho}` is a substring of another, so no substitution can create or destroy a later one's match and all orderings agree on every input — a true equivalent mutant, and the finding upgraded `resolve`'s comment from an implied constraint to a measured faithfulness note. **A derived assertion was replaced by a measured one**: the o'clock qualifier-split addition first asserted `2 × 33` empty against `2 × 22` non-empty, arithmetic off a fixture total that a reader would have to redo; measuring per hour12 gave a uniform 3-empty / 2-non-empty, which is what it now asserts, and mutation M18 shows that addition is the only thing catching a non-empty fallback. **Shared instruments were extracted, not copied**: `indexPicker`/`enumerateAll`/`wallTime` moved to `test/support/picker.ts`, because `enumerateAll`'s "exactly one draw per provider call" guard is load-bearing for both suites and two copies drift in exactly the direction that makes an enumeration silently partial. **Bounded**: en-classic only. The other 17 locales are touched by one addition asserting the absence of `" 0"`, which is why M22 survives — the eight locale-provider classes and the three segment-key classes are still untranslated |
+| ISC-11 / ISC-12 (`PhraseEngineCoordinatorTests`, 17 cases) | `bun test` (386 pass / 0 fail / 174,384 expect() across 12 files), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; the C# oracle from `$TEMP/fc-verprobe` extended with a `coordinator` mode whose csproj now `<Compile Include>`s **all 28 `FuzzyClock.Core/*.cs` files** as a glob; then `bun $TEMP/fc-mutate-coordinator.ts` — 17 mutations across `engine.ts` and `tables.generated.ts`, **with `test/phrase-engine-coordinator.test.ts` as the ONLY suite** | **`engine.ts` had ZERO coverage before this unit — nothing in the suite imported it.** So unlike the previous row there was no fixture to withhold: the narrowed run is the only run there is. **Mutation: 16/17 caught, 0 skipped, 1 survivor, predicted** (the constructor's missing-spec guard, unreachable while all 18 `LOCALES` have a spec). **The C#'s test-isolation machinery has no counterpart, and that is what makes two cases mean what their names say.** `[DoNotParallelize]` and a `[TestCleanup]` calling `SetLocale("en-classic")` exist only because `PhraseEngine` is a static class; the port's engine is instantiable, so every test builds a fresh one. `DefaultLocale_IsEnClassic` carries a comment conceding it checks its own cleanup rather than the startup default — the probe reads `CurrentLocale` as the first statement in the process and confirms `en-classic`, so the port asserts the real thing. **The two rejection cases are strengthened from an assertion that cannot fail into one that can**: both C# methods assert `CurrentLocale == "en-classic"` after a rejected key, which the cleanup already guaranteed, so "unchanged" and "silently reset to the default" are indistinguishable there. Each port case enters from `fr` instead. The probe confirmed the C# behaves that way — all 34 rejected keys entered from `fr` returned false and read `fr` back — and **mutation E1 is the proof the strengthening is not just words**: a `setLocale` that resets to the default on rejection dies here and passes the C# file untouched. **Non-empty became exact equality, because the probe made it possible**: the four `GetPhrase_Ja*_ReturnsNonEmpty` cases assert only `IsNullOrWhiteSpace == false`, but all four ja-* locales declare one template per bucket, so 03:30 is deterministic and the exact strings were recorded (`三時半`, `時の折り返し、三時の半ば`, `やっと三時半じゃないか`). Each case asserts `arity === 1` alongside, so a locale that gained a second template fails loudly instead of quietly turning an exact check into a 1-in-2 sample — the arity is also why `everyCandidateContains` (which requires more than one candidate) is the wrong instrument here. **The delegation case is enumerated, not sampled**: the probe drew 20000 times through the coordinator and saw exactly 5 distinct strings, which are the oracle, and mutation E15 (one candidate removed from the 03:30 bucket) confirms the set assertion catches what a 1-in-5 sample misses four times in five. **A survivor whose REASON was wrong is the finding of this unit, and it was found only because a prediction naming a file was run against that file.** E9 — hard-wiring delegate mode into the coordinator, `getStructuredPhrase` rebuilt as `("", getPhrase(dt))` — was predicted to survive here and to be caught by `phrase-engine.test.ts` and `phrase-golden.test.ts`. Both miss it, and so does the full suite: those files build providers through `makeProvider` and never import `engine.ts`, so **nothing anywhere read split-mode structured output through the coordinator**. Right verdict, wrong reason, and the wrong reason was a real gap — closed by an 18-locale delegation test that counts the two split-mode locales (`expect(splitSeen).toBe(2)`), so the comparison cannot go vacuous if a qualifier ever stops appearing at 03:30. **One gap was closed by reasoning before mutating**: `currentLocale` is a string field, so the default case proves only that the label reads `en-classic` — a constructor setting the label and the wrong provider passes it and every other test, since they all call `setLocale` first. The fresh-engine phrase read was written for that, and E8 confirms it is what catches it. **One deliberate divergence, measured rather than discovered later**: `SetLocale(null)` throws `ArgumentNullException` in the C# (`Dictionary.TryGetValue(null)`), where the port returns false and leaves the locale alone. Null reaches this method from settings JSON, whose `locale` field nothing type-checks, so the port honours the contract the C# method's own callers depend on and the C# does not. **Recorded and not asserted where the guarantee does not exist**: `locales` hands back `LOCALES` by reference and `as const` freezes nothing, so the test pins `toBe(LOCALES)` and `Object.isFrozen === false` rather than claiming an immutability the getter does not provide. **Case-sensitivity and whitespace are pinned though no C# test covers them** — 14 rejects measured on the C# side — because a well-meant `locale.trim().toLowerCase()` would be a silent behaviour change (E5/E6 both die). **Bounded**: this is the coordinator's registry and switch only. The 287 remaining cases are the per-locale providers and the segment-key classes, and nothing here says anything about what any locale emits away from 03:30 |
 
 ### Still outstanding
 
@@ -1082,6 +1103,38 @@ measured on this branch at or after that base.
   would assert the correspondence without having measured it, which is worse than leaving it open.
 
 ## Changelog
+
+- **conjectured** that mutation E9 — hard-wiring delegate mode into the coordinator, `getStructuredPhrase`
+  rebuilt as `("", getPhrase(dt))` — would survive `phrase-engine-coordinator.test.ts` and be caught by
+  `phrase-engine.test.ts` and `phrase-golden.test.ts`, since those two exercise en-classic and en-poetic,
+  the only split-mode locales. **refuted-by** running the mutation against each of those files alone and
+  then against the full suite: all three stay green. The verdict was right and the reason was wrong, and the
+  reason was the finding — both files build providers through `makeProvider` and never import `engine.ts`,
+  so **no test anywhere read split-mode structured output through the coordinator**. Closed with an
+  18-locale delegation test that compares enumerated engine output against `providerFor()` for every
+  method, plus `expect(splitSeen).toBe(2)` so the structured comparison cannot go vacuous if a qualifier
+  stops appearing at 03:30. Re-run: 16/17 caught. Worth recording because the near-miss was a *correct*
+  prediction — had I filed E9 as a predicted survivor and moved on, the write-up would have been accurate
+  in its verdict, wrong in its explanation, and the gap would have shipped described as covered.
+
+- **conjectured** while writing the ISC-12 remainder bullet that the 287 could be listed as
+  "eight 16-case locale providers = 128; `PhraseStyleProviderTests` 9 classes = 64; `SegmentKeyTests` 4
+  classes = 37; `EnglishPhraseProviderExpandedTests` 13; two 12-case; three 11-case; ..." **refuted-by**
+  adding it up before saving: that mixes a per-file enumeration with the per-class one it replaced, so the
+  9 `PhraseStyleProviderTests` classes and the 4 `SegmentKeyTests` classes were counted twice — once by
+  name and again inside the size tail. Rewritten as a clean per-file breakdown whose class count (8 + 9 + 4
+  + 5 = 26) and case count (128 + 64 + 37 + 58 = 287) are both shown, so the two decompositions of the same
+  number have to agree. The general shape of the mistake is the one this bullet already warns about: a
+  remainder that is edited rather than recomputed agrees with itself.
+
+- **`enumerateAll` refused to enumerate `getSegmentKey` and was right to.** The 18-locale delegation test
+  first drove all three methods through the enumeration instrument; it threw `expected exactly one draw per
+  provider call, saw 0` for the bucket-mode locales, whose `getSegmentKey` formats a bucket index and never
+  draws. Changed to a direct comparison, with the reason written next to it: bucket-mode keys are constant
+  within a minute and the 8 phrase-mode locales are the deterministic ones, so neither family has a draw
+  that could differ and the direct form is exact for all 18. Recorded because the instrument's guard did
+  the job it was extracted to do — it turned a silently partial enumeration into a named failure, on a call
+  shape nobody had considered when it was written.
 
 - **conjectured** at ISA-scaffold time that the counter probe would confirm the mechanism, and I wrote
   ISC-4 and ISC-5 into the artifact as `[x]` with invented sample values before the probe existed.
