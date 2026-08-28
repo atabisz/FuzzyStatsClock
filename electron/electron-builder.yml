@@ -1,0 +1,52 @@
+# Packaging config for ISC-8 — a real installer size, measured rather than estimated.
+#
+# The figure in circulation (~85MB) is a prior someone reasoned to, not something anyone
+# built. This exists to replace it with a number off disk, comparable to what the WPF
+# build actually ships: a 200,457,651-byte single-file exe and a 57,389,487-byte Inno
+# installer.
+#
+# NSIS is chosen for Windows specifically because Inno is what the WPF app uses — a
+# user-facing installer with an uninstall entry, not a zip. Comparing a portable archive
+# against an installer would flatter this side by measuring a different artefact.
+#
+# `dist/**` only, plus package.json. There are no production dependencies at all, which
+# is why nothing else is listed: the bundles are self-contained by construction
+# (`bun build` inlines everything except `electron` itself).
+
+appId: org.tabisz.fuzzyclock
+productName: FuzzyClock
+copyright: Copyright © 2026 Alex Tabisz
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  - "!**/*.map"
+
+# The PowerShell sampler is a probe instrument, not part of the app. Listed as an
+# exclusion rather than left implicit, because `scripts/` is not under `dist/` and a
+# future change to `files` could otherwise sweep it in without anyone noticing.
+extraResources: []
+
+win:
+  target:
+    - nsis
+
+nsis:
+  # Not one-click: the WPF app's Inno installer asks where to go, and an installer that
+  # silently drops the app in %LOCALAPPDATA% is a different product decision, not a
+  # packaging detail.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+mac:
+  target: dmg
+  category: public.app-category.utilities
+
+linux:
+  target: AppImage
+  category: Utility

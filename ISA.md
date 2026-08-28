@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 8/34
+progress: 9/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T16:41:00+10:00
+updated: 2026-08-28T17:12:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -157,9 +157,37 @@ misses it, because every feature either ported or was consciously retired with t
   ISC-18's import must match **by geometry, not by key**, and must handle an orphaned entry rather
   than trusting a stored position — a case his live file already contains. Read-only; the file was
   not modified.
-- [ ] **ISC-8. A real installer size exists.** One `electron-builder` run, measured against the WPF
-  200,457,651-byte single-file exe and 57,389,487-byte Inno installer. *(Carried `[DEFERRED-VERIFY]`;
-  the ~85MB figure in circulation is a prior, not a measurement.)*
+- [x] **ISC-8. A real installer size exists — and it is a REGRESSION, by 1.40× on both measures.**
+  `electron-builder` 26.15.3, NSIS target, `bun run dist:win`. `probe-size.ts` 5 passed / 0 failed /
+  0 inconclusive. Installer-to-installer, the artefact a user downloads: **80,089,948 B (76.4MB) NSIS
+  vs 57,389,487 B (54.7MB) Inno → 1.40× larger.** Payload-to-payload: **281,087,190 B (268.1MB)
+  `win-unpacked` across 73 files vs 200,457,651 B (191.2MB) single-file exe → 1.40× larger.** Both
+  WPF figures were re-read off disk and matched their recorded byte counts exactly, so the baseline
+  is the same artefact the plan measured, not a lookalike. The two ratios agreeing to two decimals is
+  coincidence, but it makes the finding one sentence: **Electron costs about 40% more disk, both
+  download and installed.**
+  - **The ~85MB prior was roughly right**, and that is worth saying plainly rather than framing the
+    prior as wrong: 76.4MB measured against ~85MB reasoned. The claim needed replacing because it was
+    unmeasured, not because it was inaccurate.
+  - **Size is a floor here, not a trajectory.** The app is 24,021 B of asar — **0.009%** of the
+    installed payload. Everything else is the Electron runtime, a fixed cost: 180MB `FuzzyClock.exe`,
+    40.3MB of locales, 10MB `icudtl.dat`. So this ratio *improves* for Electron through Phases 2-8,
+    because the WPF side grows with every feature and this side does not. Quoting today's 1.40× at
+    Phase 9 would overstate the disadvantage.
+  - **An available reduction, deliberately not taken:** 55 locale `.pak` files are 40.3MB, 15.0% of
+    the payload, for languages this app never renders. ISC-8 measures the *default* build on purpose —
+    a tuned number would not be the one a `dist:win` reproduces. Carried to ISC-29.
+  - **The size is only meaningful because containment was checked (C4).** A wrong `files:` glob
+    produces a perfectly plausible installer size for a shell that launches to nothing. All six
+    runtime files are present in `app.asar` — read from the asar header directly rather than via a
+    `bunx asar` that could be absent and degrade into "no files found", which is indistinguishable
+    from the failure the arm exists to catch.
+  - Bounds: **Windows only.** `mac: dmg` and `linux: AppImage` are configured and **NOT built** —
+    electron-builder needs the host platform, and a size asserted from this box is what AC-3 forbids.
+    Unsigned and with no application icon (electron-builder logged `default Electron icon is used`),
+    both of which add bytes. And `installer/` + `publish/` are gitignored, so C2 and C3 only run on a
+    machine that has built the WPF side — a fresh clone gets INCONCLUSIVE, by design rather than by
+    silent pass.
 - [ ] **ISC-9. The temps sidecar's packaged size and per-read latency are measured.** Option A cannot
   be chosen on an unmeasured size. Prototype: .NET console wrapping LibreHardwareMonitorLib, one JSON
   line per 2s to stdout.
@@ -334,6 +362,17 @@ misses it, because every feature either ported or was consciously retired with t
   arranged to read as a win, in the one artifact whose job is to be able to fail. It now prints both
   footprint intervals, the word INDETERMINATE, and "the RSS half of ISC-6 stays OPEN and is not claimed
   here".
+- **ISC-8 is `[x]` while reporting a regression, and NSIS was chosen because it is the harder
+  comparison.** The claim asked for a measured size, not a favourable one, so a 1.40× loss closes it —
+  marking it `[ ]` because the answer was unwelcome would make the box track preference instead of
+  measurement. The packaging target follows the same logic: electron-builder's `portable` or `zip`
+  targets would have produced a much smaller artefact, but WPF ships an Inno *installer*, and
+  comparing a zip against an installer measures compression choices rather than platform cost.
+- **The 40% disk regression is surfaced to Alex, not adjudicated here.** Phase 1 is the go/no-go, and
+  the two numbers now point opposite ways: ~2× cheaper on CPU, 1.40× more disk. Which one matters is
+  his call about the product — a desktop overlay's disk cost is paid once and its CPU cost is paid
+  continuously, which is an argument, not a decision. The ISA records both at full strength rather
+  than netting them into a verdict I was not asked for.
 
 ## Verification
 
@@ -351,6 +390,7 @@ measured on this branch at or after that base.
 | ISC-7 | `bun electron/scripts/probe-displays.ts` — arms B1..B5 | **the uniqueness arm is the discriminator, and it is the one the claim as written did not have.** "Non-empty and stable" passes on 2 of 3 of his displays while still being unusable, so the probe asks separately whether a label *distinguishes* one monitor from another — and 2× `"LG HDR WQHD"` is what makes the answer no. **Counter-case from the original**: WPF's own `MonitorService.cs:90-115` duplicate-suffix pass exists only for this case, so the ambiguity is a known production property, not a probe artefact. **The fallback branch is measured before being selected** — composite uniqueness and restart stability are both checked, rather than assumed to work because the preferred branch failed. **Two cold launches**, so the enumeration is genuinely re-done and not read twice from one process |
 | ISC-7.1 | same probe, arm B6 | **cross-artifact**: the live settings file and the live enumeration are read in the same run and matched against each other, so "these keys are unproducible" is measured against what Electron actually reported on this desk rather than against the API docs. **Two independent failures, one visible only via geometry**: the key mismatch would be caught by any comparison, but the orphaned `display5` position is only visible by testing the stored point against current bounds — and it is the one that would have shipped as a window restored off-screen |
 | ISC-6.1 | same probe, A4's memory lines | the claim is that the method **cannot** decide, and the probe demonstrates it rather than asserting it: it prints both bounds and both intervals, and the overlap is visible in the output. A single RSS number for either side would pass a naive comparison in whichever direction it was chosen — which is the failure being refused |
+| ISC-8 | `bun electron/scripts/probe-size.ts` from `electron/` — arms C1..C5, after `bun run dist:win` | **containment is the discriminator** (C4): a wrong `files:` glob yields a plausible installer size for a package that launches to nothing, so all six runtime files are verified present *inside* `app.asar` — and the asar header is parsed directly, because a `bunx asar` that is not installed degrades into "no files found", indistinguishable from the failure being tested. **Baseline identity** (C2): both WPF artefacts are re-read off disk and compared to their recorded byte counts, so citing a stale or different `publish/` surfaces as a FAIL instead of silently becoming the baseline — both matched exactly. **Like-for-like denominators**: installer-vs-installer and payload-vs-payload, never one of each, since an installer measured against an uncompressed tree flatters whichever side is compressed; and `publish/` is measured as a tree to confirm the single-file exe *is* the whole WPF payload (3 files, 0.1MB of pdbs beside it) rather than one file out of several. **The split that dates the finding** (C5): the app is 0.009% of the payload, so the ratio is a floor that improves for Electron as the port fills in — without it, today's 1.40× would be quoted at Phase 9 as though it were static |
 
 ### Still outstanding
 
@@ -405,6 +445,25 @@ measured on this branch at or after that base.
   `\Processor(_Total)\% Processor Time` fails on a non-English Windows. The locale-independent form is the
   numeric index path via the `Perflib\009` / `CurrentLanguage` registry maps — a lookup table, not a
   redesign, and it needs a non-English host to verify on. Recorded in `win32.ts` as a known limitation.
+- **The disk regression needs Alex's read before Phase 2 is worth starting.** 1.40× larger on both
+  measures, against ~2× cheaper on CPU. Not a blocker and not a question I should stop on, but it is
+  the first Phase 1 result that goes the wrong way, and it is the kind of thing better surfaced now
+  than discovered by him at Phase 9.
+- **40.3MB of unused locales are shipping, 15.0% of the payload.** 55 `.pak` files for languages the
+  app never renders. Removable via an `afterPack` hook on Windows (`electronLanguages` covers macOS
+  only), which would cut the installer meaningfully and narrow the 1.40×. Deliberately out of ISC-8's
+  scope, which measures the default build; belongs to ISC-29.
+- **No icon and no code signature yet**, both of which add bytes and change the measured size. So the
+  76.4MB figure will move upward once packaging is real, and ISC-29 should re-run `probe-size.ts`
+  rather than carrying this number forward.
+- **The mac `dmg` and linux `AppImage` targets are configured but never built.** They cannot be built
+  from this host, so their sizes are unknown — not estimated, unknown. Whoever runs ISC-10's hosts
+  should run `probe:size` there too, since the artefacts differ enough per platform that a Windows
+  figure predicts little.
+- **`probe-size.ts` cannot run on a fresh clone.** `installer/` and `publish/` are gitignored, so C2
+  and C3 return INCONCLUSIVE without a local WPF build. That is the intended degradation — they say so
+  rather than passing — but it means the ISC-8 figures are reproducible only on a machine that has
+  built both sides.
 
 ## Changelog
 
@@ -513,3 +572,17 @@ measured on this branch at or after that base.
   byte-identical to the C# original across the full sweep) is now the claim most able to embarrass this
   port, because it is the only one that can fail *after* everything compiles and runs. Cost was the risk
   that could stop the work; correctness is the risk that can waste it.
+- **conjectured** — implicitly, by the plan carrying "~85MB" — that the packaged size would be a
+  *win*, since the WPF single-file exe is 191MB and 85 is well under that. **refuted-by** measuring the
+  comparable artefacts: 191MB is not what a WPF user downloads, the 54.7MB Inno installer is, and the
+  Electron equivalent is 76.4MB. The prior's *number* was close; the framing it invited was wrong,
+  because it was being compared against the largest figure on the other side rather than the matching
+  one. The 191MB-vs-268MB row exists precisely so the flattering comparison and the fair one appear
+  together and neither can be quoted alone.
+- **conjectured** that measuring the installer was sufficient to close ISC-8. **refuted-by** the
+  realisation that `files:` had never been validated: 22KB of bundles in an 80MB installer produces
+  the same byte count whether the bundles are present or absent, so the arm that makes the number mean
+  anything is containment, not measurement. C4 was added for it, and the asar-header parse was chosen
+  over `bunx asar` for the same reason the whole probe exists — an instrument that fails silently
+  under a variable you did not set will be believed. Third instance of that pattern this phase, after
+  `ELECTRON_RUN_AS_NODE` and the doubled path.
