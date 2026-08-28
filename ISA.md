@@ -7,7 +7,7 @@ phase: build
 progress: 11/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T20:58:26+10:00
+updated: 2026-08-28T21:17:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -338,15 +338,34 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 2 — Core translation
 
-- [ ] **ISC-11. `FuzzyClock.Core` is translated in full, and the denominator is the measured one —
+- [~] **ISC-11. `FuzzyClock.Core` is translated in full, and the denominator is the measured one —
   re-measured after Option C, because a stale denominator is how a deletion turns into missing work.**
   **27 files / 2,467 LOC = 1,987 across 18 phrase providers + 480 across 9 logic files.** Was 28 files
   / 2,510 = 1,987 + 523 across 10; `TemperatureFormatter.cs` (43 LOC) is deleted under Option C, so it
   is not a file left to translate and must not be counted as one. The phrase-provider half is
   untouched — temps never entered it.
-- [ ] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
+  - **Where it stands: the phrase half is done and 6 of the 9 logic files are, by LOC 1,987 + 150 of
+    480.** Done: `IPhraseProvider` → `core/phrase/types.ts`, `PhraseEngine` → `core/phrase/engine.ts`
+    (both under ISC-13), then `UptimeFormatter` → `core/uptime.ts`, `DialGeometry` → `core/dial.ts`,
+    `DateFormatter` → `core/date.ts`, `SevenSegmentEncoder` → `core/seven-segment.ts`. **Left: 330 LOC
+    in three files** — `UpdateVersionComparer` (57), `PhraseWrapService` (76), `ContrastService` (197).
+- [~] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
   contributes **12** of those cases and retires with the feature. Translated alongside each unit, not
   afterwards — a test written after the code it checks is a rubber stamp (AC-5).
+  - **The 469 is measured on this host, not inherited.** `dotnet test FuzzyClock.Core.Tests` reports
+    `Passed: 469, Failed: 0` and `TemperatureFormatterTests` contributes exactly 12 of them, so 457 is
+    confirmed by the same run that confirms the total. Two instruments were wrong before one was right:
+    an `xUnit`-shaped grep for `[Fact]`/`[InlineData]` returned **0 cases in every file** (this project
+    is MSTest — `[TestClass]`/`[TestMethod]`/`[DataRow]`), and an MSTest-shaped `awk` counter returned
+    **436**, 33 short. `dotnet test --list-tests` cannot settle it either: it lists *methods*, so a
+    `[DataRow]` method counts once. Per-class counts come from a TRX parse (37 classes, 469 results,
+    0 unmapped), which is what the per-unit figures below are read from.
+  - **Progress: 32 of the 457 translated, and `bun test` is at 137 pass / 0 fail** (96 from ISC-13 and
+    the typeperf fixtures, 41 new). The 32 are `UptimeFormatterTests` 7, `DialGeometryTests` 6,
+    `DateFormatterTests` 6, `SevenSegmentEncoderTests` 13 — each file's full case count from the TRX,
+    none partially taken. The other 9 new cases are **additions, not translations**, and are counted
+    separately on purpose: a port that invents its own tests and counts them toward a translation target
+    can reach the number without translating anything.
 - [x] **ISC-13. Phrase output matches the C# original across a full sweep. RESTATED — the original
   wording was impossible; the oracle was built first, and the port now satisfies it.** This is the claim
   that makes ISC-12 more than self-agreement, so it is the one worth getting right before any TypeScript
@@ -611,6 +630,28 @@ misses it, because every feature either ported or was consciously retired with t
   reaching `PROBE-READY` and `PROBE-PAINTS 9` with no `did-fail-load` — which is the arm that matters,
   because `element()` throws on a missing id, so a half-done deletion would have killed the renderer
   module at load and frozen paints at 0 while the transparent window still showed.
+- **`DateFormatter` is ported field by field through `Intl`, and that decision fixed a divergence the
+  port was already shipping.** A .NET custom format string is placeholders plus literals: each
+  placeholder resolves against the culture independently and the *order* is the pattern's, fixed.
+  `Intl.DateTimeFormat` does the opposite — given `{weekday, month, day}` together it emits the locale's
+  own order. On **this host, en-AU, that is "Sat, 7 Mar" where the WPF app renders "Sat, Mar 7"**, and
+  the renderer was calling exactly that whole-date form. So each field is fetched alone and this file
+  supplies the order and the literals, which is .NET's semantics exactly. `Numeric` and `ISO` consult no
+  locale at all, having no name-bearing field. **The divergence is why the test asserts the two forms
+  DIFFER** rather than only asserting the right string: a port that delegates ordering to the locale
+  passes every value assertion on an en-US CI box and is wrong on Alex's desk. One divergence is kept
+  and written down rather than fixed: in .NET `/` inside a custom format is the culture's
+  `DateSeparator`, and this pins `/`.
+- **The renderer's own copies of `formatUptime` and the date line are deleted, not left beside the
+  ports.** Both had already drifted — the local uptime dropped the minutes field past a day
+  (`up 1d 2h`, where the C# gives `up 1d 2h 15m`) and the date used the locale's field order. `../core/`
+  is imported straight into the renderer bundle, which the file now explains, because the comment above
+  it says main-process code must never be imported there and a reader needs to see why these are a
+  different case: they are pure translations of `FuzzyClock.Core` with no Node, Electron or IPC surface,
+  and the WPF original calls the same code from its UI thread. **The "no reading yet" state moved rather
+  than vanished** — `index.html` ships "up —" as the node's initial text, so it shows before the first
+  sample and never returns, instead of living as a `seconds <= 0` branch inside a formatter the C# has no
+  branch in.
 - **`bun run start` now goes through `scripts/start.ts`, because `electron dist/main.js` does not work
   in the shell this repo is developed in.** Found by using it: the smoke launch above, run from a
   VSCode-descended shell, died in `node:internal/modules/esm/translators` under a `Node.js v20.18.3`
@@ -752,6 +793,8 @@ measured on this branch at or after that base.
 | ISC-10 (macOS half only) | `mcp__mac-codex__codex` against an Apple M1, macOS 26.6.2 arm64, Electron pinned to 33.4.11. **Not re-runnable from this machine** — it needs that dispatch and a host with the same TCC state. Four scripts and four fixture captures in a `mktemp -d`; arms M1..M7 | **the render gate is the discriminator, and it comes first** (M1): a transparent frameless window that loaded nothing is visually identical to a working overlay and *cheaper*, so 578 rAF paints acknowledged from inside the renderer plus zero `did-fail-load` is what licenses every arm after it. **Readback off the live window, never off the source** (M2) — and the readback itself found two typings-implied APIs (`getAlwaysOnTopLevel`, `getActivationPolicy`) that **do not exist at runtime**, which is exactly the class of error a source-reading probe cannot produce. **External corroboration for the two claims a process cannot make about itself** (M3/M4): LaunchServices `ApplicationType="UIElement"` and a separate Swift binary reading `NSRunningApplication.activationPolicy == .accessory`, rather than trusting `app.dock.isVisible()`, which is the process agreeing with itself. **Policy and UI are split, not merged** (M4): the accessory policy is `[MEASURED]`, the Cmd-Tab switcher is `[INCONCLUSIVE]`, because `screencapture -x` is TCC-denied on that host — three arms (M4b, M5, M6) are reported unproven for that one reason rather than inferred from the mechanism. **Positive control on the telemetry** (M7): 1.25% idle vs 26.73% with one core deliberately busy, so a collapsed pipeline returning near-zero for everything cannot pass. **Counter-case that reversed a plan row**: `os.freemem()` was cross-read against `vm_stat` on the same snapshot and disagreed 3.1%-free vs 69.14%-occupied — a single-source read would have shipped a memory cell showing 97% used on an idle Mac. **A refuted absence**: `powermetrics` was confirmed root-only *and* an unprivileged `ioreg` path was found anyway, so "no source exists" was tested rather than concluded from the documented one failing |
 | ISC-13 (the oracle half) | `dotnet run` on `tools/GoldenGen` (Release), then re-run and compare hashes. Writes `electron/test/fixtures/phrase-golden-{segments,candidates}.tsv`. Exit 0 means every internal check passed; exit 1 prints the problems and still writes the files | **byte-identical reruns are the discriminator, and they are the only available evidence of completeness** — the candidate sets are collected by sampling a random provider to saturation, so the question that decides whether this oracle is worth anything is whether saturation happened. Two independent runs produced identical bytes (`66ba906040fe15c45d6378a63ccf7466` candidates, `fa810b263d2805d13acbc9d7abd009bb` segments, second run verified via `md5sum -c`); a short set would have differed between runs. **Denominator from the source, values from the provider**: reflection reads each bucket's declared candidate count and every bucket saturated to *exactly* it, which is simultaneously the saturation proof and a check that no table holds a duplicate or unreachable candidate. **The grouping hypothesis is tested, not assumed**: every `(segment key, hour12)` group must agree across all 1440 minutes, so a wrong hour formula fails loudly instead of silently dropping the minutes that disagreed. **Positive control on the registry read**: all 18 reflected locales are fed back through the public `SetLocale`, *and* a bogus locale must be rejected — without the second half, a `SetLocale` that returned true for everything would make the first half vacuous. **Determinism claimed for the 8 single-template locales is measured**: 200 draws per minute per locale, each yielding one distinct value equal to its own segment key, rather than read off the source. **Hand-derivation cross-check**: `en-classic:0` hour 3 was derived by hand from `EnglishPhraseProvider.cs` and matched the file's 5 phrases and 5 structured pairs exactly. **Bounded**: this row covers the oracle only — no TypeScript has been compared against it, which is why ISC-13 is `[~]` |
 | ISC-13 (the port half) | `bun test` (96 pass / 0 fail) and `bun run typecheck` (exit 0), then `bun $TEMP/fc-mutate.ts` — twelve injected defects, each applied to one file, suite run, file restored from an in-memory copy in a `finally` | **the mutation run is the evidence; the green run is only its precondition.** 44 assertions over 38,904 fixture rows, written by the same hand as the port, prove nothing until they can be made to fail — so all twelve defects were injected and all twelve turn the suite red, each naming a plausible test. **Every anchor is uniqueness-checked**: a mutation whose search string does not appear exactly once is reported `SKIP` and counted as a survivor, so a typo in the harness cannot read as a pass. **The suite's own instruments are guarded rather than trusted**: the fixture parse requires the exact field count on every row (a ragged row is how a comparison reports "0 mismatches" over 0 rows) and rejects CR; `at(hour, minute)` asserts its own round-trip, so a host whose zone shifted on the chosen date fails by name instead of mismatching every phrase; `enumerateAll` asserts exactly one draw per provider call, since the port takes a second draw in `getStructuredPhrase` by design and index enumeration would silently cover half the space if that became two. **The denominator is asserted, not assumed**: each locale's sweep ends `expect(checked).toBe(1440)`, and the PENDING/extra sets must both be empty — a suite iterating only over what it had ported would report all-green on a port of one locale. **Two independently generated artifacts are made to agree on which locales draw**: GoldenGen decided by redrawing each minute and watching the phrase move, TableExport by the C# field's static type, and the test asserts the two sets are the same 10. **Bounded**: `PhraseWrapService` and the display-side formatting are outside this, so ISC-13's green says nothing about how a phrase is wrapped or rendered — that stays with ISC-11/ISC-12 |
+
+| ISC-11 / ISC-12 (the four small logic files) | `bun test` (137 pass / 0 fail) and `bun run typecheck` (exit 0) from `electron/`; the denominator from `dotnet test FuzzyClock.Core.Tests` (469 pass) with per-class counts out of a TRX parse; then `bun $TEMP/fc-mutate-core.ts` — eight injected defects, uniqueness-checked anchors, `finally` restore | **the C# expectations are the oracle and they were measured on this host, not assumed**: `DateFormatterTests` asserts "Sat, Mar 7" and it passes under en-AU, so the strings the port is held to are what the original actually produces where it runs. **Mutation, 8/8 caught** — floor-for-trunc on the uptime minutes, days shown at zero, the hour hand's interpolation term dropped, the minute hand off by a factor, the month index off by one, ISO losing its zero padding, `Short` delegating its order to the locale, one wrong seven-segment mask. **The order assertion is a counter-case, not a value check**: `formatDate("Short", …, "en-AU")` must *differ* from `Intl`'s whole-date output for the same locale, which is the only assertion that fails for a port that reorders — every value assertion passes on an en-US box. **The mask table is transcribed, not imported**: comparing the module's own table to itself would pass for any table, and `SUPPORTED_CHARACTERS` is asserted equal to the transcribed list so a row added without a test row fails. **A survivor produced a doc fix, not a test patch** — see § Changelog. **Bounded**: `bun test` green says nothing about what the panel *shows*; the renderer now calls both ports, and the evidence for that is a 12s launch reaching `PROBE-PAINTS 9` with no `did-fail-load`, which proves the module loaded and rendered, not that the glyphs are right |
 
 ### Still outstanding
 
@@ -1169,3 +1212,15 @@ measured on this branch at or after that base.
   the Feed work too:** a claim about a *tree* must be checked against `--stat`, not against intent — the
   work item was authorized, planned, written up in three documents and simply never carried out in code,
   and every document read as though it had been.
+- **conjectured**, in `uptime.ts`'s own doc comment, that `Math.floor` in place of `Math.trunc` would
+  read a -300s span as "up -1d 23h 55m" and invent a day that does not exist. **refuted-by** the
+  mutation run: that exact substitution **survived**, because JS `%` already keeps the sign of the
+  dividend, so the floored and truncated forms agree on every positive input and on any negative one
+  whose quotient is already an integer — and -300s is exactly that. The real difference needs a
+  sub-minute remainder (-330s reads -5m truncated, -6m floored), which is now the case the test pins,
+  taking the run to 8/8. **Second time a surviving mutant has been a finding about a comment rather than
+  a gap in a test** (the first was the o'clock guard), and the shape is the same both times: the code was
+  right, the *reason given for it* was wrong, and only an attempt to break it could tell them apart. On
+  the days and hours lines the two functions are equivalent for every reachable input — a negative
+  component fails the `> 0` guard whichever way it rounded — so that is recorded as having nothing for a
+  test to hold, rather than left looking like missing coverage.

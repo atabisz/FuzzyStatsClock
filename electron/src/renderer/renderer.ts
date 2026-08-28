@@ -19,12 +19,16 @@
  * thinks is occluded, and a probe that only measured CPU would read that as a win.
  */
 
-// Marks this file a module. Without it TypeScript treats the bundle entry as a global
-// script and rejects the `declare global` below (TS2669) — and the types here cannot
-// come from `../shared.js` instead, because importing main-process code into the
-// renderer bundle is what `contextIsolation` exists to prevent. They are duplicated on
-// purpose; the preload bridge is the only contract between the two halves.
-export {}
+// The `StatsSample` shape below is duplicated from `../shared.ts` rather than imported,
+// because importing main-process code into the renderer bundle is what `contextIsolation`
+// exists to prevent. The preload bridge is the only contract between the two halves.
+//
+// `../core/` is a different case and is imported directly: those modules are pure
+// translations of `FuzzyClock.Core`, with no Node, Electron or IPC surface, and the WPF
+// original calls the same code from its UI thread. Duplicating a formatter here instead
+// is what left this file rendering "Sat, 7 Mar" where the WPF app renders "Sat, Mar 7".
+import { formatDate } from "../core/date.js"
+import { formatUptime } from "../core/uptime.js"
 
 const UNAVAILABLE = -1
 
@@ -110,16 +114,6 @@ function renderRow(row: Row, value: number): void {
   setWidth(row.bar, ((clamped / 100) * TRACK_WIDTH).toFixed(1))
 }
 
-function formatUptime(seconds: number): string {
-  if (seconds <= 0) return "up —"
-  const days = Math.floor(seconds / 86_400)
-  const hours = Math.floor((seconds % 86_400) / 3_600)
-  const minutes = Math.floor((seconds % 3_600) / 60)
-  if (days > 0) return `up ${String(days)}d ${String(hours)}h`
-  if (hours > 0) return `up ${String(hours)}h ${String(minutes)}m`
-  return `up ${String(minutes)}m`
-}
-
 /**
  * Placeholder for the fuzzy phrase engine, which is Phase 2.
  *
@@ -136,10 +130,9 @@ function placeholderPhrase(now: Date): string {
 function render(sample: StatsSample): void {
   const now = new Date()
   setText(phraseEl, placeholderPhrase(now))
-  setText(
-    dateEl,
-    now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
-  )
+  // "Short" is `AppSettings.DateFormat`'s default (AppSettings.cs:42). Reading it from settings is
+  // Phase 6; the format NAME is the only thing that will change here, not the call.
+  setText(dateEl, formatDate("Short", now))
 
   renderRow(rows.cpu, sample.cpu)
   renderRow(rows.gpu, sample.gpu)
