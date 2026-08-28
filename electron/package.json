@@ -19,6 +19,7 @@
     "probe:cost": "bun scripts/probe-cost.ts",
     "probe:displays": "bun scripts/probe-displays.ts",
     "probe:size": "bun scripts/probe-size.ts",
+    "probe:sidecar": "bun scripts/probe-sidecar.ts",
     "dist:win": "bun run build && electron-builder --win --publish never"
   },
   "devDependencies": {

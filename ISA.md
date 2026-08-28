@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 9/34
+progress: 10/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T17:12:00+10:00
+updated: 2026-08-28T17:34:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -68,6 +68,10 @@ misses it, because every feature either ported or was consciously retired with t
   option (A/B/C/D), Linux XWayland-only, auto-contrast in/out of 1.0. **None of them gates Phases 1-3**,
   and Phase 1 produces the sidecar size the temps call depends on — so the build proceeds and the
   questions are asked when their evidence exists, rather than blocking now. Closes when he answers.
+  **The temps call now HAS its evidence, and it is not the evidence the plan expected** (ISC-9): the
+  question is no longer "is 17MB worth full fidelity" but "is 17MB plus an elevation prompt worth CPU
+  temperature, when GPU-only is free either way". The other two calls still have no new evidence —
+  Linux XWayland needs ISC-10's host, and auto-contrast is pure scope.
 
 ### Phase 1 — Telemetry + platform spike (THE GO/NO-GO)
 
@@ -188,9 +192,57 @@ misses it, because every feature either ported or was consciously retired with t
     both of which add bytes. And `installer/` + `publish/` are gitignored, so C2 and C3 only run on a
     machine that has built the WPF side — a fresh clone gets INCONCLUSIVE, by design rather than by
     silent pass.
-- [ ] **ISC-9. The temps sidecar's packaged size and per-read latency are measured.** Option A cannot
-  be chosen on an unmeasured size. Prototype: .NET console wrapping LibreHardwareMonitorLib, one JSON
-  line per 2s to stdout.
+- [x] **ISC-9. The temps sidecar is built and measured — and the finding is not the size, it is that
+  unelevated it reads GPU only.** `electron/sidecar/FuzzyClock.Temps/`, 231 lines of C# over
+  `LibreHardwareMonitorLib 0.9.6` (pinned to the exact version `FuzzyClock.App.csproj:15` uses), one
+  JSON line per 2s to stdout. `bun run probe:sidecar`, **5 passed / 0 failed / 0 inconclusive**.
+  - **Size — Option A's actual cost:** trimmed **17,855,474 B (17.0MB)** against untrimmed
+    **78,543,941 B (74.9MB)**, a 4.40× saving. The single-file exe is 15.5MB trimmed / 73.4MB
+    untrimmed, and **1.5MB rides beside it** — `libMonoPosixHelper.dll` + `MonoPosixHelper.dll`, LHM
+    native dependencies that `PublishSingleFile` does not absorb, so "single file" is three files.
+    Against ISC-8's 76.4MB installer, Option A is roughly a **+22% installer** at the trimmed size.
+  - **Latency — 5.7× better than the prior that shaped the WPF design.** n=20: min 61ms, p50 78ms,
+    p95/max 472ms, **mean 106.8ms**, against the 608.2ms mean the v4.2 spike measured
+    (`TemperatureService.cs:4-6`). Worst case fits well inside the 2000ms interval, so the dedicated
+    background loop the WPF app needed is comfortable rather than tight. **`Computer.Open()` was
+    672ms here against the 4272ms that forced the WPF init timeout from 3s to 5s** — and it moved
+    542/572/672/1794ms across four runs depending on whether the ring-0 driver was already loaded, so
+    a parent timeout must budget for the cold case, not this one.
+  - **The improvement may not be portable, and the reason is the next bullet.** This host has fewer
+    sensors to update than the spike box did: motherboard exposes zero, Storage is absent entirely.
+    A machine with a populated super-I/O controller and an NVMe sensor has more work per read.
+  - **THE FINDING (D5). Unelevated, only GPU temperature works — and the sensors are there.** The CPU
+    node enumerates **51 temperature sensors and every one reads NULL**; 2 of 53 sensors returned a
+    value, both on the NVIDIA GPU (`GPU Core` 47.0, `GPU Hot Spot` 55.5, via NVAPI which needs no
+    driver). `elevated: false`. Enumerated-but-null is a **ring-0 refusal, not absent hardware** —
+    a distinction invisible through the normal output, where both render as `-1`, which is why
+    `--dump` exists. Motherboard "Dell 0342YC" reports 0 sensors and Intel UHD reports 0, so those
+    two really are absent.
+    - **This reframes the A/B/C/D decision and is Alex's call, not mine: Option A unelevated returns
+      exactly what Option D returns nearly free.** Full fidelity needs a `requestedExecutionLevel`
+      manifest, which changes what a user sees at every launch — a product decision, not packaging.
+    - **It is NOT a port regression.** `FuzzyClock.App.csproj` declares no elevation manifest either
+      and the sidecar mirrors its resolver line for line, so v4.2 shows the same readings today. This
+      is a **code-identity argument, labelled as such** — identical priority lists
+      (`TemperatureService.cs:24-34`), identical resolution walk (`:141-205`), identical library
+      version and the same four `Computer` flags. I did not run the WPF app to confirm it, because
+      that would put its overlay on Alex's desktop.
+  - **Trimming is safe here and the claim stops at "here" (D4).** Both builds resolve the same
+    sensors and return the same live sources. But `PublishTrimmed` emits IL2104 warnings for
+    `LibreHardwareMonitorLib`, `System.Management` and `HidSharp` — and the reflection paths those
+    cover are precisely the ones this box cannot exercise: no Storage/NVMe node, no AMD GPU, no
+    motherboard sensors. A trimmed build could silently return sentinels on hardware this host cannot
+    present, and D-14's silent-failure posture means nobody would notice. So the 4.40× saving is
+    real and its risk is unmeasurable from this machine.
+  - **It bounds ISC-6's temps asymmetry, which was the other reason this claim existed.** ISC-6
+    measured Electron *without* a temps source while the WPF baseline had `TemperatureService`
+    running in-process. Upper bound on the sidecar's cost: 106.8ms per 2000ms interval = **5.34% of
+    one core**, and that is an over-estimate because it charges wall-clock as CPU. Even at the
+    ceiling, Electron + sidecar ≈ 13.6% against WPF's 19.92% — **so the asymmetry narrows the CPU win
+    but does not flip it.**
+  - Bounds: Windows, one host, unelevated, `dotnet 10.0.400`. The sidecar is win32-only by
+    construction — Linux reads `/sys/class/hwmon` from TypeScript and never touches this project, and
+    macOS has no temperature source at all.
 - [ ] **ISC-10. The shell flags are smoked on macOS and on an X11 Linux session.** The only way the
   plan's `[UNPROBED]` rows become real. `mcp__mac-codex__codex` can cover the macOS half on Alex's
   go-ahead; Linux needs a host.
@@ -368,6 +420,23 @@ misses it, because every feature either ported or was consciously retired with t
   measurement. The packaging target follows the same logic: electron-builder's `portable` or `zip`
   targets would have produced a much smaller artefact, but WPF ships an Inno *installer*, and
   comparing a zip against an installer measures compression choices rather than platform cost.
+- **The sidecar mirrors `TemperatureService.cs` line for line instead of being redesigned.** Its
+  priority lists, resolution walk, NVMe SubHardware descent and `-1` sentinel are copied, with the
+  source lines cited in comments. That file is what shipped in v4.2 and what the tests cover, so any
+  difference here would be a fidelity regression dressed as an improvement. Two things were changed
+  deliberately and both are documented in the file: the 5s init-timeout race moves to the parent
+  (which can see a process fail to emit, strictly more information than the in-process version had),
+  and the silent-failure posture becomes stderr — silence was right for a UI thread and wrong for a
+  process whose only job is to report.
+- **The elevation finding is reported, not fixed.** Adding a `requestedExecutionLevel` manifest would
+  get CPU temperature back, and it would also put a UAC prompt in front of an app that autostarts.
+  That trade is Alex's, and taking it unilaterally would be deciding a product question inside a
+  measurement task. Recorded in ISC-9 and in Still outstanding.
+- **`--dump` exists because a sentinel is ambiguous and the decision needs it not to be.** `-1` covers
+  both "the driver refused" and "there is no such sensor", which are different diagnoses with
+  different fixes. Adding a mode that prints the inventory was cheaper than reasoning about which one
+  was happening — and it is what turned "temps mostly don't work" into "51 sensors present, all
+  refused, unelevated."
 - **The 40% disk regression is surfaced to Alex, not adjudicated here.** Phase 1 is the go/no-go, and
   the two numbers now point opposite ways: ~2× cheaper on CPU, 1.40× more disk. Which one matters is
   his call about the product — a desktop overlay's disk cost is paid once and its CPU cost is paid
@@ -390,6 +459,7 @@ measured on this branch at or after that base.
 | ISC-7 | `bun electron/scripts/probe-displays.ts` — arms B1..B5 | **the uniqueness arm is the discriminator, and it is the one the claim as written did not have.** "Non-empty and stable" passes on 2 of 3 of his displays while still being unusable, so the probe asks separately whether a label *distinguishes* one monitor from another — and 2× `"LG HDR WQHD"` is what makes the answer no. **Counter-case from the original**: WPF's own `MonitorService.cs:90-115` duplicate-suffix pass exists only for this case, so the ambiguity is a known production property, not a probe artefact. **The fallback branch is measured before being selected** — composite uniqueness and restart stability are both checked, rather than assumed to work because the preferred branch failed. **Two cold launches**, so the enumeration is genuinely re-done and not read twice from one process |
 | ISC-7.1 | same probe, arm B6 | **cross-artifact**: the live settings file and the live enumeration are read in the same run and matched against each other, so "these keys are unproducible" is measured against what Electron actually reported on this desk rather than against the API docs. **Two independent failures, one visible only via geometry**: the key mismatch would be caught by any comparison, but the orphaned `display5` position is only visible by testing the stored point against current bounds — and it is the one that would have shipped as a window restored off-screen |
 | ISC-6.1 | same probe, A4's memory lines | the claim is that the method **cannot** decide, and the probe demonstrates it rather than asserting it: it prints both bounds and both intervals, and the overlap is visible in the output. A single RSS number for either side would pass a naive comparison in whichever direction it was chosen — which is the failure being refused |
+| ISC-9 | `bun run probe:sidecar` from `electron/` — arms D1..D5 (two `dotnet publish` runs, ~2 min) | **the reading arm is the discriminator** (D2): the WPF original's D-14 posture makes a totally dead temperature source *look* like a machine without sensors, so a sidecar emitting well-formed JSON full of `-1` has a size and a latency that describe nothing. Everything else is reported subject to D2, and it passed on a real GPU value. **Enumerated-vs-absent** (D5) is the distinction the decision turns on and the normal output cannot show: 51 CPU sensors present and all NULL is a driver refusal, 0 motherboard sensors is absent hardware, and both render `-1` — hence a `--dump` mode rather than an inference from the sentinel. **Trim safety compared on behaviour, not on exit status** (D4): a trimmed publish that succeeds and then silently returns sentinels is the actual failure mode, so the two builds are compared on which sources came back live, and the claim is explicitly bounded to this host's hardware because the IL2104 warnings cover exactly the paths it cannot exercise. **Percentiles not a mean** (D3): the question is whether a read can overrun its 2s interval, and a 106.8ms mean hides a 472ms worst case. **Oracle fidelity**: the priority lists and resolution walk are copied from `TemperatureService.cs` rather than redesigned, so a difference in reading is a port defect and not a design variation |
 | ISC-8 | `bun electron/scripts/probe-size.ts` from `electron/` — arms C1..C5, after `bun run dist:win` | **containment is the discriminator** (C4): a wrong `files:` glob yields a plausible installer size for a package that launches to nothing, so all six runtime files are verified present *inside* `app.asar` — and the asar header is parsed directly, because a `bunx asar` that is not installed degrades into "no files found", indistinguishable from the failure being tested. **Baseline identity** (C2): both WPF artefacts are re-read off disk and compared to their recorded byte counts, so citing a stale or different `publish/` surfaces as a FAIL instead of silently becoming the baseline — both matched exactly. **Like-for-like denominators**: installer-vs-installer and payload-vs-payload, never one of each, since an installer measured against an uncompressed tree flatters whichever side is compressed; and `publish/` is measured as a tree to confirm the single-file exe *is* the whole WPF payload (3 files, 0.1MB of pdbs beside it) rather than one file out of several. **The split that dates the finding** (C5): the app is 0.009% of the payload, so the ratio is a floor that improves for Electron as the port fills in — without it, today's 1.40× would be quoted at Phase 9 as though it were static |
 
 ### Still outstanding
@@ -445,6 +515,25 @@ measured on this branch at or after that base.
   `\Processor(_Total)\% Processor Time` fails on a non-English Windows. The locale-independent form is the
   numeric index path via the `Perflib\009` / `CurrentLanguage` registry maps — a lookup table, not a
   redesign, and it needs a non-English host to verify on. Recorded in `win32.ts` as a known limitation.
+- **The temps decision is now the one question worth interrupting him for, and its shape changed.**
+  Not "A/B/C/D given a 17MB sidecar" but: unelevated, Option A and Option D deliver the same GPU-only
+  reading, so A only earns its 17MB if CPU temperature is worth a UAC prompt at every launch. A fourth
+  path exists that the plan's table does not list — **ship the sidecar unelevated and accept GPU-only,
+  keeping full fidelity available to anyone who runs elevated** — which is what v4.2 does today by
+  accident rather than by decision.
+- **CPU temperature elevated is unmeasured.** The ring-0 refusal is inferred from 51 enumerated
+  sensors all reading NULL while `elevated: false`, which is strong but is not the same as having seen
+  the values appear with admin rights. Confirming it means an elevated run, and that means a UAC
+  prompt on Alex's desktop — his to trigger, not mine.
+- **Trimming's safety is bounded to this host's hardware and cannot be widened from here.** IL2104
+  warnings cover `LibreHardwareMonitorLib`, `System.Management` and `HidSharp`; the paths they guard
+  are Storage/NVMe, AMD GPU and motherboard super-I/O, none of which this box presents. Worth a
+  re-run of `probe:sidecar` on any machine with an NVMe temperature sensor before the trimmed build
+  ships — a false green here costs a silently dead sensor in the field.
+- **`Computer.Open()` varies 542–1794ms across runs on one machine**, against the 4272ms prior. The
+  driver-load state is the likely variable and it was not controlled. Whatever timeout the parent
+  uses must be set from the cold case, and nobody has measured the cold case on this host — the
+  4272ms figure is from a different box.
 - **The disk regression needs Alex's read before Phase 2 is worth starting.** 1.40× larger on both
   measures, against ~2× cheaper on CPU. Not a blocker and not a question I should stop on, but it is
   the first Phase 1 result that goes the wrong way, and it is the kind of thing better surfaced now
@@ -579,6 +668,19 @@ measured on this branch at or after that base.
   because it was being compared against the largest figure on the other side rather than the matching
   one. The 191MB-vs-268MB row exists precisely so the flattering comparison and the fair one appear
   together and neither can be quoted alone.
+- **conjectured**, following the plan's framing, that ISC-9's answer would be a *size* — that the
+  sidecar's cost was the question and its function was settled, since the WPF app ships this feature
+  today. **refuted-by** D5: the size came in at a very affordable 17.0MB and turned out to be the
+  least interesting number in the run, because unelevated the component delivers GPU temperature only,
+  which Option D delivers nearly free. The decision input was never the size. Worth recording because
+  the claim was *written* as "measure size and latency" and would have closed green on both without
+  ever asking whether the thing worked — the reading arm (D2) was added defensively and the coverage
+  arm (D5) only because a `-1` in the output looked worth explaining.
+- **conjectured** that the 608.2ms mean read cost would carry over and that the 2s loop was therefore
+  load-bearing. **refuted-by** 106.8ms measured here, 5.7× better. But the refutation is *weak and is
+  labelled that way*: this host has fewer sensors to update than the spike box (motherboard 0, Storage
+  absent), so the honest statement is "fewer sensors, faster read" rather than "the prior was wrong."
+  A same-hardware comparison was not available.
 - **conjectured** that measuring the installer was sufficient to close ISC-8. **refuted-by** the
   realisation that `files:` had never been validated: 22KB of bundles in an 80MB installer produces
   the same byte count whether the bundles are present or absent, so the arm that makes the number mean

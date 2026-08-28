@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ISC-9 — the temps sidecar (Option A). Exists to produce two numbers Alex's A/B/C/D
+    temps decision depends on: what this weighs in the installer, and what one read costs.
+
+    Why a second language at all: LibreHardwareMonitorLib is a .NET library over a ring-0
+    driver, there is no Node equivalent, and no unprivileged Windows API returns real
+    sensor temperatures. The process boundary is a bonus rather than the reason — it
+    isolates the 608ms mean Update() the WPF app already worked around with its own 2s
+    background loop (TemperatureService.cs:4-6).
+
+    Trimming is NOT enabled here, and that is a measurement rather than an oversight.
+    LHM resolves hardware through reflection, WMI and P/Invoke, which is precisely what
+    the trimmer cannot see; a trimmed build can publish clean and then return sentinels
+    at runtime, and this app's silent-failure posture (D-14: no logging on init failure)
+    would make that indistinguishable from a machine with no sensors. `probe-sidecar.ts`
+    publishes both configurations and checks each for real readings, so the size quoted
+    for Option A is the size of a build that WORKS rather than the smallest one that
+    builds.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>fuzzyclock-temps</AssemblyName>
+    <!-- net10.0-windows, matching FuzzyClock.App: LHM is Windows-only by construction
+         and there is no cross-platform half of this component to keep portable. The
+         Linux temperature path is /sys/class/hwmon read directly from TypeScript, so it
+         never comes near this project. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- Suppressed for the same reason the app does: LHM ships RIDs the analyzer flags. -->
+    <NoWarn>NU1510</NoWarn>
+    <Version>5.0.0</Version>
+    <Product>FuzzyClock Temperature Sidecar</Product>
+    <Copyright>Alex Tabisz</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pinned to the exact version FuzzyClock.App uses (csproj:15). A different version
+         would make the sidecar's readings incomparable to the WPF app's, which is the one
+         thing this port cannot afford on a fidelity-critical feature. -->
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+  </ItemGroup>
+
+</Project>
