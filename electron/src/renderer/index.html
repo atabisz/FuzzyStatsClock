@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      CSP with no `unsafe-inline` and no remote origins. The renderer loads one local
+      bundle and never fetches anything, so the strictest policy that works is the
+      right one — and an overlay that is always on top is a poor place to leave script
+      injection open.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+    />
+    <title>FuzzyClock</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <!--
+      The display, as SVG. Mirrors `FuzzyClock.App/MainWindow.xaml`: a rounded black
+      panel, the phrase, the date, then five stat rows of label / track / bar /
+      percentage, then the uptime and temps lines.
+
+      Geometry, so the numbers below are not arbitrary: the WPF stats panel is 184
+      wide inside 12px padding, its label column 35, its percentage column 36. That
+      leaves 113 for the bar track, which is why the bars scale against 113 and not
+      against the window width. The fixed percentage column is what stops the panel
+      jittering between "9%" and "100%".
+    -->
+    <svg
+      id="root"
+      xmlns="http://www.w3.org/2000/svg"
+      width="232"
+      height="260"
+      viewBox="0 0 232 260"
+    >
+      <defs>
+        <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0.7" dy="0.7" stdDeviation="1.6" flood-color="black" flood-opacity="0.6" />
+        </filter>
+      </defs>
+
+      <!-- Permanent black panel. `rx=5` matches the WPF CornerRadius. -->
+      <rect x="0" y="0" width="232" height="248" rx="5" fill="black" />
+
+      <text id="phrase" class="phrase" x="116" y="52" filter="url(#textShadow)">—</text>
+      <text id="date" class="date" x="116" y="88">—</text>
+
+      <!-- Stat rows. Track x=47 width=113; percentage right-aligned at x=196. -->
+      <g class="stats">
+        <text class="label" x="12" y="116">CPU</text>
+        <rect class="track" x="47" y="108" width="113" height="8" rx="2" />
+        <rect id="cpuBar" class="bar" x="47" y="108" width="0" height="8" rx="2" />
+        <text id="cpuText" class="value" x="196" y="116">--</text>
+
+        <text class="label" x="12" y="134">GPU</text>
+        <rect class="track" x="47" y="126" width="113" height="8" rx="2" />
+        <rect id="gpuBar" class="bar" x="47" y="126" width="0" height="8" rx="2" />
+        <text id="gpuText" class="value" x="196" y="134">--</text>
+
+        <text class="label" x="12" y="152">MEM</text>
+        <rect class="track" x="47" y="144" width="113" height="8" rx="2" />
+        <rect id="memBar" class="bar" x="47" y="144" width="0" height="8" rx="2" />
+        <text id="memText" class="value" x="196" y="152">--</text>
+
+        <text class="label" x="12" y="170">PAG</text>
+        <rect class="track" x="47" y="162" width="113" height="8" rx="2" />
+        <rect id="pagBar" class="bar" x="47" y="162" width="0" height="8" rx="2" />
+        <text id="pagText" class="value" x="196" y="170">--</text>
+
+        <text class="label" x="12" y="188">BATT</text>
+        <rect class="track" x="47" y="180" width="113" height="8" rx="2" />
+        <rect id="battBar" class="bar" x="47" y="180" width="0" height="8" rx="2" />
+        <text id="battText" class="value" x="196" y="188">--</text>
+      </g>
+
+      <text id="uptime" class="line" x="12" y="210">up —</text>
+      <text id="temps" class="line" x="12" y="226"></text>
+    </svg>
+    <script src="renderer.js"></script>
+  </body>
+</html>

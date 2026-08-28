@@ -1,0 +1,59 @@
+/*
+ * A separate stylesheet rather than a `style` attribute, because the CSP in
+ * index.html has no `unsafe-inline`. Inline styles would silently not apply.
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  /* The window itself is transparent; nothing here may paint a background, or the
+     overlay becomes an opaque box over the desktop. */
+  background: transparent;
+  overflow: hidden;
+  /* An always-on-top overlay that swallows text selection drags feels broken. */
+  user-select: none;
+  cursor: default;
+}
+
+/* "Segoe UI Light" is the WPF original's face. The fallbacks are what macOS and
+   Linux actually have — a missing font falls back to a heavier default and changes
+   the measured width of every string, which is visible as jitter. */
+text {
+  font-family: "Segoe UI Light", "Segoe UI", "Helvetica Neue", "DejaVu Sans", sans-serif;
+  fill: white;
+}
+
+.phrase {
+  font-size: 32px;
+  text-anchor: middle;
+}
+
+.date {
+  font-size: 26px;
+  text-anchor: middle;
+  fill: rgba(255, 255, 255, 0.8);
+}
+
+.label {
+  font-size: 12px;
+}
+
+.value {
+  font-size: 12px;
+  /* Right-aligned into the fixed 36px column, so "100%" and "9%" occupy the same
+     slot and the panel does not resize under them. */
+  text-anchor: end;
+}
+
+.track {
+  fill: rgba(255, 255, 255, 0.25);
+}
+
+.bar {
+  fill: white;
+}
+
+.line {
+  font-size: 11px;
+}
