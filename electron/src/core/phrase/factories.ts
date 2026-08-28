@@ -120,7 +120,15 @@ export function makeProvider(spec: ProviderSpec, picker: Picker = randomPicker):
       throw new Error(`${tables.locale}: the bucket ending at minute ${bucket.upperBound} has no candidates.`)
   }
 
-  /** `{ho}` before `{h}` before `{h1}`, matching the C# order. */
+  /**
+   * `{ho}` before `{h}` before `{h1}`, matching the C# order -- which is faithfulness, not a
+   * correctness constraint, and that distinction is measured. None of the three tokens is a substring
+   * of another (`{h}` closes where `{h1}` and `{ho}` continue), so no substitution can create or
+   * destroy a later one's match and all six orderings agree on every input. Reversing this line is the
+   * one mutation in 28 that survives the ENTIRE suite; it is a true equivalent mutant rather than a
+   * gap, and the order is kept only so the two languages read alike. A token that IS a prefix of
+   * another would make the order load-bearing overnight.
+   */
   const resolve = (template: string, hour12: number, next12: number): string => {
     let out = template
     if (ordinalHourWords) out = out.split("{ho}").join(ordinalHourWords[hour12]!)

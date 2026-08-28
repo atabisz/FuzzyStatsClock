@@ -27,7 +27,8 @@ import { join } from "node:path"
 import { makeProvider, specShapeMismatches } from "../src/core/phrase/factories.js"
 import { ALL_SPECS, SPECS } from "../src/core/phrase/specs.js"
 import { LOCALES, TABLES } from "../src/core/phrase/tables.generated.js"
-import { hour12Of, type Picker } from "../src/core/phrase/types.js"
+import { hour12Of } from "../src/core/phrase/types.js"
+import { enumerateAll, indexPicker, wallTime } from "./support/picker.js"
 
 const FIXTURES = join(import.meta.dirname, "fixtures")
 
@@ -88,80 +89,12 @@ const PORTED = new Set<string>(LOCALES)
 const pad = (n: number): string => String(n).padStart(2, "0")
 
 /**
- * Builds the Date for a wall-clock time. No provider reads anything but hour and minute -- which is
- * why the fixture is keyed `hh:mm` and not by a timestamp -- so the calendar date is arbitrary. It is
- * verified rather than assumed: on a host whose zone shifted on this date, the constructor would hand
- * back a different wall time than asked for, and every row would mismatch for a reason no diff shows.
+ * The wall-clock builder, the index picker and the enumeration now live in test/support/picker.ts --
+ * phrase-engine.test.ts needs the same three, and the "exactly one draw per call" guard inside
+ * enumerateAll must have exactly one definition. `at` stays as a local alias so the sweeps below read
+ * unchanged; 2026-01-01 is this fixture's arbitrary date, checked for a zone shift by the helper.
  */
-function at(hour: number, minute: number): Date {
-  const dt = new Date(2026, 0, 1, hour, minute, 0, 0)
-  if (dt.getHours() !== hour || dt.getMinutes() !== minute)
-    throw new Error(
-      `at(${hour}, ${minute}) produced ${dt.getHours()}:${dt.getMinutes()} -- this host's zone shifts on 2026-01-01; pick another date.`,
-    )
-  return dt
-}
-
-interface PickerControl {
-  readonly picker: Picker
-  select(index: number): void
-  readonly lastLength: number
-  readonly calls: number
-  resetCalls(): void
-}
-
-/**
- * A picker that returns a chosen index and reports what it was offered.
- *
- * `lastLength` is the arity assertion's only source. `calls` guards the enumeration's one assumption:
- * that a single provider call draws exactly once. The port's getStructuredPhrase deliberately takes a
- * draw of its own rather than reusing getPhrase's, so "one draw per call" is a real property worth
- * pinning -- if it ever became two, enumerating by index would quietly cover only part of the space.
- */
-function indexPicker(): PickerControl {
-  let index = 0
-  let lastLength = 0
-  let calls = 0
-  return {
-    picker: <T,>(items: readonly T[]): T => {
-      calls++
-      lastLength = items.length
-      const chosen = items[index]
-      if (chosen === undefined)
-        throw new Error(`indexPicker: index ${index} is out of range for a ${items.length}-candidate list.`)
-      return chosen
-    },
-    select(i: number): void {
-      index = i
-    },
-    get lastLength(): number {
-      return lastLength
-    },
-    get calls(): number {
-      return calls
-    },
-    resetCalls(): void {
-      calls = 0
-    },
-  }
-}
-
-/** Calls `call()` once per candidate the picker is offered, returning the arity and every result. */
-function enumerateAll<T>(ctl: PickerControl, call: () => T): { readonly arity: number; readonly values: readonly T[] } {
-  ctl.select(0)
-  ctl.resetCalls()
-  const first = call()
-  if (ctl.calls !== 1)
-    throw new Error(`expected exactly one draw per provider call, saw ${ctl.calls} -- index enumeration would be partial.`)
-
-  const arity = ctl.lastLength
-  const values: T[] = [first]
-  for (let i = 1; i < arity; i++) {
-    ctl.select(i)
-    values.push(call())
-  }
-  return { arity, values }
-}
+const at = (hour: number, minute: number): Date => wallTime(hour, minute)
 
 describe("golden fixture integrity", () => {
   test("the segments fixture is 18 locales x 1440 minutes, with no duplicate keys", () => {
