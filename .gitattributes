@@ -40,6 +40,13 @@ electron/test/fixtures/*.csv -text
 # would be tested against line endings the tool never produces. Same reasoning as the CSVs,
 # different platform.
 electron/test/fixtures/macos-*.txt -text
+# The ISC-13 phrase oracle is generated LF-only by tools/GoldenGen (StreamWriter with
+# NewLine = "\n", UTF-8 without a BOM) and is verified byte-reproducible across runs by
+# re-running the generator and comparing hashes. Under the `*` rule the working copy would
+# come back CRLF, every hash would move, and the reproducibility check — which is the only
+# evidence that the random-sampled candidate sets saturated — would fail for a reason that
+# has nothing to do with the phrases. `-text` keeps the check meaningful.
+electron/test/fixtures/phrase-golden-*.tsv -text
 
 # LF for GitHub Actions workflows: release.yml has 4 `shell: bash` steps, and
 # CRLF leaks a stray \r into bash variable expansion.

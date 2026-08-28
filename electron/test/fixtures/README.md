@@ -7,6 +7,9 @@ tested on one machine.
 
 The Windows captures are written by `bun scripts/capture-fixture.ts`. Do not hand-edit them.
 
+Two files here are **not** captures: `phrase-golden-*.tsv` are generated from the C# providers as
+the ISC-13 translation oracle. They follow different rules — see the section on them below.
+
 The **macOS captures were taken on a host this machine cannot reach** (an Apple M1 laptop,
 macOS 26.6.2 arm64, via `mcp__mac-codex__codex` on 2026-08-28) and were transcribed here by
 hand from that run's verbatim output. There is no capture script for them and re-taking them
@@ -47,6 +50,35 @@ alone; they are meaningless once the processes are gone.
 | `macos-vm-swapusage.txt` | `sysctl vm.swapusage`. Values carry an `M` suffix and the line ends in a bare `(encrypted)` token — both need handling, and neither is documented anywhere. |
 | `macos-pmset-batt-ac-charged.txt` | `pmset -g batt` on AC, charged. TAB-delimited (see above). The `0:00 remaining` field is meaningless in this state, so a parser must not read it as "zero minutes left". |
 | `macos-ioreg-agxaccelerator.txt` | One line of `ioreg -r -c AGXAccelerator -l`, holding `"Device Utilization %"=26`. This is the **unprivileged macOS GPU source** the plan assumed did not exist — see the note below. |
+| `phrase-golden-segments.tsv` | The ISC-13 oracle, part 1: `GetSegmentKey` for all 1440 minutes × 18 locales = 25,920 rows. Deterministic by the `IPhraseProvider` contract. For the 8 single-template locales this is also the complete phrase output. |
+| `phrase-golden-candidates.tsv` | The ISC-13 oracle, part 2: the **complete candidate set** per bucket for the 10 locales whose `GetPhrase` picks at random — 12,984 rows. See the note below; this one is not a capture, it is generated, and the distinction matters. |
+
+## About the two phrase-golden files
+
+These are the only fixtures here that are **generated rather than captured**, by
+`dotnet run` on `tools/GoldenGen`. Re-running the generator rewrites them, which is the
+opposite of the rule for everything above — so do not hand-edit them, and do not treat a
+diff in them as a fixture regression until you have checked whether a provider changed.
+
+**Why an oracle rather than a phrase-per-minute sweep.** ISC-13 was written as "phrase output
+is byte-identical to the C# original across a full sweep". That is impossible as stated: 10 of
+the 18 providers select a candidate with `Random.Shared.Next()`, so `GetPhrase` has no single
+correct answer for a given minute. What these files pin instead is stronger than a sampled
+phrase — the **set** of strings the port is permitted to emit, plus the deterministic bucket
+key for every minute. A port that returns a plausible phrase from the wrong bucket fails here;
+a sampled comparison would have passed it roughly four times in five.
+
+**`kind=phrase` and `kind=structured` rows must not be zipped.** They are sampled
+independently, so nothing records which phrase a given `(qualifier, emphasis)` pair came from.
+Each kind is a complete set on its own; pairing them across columns would assert a
+correspondence that was never measured.
+
+**The reproducibility check is the evidence of completeness.** The candidate sets are collected
+by calling the real provider until saturation, so the natural question is whether saturation
+actually happened. Two independent generator runs produce **byte-identical** files, hashes and
+all — if any set were short, the two runs would disagree. Reflection is used only to read each
+bucket's candidate *count* (the denominator); every string in the file came out of the provider,
+because an oracle that expanded `{h}` itself would be checking the generator rather than the C#.
 
 ## About the macOS GPU fixture
 

@@ -7,7 +7,7 @@ phase: build
 progress: 10/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T19:24:00+10:00
+updated: 2026-08-28T19:49:49+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -347,9 +347,36 @@ misses it, because every feature either ported or was consciously retired with t
 - [ ] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
   contributes **12** of those cases and retires with the feature. Translated alongside each unit, not
   afterwards — a test written after the code it checks is a rubber stamp (AC-5).
-- [ ] **ISC-13. Phrase output is byte-identical to the C# original across a full sweep.** Golden file
-  generated from the C# side: every minute of 24h × 6 locales × 11 styles. This is the claim that makes
-  ISC-12 more than self-agreement.
+- [~] **ISC-13. Phrase output matches the C# original across a full sweep. RESTATED — the original
+  wording was impossible, and the oracle it demanded now exists.** This is the claim that makes ISC-12
+  more than self-agreement, so it is the one worth getting right before any TypeScript is written.
+  - **What was wrong.** It said "byte-identical … every minute of 24h × 6 locales × 11 styles". Two
+    errors. The registry has **18 flat locale keys**, not a 6 × 11 = 66 matrix — read by reflecting
+    `PhraseEngine._providers` and cross-checked against `SetLocale` accepting all 18 and rejecting a
+    bogus one. And **10 of the 18 providers call `Random.Shared.Next()`** to pick among candidates, so
+    `GetPhrase` has no single correct answer for a minute and "byte-identical" is not a property it
+    can have. A sweep comparing one sample per minute would have passed a port that emitted a
+    plausible phrase from the **wrong bucket** about four times in five.
+  - **What replaces it, and it is stronger.** Two golden files, generated and checked in:
+    `phrase-golden-segments.tsv` (**25,920 rows** — `GetSegmentKey` for 1440 minutes × 18 locales,
+    deterministic by the interface's own contract) and `phrase-golden-candidates.tsv` (**12,984
+    rows** — the *complete candidate set* per bucket for the 10 random providers, both `GetPhrase`
+    and `GetStructuredPhrase`). Pinning the whole permitted set is a tighter constraint than pinning
+    one sample from it.
+  - **DONE so far: the oracle.** `tools/GoldenGen`, run against the untouched C# tree, exit 0 with
+    `no problems reported`. **Still open: nothing has been translated yet**, so the box is `[~]` — the
+    oracle exists and the comparison has not run.
+  - The generator also settled three facts the port needs: the 8 single-template locales
+    (`de es fr ja-classic ja-poetic ja-rude ja-terse pl`) are **verified** deterministic rather than
+    assumed, 200 draws per minute yielding one value equal to their own segment key; the candidate set
+    depends only on **(segment key, 12-hour hour)** and never on the minute within a bucket, checked
+    across all 1440 minutes rather than asserted; and every bucket saturated to **exactly** its
+    declared candidate count, so no table holds a duplicate or unreachable candidate.
+  - **And one fact that shrinks the work: `GetStructuredPhrase` is `("", GetPhrase(dt))` in 16 of the
+    18 providers**, verbatim, so only `en-classic` and `en-poetic` need a real qualifier/emphasis
+    implementation — the other 16 are one delegating line each. Read off the source and worth stating
+    because the interface's two methods imply 18 pairs of implementations, and 16 of them are the same
+    line.
 - [ ] **ISC-14. The pure seams from the App layer are ported with their tests.**
   `ComputeProximityRatio`, `LerpRatio`, the formatters and the version comparer are already static and
   pure in C#.
@@ -582,6 +609,37 @@ misses it, because every feature either ported or was consciously retired with t
   his call about the product — a desktop overlay's disk cost is paid once and its CPU cost is paid
   continuously, which is an argument, not a decision. The ISA records both at full strength rather
   than netting them into a verdict I was not asked for.
+- **ISC-13's oracle was built before any TypeScript, and the claim was rewritten to fit what is
+  actually observable rather than the reverse.** The original wording demanded byte-identical phrase
+  output; 10 of 18 providers are random, so no port could satisfy it and no port could fail it
+  informatively either. Two options were available: weaken the claim to a sampled comparison, or find
+  a deterministic property strong enough to be worth pinning. The second exists — `GetSegmentKey` is
+  contractually deterministic and the candidate *set* is finite and enumerable — so the claim got
+  **stronger** while becoming checkable. A sampled comparison would have passed a wrong-bucket port
+  four times in five, which is the specific defect a phrase port is most likely to have: the tables
+  are mechanical to transcribe and the bucket boundaries are not.
+- **Reflection supplies only the denominator; every string in the golden files came out of the
+  provider.** The generator reads `Buckets[i].Candidates.Length` to know when a set has saturated, and
+  nothing else. It deliberately does **not** re-implement `{h}` substitution, because a generator that
+  rendered the templates itself would be diffing the port against the generator's idea of the C#
+  rather than against the C#. Same reason the bucket index comes from `GetSegmentKey`'s own return
+  value instead of re-walking the `UpperBound` table: duplicated selection logic is a second
+  implementation that can agree with neither side.
+- **The `(segment key, hour12)` grouping is checked, not assumed.** It is stated as a hypothesis and
+  every group is verified for internal agreement across all 1440 minutes, so a wrong hour formula or a
+  minute-dependent provider produces a loud problem line rather than silently collapsing rows that
+  differ. Without that check the file would be smaller, look correct, and quietly drop whichever
+  minutes disagreed.
+- **`tools/GoldenGen` is deliberately outside `FuzzyClock.slnx`.** It must not join the 632-test gate
+  and `dotnet test` must not start depending on it — a generator that runs as part of the test suite
+  can rewrite the oracle it is being tested against. It dies with the WPF tree at ISC-31; the two
+  `.tsv` files are the artifact that survives, which is why they are checked in rather than generated
+  on demand.
+- **The golden files are `-text` in `.gitattributes`, and that is load-bearing rather than tidy.** The
+  repo-wide `*` rule would bring them back CRLF in the working copy, every hash would move, and the
+  byte-identical-rerun check — the only evidence that the random sampling saturated — would fail for a
+  reason having nothing to do with phrases. A verification that can be broken by a line-ending policy
+  is not a verification.
 
 ## Verification
 
@@ -602,6 +660,7 @@ measured on this branch at or after that base.
 | ISC-9 | **No longer re-runnable on this branch — `probe:sidecar` and the sidecar tree were deleted under Option C. The probe is at `64c747e:electron/scripts/probe-sidecar.ts` and restoring it is a `git checkout 64c747e -- electron/`.** Arms D1..D5 (two `dotnet publish` runs, ~2 min) | **the reading arm is the discriminator** (D2): the WPF original's D-14 posture makes a totally dead temperature source *look* like a machine without sensors, so a sidecar emitting well-formed JSON full of `-1` has a size and a latency that describe nothing. Everything else is reported subject to D2, and it passed on a real GPU value. **Enumerated-vs-absent** (D5) is the distinction the decision turns on and the normal output cannot show: 51 CPU sensors present and all NULL is a driver refusal, 0 motherboard sensors is absent hardware, and both render `-1` — hence a `--dump` mode rather than an inference from the sentinel. **Trim safety compared on behaviour, not on exit status** (D4): a trimmed publish that succeeds and then silently returns sentinels is the actual failure mode, so the two builds are compared on which sources came back live, and the claim is explicitly bounded to this host's hardware because the IL2104 warnings cover exactly the paths it cannot exercise. **Percentiles not a mean** (D3): the question is whether a read can overrun its 2s interval, and a 106.8ms mean hides a 472ms worst case. **Oracle fidelity**: the priority lists and resolution walk are copied from `TemperatureService.cs` rather than redesigned, so a difference in reading is a port defect and not a design variation |
 | ISC-8 | `bun electron/scripts/probe-size.ts` from `electron/` — arms C1..C5, after `bun run dist:win` | **containment is the discriminator** (C4): a wrong `files:` glob yields a plausible installer size for a package that launches to nothing, so all six runtime files are verified present *inside* `app.asar` — and the asar header is parsed directly, because a `bunx asar` that is not installed degrades into "no files found", indistinguishable from the failure being tested. **Baseline identity** (C2): both WPF artefacts are re-read off disk and compared to their recorded byte counts, so citing a stale or different `publish/` surfaces as a FAIL instead of silently becoming the baseline — both matched exactly. **Like-for-like denominators**: installer-vs-installer and payload-vs-payload, never one of each, since an installer measured against an uncompressed tree flatters whichever side is compressed; and `publish/` is measured as a tree to confirm the single-file exe *is* the whole WPF payload (3 files, 0.1MB of pdbs beside it) rather than one file out of several. **The split that dates the finding** (C5): the app is 0.009% of the payload, so the ratio is a floor that improves for Electron as the port fills in — without it, today's 1.40× would be quoted at Phase 9 as though it were static |
 | ISC-10 (macOS half only) | `mcp__mac-codex__codex` against an Apple M1, macOS 26.6.2 arm64, Electron pinned to 33.4.11. **Not re-runnable from this machine** — it needs that dispatch and a host with the same TCC state. Four scripts and four fixture captures in a `mktemp -d`; arms M1..M7 | **the render gate is the discriminator, and it comes first** (M1): a transparent frameless window that loaded nothing is visually identical to a working overlay and *cheaper*, so 578 rAF paints acknowledged from inside the renderer plus zero `did-fail-load` is what licenses every arm after it. **Readback off the live window, never off the source** (M2) — and the readback itself found two typings-implied APIs (`getAlwaysOnTopLevel`, `getActivationPolicy`) that **do not exist at runtime**, which is exactly the class of error a source-reading probe cannot produce. **External corroboration for the two claims a process cannot make about itself** (M3/M4): LaunchServices `ApplicationType="UIElement"` and a separate Swift binary reading `NSRunningApplication.activationPolicy == .accessory`, rather than trusting `app.dock.isVisible()`, which is the process agreeing with itself. **Policy and UI are split, not merged** (M4): the accessory policy is `[MEASURED]`, the Cmd-Tab switcher is `[INCONCLUSIVE]`, because `screencapture -x` is TCC-denied on that host — three arms (M4b, M5, M6) are reported unproven for that one reason rather than inferred from the mechanism. **Positive control on the telemetry** (M7): 1.25% idle vs 26.73% with one core deliberately busy, so a collapsed pipeline returning near-zero for everything cannot pass. **Counter-case that reversed a plan row**: `os.freemem()` was cross-read against `vm_stat` on the same snapshot and disagreed 3.1%-free vs 69.14%-occupied — a single-source read would have shipped a memory cell showing 97% used on an idle Mac. **A refuted absence**: `powermetrics` was confirmed root-only *and* an unprivileged `ioreg` path was found anyway, so "no source exists" was tested rather than concluded from the documented one failing |
+| ISC-13 (the oracle half) | `dotnet run` on `tools/GoldenGen` (Release), then re-run and compare hashes. Writes `electron/test/fixtures/phrase-golden-{segments,candidates}.tsv`. Exit 0 means every internal check passed; exit 1 prints the problems and still writes the files | **byte-identical reruns are the discriminator, and they are the only available evidence of completeness** — the candidate sets are collected by sampling a random provider to saturation, so the question that decides whether this oracle is worth anything is whether saturation happened. Two independent runs produced identical bytes (`66ba906040fe15c45d6378a63ccf7466` candidates, `fa810b263d2805d13acbc9d7abd009bb` segments, second run verified via `md5sum -c`); a short set would have differed between runs. **Denominator from the source, values from the provider**: reflection reads each bucket's declared candidate count and every bucket saturated to *exactly* it, which is simultaneously the saturation proof and a check that no table holds a duplicate or unreachable candidate. **The grouping hypothesis is tested, not assumed**: every `(segment key, hour12)` group must agree across all 1440 minutes, so a wrong hour formula fails loudly instead of silently dropping the minutes that disagreed. **Positive control on the registry read**: all 18 reflected locales are fed back through the public `SetLocale`, *and* a bogus locale must be rejected — without the second half, a `SetLocale` that returned true for everything would make the first half vacuous. **Determinism claimed for the 8 single-template locales is measured**: 200 draws per minute per locale, each yielding one distinct value equal to its own segment key, rather than read off the source. **Hand-derivation cross-check**: `en-classic:0` hour 3 was derived by hand from `EnglishPhraseProvider.cs` and matched the file's 5 phrases and 5 structured pairs exactly. **Bounded**: this row covers the oracle only — no TypeScript has been compared against it, which is why ISC-13 is `[~]` |
 
 ### Still outstanding
 
@@ -721,6 +780,30 @@ measured on this branch at or after that base.
   and C3 return INCONCLUSIVE without a local WPF build. That is the intended degradation — they say so
   rather than passing — but it means the ISC-8 figures are reproducible only on a machine that has
   built both sides.
+- **The golden files are pinned to the C# tree as it stands and there is nothing that notices if it
+  moves.** They were generated at this base; if a provider's table is edited before the port lands, the
+  oracle silently becomes wrong in the port's favour — the TS would be graded against strings the C#
+  no longer produces. The cheap guard is to re-run the generator and confirm zero diff before closing
+  ISC-13, which is why the regeneration command is documented in three places (the csproj comment, the
+  fixture README, the Verification row) rather than remembered. **Not a hypothetical**: the WPF tree is
+  live on `master` until ISC-31, and every phrase provider is a file someone could reasonably touch.
+- **The oracle covers `GetPhrase` and `GetStructuredPhrase` and nothing else in the phrase layer.**
+  `PhraseWrapService` (76 LOC) and the display-side formatting are not in it, so ISC-13's green will not
+  say anything about how a phrase is wrapped or rendered. That belongs to ISC-11/ISC-12 via the
+  translated unit tests, and the split is worth stating because "phrase output matches" reads broader
+  than what is actually pinned.
+- **The `(qualifier, emphasis)`-to-phrase correspondence is unmeasured, and the gap is exactly two
+  providers wide — measured, not estimated.** `kind=phrase` and `kind=structured` are sampled
+  independently, so nothing records which phrase a given pair came from; a port producing the right set
+  of pairs attached to the wrong phrases would pass ISC-13. But **16 of the 18 providers define
+  `GetStructuredPhrase(dt) => ("", GetPhrase(dt))` verbatim**, so for those the correspondence is an
+  identity with nothing left to get wrong, and the port should assert it *as* an identity rather than
+  comparing two sets — a strictly stronger check than the fixture can express, available for free. Only
+  **`en-classic` and `en-poetic`** split a qualifier off the template with their own independent
+  `Random.Shared` draw (`EnglishPhraseProvider.cs:95`, `PoeticPhraseProvider.cs:138`), and only those
+  two carry the gap. Closing it would need a deterministic seam the C# does not offer, since the two
+  methods roll separately. The file header warns against zipping the two kinds for this reason: zipping
+  would assert the correspondence without having measured it, which is worse than leaving it open.
 
 ## Changelog
 
@@ -911,3 +994,42 @@ measured on this branch at or after that base.
   one would have "fixed" line endings that were already correct, and the other would have confirmed it.
   `.gitattributes` now pins `electron/test/fixtures/macos-*.txt -text` so the repo-wide
   `*.txt text=auto eol=crlf` rule cannot rewrite captures to line endings `vm_stat` never emits.
+- **corrected** ISC-13, which was **unsatisfiable as written** and would have been discovered only at the
+  end of Phase 2, by a port that could not be graded. "Phrase output is byte-identical to the C#
+  original across a full sweep" cannot hold: **10 of the 18 providers pick with `Random.Shared.Next()`**,
+  so `GetPhrase` has no single correct answer for a minute. Two things are worth separating here. The
+  weaker error is the count — "6 locales × 11 styles" was arithmetic on a shape that does not exist;
+  `PhraseEngine._providers` is a **flat dictionary of 18 keys**, and one Read of the file was enough. The
+  serious error is that the claim named a property nothing could have. **What makes it worth a changelog
+  entry rather than a quiet edit is which way the fix went.** The obvious repair is to weaken the claim
+  to a sampled comparison, and that repair would have been *worse than useless*: a wrong-bucket port —
+  the single most likely defect when transcribing 1,987 LOC of boundary tables — passes a one-sample
+  comparison roughly four times in five, so the claim would have gone from unsatisfiable to reassuring.
+  Pinning the candidate **set** instead makes it strictly stronger than the original wording aimed at.
+  General form, and it is the reverse of the usual advice: **when a claim turns out to be unmeasurable,
+  find the strongest property that IS observable before touching the claim** — reaching for a weaker
+  claim first is how a gate becomes decoration.
+- **conjectured** that reflection would reach every candidate array in a multi-candidate provider, since
+  the bucket tables are `private static readonly` fields. **refuted-by** the noon/midnight candidates
+  being **method locals** in several providers — not fields, not reflectable, nothing to read. This is
+  the reason `SpecialStableDraws` (2000) exists beside `StableDraws` (400): for ~20 special-case buckets
+  the "no new value in N draws" rule is not a backstop to the declared arity, it is the *only* rule, so
+  it is set wider where nothing can cross-check it. Recorded because the two constants look like
+  arbitrary tuning and are not — one is belt-and-braces, the other is load-bearing, and the code cannot
+  say which by inspection.
+- **corrected** two rounds of my own source-file corruption, both invisible in a normal read. `Program.cs`
+  needed an ASCII Unit Separator to pack a `(qualifier, emphasis)` pair into one set member. The Write
+  tool put **two raw 0x1F control bytes** into the source — which compiles, runs identically, and is
+  ungreppable and uncopyable. Replacing them with a named `Sep = "\u001f"` constant then hit the
+  opposite failure: the Edit tool **interpreted the escape** and wrote the literal byte back. Caught
+  both times by counting raw 0x1F bytes in the file rather than reading it back, because a control byte
+  renders as nothing at all in a terminal and the read looks correct. Final state verified: 0 raw 0x1F
+  in the source, 0 in either golden file. **Instance seven of the same family** — the tool did something
+  reasonable under an input rule I had not set, and produced an artifact that behaved correctly while
+  being wrong; the only reason it mattered here is that a separator byte reaching a TSV file would have
+  corrupted the oracle silently, which is why the check is a byte count on the output as well. **Then it
+  happened a third time, inside this very entry**: typing the escape sequence into the changelog line
+  that describes the problem put a raw 0x1F into `ISA.md`, found by running the same byte count over the
+  ISA. Which is the actual lesson, and it is not "be careful with escapes" — a rule I had just written
+  a paragraph about and still broke on the next keystroke. It is that **the check has to be mechanical
+  and it has to cover every file, not just the one the topic is about.**
