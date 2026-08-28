@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 4/32
+progress: 6/33
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T15:28:57+10:00
+updated: 2026-08-28T16:25:06+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -104,10 +104,31 @@ misses it, because every feature either ported or was consciously retired with t
   (`pid_157656_..._engtype_3D`), live 353→354, vanished 0, and the running child — bound to 353 at spawn
   — was blind to it. A6: the recycle recovered **1/1**, bound 353→354, across **6 scalar samples with a
   worst stamp gap of 1015ms**, against the ~3000ms a sequential kill-then-spawn would show.
-- [ ] **ISC-6. The real workload is measured, and it is cheaper than the WPF baseline.** An Electron
-  window doing a 1s stat repaint with the counter child attached, measured over 20s for CPU% and RSS,
-  against the WPF Release baseline of **24.2% of one core / 326.5MB WS**. This claim can fail, and if
-  it does the port stops here pending Alex's call (AC-4).
+- [x] **ISC-6. The real workload is measured, and on CPU it is cheaper than the WPF baseline.** The
+  window is the real shape — frameless, transparent, topmost, out of Alt-Tab — with the two live
+  `typeperf` children attached and the SVG stat panel repainting once a second. `bun
+  electron/scripts/probe-cost.ts`, **4 passed / 0 failed / 0 inconclusive**, run twice:
+
+  | run | electron | wpf | factor | electron paints |
+  |---|---|---|---|---|
+  | 1 | 10.88% of one core | 20.98% | 1.93× | 75 |
+  | 2 | **8.21%** | **19.92%** | **2.43×** | 75 |
+
+  Both builds measured **by this probe, back to back, with one instrument** — stronger than the
+  Verification row asked for, which only required the same probe *shape* as the prior WPF figure. The
+  three WPF readings (24.2% prior, 20.98%, 19.92%) and the two Electron readings (10.88%, 8.21%) do
+  not overlap, so the direction survives the ambient noise on this host rather than resting on one
+  pair. Startup+settle is reported separately and also favours Electron heavily: **2.68% against
+  26.51%** over ~14s. AC-4 is satisfied: the number exists and the claim was allowed to fail.
+- [ ] **ISC-6.1. The RSS half of ISC-6 is NOT resolved, and the reason is the method, not the result.**
+  A multi-process tree has no single true footprint: sum-of-working-sets double-counts every page
+  shared between Electron's processes (upper bound), and sum-of-private-working-sets omits shared
+  pages that are genuinely resident (lower bound). Measured intervals **overlap in both runs** —
+  electron `[95.7, 358.0]`MB against wpf `[167.7, 327.7]`MB (run 2), electron `[105.3, 380.6]`MB
+  against wpf `[165.1, 324.6]`MB (run 1) — so no ordering follows in *either* direction. The probe
+  says so in its own verdict and gates on CPU alone. Closing this needs shared-page accounting
+  (per-process PSS), not another run of the same instrument. **Does not gate the port**: ISC-6's CPU
+  half is what AC-4 named, and 358MB against 327.7MB is not a magnitude that changes the decision.
 - [ ] **ISC-7. `Display.label` is read from a running Electron on his 3-display setup.** Non-empty and
   stable across a restart, or the composite fallback key becomes the primary. *(Carried
   `[DEFERRED-VERIFY]` from the feasibility ISA.)*
@@ -247,6 +268,25 @@ misses it, because every feature either ported or was consciously retired with t
   process starting later, registering a 3D instance, and the running child staying blind until rotated.
   Cost is one extra spawn per interval and a measured worst gap of 1015ms with the overlap; the interval
   itself is still an open Phase 6 tuning question (Still outstanding).
+- **The ISC-6 harness is the real window, not a stub.** Frameless, transparent, topmost, `skipTaskbar`,
+  `backgroundThrottling: false`, real telemetry attached, real SVG repainting at 1s. A harness cheaper
+  than the finished app produces a number that flatters the port and then fails to hold in Phase 6. What
+  is absent — phrase engine, tray, settings, ghost mode — is absent because none of it runs work on the
+  1s tick, and the phrase text is rewritten at most once a minute in the WPF original either way.
+- **A pid that starts inside the measurement window contributes its ENTIRE CPU time, not a delta.**
+  The one line the whole comparison turns on (`probe-cost.ts`, `fold()`). Without it every recycle
+  replacement is scored as `last − first` against its own first sighting and silently discards most of
+  its cost — which on this workload is 76% of the total. A "start-of-window process set" resolved once
+  would have had the same effect.
+- **The WPF baseline app is killed, never closed.** A clean exit lets it write to Alex's live
+  `%LOCALAPPDATA%\FuzzyClock\settings.json`, and this probe has no business modifying it. It is
+  launched with his real settings (`StatsVisible: true`, 3s interval, temps and uptime on) precisely
+  because the question is what the app he actually runs costs — but read-only.
+- **The probe gates on CPU and says so in its verdict text.** An earlier draft printed "0.85× on
+  sum-WS" inside a PASS sentence, where 0.85× means Electron is *more* expensive — a true number
+  arranged to read as a win, in the one artifact whose job is to be able to fail. It now prints both
+  footprint intervals, the word INDETERMINATE, and "the RSS half of ISC-6 stays OPEN and is not claimed
+  here".
 
 ## Verification
 
@@ -260,7 +300,8 @@ measured on this branch at or after that base.
 | ISC-4 | `bun electron/scripts/probe-typeperf.ts` — arms A1, A2, A2b, A3 | **counter-case** met by reordering the requested counters and re-reading the header: cpu moved 0→3 and gpu 3→0, so a positional parser would have failed where this one did not. **Cross-mechanism** for CPU: `os.cpus()[].times` jiffies come from libuv with no PDH, no child and no counter path, so agreement is two independent readings and not one reading twice. **Denominator** for the spread: 46.6 points of PDH movement across the shared window, because a source stuck at any constant passes a mean comparison |
 | ISC-4.1 | `bun test` (34 pass) over `test/fixtures/typeperf-dropped-header.csv`; plus arm A7, observational | **asymmetric evidence** (claim 19): a run reporting 0 retries is not evidence the defect is absent, only that it did not fire, so A7 never returns PASS and the deterministic evidence is the fixture. **Counter-case** for each guard separately: a synthesised GPU-column drop passes name matching with all three scalar names present, and is caught only by the width comparison — so neither guard is redundant. The fixture is a **real capture, not a synthesis**, which matters because the misalignment was not predicted; it was found by the clean-fixture capture accidentally catching the defect and the tests failing on it |
 | ISC-5 | same probe, arms A5 and A6, with `nvidia-smi --query-gpu=utilization.gpu` cross-reads | **positive control** is the correction that makes this arm mean anything: `liveBefore` is captured so the churn is scored as `liveAfter − liveBefore`, and the defect read only from instances that control proves are new. Without it the only comparison is bound-vs-live, which is already non-zero at spawn (319 of 354 in one run) and so passes for any churn source at all, including one that never ran. **Transition** in one process lifetime: bound 353 → blind to a named new instance → recycle → bound 354 covering it |
-| ISC-6 | *(pending)* `TotalProcessorTime` delta over 20s on the Electron process set with the child attached | must run through the identical probe shape that produced the WPF 24.2% figure, or the comparison is rigged (the feasibility run's Debug-vs-Release lesson) |
+| ISC-6 | `bun electron/scripts/probe-cost.ts` from `electron/` — arms A1, A2, A3, A4 | **positive control** (A1): a deliberate spin loop must read ≥80% of one core, and did — 98.9% and 97.1% across the two runs. Without it a plumbing fault returning near-zero CPU for everything presents as a spectacular result, which is the exact failure this claim is most vulnerable to. **Liveness control**: 75 real paints per 70s window, acknowledged from inside `requestAnimationFrame` — a renderer Chromium believes occluded stops rendering and becomes very cheap, so a CPU-only probe would score that state as a win. **Cross-check** against a measurement this run does not depend on: the prior session's 24.2% WPF figure, reproduced here at 19.92% and 20.98% (−4.28pp, −3.22pp). **Denominator**: the whole process tree re-walked every sample, 8-10 processes against WPF's 1, so `electron.exe`-alone (which would drop the renderer) cannot be what was measured |
+| ISC-6.1 | same probe, A4's memory lines | the claim is that the method **cannot** decide, and the probe demonstrates it rather than asserting it: it prints both bounds and both intervals, and the overlap is visible in the output. A single RSS number for either side would pass a naive comparison in whichever direction it was chosen — which is the failure being refused |
 
 ### Still outstanding
 
@@ -268,11 +309,26 @@ measured on this branch at or after that base.
   ISC-27..30). What exists is API-surface evidence from Electron 33.4.11's typings. `[DEFERRED-VERIFY]`
   — Phase 1.6 opens them; a Mac is reachable via `mcp__mac-codex__codex` on Alex's go-ahead, a Linux
   host is not currently identified.
-- **ISC-6 is the claim the port rests on and it is not yet measured.** Until it is, "cheaper than WPF"
-  is a floor measured on a *parked* overlay (3.5% of a core) and not a prediction of this workload.
-- **The GPU recycle interval will need tuning even once ISC-5 closes.** How often to recycle in
-  production is a Phase 6 measurement, and the naive answer (recycle constantly) reintroduces the 2.81s
-  spawn cost the streaming design exists to avoid.
+- **The GPU recycle interval will need tuning even once ISC-5 closes, and ISC-6 now says how much is at
+  stake.** **76% of Electron's measured CPU is the recycle, not the app** — reproduced exactly across
+  both runs (4.27s of 5.61 in run 2; 5.83s of 7.63 in run 1), attributed to the replacement `typeperf`
+  children and their conhosts that started inside the window. The resident cost of the actual overlay —
+  main, renderer, GPU process, the two long-lived counter children — is **1.34 CPU-seconds over 68.4s,
+  about 2% of one core**. So the dominant term is a tunable (`recycleMs`, currently 30s), and the
+  headroom below the WPF baseline is far larger than the 2.43× headline. The naive answer still fails in
+  the other direction: recycle constantly and the 2.81s spawn cost the streaming design exists to avoid
+  comes back.
+- **The memory half of ISC-6 is open as ISC-6.1**, and it needs a different instrument rather than
+  another run.
+- **Two asymmetries remain in the ISC-6 comparison, and they cut opposite ways.** *Against Electron:* it
+  repaints every 1s where Alex's live WPF settings sample every 3s, so Electron is doing three times the
+  update work per unit time and still measured cheaper. *For Electron:* the WPF build polls
+  LibreHardwareMonitor for temperatures (`TempsLineVisible: true` in his settings) and Electron has no
+  temperature source yet, so some part of WPF's cost buys a feature Electron does not have. The probe
+  cannot separate that without editing his live settings, which it will not do. **ISC-9 is where the
+  second one gets bounded**, which is why the ISC-6 pass is conditional on ISC-9 rather than final.
+- **`MEASURE_SEC` is now 70 and must not be shortened back.** See the aliasing entry in the Changelog:
+  a 20s window can miss the 30s recycle entirely and report roughly half the true cost.
 - **The guards are validated at the parse layer, not at the process layer.** 34 fixture tests prove
   detection and spell out the consequence, but `acceptHeader` / `acceptSampleWidth` / `rejectChild` are
   private methods on a class that spawns real children, so **the re-spawn itself has only been observed
@@ -341,9 +397,43 @@ measured on this branch at or after that base.
   which is the stronger of the two and did not exist while the wrong model held; and the reason the
   fixture is checked in as a real capture rather than a synthesis, since a synthesised short header
   reproduces the symptom and *not* the misalignment, and would have confirmed the wrong model.
+- **criterion-changed** ISC-6's own stated method. It said "measured over 20s", and the first run of the
+  probe showed why 20s is the wrong number: a `typeperf` child that started mid-window contributed
+  2.078s of 3.70 total CPU-seconds — **56% of everything measured** — and that child is a 30s recycle
+  replacement. So a 20s window can land entirely between two recycles and report roughly half the true
+  cost, or catch one and report it as steady state. **The measurement period must exceed the workload's
+  own period**, which is a general rule and not a detail of this probe: `MEASURE_SEC = 70` guarantees at
+  least two recycles, and `midWindowStarts` is reported so a window that caught none is visible rather
+  than silently flattering. The claim body was rewritten to the method that is defensible, not the one
+  written before the workload's period was known.
+- **conjectured** the Electron harness was working, because the transparent window appeared, Electron
+  logged only a warning, and `ready-to-show` fired and printed `PROBE-READY`. **refuted-by** the paint
+  counter reading **0**: `join(app.getAppPath(), "dist", "index.html")` had requested
+  `dist/dist/index.html`, because with `main` pointing at `dist/main.js` Electron already resolves the
+  app path to `dist/`. A transparent window with nothing in it is visually identical to a working
+  overlay against a dark desktop — **and in a CPU measurement it reads cheap and PASSES**, which would
+  have produced a spuriously favourable ISC-6 on the one claim that is allowed to kill the port. Fixed
+  with `import.meta.dirname` (true in both layouts and inside an asar) plus a permanent `did-fail-load`
+  logger. The paint counter had been written for the *throttling* case and caught a different failure
+  entirely; that it earned its keep before the run it was written for is the argument for liveness
+  controls in general.
+- **conjectured** the reworked probe was typechecked, having run `bunx tsc --noEmit` and seen no errors.
+  **refuted-by** reading what that command actually printed: it had resolved, downloaded and run
+  **TypeScript 7.0.2** and emitted usage help, because the shell's cwd had drifted to the repo root
+  where there is no tsconfig and no local typescript. Nothing had been checked. Fixed by adding a
+  `typecheck` script so the compiler is the pinned local 5.9.3 (exit 0 from `electron/`). Same family as
+  `ELECTRON_RUN_AS_NODE=1`: a gate that silently measures something other than its subject, and reports
+  success. Three instances of that family in this phase now — the env var, the doubled path, the wrong
+  compiler.
 - **conjectured** A2b's recovery bound was too tight, when it failed at mean 1280ms / worst 2082ms.
   **refuted-by** reading the sequence rather than the number: `child.kill()` only signals, so the
   recovery window opened while 32 burner processes were still tearing down and scored the teardown
   transient as recovery. Awaiting real exits plus discarding the one straddling sample gives mean 1012ms
   / worst 1014ms against the unchanged bound. Loosening the bound would have hidden the bug and kept the
   arm passing.
+- **criterion-now** the go/no-go is answered and the criterion moves. ISC-6 was "the one claim that can
+  kill the port"; it passed on CPU by 2.43× with a resident cost near 2% of one core, so **resource cost
+  is no longer the port's risk**. What remains is fidelity and platform reach: ISC-13 (phrase output
+  byte-identical to the C# original across the full sweep) is now the claim most able to embarrass this
+  port, because it is the only one that can fail *after* everything compiles and runs. Cost was the risk
+  that could stop the work; correctness is the risk that can waste it.
