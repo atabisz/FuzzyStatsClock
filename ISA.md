@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 6/33
+progress: 8/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-28T16:25:06+10:00
+updated: 2026-08-28T16:41:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -129,9 +129,34 @@ misses it, because every feature either ported or was consciously retired with t
   says so in its own verdict and gates on CPU alone. Closing this needs shared-page accounting
   (per-process PSS), not another run of the same instrument. **Does not gate the port**: ISC-6's CPU
   half is what AC-4 named, and 358MB against 327.7MB is not a magnitude that changes the decision.
-- [ ] **ISC-7. `Display.label` is read from a running Electron on his 3-display setup.** Non-empty and
-  stable across a restart, or the composite fallback key becomes the primary. *(Carried
-  `[DEFERRED-VERIFY]` from the feasibility ISA.)*
+- [x] **ISC-7. `Display.label` is read from a running Electron on his 3-display setup — and it is NOT a
+  usable key. The composite fallback becomes the primary.** `bun electron/scripts/probe-displays.ts`,
+  6 arms, **0 blocking failures**, two cold Electron launches. What his desk actually reports:
+
+  | display | label | geometry | scale |
+  |---|---|---|---|
+  | internal | **`""`** (empty) | 1920×1080 @ 3441,−499 | 1.00 |
+  | LG (primary) | `"LG HDR WQHD"` | 3440×1440 @ 0,0 | 1.00 |
+  | LG | `"LG HDR WQHD"` — **same string** | 3440×1440 @ 1,−1440 | 1.00 |
+
+  So the label fails **both** ways at once: empty on one display, and duplicated across the other two.
+  "Non-empty and stable" — the claim as originally written — would have passed on two of three
+  displays and still produced an overlay that restores onto the wrong LG. Uniqueness had to be a
+  separate arm, and the WPF original is what pointed at it: `MonitorService.cs:90-115` already runs a
+  second pass suffixing duplicate friendly names `-2`, `-3`, which is only there because this exact
+  case happens. The disjunction in the claim is what resolved it: **composite key
+  `WxH@x,y:scale`** — 3 distinct values, all identical across both launches, as are `id` and
+  enumeration order. Label is kept as a display *name*, never as an identity.
+- [x] **ISC-7.1. The existing WPF settings file cannot be imported key-for-key, and one of its entries
+  is already orphaned.** His live `%LOCALAPPDATA%\FuzzyClock\settings.json` stores
+  `MonitorPositions: { display6: …, display5: … }` with `LastActiveMonitor: "display5"`. Those are
+  **`MonitorService.FallbackKey` output** — GDI device names with `\\.\` stripped — which means the
+  shipping app is not using friendly names on this machine at all, and Electron exposes no GDI device
+  name to reproduce them from. Measured against the live enumeration: `display6`'s (1620, 20) lands
+  inside the primary LG, and **`display5`'s (−227, 510) lands outside every connected display**. So
+  ISC-18's import must match **by geometry, not by key**, and must handle an orphaned entry rather
+  than trusting a stored position — a case his live file already contains. Read-only; the file was
+  not modified.
 - [ ] **ISC-8. A real installer size exists.** One `electron-builder` run, measured against the WPF
   200,457,651-byte single-file exe and 57,389,487-byte Inno installer. *(Carried `[DEFERRED-VERIFY]`;
   the ~85MB figure in circulation is a prior, not a measurement.)*
@@ -162,9 +187,15 @@ misses it, because every feature either ported or was consciously retired with t
 - [ ] **ISC-16. It is absent from the taskbar/dock and from Alt-Tab/Cmd-Tab on all three platforms.**
 - [ ] **ISC-17. Tray icon and menu work, with the Linux activation-semantics difference handled.**
 - [ ] **ISC-18. Settings persist at `app.getPath('userData')`, and the existing Windows settings file
-  is imported once.** `%LOCALAPPDATA%\FuzzyClock\settings.json` must survive the transition — his live
-  file is the one an upgrade meets.
-- [ ] **ISC-19. Per-monitor position survives a restart and a display-configuration change.**
+  is imported once — matching monitors by GEOMETRY, not by key.** `%LOCALAPPDATA%\FuzzyClock\settings.json`
+  must survive the transition; his live file is the one an upgrade meets, and per ISC-7.1 its
+  `display5`/`display6` keys are GDI device names Electron cannot produce. The importer maps a stored
+  `Left`/`Top` to whichever current display's bounds contain it, and **drops an entry that lands on no
+  display** — his file already has one (`display5` at −227, 510).
+- [ ] **ISC-19. Per-monitor position survives a restart and a display-configuration change.** Keyed on
+  the composite (ISC-7), which carries position — so rearranging displays in Windows invalidates the
+  key by construction. The falsifier that matters is therefore not "the position was lost" but "the
+  window restored off-screen": on a key miss it must clamp into the target display's work area.
 - [ ] **ISC-20. Drag-to-move works, and the window stays within the target display's work area.**
 
 ### Phase 4 — SVG display
@@ -282,6 +313,22 @@ misses it, because every feature either ported or was consciously retired with t
   `%LOCALAPPDATA%\FuzzyClock\settings.json`, and this probe has no business modifying it. It is
   launched with his real settings (`StatsVisible: true`, 3s interval, temps and uptime on) precisely
   because the question is what the app he actually runs costs — but read-only.
+- **`probe-displays.ts` splits its arms into blocking and diagnostic, and the exit code follows the
+  blocking ones.** ISC-7 is a disjunction, so a failing label selects the other branch rather than
+  failing the claim. B2/B3/B6 stay recorded as FAIL because that is what they measured — the alternative
+  is relabelling a true negative to make a summary green — but a re-run on this desk is not permanently
+  red for correctly reporting a property of Alex's monitors. What blocks is B1 (nothing enumerated) and
+  B5 (no usable key of any kind).
+- **The composite key is `WxH@x,y:scale`, and position is in it deliberately despite the cost.** Two
+  identical monitors differ *only* in position, so a geometry key without it collapses exactly where the
+  label already did. The cost is real and is now ISC-19's problem: rearranging displays invalidates the
+  key. `display.id` was the other candidate — unique and restart-stable in both launches — and is not
+  chosen because Chromium derives it per session on Windows and nothing here measured it across a
+  reboot. Preferring the key whose failure mode is *understood* over the one whose stability is merely
+  unrefuted.
+- **His live `settings.json` is read and never written, by both probes.** `probe-cost.ts` kills the WPF
+  app rather than closing it for this reason; `probe-displays.ts` opens the file read-only. It is his
+  real configuration and the upgrade path (ISC-18) has to meet it intact.
 - **The probe gates on CPU and says so in its verdict text.** An earlier draft printed "0.85× on
   sum-WS" inside a PASS sentence, where 0.85× means Electron is *more* expensive — a true number
   arranged to read as a win, in the one artifact whose job is to be able to fail. It now prints both
@@ -301,6 +348,8 @@ measured on this branch at or after that base.
 | ISC-4.1 | `bun test` (34 pass) over `test/fixtures/typeperf-dropped-header.csv`; plus arm A7, observational | **asymmetric evidence** (claim 19): a run reporting 0 retries is not evidence the defect is absent, only that it did not fire, so A7 never returns PASS and the deterministic evidence is the fixture. **Counter-case** for each guard separately: a synthesised GPU-column drop passes name matching with all three scalar names present, and is caught only by the width comparison — so neither guard is redundant. The fixture is a **real capture, not a synthesis**, which matters because the misalignment was not predicted; it was found by the clean-fixture capture accidentally catching the defect and the tests failing on it |
 | ISC-5 | same probe, arms A5 and A6, with `nvidia-smi --query-gpu=utilization.gpu` cross-reads | **positive control** is the correction that makes this arm mean anything: `liveBefore` is captured so the churn is scored as `liveAfter − liveBefore`, and the defect read only from instances that control proves are new. Without it the only comparison is bound-vs-live, which is already non-zero at spawn (319 of 354 in one run) and so passes for any churn source at all, including one that never ran. **Transition** in one process lifetime: bound 353 → blind to a named new instance → recycle → bound 354 covering it |
 | ISC-6 | `bun electron/scripts/probe-cost.ts` from `electron/` — arms A1, A2, A3, A4 | **positive control** (A1): a deliberate spin loop must read ≥80% of one core, and did — 98.9% and 97.1% across the two runs. Without it a plumbing fault returning near-zero CPU for everything presents as a spectacular result, which is the exact failure this claim is most vulnerable to. **Liveness control**: 75 real paints per 70s window, acknowledged from inside `requestAnimationFrame` — a renderer Chromium believes occluded stops rendering and becomes very cheap, so a CPU-only probe would score that state as a win. **Cross-check** against a measurement this run does not depend on: the prior session's 24.2% WPF figure, reproduced here at 19.92% and 20.98% (−4.28pp, −3.22pp). **Denominator**: the whole process tree re-walked every sample, 8-10 processes against WPF's 1, so `electron.exe`-alone (which would drop the renderer) cannot be what was measured |
+| ISC-7 | `bun electron/scripts/probe-displays.ts` — arms B1..B5 | **the uniqueness arm is the discriminator, and it is the one the claim as written did not have.** "Non-empty and stable" passes on 2 of 3 of his displays while still being unusable, so the probe asks separately whether a label *distinguishes* one monitor from another — and 2× `"LG HDR WQHD"` is what makes the answer no. **Counter-case from the original**: WPF's own `MonitorService.cs:90-115` duplicate-suffix pass exists only for this case, so the ambiguity is a known production property, not a probe artefact. **The fallback branch is measured before being selected** — composite uniqueness and restart stability are both checked, rather than assumed to work because the preferred branch failed. **Two cold launches**, so the enumeration is genuinely re-done and not read twice from one process |
+| ISC-7.1 | same probe, arm B6 | **cross-artifact**: the live settings file and the live enumeration are read in the same run and matched against each other, so "these keys are unproducible" is measured against what Electron actually reported on this desk rather than against the API docs. **Two independent failures, one visible only via geometry**: the key mismatch would be caught by any comparison, but the orphaned `display5` position is only visible by testing the stored point against current bounds — and it is the one that would have shipped as a window restored off-screen |
 | ISC-6.1 | same probe, A4's memory lines | the claim is that the method **cannot** decide, and the probe demonstrates it rather than asserting it: it prints both bounds and both intervals, and the overlap is visible in the output. A single RSS number for either side would pass a naive comparison in whichever direction it was chosen — which is the failure being refused |
 
 ### Still outstanding
@@ -327,6 +376,14 @@ measured on this branch at or after that base.
   temperature source yet, so some part of WPF's cost buys a feature Electron does not have. The probe
   cannot separate that without editing his live settings, which it will not do. **ISC-9 is where the
   second one gets bounded**, which is why the ISC-6 pass is conditional on ISC-9 rather than final.
+- **ISC-7's stability is bounded at "across a process restart", which is weaker than it sounds.** Two
+  cold Electron launches, minutes apart, one display arrangement. It does **not** cover a reboot, a cable
+  swap, a monitor power-cycle, or a resolution change — and the composite key is *designed* to break on
+  the last of those. Per claim 19 the arm is stated at the endpoint that was measured. The reboot and
+  rearrange cases are cheap to close later (re-run the same probe after each) and neither blocks Phase 3.
+- **`display.id`'s stability is unmeasured beyond a restart**, which is why it is not the key even though
+  it was unique and stable in both launches. If a future reboot check shows it holds, it is strictly
+  better than the composite — it does not carry position, so rearranging displays would not invalidate it.
 - **`MEASURE_SEC` is now 70 and must not be shortened back.** See the aliasing entry in the Changelog:
   a 20s window can miss the 30s recycle entirely and report roughly half the true cost.
 - **The guards are validated at the parse layer, not at the process layer.** 34 fixture tests prove
@@ -431,6 +488,25 @@ measured on this branch at or after that base.
   transient as recovery. Awaiting real exits plus discarding the one straddling sample gives mean 1012ms
   / worst 1014ms against the unchanged bound. Loosening the bound would have hidden the bug and kept the
   arm passing.
+- **conjectured** in the plan and in ISC-7 as written that `Display.label` was the per-monitor key, with
+  a composite of geometry as a fallback that probably would not be needed. **refuted-by** reading it off
+  his actual desk: the internal panel's label is the **empty string**, and both LG monitors report the
+  **identical** `"LG HDR WQHD"`. The claim's own test — "non-empty and stable across a restart" — would
+  have passed on two of three displays and shipped an overlay that restores onto the wrong LG, because
+  *stable* and *unique* are different properties and only one of them was being asked for. What supplied
+  the missing arm was the code being ported: WPF's `MonitorService.BuildKeyMap` runs a whole second pass
+  suffixing duplicate friendly names `-2`/`-3`, which is a load-bearing hint that the duplicate case is
+  normal rather than exotic. **The general form: when a claim tests a proxy for identity, test whether
+  the proxy actually distinguishes — non-emptiness and stability are both satisfiable by a constant.**
+- **learned, from a read of his live settings, that the shipping WPF app is not using friendly monitor
+  names on this machine at all.** Its stored keys are `display5` and `display6` — `FallbackKey` output,
+  GDI device names with the prefix stripped — so `QueryDisplayConfig` returns nothing usable here and the
+  documented "friendly name" path is dead code on this host. Two consequences neither the plan nor ISC-18
+  had: the import cannot be key-for-key, since Electron exposes no GDI device name to reproduce those
+  strings from; and GDI display indices renumber as monitors are attached, which is why one stored
+  position (−227, 510) now **lands outside every connected display**. The orphan is not hypothetical
+  breakage introduced by the port — it is already in his file, and it is only visible by testing the
+  stored point against current bounds rather than by comparing keys.
 - **criterion-now** the go/no-go is answered and the criterion moves. ISC-6 was "the one claim that can
   kill the port"; it passed on CPU by 2.43× with a resident cost near 2% of one core, so **resource cost
   is no longer the port's risk**. What remains is fidelity and platform reach: ISC-13 (phrase output

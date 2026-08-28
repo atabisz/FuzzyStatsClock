@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "probe:typeperf": "bun scripts/probe-typeperf.ts",
     "probe:cost": "bun scripts/probe-cost.ts",
-    "probe:displays": "bun run build:main && electron scripts/probe-displays.cjs"
+    "probe:displays": "bun scripts/probe-displays.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",
