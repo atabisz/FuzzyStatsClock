@@ -10,21 +10,23 @@
  * here and handed to `win.setSize()`.
  *
  * This was found by measurement, not by reading. The Phase 3 shell is a fixed **232 x 260**
- * (`resizable: false`). Enumerating all **4608** reachable combinations of the eight settings that change
- * the size puts **704 of them over 232 wide**, **214 over 260 tall** and **850 over one or the other** --
- * so 18.4% of the settings space is clipped by the shell as built, and a clipped clock is not "renders"
+ * (`resizable: false`). Enumerating all **1536** reachable combinations of the seven settings that change
+ * the size puts **336 of them over 232 wide**, **94 over 260 tall** and **380 over one or the other** --
+ * so 24.7% of the settings space is clipped by the shell as built, and a clipped clock is not "renders"
  * under ISC-21. A per-mode resize is what the phase requires, not a refinement of it.
  *
+ * Seven settings and not eight: `lcdSize` is in the file but is not one of them. See `lcdDigitSize` below.
+ *
  * The two extremes are different modes, so no single combination is "the worst case". The **widest is
- * 366**, and it is the LCD rather than the Nixie: `lcd/Silver/large/sec=true` measures 341.76 across,
- * because Silver selects Bold segments -- 94 to 259 tall depending on the two optional rows and the date
- * row's own font. The Nixie
+ * 366**, and it is the LCD rather than the Nixie: `lcd/Silver/sec=true` at font size 32 or 40 measures
+ * 341.76 across, because Silver selects Bold segments -- 94 to 259 tall depending on the two optional
+ * rows and the date row's own font. The Nixie
  * Large case (276) was found first and is real, but it is not the widest, which is why the number here
  * comes from the enumeration in `test/layout.test.ts` rather than from the mode that happened to be
  * measured first. The **tallest is 299** (`phrase/Split/fs=40/date=true/stats=true`), at 208 wide. And
- * the smallest reachable is **111 x 60** (a bare small LCD), so the shell cannot simply be enlarged
- * either: a window sized for both maxima would surround that one with 250px of empty, click-catching
- * surface.
+ * the smallest reachable digit face is **111 x 60** (a bare LCD at font size 16), so the shell cannot
+ * simply be enlarged either: a window sized for both maxima would surround that one with 250px of empty,
+ * click-catching surface.
  *
  * ## Which numbers here are measured and which are declared
  *
@@ -58,7 +60,13 @@ import { buildNixieDigit, colonDotSize } from "./nixie-geometry.js"
 import { buildSevenSegmentDigit, type SegmentStyle } from "./seven-segment-geometry.js"
 import type { LcdSize } from "./digit-size.js"
 import { toDigitHeight, toSegmentHeight } from "./digit-size.js"
-import { STATS_PANEL_WIDTH, deriveFontSizes, fontNameFor, lineHeight } from "./text-metrics.js"
+import {
+  STATS_PANEL_WIDTH,
+  deriveFontSizes,
+  fontNameFor,
+  fontSizeToLcdSize,
+  lineHeight,
+} from "./text-metrics.js"
 import type { AppSettings } from "./settings.js"
 
 /** `Border Padding="12"` on the main container. */
@@ -128,6 +136,27 @@ export function statsPanelHeight(): number {
 }
 
 /**
+ * The digit size the two seven-segment/tube views actually render at.
+ *
+ * **`settings.lcdSize` is not it, and reading it was a defect.** In the C# that field is *write-only*
+ * derived state: `SaveSettings` stores `LcdSize = FontSizeToLcdSize(_currentFontSize)`
+ * (`MainWindow.xaml.cs:680` and `:907`), and every one of the five places that reads a digit size reads
+ * `FontSizeToLcdSize(FontSize)` instead -- `:581` and `:587` on load, `:1562-1563` in `ApplyFontSize`,
+ * `:1719` and `:1724` in `SetClockType`. Nothing anywhere reads `s.LcdSize`.
+ *
+ * The two disagree on a **default install**, which is what makes this worth a named function rather than
+ * an inline call: `DEFAULTS.fontSize` is 32, so the face renders `large`, while `DEFAULTS.lcdSize` is
+ * `"medium"` -- the C#'s own vestigial default, measured by the settings probe. Sizing the window from
+ * the field while the face is built from the font size clips the digits on every fresh profile.
+ *
+ * So the field is kept in `AppSettings` (it is in the file, and `settings-import.ts` decodes its
+ * ordinal), it is still written on save, and no size calculation may consult it.
+ */
+export function lcdDigitSize(settings: AppSettings): LcdSize {
+  return fontSizeToLcdSize(settings.fontSize)
+}
+
+/**
  * The row-0 content size for a clock type.
  *
  * `phraseWidth` is the only input this cannot compute: a string's rendered width depends on the font the
@@ -145,10 +174,10 @@ export function contentSize(settings: AppSettings, phraseWidth: number): Size {
     case "lcd": {
       // `ApplyLcdColors` picks the segment style from the LCD skin, not from a setting of its own.
       const style: SegmentStyle = settings.lcdStyle === "Silver" ? "Bold" : "Classic"
-      return lcdViewSize(style, settings.lcdSize, settings.lcdShowSeconds)
+      return lcdViewSize(style, lcdDigitSize(settings), settings.lcdShowSeconds)
     }
     case "nixie":
-      return nixieViewSize(settings.lcdSize)
+      return nixieViewSize(lcdDigitSize(settings))
     default:
       if (settings.textStyle === "Split") {
         // A vertical StackPanel: the qualifier above the emphasis, so the heights add.

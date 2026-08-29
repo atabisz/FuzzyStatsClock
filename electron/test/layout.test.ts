@@ -45,7 +45,7 @@ import {
   windowPixelSize,
 } from "../src/core/layout.js"
 import { buildNixieDigit, colonDotSize } from "../src/core/nixie-geometry.js"
-import { toDigitHeight } from "../src/core/digit-size.js"
+import { toDigitHeight, type LcdSize } from "../src/core/digit-size.js"
 import {
   DEFAULTS,
   LCD_STYLES,
@@ -77,8 +77,30 @@ const settings = (overrides: Partial<AppSettings>): AppSettings => ({ ...DEFAULT
 
 /** Every size-affecting setting, so "reachable" below means enumerated rather than sampled. */
 const CLOCK_TYPES: readonly ClockType[] = ["phrase", "dial", "lcd", "nixie"]
-const SIZES = ["small", "medium", "large"] as const
 const MENU_FONT_SIZES = [16, 24, 32, 40] as const
+
+/**
+ * The three digit tiers, for the view-size functions that take one directly.
+ *
+ * **`lcdSize` is not a size-affecting setting**, which is why it is absent from the enumeration in the
+ * last block: `lcdDigitSize` derives the tier from the font size, because that is what the C# does. See
+ * the invariance test in "row-0 content size per clock type".
+ */
+const SIZES = ["small", "medium", "large"] as const
+
+/**
+ * `FontSizeToLcdSize` (`MainWindow.xaml.cs:1738`) written out rather than imported.
+ *
+ * The mapping is what these tests are checking `contentSize` against, so taking it from the module under
+ * test would make the assertion true by construction -- both sides would move together if the tiers were
+ * ever re-cut. Four literals is a cheap independent oracle.
+ */
+const TIER_OF_FONT_SIZE: Record<(typeof MENU_FONT_SIZES)[number], LcdSize> = {
+  16: "small",
+  24: "medium",
+  32: "large",
+  40: "large",
+}
 
 describe("the LCD view size, all twelve measured rows", () => {
   // lcd-view: segmentStyle, size, showSeconds, width, height
@@ -240,22 +262,60 @@ describe("row-0 content size per clock type", () => {
   test("the LCD takes its segment style from the skin, not from a setting of its own", () => {
     // `ApplyLcdColors` is where Silver selects Bold. A port reading a non-existent segment-style setting
     // would render Silver at Classic widths and clip the last digit by ~27%.
-    for (const lcdSize of SIZES) {
-      const silver = contentSize(settings({ clockType: "lcd", lcdStyle: "Silver", lcdSize }), 0)
-      expect(silver).toEqual(lcdViewSize("Bold", lcdSize, DEFAULTS.lcdShowSeconds))
+    for (const fontSize of MENU_FONT_SIZES) {
+      const tier = TIER_OF_FONT_SIZE[fontSize]
+      const silver = contentSize(settings({ clockType: "lcd", lcdStyle: "Silver", fontSize }), 0)
+      expect(silver).toEqual(lcdViewSize("Bold", tier, DEFAULTS.lcdShowSeconds))
       for (const lcdStyle of LCD_STYLES.filter((s) => s !== "Silver")) {
-        const other = contentSize(settings({ clockType: "lcd", lcdStyle, lcdSize }), 0)
-        expect(other).toEqual(lcdViewSize("Classic", lcdSize, DEFAULTS.lcdShowSeconds))
+        const other = contentSize(settings({ clockType: "lcd", lcdStyle, fontSize }), 0)
+        expect(other).toEqual(lcdViewSize("Classic", tier, DEFAULTS.lcdShowSeconds))
       }
     }
   })
 
-  test("the Nixie ignores the phrase width and the font size", () => {
-    for (const lcdSize of SIZES) {
-      expect(contentSize(settings({ clockType: "nixie", lcdSize, fontSize: 40 }), 999)).toEqual(
-        nixieViewSize(lcdSize),
+  test("the Nixie ignores the phrase width and takes its digit tier from the font size", () => {
+    // Ignoring the phrase width is the C#: `NixieClockView` is a fixed-size StackPanel of four tubes.
+    // Taking the tier from the font size is the other half of the same fact, and it is the half that was
+    // wrong here first -- see the invariance test below.
+    for (const fontSize of MENU_FONT_SIZES) {
+      expect(contentSize(settings({ clockType: "nixie", fontSize }), 999)).toEqual(
+        nixieViewSize(TIER_OF_FONT_SIZE[fontSize]),
       )
     }
+  })
+
+  test("no clock type's content size depends on settings.lcdSize", () => {
+    // The discriminator for a defect this file did not catch the first time. `settings.lcdSize` is
+    // **write-only derived state** in the C#: `SaveSettings` stores `FontSizeToLcdSize(_currentFontSize)`
+    // (`MainWindow.xaml.cs:680` and `:907`), and all five places that read a digit size call
+    // `FontSizeToLcdSize(FontSize)` instead -- `:581`, `:587`, `:1562-1563`, `:1719`, `:1724`. Nothing
+    // reads `s.LcdSize`.
+    //
+    // `contentSize` did, and the two disagree on a DEFAULT install: `DEFAULTS.fontSize` is 32 so the face
+    // renders `large`, while `DEFAULTS.lcdSize` is `"medium"` -- the C#'s own vestigial default, measured
+    // by the settings probe. So the window was sized one tier small on every fresh profile, which clips
+    // the digits. Not an edge case; the default path.
+    //
+    // Asserted as invariance over the whole cross-product rather than at one point, because that is the
+    // shape of the claim: the field may be present, may be validated, may be written back, and may not
+    // reach any arithmetic.
+    for (const clockType of CLOCK_TYPES) {
+      for (const fontSize of MENU_FONT_SIZES) {
+        for (const lcdStyle of LCD_STYLES) {
+          for (const lcdShowSeconds of [true, false]) {
+            const base = { clockType, fontSize, lcdStyle, lcdShowSeconds }
+            const atSmall = contentSize(settings({ ...base, lcdSize: "small" }), 7)
+            for (const lcdSize of SIZES) {
+              expect(contentSize(settings({ ...base, lcdSize }), 7)).toEqual(atSmall)
+            }
+          }
+        }
+      }
+    }
+    // And the same at the window level, since `windowLayout` composes on top of it.
+    expect(windowLayout(settings({ clockType: "lcd", lcdSize: "small" }), 0)).toEqual(
+      windowLayout(settings({ clockType: "lcd", lcdSize: "large" }), 0),
+    )
   })
 
   test("the phrase takes the measured width, and Split stacks two lines", () => {
@@ -328,7 +388,7 @@ describe("window composition", () => {
   test("the width is the widest row and the height is the sum of all three", () => {
     // The Grid's two composition rules, stated separately, because getting one right and the other wrong
     // produces a window that looks plausible in one dimension.
-    const layout = windowLayout(settings({ clockType: "nixie", lcdSize: "large", statsVisible: true }), 0)
+    const layout = windowLayout(settings({ clockType: "nixie", fontSize: 32, statsVisible: true }), 0)
     expect(layout.innerWidth).toBe(Math.max(layout.content.width, STATS_PANEL_WIDTH))
     expect(layout.height).toBe(
       layout.content.height + layout.dateBlock + layout.statsBlock + 2 * WINDOW_PADDING,
@@ -360,37 +420,41 @@ describe("THE BLOCKER: the fixed shell cannot hold the reachable sizes", () => {
   const SHELL_WIDTH = 232
   const SHELL_HEIGHT = 260
 
-  /** Every combination of the settings that change the window's size. 4x3x3x2x4x4x2x2 = 4608. */
+  /**
+   * Every combination of the settings that change the window's size. 4x3x2x4x4x2x2 = 1536.
+   *
+   * Seven dimensions, not eight: `lcdSize` is in the settings file but reaches no arithmetic, so adding
+   * it back would triple the run time and produce three identical copies of every row. The invariance
+   * test above is what licenses leaving it out.
+   */
   const everyReachableLayout = (): readonly { label: string; width: number; height: number }[] => {
     const out: { label: string; width: number; height: number }[] = []
     for (const clockType of CLOCK_TYPES)
       for (const lcdStyle of LCD_STYLES)
-        for (const lcdSize of SIZES)
-          for (const lcdShowSeconds of [true, false])
-            for (const fontSize of MENU_FONT_SIZES)
-              for (const textStyle of TEXT_STYLES)
-                for (const showDate of [true, false])
-                  for (const statsVisible of [true, false]) {
-                    const px = windowPixelSize(
-                      windowLayout(
-                        settings({
-                          clockType,
-                          lcdStyle,
-                          lcdSize,
-                          lcdShowSeconds,
-                          fontSize,
-                          textStyle,
-                          showDate,
-                          statsVisible,
-                        }),
-                        0,
-                      ),
-                    )
-                    out.push({
-                      label: `${clockType}/${lcdStyle}/${lcdSize}/sec=${String(lcdShowSeconds)}/fs=${String(fontSize)}/${textStyle}/date=${String(showDate)}/stats=${String(statsVisible)}`,
-                      ...px,
-                    })
-                  }
+        for (const lcdShowSeconds of [true, false])
+          for (const fontSize of MENU_FONT_SIZES)
+            for (const textStyle of TEXT_STYLES)
+              for (const showDate of [true, false])
+                for (const statsVisible of [true, false]) {
+                  const px = windowPixelSize(
+                    windowLayout(
+                      settings({
+                        clockType,
+                        lcdStyle,
+                        lcdShowSeconds,
+                        fontSize,
+                        textStyle,
+                        showDate,
+                        statsVisible,
+                      }),
+                      0,
+                    ),
+                  )
+                  out.push({
+                    label: `${clockType}/${lcdStyle}/sec=${String(lcdShowSeconds)}/fs=${String(fontSize)}/${textStyle}/date=${String(showDate)}/stats=${String(statsVisible)}`,
+                    ...px,
+                  })
+                }
     return out
   }
 
@@ -403,11 +467,15 @@ describe("THE BLOCKER: the fixed shell cannot hold the reachable sizes", () => {
     const all = everyReachableLayout()
     const widest = all.reduce((a, b) => (b.width > a.width ? b : a))
     expect(widest.width).toBe(366)
-    expect(widest.label).toContain("lcd/Silver/large/sec=true")
+    expect(widest.label).toContain("lcd/Silver/sec=true")
+    // The tier is Large, but Large is not a setting -- font size 32 and 40 both map to it, so both are in
+    // the tie and which one `reduce` returns is an ordering artefact. Assert the tier's cause instead.
+    expect(["fs=32", "fs=40"].some((fs) => widest.label.includes(fs))).toBe(true)
 
-    // The Nixie's own worst case, kept because it is what the plan cites.
+    // The Nixie's own worst case, kept because it is what the plan cites. Font size 32 is the default and
+    // maps to the Large tier, which is what makes this the Nixie's widest.
     const nixieWorst = windowPixelSize(
-      windowLayout(settings({ clockType: "nixie", lcdSize: "large", showDate: true }), 0),
+      windowLayout(settings({ clockType: "nixie", fontSize: 32, showDate: true }), 0),
     )
     expect(nixieWorst).toEqual({ width: 276, height: 156 })
     expect(nixieWorst.width).toBeLessThan(widest.width)
@@ -430,14 +498,13 @@ describe("THE BLOCKER: the fixed shell cannot hold the reachable sizes", () => {
     const widestHeights = [...new Set(all.filter((l) => l.width === 366).map((l) => l.height))].sort(
       (a, b) => a - b,
     )
-    // 21 distinct heights across the 64 combinations that measure 366 wide. The width is fixed by
-    // lcd/Silver/large/sec=true; what still varies is the date row, whose height follows both the font
-    // size and the text style's family -- Literary is Palatino Linotype and Mono is Consolas, and their
-    // line spacings differ from Segoe UI Light's. Bounds and count rather than the whole list: the list
-    // is 21 numbers of noise, while the extremes are what a clamp is written against.
-    expect(widestHeights).toHaveLength(21)
-    expect(widestHeights[0]).toBe(94)
-    expect(widestHeights.at(-1)).toBe(259)
+    // 12 distinct heights across the 32 combinations that measure 366 wide. The width is fixed by
+    // lcd/Silver/sec=true at the Large tier; what still varies is the date row, whose height follows both
+    // the font size and the text style's family -- Literary is Palatino Linotype and Mono is Consolas, and
+    // their line spacings differ from Segoe UI Light's. Short enough now to pin whole rather than by its
+    // bounds, and worth pinning whole: 94 to 259 is a 165px spread at one single width.
+    expect(widestHeights).toEqual([94, 131, 135, 139, 144, 145, 208, 245, 249, 250, 254, 259])
+    expect(all.filter((l) => l.width === 366)).toHaveLength(32)
     const tallest = all.reduce((a, b) => (b.height > a.height ? b : a))
     expect(tallest.width).toBe(208)
     // And the per-dimension maximum is a window no setting combination can actually produce: the widest
@@ -451,45 +518,45 @@ describe("THE BLOCKER: the fixed shell cannot hold the reachable sizes", () => {
     // ISC-21 says all four modes render. A clipped Nixie or a half-drawn sixth LCD digit is not
     // "renders", so this is the phase's own bar failing rather than a nice-to-have. Counted rather than
     // characterised, because "most combinations" was my first guess and it was wrong by a factor of two:
-    // 704 of 4608 are too wide (15.3%), 214 too tall (4.6%), 850 fail one or the other (18.4%).
+    // 336 of 1536 are too wide (21.9%), 94 too tall (6.1%), 380 fail one or the other (24.7%).
     const all = everyReachableLayout()
-    expect(all).toHaveLength(4608)
+    expect(all).toHaveLength(1536)
     const tooWide = all.filter((l) => l.width > SHELL_WIDTH)
     const tooTall = all.filter((l) => l.height > SHELL_HEIGHT)
-    expect(tooWide).toHaveLength(704)
-    expect(tooTall).toHaveLength(214)
-    expect(all.filter((l) => l.width > SHELL_WIDTH || l.height > SHELL_HEIGHT)).toHaveLength(850)
+    expect(tooWide).toHaveLength(336)
+    expect(tooTall).toHaveLength(94)
+    expect(all.filter((l) => l.width > SHELL_WIDTH || l.height > SHELL_HEIGHT)).toHaveLength(380)
   })
 
   test("only the two digit modes overflow the width, and all four can overflow the height", () => {
     // Which modes, not just how many -- the resize has to be wired for all four regardless, and this
-    // records why the two digit views are the urgent ones. LCD 320 and Nixie 384 combinations are too
-    // wide; phrase and dial never are. Height overflow is spread across all four because the stats panel
-    // and the date row are what push it over, and those are orthogonal to the face.
+    // records why the two digit views are the urgent ones. 144 of the LCD's 384 combinations and **every
+    // one but half** of the Nixie's are too wide; phrase and dial never are. Height overflow is spread
+    // across all four because the stats panel and the date row are what push it over, and those are
+    // orthogonal to the face.
     const all = everyReachableLayout()
-    const wideBy = (type: ClockType) =>
-      all.filter((l) => l.label.startsWith(`${type}/`) && l.width > SHELL_WIDTH).length
-    expect(wideBy("lcd")).toBe(320)
-    expect(wideBy("nixie")).toBe(384)
+    const of = (type: ClockType) => all.filter((l) => l.label.startsWith(`${type}/`))
+    const wideBy = (type: ClockType) => of(type).filter((l) => l.width > SHELL_WIDTH).length
+    const tallBy = (type: ClockType) => of(type).filter((l) => l.height > SHELL_HEIGHT).length
+    for (const type of CLOCK_TYPES) expect(of(type)).toHaveLength(384)
+    expect(wideBy("lcd")).toBe(144)
+    expect(wideBy("nixie")).toBe(192)
     expect(wideBy("phrase")).toBe(0)
     expect(wideBy("dial")).toBe(0)
-    for (const type of CLOCK_TYPES) {
-      expect(
-        all.filter((l) => l.label.startsWith(`${type}/`) && l.height > SHELL_HEIGHT).length,
-      ).toBeGreaterThan(0)
-    }
+    // Every type overflows the height, and by wildly different amounts -- so a height clamp cannot be
+    // scoped to the digit views the way a width clamp could be.
+    expect([tallBy("phrase"), tallBy("dial"), tallBy("lcd"), tallBy("nixie")]).toEqual([12, 30, 4, 48])
   })
 
   test("and the shell is also too big for the small end, so it cannot just be enlarged", () => {
     // The other half of the argument, and the reason the fix is a per-mode `setSize()` rather than a
-    // bigger constant: a bare small LCD is 111x60, so a shell sized for the 366x299 worst case would
-    // surround it with 250px of empty click-catching window. Both bounds together are what make this a
-    // measurement problem rather than a constant to bump.
+    // bigger constant: a bare LCD at font size 16 is 111x60, so a shell sized for the 366x299 worst case
+    // would surround it with 250px of empty click-catching window. Both bounds together are what make this
+    // a measurement problem rather than a constant to bump.
     const smallest = windowPixelSize(
       windowLayout(
         settings({
           clockType: "lcd",
-          lcdSize: "small",
           lcdShowSeconds: false,
           fontSize: 16,
           showDate: false,
@@ -499,12 +566,19 @@ describe("THE BLOCKER: the fixed shell cannot hold the reachable sizes", () => {
       ),
     )
     expect(smallest).toEqual({ width: 111, height: 60 })
+    // It is also the smallest of the four faces. The enumeration's own minimum by area is a 24x43 phrase,
+    // but that is the `phraseWidth: 0` artefact the last test in this file is about, not a real window.
+    const all = everyReachableLayout()
+    const smallestFace = all
+      .filter((l) => !l.label.startsWith("phrase/"))
+      .reduce((a, b) => (a.width * a.height <= b.width * b.height ? a : b))
+    expect(smallestFace).toMatchObject({ width: 111, height: 60 })
     expect(smallest.width).toBeLessThan(SHELL_WIDTH)
     expect(smallest.height).toBeLessThan(SHELL_HEIGHT)
   })
 
   test("every reachable size is a positive integer a BrowserWindow will accept", () => {
-    // The cheap sweep over the same 4608 combinations: nothing NaN, nothing fractional, nothing at or
+    // The cheap sweep over the same 1536 combinations: nothing NaN, nothing fractional, nothing at or
     // below the padding. A NaN reaches `setSize()` as a silent no-op, which would present as "the resize
     // does not work" rather than as a bad number.
     for (const layout of everyReachableLayout()) {
