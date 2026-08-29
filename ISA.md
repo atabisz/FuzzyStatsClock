@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 12/34
+progress: 13/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-29T07:41:33+10:00
+updated: 2026-08-29T14:16:04+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -369,7 +369,7 @@ misses it, because every feature either ported or was consciously retired with t
     disabled), this module is deleted with it. Translating it anyway was the cheaper order — the
     probe harness was already standing, and the float-heavy internals are where a rushed Phase 8 port
     would have missed the rounding.
-- [~] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
+- [x] **ISC-12. ≥457 translated Core tests pass under `bun test`.** Was ≥469; `TemperatureFormatterTests.cs`
   contributes **12** of those cases and retires with the feature. Translated alongside each unit, not
   afterwards — a test written after the code it checks is a rubber stamp (AC-5).
   - **The 469 is measured on this host, not inherited.** `dotnet test FuzzyClock.Core.Tests` reports
@@ -392,6 +392,12 @@ misses it, because every feature either ported or was consciously retired with t
     full case count from the TRX, none partially taken. The other 147 new cases are **additions, not
     translations**, and are counted separately on purpose: a port that invents its own tests and counts
     them toward a translation target can reach the number without translating anything.
+  - **CLOSED at `36072c5`.** Re-probed at that HEAD rather than flipped from the queue's own bookkeeping:
+    `bun test` → 700 pass / 0 fail / 185,894 expect() across 16 files, `bun run typecheck` exit 0. HEAD is
+    the same commit the last unit's greens were measured against, so ISC-17's base check holds. The
+    discriminator is the mutation harness, not the pass line: 23 mutations over `tables.generated.ts` and
+    `specs.ts`, 14 of them fixture-consistent, **13 caught by this suite alone and 0 caught by nothing** —
+    the suite has demonstrably produced both verdicts through the same path.
   - **0 remain: the ISC-12 translation queue is closed.** 457 + 12 retired = 469. **The file
     and class counts are re-measured at each unit rather than carried, and the pair carried in
     once was wrong** — "ten files / thirty classes", neither number ever right. Measured now: the 37
