@@ -3,7 +3,7 @@
 **Project:** FuzzyClock v5.0 — rewrite the WPF/.NET 10 Windows overlay as an Electron desktop overlay with an SVG-rendered display, targeting Windows + macOS + Linux
 **Researched:** 2026-08-28
 **Base:** `ca61130` (clean tree at planning time)
-**Status:** last updated **2026-08-29** — see § Status below. Branch `v5.0-electron-port` at `36072c5`.
+**Status:** last updated **2026-08-29** — see § Status below. Branch `v5.0-electron-port` at `ff4899d`, Phase 3 closed on Windows, Phase 4 next.
 **Confidence:** **HIGH** on the Windows arms, the API surface, and the cost figures — all measured on this machine or read from Electron 33.4.11's own typings. **The macOS behavioural arms moved from LOW to mixed on 2026-08-28** — a real M1 laptop was probed (P1.6), so the mac rows are now a mix of `[MEASURED]` and three named `[INCONCLUSIVE]`. **Linux is still LOW on every behavioural arm: no Linux box has been touched.** Rows in this document are tagged `[MEASURED]`, `[TYPED]` (the API exists and Electron annotates it for that platform) or `[UNPROBED]`. Treat `[TYPED]` as "will compile and is documented to exist", never as "works".
 
 ---
@@ -15,14 +15,14 @@
 - **Linux is the *easiest* telemetry platform of the three, not the hardest.** CPU, memory, swap, battery and **temperatures** are all unprivileged reads under `/proc` and `/sys`. Windows needs a long-lived `typeperf` child plus a ring-0 driver for temps. **macOS is the hard one** — no unprivileged temperature source and no GPU utilisation without root `powermetrics`.
 - **Exactly two capabilities are declared absent on Linux by Electron's own typings**, and they are the only hard API gaps in the whole port: `setLoginItemSettings` (`@platform darwin,win32`) → auto-launch needs a hand-written `.desktop` file; `setContentProtection` (`@platform darwin,win32`) → no self-exclusion from screen capture, which is auto-contrast's feedback-loop guard. Everything else is present-but-unproven, a cheaper class of problem.
 - **One decision gated the plan and only Alex could make it: temperatures. ~~Open~~ DECIDED 2026-08-28 — Option C, drop them, on evidence Phase 1 produced.** See § The one decision below; the sidecar was built and measured before being deleted, and the reason it lost was not its size.
-- **Do not build the shell first.** The overlay window, tray, click-through and ghost-mode designs are already proven in `~/code/garry-desktop`, so building them first *feels* like progress while learning nothing. **Phase 1 is the telemetry spike, and it is the go/no-go.**
+- **Do not build the shell first.** The overlay window, tray, click-through and ghost-mode designs are already proven in `~/code/garry-desktop`, so building them first *feels* like progress while learning nothing. **Phase 1 is the telemetry spike, and it is the go/no-go.** *(Held: the spike ran first and the shell landed as Phase 3 — and it was right to distrust the borrowed design. `garry-desktop`'s flag set transferred, but its window-traits probe did not: it scans by process **name**, which on this box would attribute another Electron app's window to the overlay, so `winflags.ps1` takes a pid instead.)*
 - **Cost centre is not the shell and not the display.** It is **2,467 LOC** of `FuzzyClock.Core` plus **632 tests** (469 Core + 163 App) to re-earn — of which **578 survive Option C** — and the three Windows telemetry paths. All three figures were re-measured on the branch and all three moved: the LOC lost `TemperatureFormatter.cs`, the App count was **633 quoted and 632 measured**, and 54 of the 632 cover temperatures.
 
 ---
 
 ## Status — 2026-08-29
 
-Branch `v5.0-electron-port` at **`6370ecc`**. Gates at that commit: `bun test` **846 pass / 0 fail** (186,489 assertions across 20 files), `bun run typecheck` exit 0, `bun run build` exit 0. ~~At `36072c5`: 700 pass / 185,894 / 16 files.~~
+Branch `v5.0-electron-port` at **`ff4899d`**. Gates at that commit: `bun test` **1188 pass / 0 fail** (187,046 assertions across 28 files), `bun run typecheck` exit 0, `bun run build` exit 0, and `bun run probe:shell` **8 arms / 0 failed / 0 inconclusive**. ~~At `6370ecc`: 846 pass / 186,489 / 20 files.~~ ~~At `36072c5`: 700 pass / 185,894 / 16 files.~~
 
 | Phase | State | Where it stands |
 |---|---|---|
@@ -30,10 +30,11 @@ Branch `v5.0-electron-port` at **`6370ecc`**. Gates at that commit: `bun test` *
 | **1 — Telemetry spike (go/no-go)** | **PASSED, one half of one item outstanding** | P1.1-P1.5 all closed by probe. **The premise held with room: 8.21-10.88% of one core against WPF's 19.92-20.98%, back to back on one instrument — 1.93-2.43× cheaper.** P1.6's macOS half is done on a real M1; **the Linux half has no host.** |
 | **2 — Core translation** | **DONE** | 27 files / 2,467 LOC translated; **all 457 translated Core cases green**, plus 147 measured additions and the golden-file oracle. Both exit conditions met. |
 | **App-layer pure seams** (not a phase — the last of Phase 2's kind) | **DONE 2026-08-29** | Ghost mode's four Win32-free seams, the LCD time formatter, both size maps and the right-click gate: **46 C# cases translated, 100 measured additions**, mutation-verified 38/41 with the 3 survivors documented as dead code. `UpdateVersionComparer` was **never in this unit** — it is Core, and closed with ISC-12. |
-| **3 — Shell** | **next** | ~~Next after the App-layer pure seams.~~ Unblocked: the seams it consumes are landed. |
-| **4 — SVG display** | not started | |
+| **3 — Shell** | **DONE on Windows 2026-08-29; the other two platforms are host-blocked** | ~~next~~ 12 files, 342 tests added. The flag set, Alt-Tab absence, the live rect, the settings round trip and the live WPF import are all **read back off a running app** by `probe:shell` — 8 arms, 8 green. Two things Windows cannot answer here: **drag-to-move under a human hand** and **a real monitor unplug** (both covered against fakes, neither seen on hardware). mac/linux flag arms report INCONCLUSIVE by design — same host gap as P1.6. |
+| **4 — SVG display** | **next** | |
 | **5 — Ghost mode** | not started | Carries PERF-01 as a claim. |
 | **6 — Stats panel** | not started | The Windows parsers exist and are fixture-tested from Phase 1; the mac/linux ones do not. |
+| **6.5 — Settings window** | **NEW, added 2026-08-29** | Not in the original phase list. The feature port table listed a second `BrowserWindow`; no phase's exit criteria did, and wiring the tray in Phase 3 walked straight into it. Every setting it edits is already persisted and tray-togglable, so this is a missing editing surface, not missing state. |
 | **7 — Packaging** | **partly pre-paid** | `electron-builder` already produced a real NSIS installer for P1.5, so the toolchain is standing. Auto-launch, the Falcon re-proof and the update check are untouched. |
 | **8 — Auto-contrast** | not started, still first on the cut list | `core/contrast.ts` is translated and tested but wired to nothing; it is deleted with the feature if the feature is cut. |
 | **9 — Retire WPF** | not started | The irreversible step, and it stays last. |
@@ -260,10 +261,31 @@ Four calls, all Alex's: the temps option (A/B/C/D), Linux = XWayland-only yes/no
 
 **Three translated modules are wired to nothing yet, and that is scheduling rather than drift:** `update-version.ts` waits on Phase 7, `phrase-wrap.ts` on Phase 4, `contrast.ts` on Phase 8 — all three are standalone in `FuzzyClock.Core` too. The import-side claim deliberately sits with the phase that does the wiring, because an unimported module's tests pass happily while the wiring is wrong.
 
-### Phase 3 — Shell
+### Phase 3 — Shell → **DONE on Windows 2026-08-29**
 Window flags, tray, settings persistence at `app.getPath('userData')` (with a one-time import of the existing `%LOCALAPPDATA%\FuzzyClock\settings.json`), per-monitor position, drag-to-move. Crib from `garry-desktop`.
-**Two Phase 1 findings land here as requirements, not as advice:** the position key is the composite, never `label`; and the settings import matches monitors **by geometry**, because the live file's keys are GDI names Electron cannot produce and one of its two stored positions is already orphaned off-screen.
+**Two Phase 1 findings land here as requirements, not as advice:** the position key is the composite, never `label`; and the settings import matches monitors **by geometry**, because the live file's keys are GDI names Electron cannot produce and one of its two stored positions is already orphaned off-screen. **Both requirements are met and both were exercised against his real file** — see the exit status.
 **Exits on:** on all three platforms — window visible, absent from taskbar/dock and from Alt-Tab/Cmd-Tab, position survives a restart and a display-configuration change.
+
+**Exit status: met on Windows, host-blocked on the other two, and one arm is left for Alex.** 12 files landed (6 under `core/`, 3 under `main/`, 8 test files, the probe and its PowerShell reader), `bun test` **1188 pass / 0 fail**, all at `ff4899d`.
+
+**The flags are read off a LIVE window, not off the source.** `scripts/probe-shell.ts` launches the built app into a throwaway `--user-data-dir` and `scripts/winflags.ps1` reads `GWL_EXSTYLE`/`GWL_STYLE` back with `EnumWindows`: `toolwindow`, `topmost` and `layered` set; `caption`, `thickframe` and `appwindow` clear — 6 of 6. That distinction is the whole point: asserting `frame: false, transparent: true` from `main.ts` proves the constructor was *called*, and Chromium degrades window traits silently under real compositors.
+
+**Alt-Tab absence has a positive control, or it would not be evidence.** `winflags.ps1` computes the shell's own eligibility rule over *every* visible window on the desktop and reports two numbers: **0 of ours eligible while 13 other windows are.** Without that denominator, "not in Alt-Tab" and "this enumerator finds nothing" produce an identical zero.
+
+**The live WPF import ran against his actual file and behaved as P1.4 predicted:** `1 position re-keyed, 1 dropped, 6 keys ignored, 0 unrecognised`. The dropped one is the (−227, 510) orphan — the entry P1.4 found lands on no connected display — and because `LastActiveMonitor` pointed at it, `restore()` fell through to `first-run` and placed the window at **(3188, 20)**, which is `3440 − 232 − 20`: the work-area width less the window less `FIRST_RUN_PADDING_PX`. Then `commitPlacement` wrote a key that resolves. The file was read and never written, which is the standing constraint on it.
+
+**Two arms Windows cannot close, stated rather than absorbed:**
+- **Drag-to-move under a human hand.** Synthesising it needs `SendInput`, which moves the real cursor on the real desk; the geometry is covered against recorded C# `Clamp`/`SnapToEdge` values in `test/window-placement.test.ts`. This is the one Phase 3 item that wants Alex's hand on the mouse.
+- **A real monitor unplug.** `test/window-placement.test.ts` models it with a mutable fake display list and proves the case that matters — a display change does **not** drop the source monitor's saved position — but no cable has been pulled.
+- Live restore-from-a-saved-key was **not** exercised by this run either: the source was `first-run`, and the probe says so in its own verdict rather than letting a green read as more than it is.
+
+**Two defects found by this phase's own tests, both real:**
+- **`settings-store.ts` used `??` where it needed `=== undefined`.** `options.legacyPath ?? legacyWpfSettingsPath()` collapses an explicit `null` into the default, so the documented "`null` disables the import" was **unreachable** — on Windows every caller that passed null was silently reading the live WPF file, and three store tests that expected `defaults` got `wpf-import` from Alex's own configuration. Fixed, with the `undefined` branch preserved because `main.ts` omits the option. `test/settings-store.test.ts` passes `legacyPath` explicitly in all 35 of its tests for exactly this reason, and now covers both halves of the distinction.
+- **The probe's own cleanup could fail a green run.** A bare `rmSync` of the temp profile threw `EBUSY` after all 8 arms had passed: `proc.kill()` reaps the main process, but Chromium's GPU and renderer children outlive it by a moment holding the profile lock. It now retries and reports what it left behind — a stray temp directory is litter, not a finding, and must not be able to exit 1.
+
+**Phase 3 found a hole in this plan: no phase owns the settings window.** The feature port table below lists it ("Settings window | second `BrowserWindow`") and not one phase's exit criteria mention it — so wiring the tray produced an `open-settings` action with nowhere to go. It now logs and does nothing, and **§ Phase 6.5 exists as of this update** rather than the gap being carried in a comment. Every other tray toggle persists its setting immediately, so the app is genuinely usable without it: the state is real and saved, only the editing UI is missing. **This is scope the plan did not contain when "continue until you finish Phase 7" was said, so it is flagged here rather than absorbed into that sentence.**
+
+**Two modules ship with no C# counterpart test, and their headers say so:** `core/tray-menu.ts` (`TrayMenuBuilder` has no C# suite) and `core/reset.ts` (`ResetToDefaults` is a private method on a WPF `Window`, unreachable from the console harness). Every other added expectation in this phase is a recorded C# value.
 
 ### Phase 4 — SVG display
 Phrase, dial, LCD, Nixie. Obey the composited-property rule above.
@@ -278,6 +300,10 @@ Cursor poll in main, proximity ratio, rAF lerp in the renderer, click-through to
 Wire the seam. Fixture-driven parsers first, live acquisition second.
 **Partly pre-paid by Phase 1:** the Windows `typeperf` child, its CSV parser and both of its measured defects (spawn-time GPU instances, the dropped-header misalignment) are already built and fixture-tested. The macOS fixtures were captured on the M1 host; the Linux ones do not exist.
 **Exits on:** every one of the **15** cells either shows a live number on its platform or renders `--` through the existing `-1` path. (Was 18 — the three temperature cells retired with Option C, matching the table in § The telemetry seam. The two figures disagreeing in one document is exactly how a retired feature comes back as three missing cells.)
+
+### Phase 6.5 — Settings window *(NEW — this plan omitted it, found in Phase 3)*
+A second `BrowserWindow` replacing `SettingsWindow.xaml` (521 LOC of XAML → HTML/CSS), reachable from the tray's `open-settings`. **Added 2026-08-29.** The table in § Feature port table always listed it; no phase's exit criteria ever did, and the two disagreeing is exactly how a shipped feature goes missing. Cheap to defer and expensive to forget: **every setting it edits is already persisted, validated and toggled from the tray**, so what is absent is the editing surface, not the state behind it. Numbered `6.5` rather than `10` on purpose — it belongs before packaging, since an installer that ships without it ships a v5.0 that cannot be configured beyond the tray menu.
+**Exits on:** every setting the WPF window exposes is editable, changes apply live, and the window is closable without taking the overlay down.
 
 ### Phase 7 — Packaging, auto-launch, update check
 electron-builder × 3 targets; `setLoginItemSettings` on win/mac and a `.desktop` file on Linux; the GitHub Releases check.
@@ -333,6 +359,10 @@ Of the **163** `FuzzyClock.App.Tests`, the pure-seam ones port directly; the Win
 | **NSIS 80,089,948 B vs Inno 57,389,487 B; unpacked 281,087,190 B vs exe 200,457,651 B — 1.40× both** | `electron/scripts/probe-size.ts`, `electron-builder` 26.15.3 (ISC-8) |
 | **457 of 457 translatable Core cases green; `bun test` 700 pass / 0 fail / 185,894 assertions** | `bun test` at `36072c5`, per-class counts from a TRX parse of the C# run (37 classes, 469 results, 0 unmapped) |
 | **46 of 46 App-layer pure-seam cases green; `bun test` 846 pass / 0 fail / 186,489 assertions across 20 files** | `bun test` + `bun run typecheck` + `bun run build`, all at `6370ecc` |
+| **Phase 3's shell: 6 of 6 Win32 style bits, 0 of ours Alt-Tab-eligible against 13 that are, live rect 3188,20 232×260, 41 fields written into an isolated profile** | `electron/scripts/probe-shell.ts` + `scripts/winflags.ps1`, 8 arms on a running build of `ff4899d`. **Read off a live window with `EnumWindows`/`GetWindowLong`, never off `main.ts`** — and the Alt-Tab zero carries its own denominator, without which a blind enumerator is indistinguishable from a real absence |
+| **The live WPF import: 1 position re-keyed, 1 dropped, 6 keys ignored, 0 unrecognised** | same probe, against his real `%LOCALAPPDATA%\FuzzyClock\settings.json` — read, never written. The dropped entry is P1.4's (−227, 510) orphan, and because `LastActiveMonitor` named it the restore fell to `first-run` at (3188, 20) = 3440 − 232 − 20 |
+| **`??` made "`legacyPath: null` disables the import" unreachable** | found by `test/settings-store.test.ts` — three arms expecting `defaults` returned `wpf-import` from Alex's live file. `?? ` treats an explicit `null` as absent; fixed to `=== undefined`, which keeps the branch `main.ts` depends on |
+| **`bun test` 1188 pass / 0 fail / 187,046 assertions across 28 files** | `bun test` + `bun run typecheck` + `bun run build`, all at `ff4899d` |
 | **Every added App-seam expectation is a recorded C# value, not a derived one** | `$TEMP/fc-appprobe`, a throwaway console project that `<Compile Include>`s the five real `.cs` files so `internal` members are reachable without editing `FuzzyClock.App`; doubles printed `G17` invariant, then each literal re-checked bit-exact in Bun before being written |
 | **A negative `GhostFadeRadiusPx` clamps HIGH — the whole screen becomes the widget** | measured on the compiled C#; I predicted it would clamp to 0.0 and was wrong. Pinned in `test/ghost.test.ts` so a settings path admitting one fails a test rather than silently pinning click-through on |
 | **Edge inclusion in `ComputeProximityRatio` is unobservable at every radius except 0** | mutation run: strictening `>=` to `>` changed no answer, because an edge has Chebyshev distance 0 and `1 - 0/r` is 1.0 anyway. PROX-08 makes radius 0 a real setting, where the two paths differ (1.0 vs 0.0) — ten measured `r=0` rows added for it |

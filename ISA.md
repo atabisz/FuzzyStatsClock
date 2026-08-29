@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 14/34
+progress: 16/35
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-29T15:12:09+10:00
+updated: 2026-08-29T23:22:18+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -539,21 +539,98 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 3 — Shell
 
-- [ ] **ISC-15. The overlay window carries the proven flag set, read back off a live window.**
-  Not read off the source (`garry-desktop`'s own probe discipline).
-- [ ] **ISC-16. It is absent from the taskbar/dock and from Alt-Tab/Cmd-Tab on all three platforms.**
-- [ ] **ISC-17. Tray icon and menu work, with the Linux activation-semantics difference handled.**
-- [ ] **ISC-18. Settings persist at `app.getPath('userData')`, and the existing Windows settings file
+- [x] **ISC-15. The overlay window carries the proven flag set, read back off a live window.**
+  Not read off the source (`garry-desktop`'s own probe discipline). **MET on Windows at `ff4899d`;
+  Linux `[UNPROBED]` and macOS untested for THIS window.**
+  - `scripts/probe-shell.ts` launches the built `dist/main.js` into a throwaway `--user-data-dir` and
+    `scripts/winflags.ps1` reads `GWL_EXSTYLE`/`GWL_STYLE` back over `EnumWindows`: **6 of 6 as
+    required** — `toolwindow`, `topmost`, `layered` set; `caption`, `thickframe`, `appwindow` clear.
+    Each expectation names the constructor option that should have produced it, so a red says which
+    line to read.
+  - **The discipline was worth keeping and it was NOT free to inherit.** `garry-desktop`'s probe scans
+    by process *name*, which on this box also matches any other Electron app running — it would
+    attribute a stranger's window to the overlay. `winflags.ps1` takes the spawned pid instead, and
+    that is the only substantive change from the source it was ported from.
+  - macOS: ISC-10's M1 run read flags off a live window of the *smoke harness*, not this app's window,
+    so it does not transfer here. Both non-Windows arms report INCONCLUSIVE with the reason rather
+    than being skipped.
+- [~] **ISC-16. It is absent from the taskbar/dock and from Alt-Tab/Cmd-Tab on all three platforms.**
+  **Windows met, and the zero carries its own denominator.** `winflags.ps1` computes the shell's
+  documented eligibility rule (visible, titled, unowned, and either not `WS_EX_TOOLWINDOW` or forcibly
+  `WS_EX_APPWINDOW`) over **every** visible window on the desktop: **0 of ours eligible against 13
+  that are.** Without `altTabTotal`, "not in Alt-Tab" and "this enumerator finds nothing" return an
+  identical zero — claim 18, and the reason the control exists. **Precisely stated: the flag
+  combination that suppresses the taskbar button is confirmed on the live window; the button's absence
+  was not separately queried from the shell.** Mac and Linux halves stay with ISC-10.
+- [~] **ISC-17. Tray icon and menu work, with the Linux activation-semantics difference handled.**
+  Built and wired — `main/tray.ts` (the only new Phase 3 file importing Electron), `core/tray-menu.ts`
+  as the menu model, `setStateAndRefresh` pushing freshness because **`popUpContextMenu` is
+  `@platform darwin,win32`** and has no Linux implementation, so rebuilding on open is not available
+  there. The live app logs `tray: win32/darwin -- menu rebuilt per open`. **NOT met, and the gap is
+  the interaction, not the code: nothing has clicked it.** No probe confirms the icon is in the
+  notification area, no probe opens the menu, and the Linux `click` difference is handled in code and
+  unexercised. `core/tray-menu.ts` also has **no C# counterpart test** (`TrayMenuBuilder` has no
+  suite), which its header says in place.
+- [x] **ISC-18. Settings persist at `app.getPath('userData')`, and the existing Windows settings file
   is imported once — matching monitors by GEOMETRY, not by key.** `%LOCALAPPDATA%\FuzzyClock\settings.json`
   must survive the transition; his live file is the one an upgrade meets, and per ISC-7.1 its
   `display5`/`display6` keys are GDI device names Electron cannot produce. The importer maps a stored
   `Left`/`Top` to whichever current display's bounds contain it, and **drops an entry that lands on no
-  display** — his file already has one (`display5` at −227, 510).
-- [ ] **ISC-19. Per-monitor position survives a restart and a display-configuration change.** Keyed on
+  display** — his file already has one (`display5` at −227, 510). **MET, against that actual file.**
+  - The live run reports `1 position re-keyed, 1 dropped, 6 keys ignored, 0 unrecognised`. **The
+    dropped one is the (−227, 510) orphan ISC-7.1 predicted**, and because `LastActiveMonitor` named
+    it, `restore()` fell through to `first-run` and placed the window at **(3188, 20)** = 3440 − 232 −
+    20, the work-area width less the window less `FIRST_RUN_PADDING_PX`. `commitPlacement` then wrote a
+    key that resolves. **Read, never written** — the standing constraint on that file held.
+  - Persistence measured end to end: **41 fields written** (counted off `DEFAULTS`, not hardcoded in
+    the probe) **into the throwaway profile**, and the probe asserts the store path is *inside* that
+    profile — so a `--user-data-dir` that stopped being honoured could not pass silently while the run
+    quietly wrote to the real one.
+  - **A real defect, found by this claim's own test file.** The constructor used
+    `options.legacyPath ?? legacyWpfSettingsPath()`, and `??` collapses an explicit `null` into the
+    default — so the documented "`null` disables the import" was **unreachable**, and on Windows every
+    caller passing null was silently reading his live WPF file. Three store tests expecting `defaults`
+    returned `wpf-import` from his own configuration. Fixed to `=== undefined`, which preserves the
+    branch `main.ts` depends on (it omits the option). Nothing was written, so the constraint was not
+    breached — but the tests would have passed here and failed on any other machine, which is exactly
+    the hazard `test/settings-store.test.ts`'s header was written about, and why it passes `legacyPath`
+    explicitly in all 35 of its tests.
+  - Atomicity is tested rather than asserted: `settings.json.tmp` is made a **directory**, so the write
+    throws `EISDIR` before `renameSync`, and the arm checks `settings.json` survived byte-intact. A
+    truncate-first implementation — which is what the WPF original does — fails it.
+- [~] **ISC-19. Per-monitor position survives a restart and a display-configuration change.** Keyed on
   the composite (ISC-7), which carries position — so rearranging displays in Windows invalidates the
   key by construction. The falsifier that matters is therefore not "the position was lost" but "the
   window restored off-screen": on a key miss it must clamp into the target display's work area.
-- [ ] **ISC-20. Drag-to-move works, and the window stays within the target display's work area.**
+  **The clamp is proven; the two live transitions are not.**
+  - The live rect read off the window (**3188,20 232×260**) equals placement's own logged decision, so
+    the shell honoured it. **But the source was `first-run`, not `key`** — the orphaned
+    `LastActiveMonitor` above is why — so **this run did not exercise restoring a saved position**, and
+    the probe says so inside its own PASS verdict rather than letting a green read as more than it is.
+  - `test/window-placement.test.ts` covers both transitions against a **mutable fake display list**,
+    which is what makes an unplug testable at all. The arm that file exists for: **a display change
+    does NOT drop the source monitor's saved position.** Before the refactor `commit` took
+    `{ snap: boolean }` and dropped the source key whenever the display had changed — so wiring
+    `screen`'s `display-removed` to it would have **deleted the position the user set on a monitor at
+    the moment that monitor was unplugged.** Also pinned: a `display5`-shaped miss at (−227, 510)
+    restores to (0, 510), `clamped: true`, logging "CLAMPED back on-screen".
+  - **No cable has been pulled and no restart has restored from a key.** Both are cheap for Alex and
+    impossible for me without touching his hardware.
+- [~] **ISC-20. Drag-to-move works, and the window stays within the target display's work area.**
+  Wired end to end and unexercised live. `renderer.ts` pointer handlers (with pointer capture, and
+  `pointercancel` ending the drag so a session lock cannot leave main convinced a drag is in progress)
+  → three `send`-only IPC channels carrying no coordinates → `onDragStart/Move/End` in main →
+  `commit("drag")`, whose snap-and-clamp behaviour **is** covered against recorded C# `SnapToEdge` and
+  `Clamp` values, including the arm where the clamp corrects a snap that would have left the window
+  off-screen. The drag is hand-rolled rather than `-webkit-app-region: drag` precisely because the CSS
+  region gives no release callback, and this claim needs one.
+  - **Not measured live, by a decision this ISA already recorded:** synthesising the drag needs
+    `SendInput`/`SetCursorPos`, which moves the real cursor on his live desk — the same reason ISC-14
+    rejected synthesising keystrokes. And the design makes a *cursor-free* synthetic drag useless:
+    `onDragMove` reads `screen.getCursorScreenPoint()` (deliberately, so a drag across this desk's
+    negative-x seam does not jump), so `sendInputEvent` alone would move the window by a zero delta.
+  - **This is the one Phase 3 arm left for Alex: drag the widget, including across the monitor seam,
+    and check it lands inside the work area.**
 
 ### Phase 4 — SVG display
 
@@ -583,6 +660,23 @@ misses it, because every feature either ported or was consciously retired with t
 - [ ] **ISC-28. Every per-platform parser is fixture-driven and runs on every platform.** Captured
   `/proc/meminfo`, `typeperf` CSV, `pmset -g batt`, `hwmon` tree checked in. This is what makes three
   platforms testable from one.
+
+### Phase 6.5 — Settings window *(NEW — no phase owned it; added 2026-08-29)*
+
+- [ ] **ISC-32. The settings window exists and edits every setting the WPF window exposes.** A second
+  `BrowserWindow` replacing `SettingsWindow.xaml` (521 LOC of XAML → HTML/CSS): changes apply live, and
+  closing it does not take the overlay down. **Found by wiring the tray in Phase 3, not by planning.**
+  The plan's component table always listed a "second `BrowserWindow`"; **no phase's exit criteria ever
+  mentioned it**, and a table and a phase list disagreeing is how a shipped feature goes missing. The
+  `open-settings` tray action therefore logs and does nothing today, `main.ts`'s header says so, and
+  § Phase 6.5 now exists in the plan rather than the gap living in a comment.
+  - **What is missing is the editing surface, not the state.** Every setting is already validated,
+    persisted and — for the ones the tray exposes — togglable now, so nothing is lost by this landing
+    late.
+  - **This is scope that did not exist when "continue until you finish Phase 7" was said.** Flagged
+    here for Alex rather than absorbed into that sentence or quietly dropped: whether it lands before
+    Phase 7 is his call, and the plan states the case for before (an installer that ships without it
+    ships a v5.0 configurable only from a tray menu).
 
 ### Phase 7 — Packaging, auto-launch, update check
 
@@ -1097,8 +1191,32 @@ measured on this branch at or after that base.
 | ISC-11 / ISC-12 (`PhraseStyleProviderTests`, 64 cases over 9 classes) | `bun test` (635 pass / 0 fail / 184,732 expect() across 15 files), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; the C# oracle read out of `test/fixtures/phrase-golden-candidates.tsv`, tools/GoldenGen's output from the compiled providers; then `bun $TEMP/fc-mutate-style.ts` — 18 mutations across `specs.ts` and `tables.generated.ts`, each run against **three targets separately: `test/phrase-style.test.ts`, `test/phrase-golden.test.ts`, and every other suite in `test/`**; then `bun $TEMP/fc-mutate-style2.ts` to chase the three refuted predictions | **The overlap here is near-total, and the run was built around that fact rather than reporting it afterwards.** Golden already walks all 1440 minutes of these nine locales, compares the port's complete candidate set against the fixture in **both** kinds, and asserts arity equals the oracle's — so every string in this unit is subsumed and a bare "18 of 18 caught" would have been the claim to check. **Three columns, which is the advance over the multilingual run's two**: "golden does not catch it" is not the same claim as "nothing else catches it", and that run only asked the first. The third column is enumerated from disk (`readdirSync` minus mine and golden, 13 suites) so a new test file joins the run instead of being silently skipped. **8 PORT-ONLY mutations (source mutated, fixtures untouched): all 8 caught by mine AND by golden — that is the overlap, measured rather than asserted. 10 CONSISTENT mutations (source mutated AND the candidates fixture regenerated from the mutated source): all 10 caught by mine, 9 of them by this file ALONE.** 0 caught by nothing, 0 caught without mine, restore byte-identical, all three baselines green after. **The consistent class is the only one that can answer the question this file exists to answer, and it needs an instrument proven before it is trusted.** `$TEMP/fc-regen-candidates.ts` rebuilds every row from scratch — not in place, because a mutation can change a bucket's candidate *count* — and `--verify` requires byte-identity with the checked-in fixture when no mutation is applied: **`IDENTICAL -- 12984 data rows, 12 comment lines, 819595 bytes`**, which also established empirically that GoldenGen sorted values by plain UTF-16 ordinal. The harness refuses to start unless that check passes, and it earned its place: the first two runs printed `DIFFERS`, because `hour12Of` takes an hour number and I handed it a `Date`, so `% 12` reduced the epoch millisecond count and every hour collapsed into one cell. Without the gate the whole consistent column would have been measured against a wrong oracle and every verdict in it would have meant nothing. **Three predictions were refuted, and all three were chased rather than filed.** **C7 and C10 were predicted green under golden and were CAUGHT — and the mechanism is worth carrying**: `test/phrase-golden.test.ts:107` asserts `CANDIDATE_ROWS.length === 12984`, a fact about the FIXTURE FILE rather than a comparison between port and oracle, so any arity-changing generator bug trips it. That is a real strength of golden and I had not credited it. It is also a constant that whoever lands a regenerated fixture updates in the same commit, since a stale row count is a hard failure they cannot miss — which is exactly the scenario the consistent class models. **Re-run as C7b/C10b with the count corrected to the regenerated file's real row count (12,960 and 12,986), as a genuine fixture landing would: golden GREEN, mine the only objector.** C7b fails four of my tests (Rude on-the-hour, Rude structured, the arity table, the bucket-0 asymmetry addition); C10b fails two (the Dwarf noon literal, the arity table). **N8 (en-yoda's `declaredShape` flipped to `template`) was predicted to die in some third suite and does not** — an attribution run over the failing test names puts it on exactly one assertion here, *"these nine plus en-classic are exactly the locales the tables declare as drawing"*, so the coverage denominator has mutation coverage of its own and nothing but golden checks shape alignment. **The one consistent mutation with a second independent objector is named rather than absorbed into a total**: en-poetic dropping to `delegate` is also caught by `phrase-engine-coordinator.test.ts`, which counts exactly two split-mode locales. **What this file adds is a second ORACLE ORIGIN, not coverage — now measured instead of argued.** `specs.ts:36-38` already rests on the claim that a shared origin makes a check worth nothing; the consistent class is that sentence's failure mode made real. 8 exact literals, 6 vocabulary disjunctions and the hour-word claims are hand-typed in the C# test file, where every other expectation in this port descends from GoldenGen walking the compiled providers. **All 64 sampled C# assertions are translated as UNIVERSALS over every candidate, each checked against the C#-generated fixture BEFORE it was written**, with exact arity asserted alongside so the tightening cannot go vacuous. The C#'s own comment — "With randomization, we check for patterns, not exact text" — is a claim about every candidate that one draw can only sample; these buckets hold 4 or 5, so each case was a 1-in-4 or 1-in-5 sample of its own meaning. **The C# assertion FORM tracks the table, and no generated oracle can state that**: all four classes using `AreEqual` on a special have specialArity 1, all three using a `Contains \|\| Contains` disjunction have specialArity 5, and the two classes that test no special are one of each (en-terse 5, en-rude 1) — so the exact literals are not a stylistic choice, and C10b is what proves that assertion earns its place. **Two C# claims are true only at the hour they sample, and both are recorded as exact maps rather than quietly generalised.** `Terse_HalfHour_ReturnsBritishHalf` asserts 3:30 contains "four" and not "three"; over all 24 hours the positive half holds 120/120 and the negative half holds as a WORD, but the C# wrote a substring test and at 1:30 en-terse can emit "gone half two" — "gone" contains "one" — so the substring form's counterexamples are pinned as the exact two-entry list. `Shakespeare_OnTheHour_ContainsHourWord`'s comment ("'fourth' is also a match since it contains 'four'") is a coincidence of hour 4: three of that bucket's four candidates use the ordinal `{ho}`, and only six of the twelve ordinals contain their cardinal, so the hit rate is asserted as the map `1:1/4 2:1/4 3:1/4 4:4/4 5:1/4 6:4/4 7:4/4 8:4/4 9:1/4 10:4/4 11:4/4 12:1/4` — read at minute 1, since 12:00 and 0:00 are specials — and C9 confirms it is the only assertion anywhere pinning the ordinal/cardinal split. **One candidate addition was measured and REJECTED rather than shipped as plausible**: "all candidates in a bucket agree on which hour word they name" is FALSE — every one of the nine has buckets mixing current-only, next-only, both and neither. **Facts another suite already owns are used as inputs and not re-claimed**: `segment-key.test.ts` asserts en-terse's eleven buckets and en-poetic's `:witching` key, so this file states neither. **Bounded**: these nine drawing locales, phrase and structured TEXT and arity only. Nothing here touches wrapping, rendering, or the bucket partition. The 58 remaining ISC-12 cases are the five expanded per-style files |
 | ISC-11 / ISC-12 (the five `*PhraseProviderExpandedTests`, 58 cases over 5 classes — **the translation queue closes here**) | `bun test` (700 pass / 0 fail / 185,894 expect() across 16 files), `bun run typecheck` (exit 0), `bun run build` (exit 0) from `electron/`; the C# oracle read out of `test/fixtures/phrase-golden-candidates.tsv`, which tools/GoldenGen produced from the compiled providers; oracle pre-check `bun $TEMP/fc-expanded-oracle.ts` (ten sections, every universal against the fixture before it was written) and arm analysis `bun $TEMP/fc-expanded-arms.ts`; then `bun $TEMP/fc-mutate-expanded.ts` — **23 mutations, 14 of them CONSISTENT**, across `tables.generated.ts` and `specs.ts`, in the three columns MINE / GOLDEN / OTHERS with OTHERS enumerated from disk (14 suites) | **This is the unit where the oracle cannot help, and mutation says so in a number: 13 of 23 caught by this file ALONE, 10 by it and golden together, 0 caught without it, 0 caught by nothing, 0 predictions refuted, restore byte-identical.** Nine port-only mutations establish the overlap by measurement — golden caught all nine, as predicted, because it compares the port against the C#-generated file. The other fourteen are CONSISTENT: source mutated *and* the fixture regenerated from the mutated source, which is what a GoldenGen bug looks like — oracle and port agreeing with each other and both wrong. **Golden went green on all fourteen and this file caught all fourteen**, and that is the unit's entire justification: its five word lists and two shape rules are claims about *register*, not about text any reflection pass can harvest. No generated fixture can state "no en-yoda phrase opens with an SVO subject-verb" or "every en-jive phrase carries one of fourteen jive terms" — the same argument `specs.ts:36-38` makes one layer up. The regenerator is proven before use: `--verify` with no mutation applied reads `IDENTICAL -- 12984 data rows, 12 comment lines, 819595 bytes`, without which it would not be entitled to stand in for GoldenGen. **Every one of the 58 C# cases samples a fifth of what it says, at one hour of twelve** — each draws ONE candidate per sampled minute at hour 3, and every bucket of these five locales holds exactly 5 — so each is translated as a universal over every candidate with the exact arity asserted alongside, and all 58 universals were checked against the C#-generated fixture *before* being written. The hour, the sampled minutes and the iteration counts stay as the C# wrote them; the widening along the hour axis is an addition, over all 1,438 non-special minutes × 5 candidates = 7,190 per locale, with the count asserted so a probe that enumerated less than the whole space cannot pass. **Three findings the pre-check turned up, each now an assertion rather than a comment.** (1) **`"ahoy"` matches nothing** — one of the nineteen arms of the pirate disjunction, 0 hits in 730 candidates, so the assertion would read the same with the arm deleted; it is the only dead arm in the four lists, and C10 (making it live) is caught by nothing else in the repo because every disjunction stays satisfied. (2) **The pirate disjunction is irreducible to either half** — nautical alone leaves 195 of 730 unmatched, pirate alone 243, so `hasNautical \|\| hasPirate` is load-bearing and not a hedge; C11 moves those counts while leaving the disjunction true, and only the counts object. (3) **en-yoda's seven endings are the only irredundant list of the four** — 4 of jive's 14 are removable and 10 of pirate's 19, mostly by subsumption ("real gone" cannot match anything "gone" does not); C12 shrinks jive's removable set from 4 to 3 with the vocabulary claim still green. **The two C# files disagree about two special-case disjunctions and both versions hold**, which is recorded rather than reconciled: this file's jive midnight list ends "dead of night" where `PhraseStyleProviderTests`' ends "night", and this file's pirate midnight list carries a fourth arm "graveyard". The jive difference is the one that matters — with "dead of night" all four arms carry weight, and with "night" the "midnight" arm becomes removable, so the style file's four arms are really three. The removable-arm map is asserted exactly (en-classic noon → `noontime`; en-pirate noon → `zenith`; en-pirate midnight → `midnight`, `graveyard`; en-yoda midnight → `midnight`; the other five → none), and C13 flips `zenith` from removable to load-bearing while `phrase-style.test.ts`'s own noon disjunction stays green on the `zenith` arm. **"Always empty qualifier" understates delegate mode, and the stronger form is what got written**: the structured emphasis SET equals the phrase set in every cell of all four delegate locales — en-terse 134/134, en-yoda/en-jive/en-pirate 146/146 — while split-mode en-classic matches in exactly 2 of 146, and those two are precisely its noon and midnight, where the whole special goes into the emphasis. That property is a strengthening rather than a new detector: it dies to the same mutation as the qualifier claim it subsumes, and is recorded as such. **The C# writes the hour-word check case-sensitively in four classes and `OrdinalIgnoreCase` in the fifth, and over every bucket candidate of all five the two forms return the same verdict** — so the inconsistency is currently unobservable, which is exactly why the equivalence is asserted instead of assumed: en-shakespeare already capitalises and is not one of these five, and C14 (en-yoda's cardinal 3 becomes `Three`) makes it observable and dies. **One prediction was written to be uncomfortable and held**: N9/C9 mutate en-classic's cardinal 3 to `threeish` — contains `"three"`, does not equal it — and were predicted to be caught by OTHERS as well, because `phrase-engine.test.ts` already pins the NEXT-hour emphasis exactly and hour 2's next word is `"three"`. Both were, so C9 is the one consistent mutation this file did not catch alone, and the honest reading is that the exact-emphasis tightening is new only for the *current*-hour buckets. C8 is the isolating one: an en-classic bucket-3 candidate that stops ending in `{h}` cannot be sliced, and only this file's exact-`"three"` and non-empty-qualifier pair at quarter past objects. **The twelve cardinals are hand-typed rather than read from `TABLES[locale].words.hourWords`** — reading the port's own table as the expectation would be circular — and the shared list was measured to satisfy the hour-word universal for every bucket candidate of all five locales, 720/720 four times and 660/660 for en-terse, identically under case folding. **The British-half case is a duplicate across two C# files and is translated without being re-claimed**: `Terse_HalfHour_UsesBritishIdiom` here and `Terse_HalfHour_ReturnsBritishHalf` in `PhraseStyleProviderTests` are the same claim, and `phrase-style.test.ts` owns the all-hours generalisation with its single substring counterexample (1:30 `"gone half two"` contains `"one"`). **What other suites own is stated in the header and used as input, not re-argued** — `segment-key.test.ts` holds en-classic's and en-terse's bucket structure in a much stronger form (it locates the boundary run rather than comparing two keys), `phrase-style.test.ts` holds arity for all nine and same-bucket for en-pirate/en-yoda and both cases for en-jive, and `phrase-engine.test.ts` holds en-classic's hour-word, special-vocabulary and structured claims. **Bounded**: these five locales, phrase and structured text only. Nothing here touches wrapping or rendering, bucket structure stays `segment-key.test.ts`'s, and one file rather than five because the five classes share eight cases apiece — five copies of that core would be five places for it to drift |
 
+| ISC-15 / ISC-16 (the shell's window traits, Windows) | `bun run probe:shell` — builds first, then `scripts/probe-shell.ts` launches `dist/main.js` into a `mkdtemp` `--user-data-dir` and `scripts/winflags.ps1 -Pids <pid>` reads the style bits back over `EnumWindows`. 8 arms, 8 PASS at `ff4899d` | **Read off a LIVE window, never off `main.ts`** — the distinction the claim is worded around, because asserting `frame: false, transparent: true` from the source proves the constructor was *called*, and Chromium degrades window traits silently under real compositors. **Positive control on the absence (claim 18):** `altTabTotal` computes the shell's eligibility rule over *every* visible window, giving **0 ours against 13 others** — an enumerator that found nothing would return the same zero as a real absence, so the denominator is what makes it evidence. **Discriminating per-flag:** each of the 6 expectations names the option that should have produced it, so a red identifies the line rather than the file. **Not inherited blindly:** `garry-desktop`'s version scans by process *name* and would attribute another Electron app's window to the overlay; the pid parameter is the only substantive change. **Bounded:** one host, one launch, scale 1.00 — `GetWindowRect` is physical pixels and `setPosition` is DIPs, so the rect arm is only meaningful while they coincide, and the probe says so in its own FAIL text |
+| ISC-18 (settings persistence + the one-time WPF import) | `bun test` (`test/settings-store.test.ts`, 35 cases; `test/settings-import.test.ts`) plus the live arms of `probe:shell` — S5 and S6 | **The live import ran against his real file and matched the prediction ISC-7.1 made from reading it**: `1 re-keyed, 1 dropped, 6 ignored, 0 unrecognised`, the dropped entry being the (−227, 510) orphan, and the fallback landing at (3188, 20) = 3440 − 232 − 20 — arithmetic that only comes out right if `FIRST_RUN_PADDING_PX` and the work area are both what the C# says. **The isolation is measured, not assumed:** S5 asserts the store path is *inside* the throwaway profile, so a `--user-data-dir` Electron stopped honouring would fail rather than let the run quietly read and write the real profile. **Field count read off `DEFAULTS`** rather than hardcoded, so adding a setting cannot make the probe stale. **A real defect, caught by the test rather than by inspection:** `??` collapsed an explicit `null` into the platform default, making "`null` disables the import" unreachable and every opted-out test a reader of his live file — three arms expecting `defaults` returned `wpf-import`. **Atomicity has a real obstruction:** `settings.json.tmp` is made a *directory*, so the write throws `EISDIR` before `renameSync` and the arm can check the previous file survived byte-intact; a truncate-first implementation (which is what the WPF original does) fails it |
+| ISC-19 / ISC-20 (placement across restarts, display changes and drags) | `bun test` (`test/window-placement.test.ts`, ~35 cases) against `FakeScreen`/`FakeWindow`; S4 of `probe:shell` for the live rect | **The regression this file exists for:** `commit` used to take `{ snap: boolean }` and dropped the source monitor's key whenever the display had changed, so wiring `display-removed` to it would have **deleted the position the user set on a monitor at the moment that monitor was unplugged.** Provable only because `FakeScreen.displays` is *mutable* — the unplug is modelled, not inspected. **Both LG fakes carry an identical label, asserted**, so any future name-based key scheme fails here first (ISC-7's finding, pinned as a test rather than a memory). **Honest about what the live run did NOT show:** the source was `first-run`, so restoring from a saved key was never exercised, and the probe says so *inside its PASS verdict* rather than letting a green over-read. **The snap/clamp composition is pinned by outcome, not by order** — `snapToEdge`'s own −72 is asserted directly before the composition, because clamp-then-snap and snap-then-clamp agree on every reachable input and a test claiming to discriminate them would be claiming discriminating power it does not have. **ISC-20's live half is refused rather than faked:** `onDragMove` reads `screen.getCursorScreenPoint()` by design, so a `sendInputEvent` drag moves the window by a zero delta, and the only real synthetic drag is `SetCursorPos` on his live desk — the same input-synthesis line ISC-14 already declined to cross |
+
 ### Still outstanding
 
+- **Three Phase 3 arms need Alex's hands and nothing else.** (1) **Drag the widget**, including across
+  the monitor seam, and check it lands inside the work area — ISC-20's live half, refused rather than
+  synthesised because the only real synthetic drag moves his cursor. (2) **Restart the app** and confirm
+  it comes back on the monitor it was left on: the probe's run fell to `first-run` because his
+  `LastActiveMonitor` names the orphaned display, so *no* run has yet restored from a saved key. (3)
+  **Unplug a monitor** with the widget on it. All three are covered against recorded C# values or fakes;
+  none has been seen on hardware. **Do not read the 8/8 probe as covering them** — it does not, and it
+  says so in its own closing lines.
+- **Nothing has clicked the tray (ISC-17).** The icon's presence in the notification area, the menu
+  opening, and the Linux `click`-vs-`right-click` difference are all unexercised. `core/tray-menu.ts`
+  additionally has **no C# counterpart test** — `TrayMenuBuilder` has no suite — and so does
+  `core/reset.ts`, whose `ResetToDefaults` is a private method on a WPF `Window` and unreachable from
+  the console harness. Both headers say so in place; every other Phase 3 expectation is a recorded C#
+  value.
+- **ISC-6's greens are void again, by rule 17, and this is the second time.** `main.ts` changed
+  substantially in Phase 3 (settings, tray, placement, drag, IPC) and `settings-store.ts` changed after
+  its own tests were written. The cost figures were measured on the old harness, so the CPU comparison
+  needs a re-run against `ff4899d` before any of them is quoted again. It gates nothing right now — the
+  go/no-go already passed with a 1.93–2.43× margin — but the *number* is stale and must not be repeated
+  as current.
 - **The Linux runtime arms are entirely unprobed, and there is no host.** ISC-10's Linux half plus the
   Linux halves of ISC-15..20 and ISC-27..30. What exists for Linux is API-surface evidence from Electron
   33.4.11's typings and nothing else — no window ever opened. `[DEFERRED-VERIFY]`, and unlike the macOS
@@ -1674,3 +1792,29 @@ measured on this branch at or after that base.
   `(3, 32, 3, 33)` where the others read `(3, 27, 3, 28)`: the C# author knew, and encoded it in a
   DataRow without ever writing it down. A translation that had carried the 12-bucket bounds to all ten
   locales would have failed on en-terse with no explanation in the diff.
+- **conjectured** that `SettingsStore`'s documented "`legacyPath: null` disables the import entirely"
+  was true, since the doc comment and the branch guarding it (`this.legacyPath !== null`) both read
+  correctly. **refuted-by** its own first test run: three arms expecting `origin === "defaults"`
+  returned `"wpf-import"`. The constructor resolved the default with `options.legacyPath ??
+  legacyWpfSettingsPath()`, and `??` cannot tell an explicit `null` from an absent property — so the
+  documented opt-out was **unreachable**, and on Windows every caller that passed null was reading
+  Alex's live `%LOCALAPPDATA%\FuzzyClock\settings.json`. Fixed to `=== undefined`, which is the only
+  form that keeps *both* halves: `main.ts` omits the option and must still import. **Two things this run
+  got right by accident and one it got right on purpose.** By accident: nothing wrote that file, so the
+  read-only constraint on it held. On purpose: `test/settings-store.test.ts` passes `legacyPath`
+  explicitly in all 35 of its tests *including the null cases*, and its header says why — a test whose
+  result depends on his live configuration passes here and fails everywhere else. Without that rule the
+  three reds would have been three quiet greens on this machine. **The reverse direction was checked in
+  the same run:** two other failures in `test/window-placement.test.ts` were MY arithmetic, not the
+  implementation's — a dead-space assertion placed on `displayForRect`, whose third arm is the primary
+  so it never answers null while a display exists, and a snap width of 3500 where the right-edge arm
+  needs |−75 + w − 3440| ≤ 8. Both were fixed in the test, with the reason recorded in place. Same rule
+  18, applied in both directions in one run, which is the only way it means anything.
+- **measured, against a prediction the plan wrote a day earlier.** ISC-7.1 read Alex's settings file and
+  predicted the import would have to drop one entry — `display5` at (−227, 510), off every connected
+  display. The live app, run into an empty profile, reported exactly `1 position re-keyed, 1 dropped, 6
+  keys ignored, 0 unrecognised`, and then placed itself at (3188, 20) because `LastActiveMonitor` named
+  the entry that was dropped. **The fallback is what makes the number checkable**: 3188 = 3440 − 232 −
+  20 is the work-area width less the window less `FIRST_RUN_PADDING_PX`, so the arithmetic only
+  reconciles if the padding, the window size and the work area are all what the C# says. A prediction
+  from reading, confirmed by running, on the same file — and the file was never written.
