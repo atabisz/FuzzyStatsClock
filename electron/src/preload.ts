@@ -3,9 +3,10 @@
  *
  * `contextIsolation` is on and `nodeIntegration` off, so the renderer has no
  * `require` and no `ipcRenderer` of its own. This is the entire surface between
- * them: main pushes settings and stats down, and the renderer reports what it is
- * the only half able to see — that it is listening, the size its content
- * measured, a completed paint, a pointer drag, and a right-click.
+ * them: main pushes settings, stats and the ghost proximity ratio down, and the
+ * renderer reports what it is the only half able to see — that it is listening,
+ * the size its content measured, a completed paint, a pointer drag, and a
+ * right-click.
  *
  * Every channel is `send`, never `invoke`, and only one carries a payload upward.
  * The drag calls are bare notifications: main reads the cursor itself with
@@ -49,6 +50,25 @@ contextBridge.exposeInMainWorld("fuzzyclock", {
   onStats(callback: (sample: StatsSample) => void): void {
     ipcRenderer.on("stats", (_event, sample: StatsSample) => callback(sample))
   },
+  /**
+   * The ghost sampler's proximity ratio, and the pins that suppress acting on it.
+   *
+   * One channel for both because they are consumed by the same frame: `ratio` is
+   * where the fade is heading and `menuOpen` is whether it may be painted, and the
+   * C#'s pump reads them in that order within one tick. Sending them separately
+   * would let a pin arrive between the target and the frame that uses it.
+   *
+   * Main sends this only when something changed — the sampler runs at 30 Hz and is
+   * silent at steady state (D-08), so this channel is quiet whenever the cursor is
+   * parked away from the widget. The interpolation runs renderer-side on `rAF`,
+   * which is the whole point of PERF-01: a busy main process delays the target,
+   * never the animation.
+   */
+  onGhost(callback: (state: { ratio?: number; menuOpen?: boolean; reset?: boolean }) => void): void {
+    ipcRenderer.on("ghost", (_event, state: { ratio?: number; menuOpen?: boolean; reset?: boolean }) =>
+      callback(state),
+    )
+  },
   /** Listeners are registered: main may now push the current settings. See the header. */
   ready(): void {
     ipcRenderer.send("ready")
@@ -82,5 +102,15 @@ contextBridge.exposeInMainWorld("fuzzyclock", {
   /** Right-click on the widget (RMB-01): main opens the tray menu if the gate allows it. */
   contextMenu(): void {
     ipcRenderer.send("context-menu")
+  },
+  /**
+   * One wheel notch on the widget. `direction` is +1 brighter, -1 dimmer — never a raw `deltaY`.
+   *
+   * A direction rather than the delta because main owns the setting and the clamp, and because the two
+   * halves disagree about which sign means "up": `core/opacity-step.ts` has the measurement. Main replies
+   * by pushing the whole settings object back down, so the renderer never holds an opacity of its own.
+   */
+  adjustOpacity(direction: number): void {
+    ipcRenderer.send("adjust-opacity", direction)
   },
 })

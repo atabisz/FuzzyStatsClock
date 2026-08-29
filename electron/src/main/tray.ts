@@ -29,6 +29,27 @@
  *
  * On libappindicator desktops a menu-less indicator is not clickable at all, so the Linux branch is
  * also what makes the icon do anything.
+ *
+ * ## RMB-04's pin, and why it is belt-and-braces rather than one event
+ *
+ * `MainWindow` holds `_menuOpen` and sets it from `ContextMenuStrip.Opening` / `.Closed` for two purposes:
+ * it pins the ghost fade so the widget cannot fade out from under its own menu, and it makes a second
+ * right-click while the menu is up a no-op instead of a re-`Show()` that repositions and flickers.
+ *
+ * Electron's `Menu` has the matching pair -- `menu-will-show` and `menu-will-close` (`electron.d.ts:8607-
+ * 8626`) -- but read the first one's own doc: "Emitted when `menu.popup()` is called." This file opens the
+ * menu with `tray.popUpContextMenu(menu)`, deliberately (see above), which is a different call, and
+ * nothing in the type definitions says the events fire on that path. So the pin does not depend on them:
+ *
+ *   - **on** is set by {@link popUp} itself, which is the call that cannot be missed;
+ *   - **off** has three independent routes -- `menu-will-close`, any menu item being clicked (which closes
+ *     the menu by definition), and a {@link MENU_PIN_WATCHDOG_MS} ceiling;
+ *   - every transition logs its route, so one right-click and one dismissal produce a two-line trace that
+ *     answers the open question empirically on whatever platform it was run on.
+ *
+ * The watchdog is there because of what a stuck pin costs: the fade stops writing and the widget's
+ * right-click stops working, both silently and both until the app restarts. A bounded 30 seconds of a
+ * pinned fade is a far cheaper failure than that, and the log line names it.
  */
 
 import { Menu, Tray, dialog, nativeImage } from "electron"
@@ -60,22 +81,36 @@ export function toMenuTemplate(
   })
 }
 
+/**
+ * How long a pin may survive with no close signal. See the header.
+ *
+ * 30 seconds rather than something tighter because it must not fire while a menu is genuinely open, and a
+ * user reading a nine-item menu with a four-item submenu can easily take ten.
+ */
+export const MENU_PIN_WATCHDOG_MS = 30_000
+
 export interface AppTrayOptions {
   readonly iconPath: string
   readonly initialState: TrayMenuState
   readonly onAction: (action: TrayAction) => void
   readonly log?: Logger
+  /** RMB-04: called with true when the menu opens and false when it closes. See the header. */
+  readonly onMenuOpenChange?: (open: boolean) => void
 }
 
 export class AppTray {
   private readonly tray: Tray
   private readonly onAction: (action: TrayAction) => void
   private readonly log: Logger
+  private readonly onMenuOpenChange: (open: boolean) => void
   private state: TrayMenuState
+  private menuOpen = false
+  private pinTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(options: AppTrayOptions) {
     this.onAction = options.onAction
     this.log = options.log ?? ((): void => {})
+    this.onMenuOpenChange = options.onMenuOpenChange ?? ((): void => {})
     this.state = options.initialState
 
     // `createFromPath` rather than handing the path to `new Tray()`: an unreadable or unsupported
@@ -99,7 +134,45 @@ export class AppTray {
   }
 
   private buildMenu(): Menu {
-    return Menu.buildFromTemplate(toMenuTemplate(buildTrayMenu(this.state), this.onAction))
+    // Wrapped so a click clears the pin as well as dispatching: clicking an item closes the menu, which
+    // makes this the one close route that needs no event from Electron at all.
+    const dispatch = (action: TrayAction): void => {
+      this.setPin(false, "item clicked")
+      this.onAction(action)
+    }
+    const menu = Menu.buildFromTemplate(toMenuTemplate(buildTrayMenu(this.state), dispatch))
+    // Attached to every rebuilt menu rather than once, because on win32/darwin each open builds a new
+    // `Menu` object -- listeners on a previous one would belong to a menu nobody can see any more.
+    menu.on("menu-will-show", () => this.setPin(true, "menu-will-show"))
+    menu.on("menu-will-close", () => this.setPin(false, "menu-will-close"))
+    return menu
+  }
+
+  /** RMB-04's `_menuOpen`, for the fade guard and the re-entrant-open guard. See the header. */
+  get isMenuOpen(): boolean {
+    return this.menuOpen
+  }
+
+  private setPin(open: boolean, why: string): void {
+    if (this.pinTimer !== null) {
+      clearTimeout(this.pinTimer)
+      this.pinTimer = null
+    }
+    if (open) {
+      this.pinTimer = setTimeout(() => {
+        this.pinTimer = null
+        // Reaching here means no close route fired for 30s. Either the menu is genuinely still open, or
+        // `popUpContextMenu` does not emit `menu-will-close` on this platform -- which is the open question
+        // in the header, and this line is what answers it.
+        this.setPin(false, `watchdog after ${String(MENU_PIN_WATCHDOG_MS)}ms with no close signal`)
+      }, MENU_PIN_WATCHDOG_MS)
+    }
+    // After the timer bookkeeping, so a repeated `menu-will-show` re-arms the watchdog, and before the
+    // change check, so it re-arms even when the state itself did not move.
+    if (this.menuOpen === open) return
+    this.menuOpen = open
+    this.log("info", `tray: menu ${open ? "open" : "closed"} (${why})`)
+    this.onMenuOpenChange(open)
   }
 
   /**
@@ -110,9 +183,14 @@ export class AppTray {
    * makes a widget right-click do nothing there; recorded rather than papered over with a second,
    * separately-built `Menu.popup()`, which would give Linux users a menu that looks like the tray's
    * but is a different object with its own state.
+   *
+   * The pin goes on HERE and not only from `menu-will-show`, for the reason in the header -- and the
+   * Linux early return is above it deliberately: no menu opens on that path, so pinning the fade would
+   * freeze it for 30 seconds for nothing.
    */
   popUp(): void {
     if (IS_LINUX) return
+    this.setPin(true, "popUp")
     this.tray.popUpContextMenu(this.buildMenu())
   }
 
@@ -137,6 +215,12 @@ export class AppTray {
   }
 
   destroy(): void {
+    // The watchdog first: a pending 30s timer holds the event loop open past `before-quit`, which turns a
+    // quit taken while the menu was up into a visibly slow exit.
+    if (this.pinTimer !== null) {
+      clearTimeout(this.pinTimer)
+      this.pinTimer = null
+    }
     if (!this.tray.isDestroyed()) this.tray.destroy()
   }
 }

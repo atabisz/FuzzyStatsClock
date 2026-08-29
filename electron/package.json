@@ -21,6 +21,8 @@
     "probe:display": "bun run build && bun scripts/probe-display.ts",
     "probe:size": "bun scripts/probe-size.ts",
     "probe:shell": "bun run build && bun scripts/probe-shell.ts",
+    "probe:fade": "bun run build && bun scripts/probe-fade.ts",
+    "probe:pixels": "bun scripts/probe-pixels.ts",
     "dist:win": "bun run build && electron-builder --win --publish never"
   },
   "devDependencies": {

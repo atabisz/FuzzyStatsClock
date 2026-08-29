@@ -11,16 +11,21 @@
  * every one of those greens is void the moment this file changes — which it just did.
  *
  * What is NOT here yet, and where it lands:
- *   - The phrase engine and the four clock faces (Phase 4). The phrase is a placeholder; phrase text is
- *     rewritten at most once a minute in the WPF original, so it contributes nothing to per-second cost.
- *   - Ghost mode (Phase 5). `core/ghost.ts` and `core/menu-gate.ts` are translated and tested; the
- *     cursor poll and the click-through toggle are that phase's plumbing.
- *   - The stats panel obeying `statsVisible` and the mac/linux telemetry sources (Phase 6).
+ *   - The mac/linux telemetry sources, and per-row stat visibility (Phase 6).
  *   - Auto-launch registration (Phase 7) and auto-contrast (Phase 8).
  *   - **The settings window, which no phase in the plan owns.** Found while wiring the tray: the plan's
  *     component table lists it ("second `BrowserWindow`") but no phase's exit criteria mention it. The
  *     `open-settings` action therefore logs and does nothing, and the plan has been corrected rather
  *     than this file quietly carrying the gap.
+ *   - **The hover backdrop and hover fast-refresh, which no phase owned either.** Found the same way as
+ *     the wheel gesture below, by reading the C#'s `Window_MouseEnter`/`MouseLeave`: hovering the widget
+ *     paints a semi-transparent backdrop behind it and drops the stats interval to 0.5s, and neither the
+ *     element nor the interval change exists here. `backdropAlwaysVisible` and `backdropOpacityPercent`
+ *     are in `AppSettings` with no reader anywhere. Assigned to Phase 6 in the plan, since the interval
+ *     half belongs with that phase's stats work.
+ *
+ * Ghost mode (Phase 5) is here now: the 33 ms cursor poll and the click-through toggle live in
+ * `main/ghost.ts`, the fade itself runs in the renderer (PERF-01), and this process owns only the target.
  *
  * Every tray toggle in between persists its setting NOW, so nothing is lost while those phases land:
  * the state is real and saved, only the visible effect is pending.
@@ -42,12 +47,14 @@ import { SettingsStore } from "./settings-store.js"
 import { WindowPlacer, displayGeometries } from "./window-placement.js"
 import type { CommitReason } from "./window-placement.js"
 import { AppTray } from "./tray.js"
+import { GhostDriver } from "./ghost.js"
 import { DEFAULTS } from "../core/settings.js"
 import type { AppSettings, ClockType } from "../core/settings.js"
 import { displayKey, primaryDisplay } from "../core/display-key.js"
 import { centreOnPrimary } from "../core/placement.js"
 import { resetToDefaults } from "../core/reset.js"
 import { shouldOpenContextMenu } from "../core/menu-gate.js"
+import { stepOpacity } from "../core/opacity-step.js"
 import type { TrayAction, TrayMenuState } from "../core/tray-menu.js"
 
 const REPAINT_MS = 1_000
@@ -94,6 +101,7 @@ let store: SettingsStore | null = null
 let placer: WindowPlacer | null = null
 let tray: AppTray | null = null
 let mainWindow: BrowserWindow | null = null
+let ghost: GhostDriver | null = null
 
 /**
  * Whether the renderer has registered its IPC listeners.
@@ -193,16 +201,27 @@ function applySettings(next: AppSettings, why: string): void {
 /**
  * The window's own share of the settings, plus the push that makes the renderer redraw.
  *
- * `setOpacity` is the only one the window carries itself; everything else is the renderer's, and it gets
- * the whole object rather than a diff — `ApplySettings` re-pushes to every control too, and a diff would
- * need both processes to agree on what changed, which is a second copy of the settings shape on the wire.
+ * The renderer gets the whole object rather than a diff — `ApplySettings` re-pushes to every control too,
+ * and a diff would need both processes to agree on what changed, which is a second copy of the settings
+ * shape on the wire. The ghost sampler is the one consumer that takes named fields instead, because it is
+ * a `core/` object with no business knowing what an `AppSettings` is.
+ *
+ * **This used to call `mainWindow.setOpacity(settings.opacity)` and deliberately no longer does.** That
+ * call is `@platform win32,darwin` and documented as doing nothing on Linux (`electron.d.ts:3115-3120`),
+ * which would have made the opacity setting silently inert there. The whole `windowOpacity * (1 - ratio)`
+ * product now lives in the renderer, on `#root`'s `opacity` attribute — see `core/ghost-fade.ts`.
  *
  * Both callers matter: `applySettings` for a change, and startup for the initial state. Routing both
  * through here is what stops a settings change from reaching the tray and the file but not the screen.
  */
 function applyWindowSettings(): void {
   if (mainWindow === null || mainWindow.isDestroyed()) return
-  mainWindow.setOpacity(settings.opacity)
+  ghost?.applySettings(settings.ghostModeEnabled, settings.ghostFadeRadiusPx, {
+    ctrl: settings.useCtrl,
+    alt: settings.useAlt,
+    shift: settings.useShift,
+    win: settings.useWin,
+  })
   pushSettings()
 }
 
@@ -210,6 +229,18 @@ function applyWindowSettings(): void {
 function pushSettings(): void {
   if (!rendererReady || mainWindow === null || mainWindow.isDestroyed()) return
   mainWindow.webContents.send("settings", settings)
+}
+
+/**
+ * The ghost channel: a fade target, a menu pin, or a reset. Same gate as {@link pushSettings}.
+ *
+ * Only ever sent when something changed — `GhostDriver.tick` is silent at steady state (D-08), and the
+ * pin fires twice per menu. The renderer runs the interpolation itself, so this is a low-rate control
+ * channel rather than an animation one, which is the whole of PERF-01's architecture.
+ */
+function sendGhost(state: { ratio?: number; menuOpen?: boolean; reset?: boolean }): void {
+  if (!rendererReady || mainWindow === null || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send("ghost", state)
 }
 
 /**
@@ -378,7 +409,7 @@ function handleTrayAction(action: TrayAction): void {
     case "toggle-ghost-mode":
       applySettings(
         { ...settings, ghostModeEnabled: !settings.ghostModeEnabled },
-        `ghostModeEnabled = ${String(!settings.ghostModeEnabled)} (takes effect in Phase 5)`,
+        `ghostModeEnabled = ${String(!settings.ghostModeEnabled)}`,
       )
       return
     case "toggle-stats":
@@ -444,10 +475,27 @@ app.whenReady().then(() => {
   ipcMain.on("drag-move", onDragMove)
   ipcMain.on("drag-end", onDragEnd)
   ipcMain.on("context-menu", () => {
-    // Phase 5 replaces the two literals with the ghost sampler's state. They are not placeholders
-    // today: click-through is never applied yet, so the widget is never ghost-active, and RMB-03
-    // genuinely cannot fire. RMB-02 is live.
-    if (shouldOpenContextMenu(isDragging(), false, false)) tray?.popUp()
+    // The idempotence guard first, and it is `Window_PreviewMouseRightButtonUp`'s own order: the C# tests
+    // `_menuOpen` BEFORE the gate, so a second right-click while the menu is up is a no-op rather than a
+    // re-open that repositions an already-visible menu (Pitfall 7's flicker).
+    if (tray?.isMenuOpen === true) return
+    // RMB-02 / RMB-03, now with both real inputs. Note what RMB-03 can and cannot do here: on Windows the
+    // C# says this handler never fires while click-through is applied, because the OS routes the click
+    // past the window entirely — so the `isGhostActive` arm is defensive on that platform too, and its
+    // value is that it is *true* rather than a literal, so the two RMB claims are answered by state.
+    if (shouldOpenContextMenu(isDragging(), ghost?.isActive ?? false, ghost?.isModifierHeld ?? false)) {
+      tray?.popUp()
+    }
+  })
+  // The wheel gesture, which no phase owned. See `core/opacity-step.ts` for how it was found and for the
+  // sign inversion between `WheelEvent.deltaY` and WPF's `e.Delta`. Validated at the boundary like
+  // `resize` is: this is a process boundary and a malformed payload reaching arithmetic is a main-process
+  // exception, which takes the whole app down rather than dropping one scroll.
+  ipcMain.on("adjust-opacity", (_event, payload: unknown) => {
+    if (typeof payload !== "number" || !Number.isFinite(payload)) return
+    const next = stepOpacity(settings.opacity, payload)
+    if (next === settings.opacity) return
+    applySettings({ ...settings, opacity: next }, `opacity = ${next.toFixed(2)} (wheel)`)
   })
 
   // Settings BEFORE the window: `restore()` runs before `show()`, so the saved position has to be in
@@ -465,6 +513,24 @@ app.whenReady().then(() => {
   mainWindow = win
   placer = new WindowPlacer(win, screen, log)
   const restored = placer.restore(settings)
+
+  // BEFORE `applyWindowSettings()`, which is what hands the driver its enabled flag, radius and modifier
+  // config. Constructed after `restore()` for a smaller reason that is still real: the first tick reads
+  // `getBounds()`, and restoring the saved position first means that read is against where the widget
+  // actually is rather than against the primary display's top-right default.
+  //
+  // `screen` is passed as the cursor source and `win` as the window: both satisfy `main/ghost.ts`'s
+  // structural interfaces, which is what lets the driver be tested with no Electron on the path.
+  ghost = new GhostDriver({
+    window: win,
+    cursor: screen,
+    // Target only. The renderer owns the interpolation — PERF-01, and the reason a busy main process
+    // delays where the fade is going rather than how smoothly it gets there.
+    onRatio: (ratio) => sendGhost({ ratio }),
+    onRestored: () => sendGhost({ reset: true }),
+    log,
+  })
+  ghost.start()
   applyWindowSettings()
 
   // The first write after a WPF import, and it happens only once the window is placed. Two reasons,
@@ -481,6 +547,8 @@ app.whenReady().then(() => {
     initialState: trayState(settings),
     onAction: handleTrayAction,
     log,
+    // RMB-04. The pin travels to the renderer because that is where the fade is; main only relays it.
+    onMenuOpenChange: (open) => sendGhost({ menuOpen: open }),
   })
 
   // One handler for all three display events. Windows fires `display-metrics-changed` several times for
@@ -533,6 +601,11 @@ app.on("window-all-closed", () => app.quit())
 
 app.on("before-quit", () => {
   if (repaintTimer) clearInterval(repaintTimer)
+  // The cursor poll before the window goes away: its tick reads `getBounds()` and calls
+  // `setIgnoreMouseEvents`, and `isDestroyed()` is checked per tick, so this is tidiness rather than a
+  // crash guard — but a 33 ms timer left running through teardown is 30 chances a second to be wrong about
+  // that ordering.
+  ghost?.stop()
   // Without this the `typeperf` children outlive the app: they are spawned by this process but nothing
   // reparents or reaps them on exit.
   source?.stop()

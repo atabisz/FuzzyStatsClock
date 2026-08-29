@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 18/35
+progress: 26/43
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T04:20:05+10:00
+updated: 2026-08-30T06:07:24+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -706,12 +706,245 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 5 — Ghost mode
 
-- [ ] **ISC-24. Proximity fade works off main-process cursor polling.** Never off
+- [x] **ISC-24. Proximity fade works off main-process cursor polling.** Never off
   `setIgnoreMouseEvents` mousemove forwarding, which was measured delivering zero events here.
-- [ ] **ISC-25. Click-through toggles against renderer-measured hit boxes.**
-- [ ] **ISC-26. PERF-01 is closed, not deferred again.** The fade stays smooth under a synthetic
-  25–50% CPU load — the v4.4 defect still open in `.planning/STATE.md`. Mechanism: CSS `opacity` on the
-  compositor with the rAF loop owning interpolation, so a busy main process cannot stall it.
+  `main/ghost.ts` polls `screen.getCursorScreenPoint()` at **33 ms** — `SAMPLE_MS`, the C#'s own cadence
+  measured off `System.Threading.Timer(…, 0, 33)`, not 16 — converts the window's bounds through
+  `boundsToEdges` and drives the already-translated `GhostSampler`. **`{ forward: true }` is not passed
+  anywhere in the tree**, which is the negative half of this claim and is enforceable by reading rather
+  than by trusting: the option is what would reintroduce the dependency on the mechanism this ISC
+  forbids. 83 new tests across four files; `main/ghost.ts` is structurally typed like
+  `window-placement.ts`, so the whole driver runs under Bun with literal fakes and no Electron on the
+  path.
+  - **D-06's asymmetry is closed by the driver, and it had to be.** `GhostSampler.onTick` clears its own
+    ghost flag on a restore but never sets it on an activate — the C#'s contract, preserved — so
+    whoever applies click-through must call `markActive()`. Without it the sampler emits `"activate"` on
+    every one of the 30 ticks per second the cursor sits over the widget, each re-applying the same
+    style bit. That is measured behaviour of the sampler's own tests, not a hypothesis.
+  - **The ratio is computed in DIPs and that is a real divergence from the C#, stated rather than
+    papered over.** Win32 gives `GetWindowRect`/`GetCursorPos` in physical pixels, so WPF's
+    `GhostFadeRadiusPx` is a physical-pixel radius; Electron's bounds and cursor APIs are both DIP.
+    **Both operands come from DIP APIs, so the ratio is at least internally consistent** — mixing them
+    is the one thing that would be wrong and is not what happens. The consequence: Alex's stored `200`
+    covers 1.5× more physical pixels at 150% scale than it did. No conversion fixes it without picking
+    a display to convert against, which is wrong on a desk with mixed scaling — this one, at
+    1.00 / 1.25 / 1.00.
+  - **The keyboard override ships inert, and this is a DECISION with four rejected alternatives, not an
+    omission.** `IsModifierHeld` calls `GetAsyncKeyState(VK_LCONTROL)`; there is no Electron API for
+    global modifier state. `globalShortcut` needs a non-modifier key and would steal that chord
+    desktop-wide; `before-input-event` and DOM `keydown` both need focus this overlay never has
+    (`skipTaskbar`, no dock icon, click-through half the time by design); a native module means a
+    compiled dependency to prebuild for three platforms in ISC-29 plus a macOS Accessibility prompt at
+    first launch, against a tree with five devDependencies and no native ones; polling the OS per tick
+    is 30 process spawns a second. So `readModifiers` is injected and returns `NO_MODIFIERS`.
+    **The user-visible consequence, stated because it is a degradation of a shipped v4.2 behaviour:
+    while ghost mode is on and the cursor is over the widget it is click-through with no keyboard way
+    to suppress it.** The tray is the route to every setting, `isModifierHeld` is tested over all 256
+    combinations, the driver logs the limitation once at startup, and a real reader is a one-line
+    change.
+- [x] **ISC-25. Click-through toggles against renderer-measured hit boxes.** `setIgnoreMouseEvents(true)`
+  is Electron's `WS_EX_TRANSPARENT` on Windows and the equivalent elsewhere, so the C#'s `SetWindowLong`
+  + `SWP_FRAMECHANGED` pair is one call. **`probe-shell.ts`'s S8 is the before-half and it is green: the
+  bit is CLEAR at rest**, so the widget receives its own clicks when the cursor is away — which is what
+  makes the toggle observable rather than assumed. The right-click gate now has both real inputs
+  (`shouldOpenContextMenu(isDragging(), ghost.isActive, ghost.isModifierHeld)`), and RMB-03's arm is
+  **defensive on Windows too**: the C# records that the handler never fires while click-through is
+  applied, because the OS routes the click past the window — the value of wiring it to real state
+  rather than a literal is that the claim is answered by state on the platforms where it *can* fire.
+  - **RMB-04's menu pin is built around an open question rather than an assumption.** `_menuOpen` pins
+    the fade so the widget cannot fade out from under its own menu, and makes a second right-click a
+    no-op instead of a re-`Show()` that flickers. Electron has `menu-will-show`/`menu-will-close`, but
+    `menu-will-show`'s own doc reads *"Emitted when `menu.popup()` is called"* (`electron.d.ts:8607-8626`)
+    and this app opens the menu with `tray.popUpContextMenu()` deliberately. **Nothing in the typings
+    says those events fire on that path**, so: on is set by `popUp()` itself, off has three independent
+    routes (`menu-will-close`, any item click, and a 30 s watchdog), and each transition logs which
+    route fired — so one right-click and one dismissal answer the question empirically on whatever
+    platform it was run on. The watchdog is sized by what a stuck pin costs: the fade stops writing and
+    the widget's right-click stops working, silently, until restart. **On Linux `popUp()` returns
+    early** (no `popUpContextMenu` there), and the pin is set *after* that return so a Linux
+    right-click does not freeze the fade for 30 s for nothing.
+- [~] **ISC-26. PERF-01 is closed as a COMPARATIVE claim and measured. The absolute figures are
+  provisional, and the reason is not the code.** The fade stays smooth under the synthetic 25–50% CPU
+  load — the v4.4 defect still open in `.planning/STATE.md`. `scripts/probe-fade.ts` (new) builds the
+  shipped `FadePump` **and a v4.4-shaped negative control** — `win.setOpacity()` driven from main at
+  30 Hz — into one Electron process and runs both across eight phases: idle, main-blocked, system-load,
+  oversubscribed. **7 of 8 blocking arms pass.**
+  - **The pump: median 12.7 ms, p99 13.5 ms, max 13.8 ms — identical idle and with main blocked 40 ms
+    out of every 50.** Zero frames over the 33.4 ms bar in any phase, including 100% oversubscription.
+  - **The control degrades, and that arm is itself blocking.** Median 31.0 → 62.0 ms, 63 ticks against
+    145 in the same 4 s. Without it a flat line under a load that never arrived is indistinguishable
+    from success — Rule 18, and it is the arm that makes the other seven mean anything.
+  - **F5b is the architectural claim as a number.** Under the same block, main's ghost pushes went
+    33 → 62 ms while the renderer's frames did not move. **The delay lands on the target, not on the
+    animation.**
+  - **F6 measured 49.8% system CPU inside the plan's band with the pump at 12.7 ms — and F6b says what
+    that green is worth, which is less than it looks.** 12 saturated cores of 32 leaves 20 idle, so this
+    band starves neither process on this host; the plan's wording is a proxy for thread occupancy, which
+    is what actually broke v4.4. **F5 carries the claim, not F6.** F7 goes further — 36 workers on 32
+    cores, 100% measured, pump at median 12.6 ms — and is reported as *"no limit found below full
+    oversubscription"*, never as "immune".
+  - **Why this is `[~]` and not `[x]`: the workstation was LOCKED for every measurement**
+    (`Get-Process LogonUI` → 1), so the rAF cadence was measured against a compositor that was not
+    presenting. The corroborating signal is in the data — idle median 12.7 ms is **~79 Hz, which matches
+    no standard refresh rate**, which is why arm F0 exists and checks the measured interval against
+    60/75/90/120/144/165/240 Hz. **The comparative result is unaffected**: both architectures ran in one
+    process, on one host, under one load, and the control degraded while the pump did not. **The
+    absolute numbers are not yet a claim about what a user sees.** F0 is blocking, so a locked run exits
+    1 on purpose — PERF-01 cannot be quoted as closed from a locked desk. **Trigger to close: re-run
+    `bun run probe:fade` from an unlocked session.**
+  - **What no probe here has seen: the REAL app fading under a REAL cursor.** Pushing a target needs
+    `ipcRenderer`, which CDP cannot reach; moving the cursor needs `SendInput`, which moves Alex's own.
+    Manual, alongside the drag and the monitor unplug.
+- [x] **ISC-26.1. The pump's two deviations from `OnRenderingTick` are named, and both close a defect
+  the C# has.** Not a sub-claim of convenience: each is a behaviour a faithful port would have shipped.
+  - **An epsilon snap, because the C#'s convergence test is unreachable for an intermediate target.**
+    `lerpRatio` snaps hard at exactly 0 or 1, but `ProximityChanged` receives every value
+    `computeProximityRatio` produces, and a cursor parked partway into the halo is a target like 0.8 —
+    which the exponential approaches and never equals. `_currentRatio == _targetRatio` never holds, so
+    WPF's `CompositionTarget.Rendering` stays attached forever, ticking at compositor rate for a value
+    that stopped changing. `RATIO_EPSILON` lets the pump actually stop, and `renderer.ts` detaches the
+    rAF loop outright rather than spinning a no-op frame — which matters for the honesty of any future
+    CPU probe, since a loop waking 60×/s to compare two equal numbers reads as "the fade is cheap".
+  - **A converged frame still writes once if a guard swallowed the write.** The C#'s guards return
+    before the write while step 3 has already advanced the ratio, so a guard held long enough to
+    converge means the write never happens: start a drag, move onto the widget, the target snaps to 1.0
+    under `_isDragging`, and every later frame early-returns. **The widget stays at full opacity for the
+    rest of that gesture while ghost mode is active and click-through is applied.** `skipped` is a
+    *reason* rather than a boolean so the owed write lands on the first unguarded frame.
+  - **The body order is the behaviour, which is why this is a class and not four inline lines.** The
+    guard chain must short-circuit the opacity write but must NOT short-circuit the lerp, or visible
+    state jumps instead of catching up on the frame after the guard releases. One `if` in the wrong
+    place, and not observable from a screenshot.
+- [x] **ISC-26.2. The whole opacity product moved to the renderer, and the deciding evidence is a
+  platform annotation rather than a preference.** `main.ts` used to call
+  `mainWindow.setOpacity(settings.opacity)` and deliberately no longer does. `setOpacity` is
+  **`@platform win32,darwin`** and documented "On Linux, does nothing" (`electron.d.ts:3115-3120`), so
+  splitting `windowOpacity × (1 − ratio)` across the two layers — window alpha times element alpha is
+  the same number — would have made **the user's own opacity setting silently inert on Linux while the
+  fade kept working.** A divergence visible only to a Linux user, on a setting they had already saved.
+  - **It goes on as the SVG `opacity` presentation attribute on `#root`, not `element.style.opacity`**,
+    for the CSP reason every colour already does: `index.html` ships no `style-src 'unsafe-inline'`.
+    **A CSS declaration BEATS a presentation attribute**, so `opacity` joins the property list
+    `test/renderer-ids.test.ts` forbids `index.css` from declaring — a single `#root { opacity: 1 }`
+    there would leave the fade running, the ratio moving, and nothing on screen.
+  - Written at **four decimal places** deliberately: `setAttr` stringifies with `String` and never
+    rounds, so precision is the call site's job. 1e-4 is 0.0255 of one 8-bit alpha level, so the memo
+    can collapse the tail of a fade instead of writing a fresh 17-digit string every frame.
+- [ ] **ISC-26.3. BLOCKING GATE RED, deliberately not waived: `probe-shell.ts`'s S2 reports
+  `layered=false, want true`, and the correction needs pixel evidence that cannot be gathered from a
+  locked screen.** Removing main's `setOpacity` call is what turned S2 red. A five-stage scratch probe
+  measured where `WS_EX_LAYERED` actually comes from on this build: `transparent: true` with nothing
+  called → false/false; after `setIgnoreMouseEvents(false)` → false/false; after
+  `setIgnoreMouseEvents(true)` → **true/true**; after `setOpacity(0.9)` then `(false)` → **true**/false.
+  **So the bit was never a consequence of `transparent: true`, and S2's green had been reading the right
+  bit off the wrong cause since Phase 3.**
+  - **Why the table is not enough to correct the arm, which is the whole point of this claim.** It
+    cannot distinguish *"the bit is irrelevant"* from *"the bit was load-bearing and the widget is now
+    an opaque box"*. **Nothing else in this repo can either** — every arm reads a decision, never an
+    appearance, and `probe-display.ts:64` says so in as many words. **A widget rendering as a black
+    rectangle passes every gate this tree has.** Relaxing S2 on the table alone would be rationalising
+    a red gate, so it stays red.
+  - **The instrument was built rather than the arm relaxed.** `scripts/probe-pixels.ts` +
+    `probe-pixels-app.cjs` + `screengrab.ps1` — the first pixel-reading probe in the repo. An opaque
+    magenta backdrop we own (not the wallpaper: a dark desktop under an opaque dark box also "matches"),
+    the real widget's whole option list stacked on top at `screen-saver`, and `CopyFromScreen` reduced
+    to a mean plus an 8×8 centre-sampled grid (a mean alone cannot tell magenta from a red/blue
+    checker). **Arm X2 is the control and is reported before the claim on purpose:** the same window,
+    same flags, painting opaque green must turn the capture green, or the probe was photographing the
+    backdrop all along and X3's magenta means nothing.
+  - **`capturePage()` cannot answer this question** — it captures the page's own surface, so a
+    transparent page captures as transparent whether or not the OS honoured it.
+  - **Trigger to close: unlock the screen, `bun run probe:pixels`, then correct or confirm S2's
+    `layered` expectation on that evidence and re-run `bun run probe:shell`.**
+- [x] **ISC-26.4. A capture-based probe must establish that anyone was looking before it reports
+  anything, and this claim exists because mine did not.** `probe-pixels.ts` reported all four arms red
+  on its first two runs, including the line *"THE WIDGET IS PAINTING A BOX — removing main's setOpacity
+  call broke transparency"*. **It had not.** `CopyFromScreen` from a process on the default desktop
+  reads near-black while `LogonUI.exe` owns the display, so every stage photographed the same black
+  rectangle and the comparisons between them were perfectly consistent and entirely meaningless.
+  **That is worse than a probe that does not exist, because the output was specific, alarming and
+  wrong.**
+  - **Three wrong diagnoses came first, and the order is the lesson.** An isolated `screengrab.ps1` run
+    proved the capture path works (varied greys elsewhere on screen); `PIXEL-BOUNDS` reporting proved
+    the windows were exactly where they had been asked to go at scale 1.00; a wide hunt over the full
+    3440×1440 found **0 of 576 cells magenta anywhere**. Only then: `Get-Process LogonUI`.
+  - `scripts/lib/session-lock.ts` is the gate. **`LogonUI.exe` presence and not an API, for a measured
+    reason**: Win32 has session-state *notifications* but no queryable locked flag, and
+    `WTSQuerySessionInformation` reports the session Active either way. Same signal PAI's own
+    `FeedIngest.cmd` gates on. **Fails OPEN** — a broken query costs one possibly-contaminated run
+    rather than silently disabling every capture arm forever. Verdict when locked is **INCONCLUSIVE,
+    exit 0**: a probe that could not look is not a probe that saw a defect.
+- [x] **ISC-26.5. Three features this port did not own were found by reading every C# writer of the
+  state each one touches, and one of them is paid here.** The method is the claim: reading only the
+  writer the fade needed would have shipped all three as silent gaps.
+  - **The scroll-wheel opacity gesture** (`Window_PreviewMouseWheel`) — one 10% step per notch. **No
+    phase owned it and the word "wheel" appears nowhere in the plan document.** A Phase 3 omission
+    (a window interaction, like the drag and the right-click that phase *did* port), paid here because
+    Phase 5 owns `opacity` and because a daily-use gesture that silently does nothing is exactly what a
+    "Phase 5 closed" claim would have papered over. Two porting traps, both pinned by tests: **the sign
+    is inverted** between WPF's `e.Delta > 0` (up) and the DOM's negative `deltaY` (up), so a literal
+    port dims when you scroll up **and still looks deliberate**; and it steps on `Math.sign`, never the
+    magnitude, or a high-resolution wheel makes every notch a different size. The negation lives in
+    `renderer.ts`, at the boundary where the DOM's convention is, so the two conventions never meet.
+    **The clamp is asymmetric with `validateSettings` and that is the C#'s**: `Validate` guards opacity
+    only from below and lets 1.5 through, while `stepOpacity` clamps to `[0.10, 1.0]` — so a hand-edited
+    1.5 survives a load and snaps to 1.0 on the first scroll. A `direction` of 0 is a no-op rather than
+    a clamp of `current + 0`, precisely so a scroll carrying no direction cannot change a
+    hand-edited value.
+  - **The hover backdrop and the hover fast-refresh** (`Window_MouseEnter`/`MouseLeave`) — hovering
+    paints a semi-transparent backdrop behind the widget and drops the stats interval to 0.5 s.
+    `backdropAlwaysVisible` and `backdropOpacityPercent` are in `AppSettings` **with no reader
+    anywhere**; alpha is `Clamp(pct / 100 × 255, 25, 255)` (`MainWindow.xaml:34`). **Assigned to
+    ISC-27**, since the interval half is stats cadence.
+- [x] **ISC-26.6. Two observed C# defects, one reproduced and one closed — decided on a stated standard
+  rather than case by case.** The standard: **a one-DIP geometry difference gets reproduced faithfully;
+  a state that reads as a broken app gets named and fixed.**
+  - **Reproduced.** `boundsToEdges` keeps Win32's *exclusive* right/bottom edges, because
+    `GhostModeController` passes `rect.Right` into an inside test of `cursorX <= rectRight` — so in the
+    WPF app a cursor one DIP past the widget's last painted column reads as inside. `x + width`
+    reproduces that exactly. The more defensible geometry (`x + width - 1`) is **not** what ships, and
+    a test pins the asymmetry so a future change to the obviously-right version fails loudly instead of
+    shifting the fade boundary by a pixel nobody can find.
+  - **Closed.** `_lastProximityRatio` has **no reset anywhere in the C#** — measured by reading every
+    writer of the field, which is `GhostModeController.cs:441` and nothing else. So a re-enable with the
+    cursor parked over the widget computes ratio 1.0 against a remembered 1.0, reports no change and
+    never raises `ProximityChanged` — while the transition *is* `Activate`, so `WS_EX_TRANSPARENT` goes
+    back on. **The widget is then click-through at FULL opacity: unclickable, showing no sign of why.**
+    It self-heals as soon as the cursor moves somewhere with a different ratio, which is why it is not
+    in the restart-only class — and is also why it survived in the C#, where the tray is the only
+    toggle and using it puts the cursor at the other end of the screen. `deactivate()` clears it to 0,
+    which is safe in the other direction too: a re-enable with the cursor far away computes 0 against a
+    remembered 0, reports no edge, and the renderer is already at full opacity.
+  - The *first* write in `deactivate()` is the C#'s and is why `_isGhostMode` is `internal` there:
+    once `IsEnabled` is false, `OnSampleThreadTick` returns before the restore branch, so **no future
+    tick can ever clear the flag**. Without it a re-enable with the cursor over the widget leaves a
+    widget faded to invisible but NOT click-through — curable only by a restart.
+- [x] **ISC-26.7. Four platform facts were measured here, each after a wrong first diagnosis, and each
+  is written into the file it would bite next.**
+  - **Electron's main process on Windows does not deliver piped stdin.** With `stdio: "pipe"`,
+    `process.stdin` in main is a bare `Readable` with `isTTY === undefined` that never emits `data` and
+    **never errors either**. **stdOUT is unaffected**, which is what makes it present as a hung
+    renderer rather than a dead channel — the first fade-probe run hung after
+    `PROBE-FADE-PHASE renderer-idle`. Diagnosed with a scratch probe rather than guessed at. Both probe
+    hosts now gate on a **monotonically increasing counter file** polled at 25 ms, chosen over a
+    sentinel file so a phase release cannot be lost to a race or double-consumed.
+  - **`#rrggbb` inside a `data:text/html,` URL is a FRAGMENT.** Everything from the `#` on is stripped
+    before the document is parsed, so the pixel host's first version served a page whose style ended at
+    `background:` and whose closing tags were gone. Colours are `rgb()` and the whole document goes
+    through `encodeURIComponent`. Choosing a colour nothing supplies by accident is worth nothing if the
+    page never receives it.
+  - **`setInterval(16)` coalesces to ~31 ms on Windows even at idle.** F4's first bar was
+    `busy.max > idle.max × 2` and returned INCONCLUSIVE on a load that had plainly arrived, failing at
+    exactly 64 > 64 — idle max and busy max sat one timer tick apart. Replaced with medians against a
+    bar **derived from the block size** (`BUSY_SPIN_MS`) rather than a tuned multiple. F4b records the
+    corollary as its own diagnostic arm: the control is already off-vsync when idle, ~32 Hz for a 16 ms
+    request.
+  - **A locked session poisons any capture-based arm** — ISC-26.4.
+  - **One mechanism guess of mine was wrong and the measurement settled it better.** I first reasoned
+    from remembered Electron C++ about an internal `layered_` flag being set at window creation. The
+    five-stage probe showed something different and more useful: `transparent: true` never sets the bit
+    at all on this build. **Reasoning from a remembered implementation is the failure mode; the table
+    is the fix.**
 
 ### Phase 6 — Stats panel + per-platform sources
 
@@ -721,6 +954,15 @@ misses it, because every feature either ported or was consciously retired with t
   `vm_stat`, not `os.freemem()`** (which read 3.1% free on a healthy 8GB Mac), and **macOS GPU% may
   resolve after all** via unprivileged `ioreg -c AGXAccelerator` — a candidate, not an adoption, so the
   `-1` path stays reachable and tested on that cell rather than being treated as dead code.
+  - **Two features joined this claim from ISC-26.5, and neither was in any phase's exit criteria.** The
+    **hover backdrop** (`backdropAlwaysVisible` / `backdropOpacityPercent` are in `AppSettings` with no
+    reader; alpha is `Clamp(pct / 100 × 255, 25, 255)`, `MainWindow.xaml:34`; the element does not exist
+    in the SVG yet) and the **hover fast-refresh** (stats interval → 0.5 s on enter, restored on leave).
+    They land here rather than in Phase 3 because the interval half is stats cadence.
+  - **Per-row stat visibility, `statsLayout()`/`statsPanelHeight()`/`layoutStats()`'s `textInset`, the
+    battery-alert colour override** (`theme.ts` declares `ThemeOverrides.batteryAlertActive`,
+    `BATTERY_ALERT_OWNED_ID = "battBar"`) **and `SetDateFormat`'s `_currentDateText = ""` force-redraw**
+    are the rest of this claim's unwired surface — all named in Phase 4's landing, none of them wired.
 - [ ] **ISC-28. Every per-platform parser is fixture-driven and runs on every platform.** Captured
   `/proc/meminfo`, `typeperf` CSV, `pmset -g batt`, `hwmon` tree checked in. This is what makes three
   platforms testable from one.
@@ -761,6 +1003,19 @@ misses it, because every feature either ported or was consciously retired with t
 
 ## Decisions
 
+- **Phase 5: no native module for global key state, so the `Ctrl` override ships inert.** Four
+  alternatives rejected on stated cost (ISC-24). This gives up a shipped v4.2 behaviour, which is why it
+  is here and not only in a code comment — the tray remains the route to every setting, and a real
+  reader is a one-line change against an injected seam tested over all 256 combinations.
+- **Phase 5: S2 stays RED rather than being corrected on the evidence available.** The measured
+  `WS_EX_LAYERED` table proves the arm's cause attribution was wrong, and that is still not enough to
+  correct its expectation — it cannot distinguish an irrelevant bit from a widget that is now an opaque
+  box, and nothing in the tree could. **Built the instrument (`probe:pixels`) instead of relaxing the
+  gate**, and left the gate red until the instrument can run. ISC-26.3.
+- **Phase 5: elected no cross-vendor second look.** Blast radius is one feature on a branch that is not
+  merged, every claim is backed by a re-runnable probe or a test in this repo, and the two things a
+  second reader could not have caught (the locked session, the missing pixel instrument) were found by
+  measurement rather than by review.
 - **Branch `v5.0-electron-port` off `ca61130`.** Same base every existing measurement was taken at, so
   the plan's numbers and the feasibility greens apply to this tree without re-probing (claim 17).
 - **ISA at the repo root, not in `MEMORY/WORK/`.** The port has persistent identity and outlives this
@@ -1260,8 +1515,19 @@ measured on this branch at or after that base.
 | ISC-19 / ISC-20 (placement across restarts, display changes and drags) | `bun test` (`test/window-placement.test.ts`, ~35 cases) against `FakeScreen`/`FakeWindow`; S4 of `probe:shell` for the live rect | **The regression this file exists for:** `commit` used to take `{ snap: boolean }` and dropped the source monitor's key whenever the display had changed, so wiring `display-removed` to it would have **deleted the position the user set on a monitor at the moment that monitor was unplugged.** Provable only because `FakeScreen.displays` is *mutable* — the unplug is modelled, not inspected. **Both LG fakes carry an identical label, asserted**, so any future name-based key scheme fails here first (ISC-7's finding, pinned as a test rather than a memory). **Honest about what the live run did NOT show:** the source was `first-run`, so restoring from a saved key was never exercised, and the probe says so *inside its PASS verdict* rather than letting a green over-read. **The snap/clamp composition is pinned by outcome, not by order** — `snapToEdge`'s own −72 is asserted directly before the composition, because clamp-then-snap and snap-then-clamp agree on every reachable input and a test claiming to discriminate them would be claiming discriminating power it does not have. **ISC-20's live half is refused rather than faked:** `onDragMove` reads `screen.getCursorScreenPoint()` by design, so a `sendInputEvent` drag moves the window by a zero delta, and the only real synthetic drag is `SetCursorPos` on his live desk — the same input-synthesis line ISC-14 already declined to cross. **S4's live-rect expectation was VOIDED by Phase 4 and re-earned — rule 17 in its literal form.** Phase 4 makes the window size a renderer decision (the renderer measures its content and main honours a `resize`), so S4 went to FAIL at `208x243 vs 232x260` with the **position exact and only the size wrong**. The expectation was stale, not the code: S4 now parses main's own `PROBE-SIZE` out of the app's stdout and compares against the last one, falling back to the constructor constants only when no resize was needed — **and names which source it used in both verdict branches**, because `232×260` proves nothing about the resize path. Back to 8/0/0. A non-blocking arm is not a waivable one |
 | ISC-21 / ISC-22 / ISC-23 (the five faces, the composited-property rule, the theme) | `bun run probe:display` — builds, then `scripts/probe-display.ts` launches `dist/main.js` five times into throwaway `--user-data-dir` profiles (one per face) with `--remote-debugging-port` + `--remote-allow-origins=*`, and harvests one in-page IIFE over CDP: **51 passed / 0 failed / 10 inconclusive / 0 blocking**. Plus `bun test` — `test/renderer-ids.test.ts`, `test/theme.test.ts`, `test/display-plan.test.ts`, `test/locale-key.test.ts` | **Read off the live document, never off the markup**, because three of the failures being guarded against cannot exist in a fake DOM: an unresolvable `<use>` renders nothing *with no console error*, a CSS declaration silently beats a presentation attribute, and a replaced inline element with no `#root { display: block }` collapses. **Only Chromium's cascade can answer the middle one**, which is why the CSS-shadowing claim is guarded twice — over the source in `renderer-ids.test.ts` and over the cascade in arm D5 — and neither check subsumes the other. **The reduction to five launches is logged at run start rather than hidden**: one launch per settings combination is the only route (main does not watch the settings file; CDP reaches the page but not `ipcRenderer`), and accent × face is not dropped for convenience since only the LCD reads the accent for anything beyond a paint, through a separately-tested pure function. **Two negative controls carry the two claims that would otherwise be vacuous**: three faces must produce *exactly one* DOM state across 3 s (a phrase face rewriting identical text every second passes every other arm in the file), and the dial decorations must be `display="none"` on the four cases that leave their **false defaults** alone (a probe that never sets those flags reads an empty dial as correct). **The memo is measured as an effect, not a count** — the bundle exports to no global, so CDP cannot see `setAttr`'s return value; the probe hashes `outerHTML` instead. **`harvestExpression` deliberately uses string concatenation and no template literals inside the page code**, since the file is already inside one and the nesting is how you get a probe that measures a syntax error. **Bounded, and the bounds are in the probe's own header:** no pixel is compared, no screenshot is taken, no paint-flash trace is captured, and the `text-before-edge` vs WPF `FontFamily.Baseline` offset is *recorded* by D10 (`#date y=110 bbox=97.23,110.00 81.47×21.00`) and **checked by nothing** |
 
+| ISC-24 / ISC-25 / ISC-26.1 / ISC-26.2 / ISC-26.6 (the driver, the click-through toggle, the pump's deviations, the opacity move, the two C# defects) | `bun test` — `test/ghost-driver.test.ts`, `test/ghost-fade.test.ts`, `test/ghost-rect.test.ts`, `test/opacity-step.test.ts`: **83 new tests, 2107 pass / 0 fail overall** (271,808 `expect()` calls, 43 files). Plus `bun run typecheck`, `bun run build`, and `bun run probe:shell` for S8's before-half | **Structurally typed like `window-placement.ts`, so the whole driver runs with literal fakes and no Electron on the path** — which is what makes the 30-ticks-per-second `markActive()` claim measurable at all rather than reasoned about. **The pure/platform split is the discriminator**: `FadePump.frame()` returns the number to write and lets the caller write it, so Bun drives the state machine, and `null` means *"do not write"* rather than *"write the same value again"* — collapsing those two would hide the guard-swallowed-write deviation entirely, because `svg.ts`'s memo makes them look identical from outside. **`isModifierHeld` is swept over all 256 (config × held) pairs against an independently formulated oracle with a `heldTrue === 65` count**, because the C# suite's own 12 rows all expect `false` in a test process and eleven of them pass against `return false`. **Bounded, and stated rather than left to infer:** none of this sees a real cursor, a real screen or a second platform — `setIgnoreMouseEvents` is one call on all three and has been read back off a live window on one |
+| ISC-26 (PERF-01) | `bun run probe:fade` — builds, then `scripts/probe-fade.ts` launches `probe-fade-app.cjs`, which constructs a window with `main.ts:137-157`'s options and runs **the shipped `FadePump` and a v4.4-shaped `win.setOpacity()`-from-main control** across 8 phases (idle / main-blocked / system-load / oversubscribed × both architectures), releasing each phase through a counter file: **7 of 8 blocking arms pass; F0 INCONCLUSIVE, exit 1** | **The negative control is itself a blocking arm, and that is the whole design.** A flat frame clock under a load that never arrived is indistinguishable from success, so F4 requires the control to degrade (measured 31.0 → 62.0 ms median, 63 ticks vs 145 in the same 4 s) before F5's green means anything. **The bar is derived, not tuned**: F4 compares medians against `BUSY_SPIN_MS` because `setInterval(16)` coalesces to ~31 ms on Windows even idle, so the first bar (`busy.max > idle.max × 2`) returned INCONCLUSIVE at exactly 64 > 64 on a load that had plainly arrived. **F6b and F7 refuse to over-claim in the direction the run favours**: 12 saturated cores of 32 starves nothing on this host, so F5 carries the claim rather than F6, and 100% oversubscription is reported as *"no limit found below full oversubscription"*, never as "immune". **F0 is why this row does not close the claim** — the session was locked, so the cadence was measured against a compositor that was not presenting, and the idle median of 12.7 ms is ~79 Hz, matching no standard refresh rate. F0 checks against 60/75/90/120/144/165/240 Hz and blocks. **The comparative result survives the lock; the absolute figures do not.** **Bounded:** Windows only, one host, and no probe has seen the real app fade under a real cursor — `ipcRenderer` is unreachable from CDP and `SendInput` would move Alex's own pointer |
+| ISC-26.3 / ISC-26.4 (does a transparent window actually composite; and was anyone looking) | `bun run probe:pixels` — `scripts/probe-pixels.ts` + `probe-pixels-app.cjs` + `screengrab.ps1`. **Currently INCONCLUSIVE, exit 0: the workstation is locked, so nothing is launched and nothing is measured** | **The first arm in this repo that reads a rendered pixel** — every other probe reads a decision, and `probe-display.ts:64` says so. **The backdrop is OURS, not the wallpaper**: the naive version captures the desktop, shows the transparent window, captures again and passes when they match — which also passes when a dark desktop sits under an opaque dark box. Magenta is chosen for being un-supplyable by any theme, wallpaper or Chromium default. **X2 is the control and is reported before X3 on purpose**: "still magenta" is equally what a window that never showed produces, so the same window with the same flags must turn the capture green when asked to paint opaque, or X3 is VOID and says so in its own verdict text. **The grid is not decoration** — a mean alone cannot tell magenta from a red/blue checker. **The rect is taken from the window's own reported bounds with a 12-DIP inset and multiplied by `scaleFactor`**, because the first run grabbed the *requested* rect, photographed the wallpaper and called it a failed paint; PowerShell is not per-monitor DPI aware. **`capturePage()` cannot answer this** — it captures the page's own surface, so a transparent page captures as transparent regardless of whether the OS honoured it. **The lock gate is the discriminator for the probe itself**: without it this file produced four specific, alarming, false FAILs, and `lib/session-lock.ts` fails OPEN so a broken query costs one contaminated run rather than permanently disabling every capture arm |
+
 ### Still outstanding
 
+- **The lock is now the top of this list, and it is one physical action that unblocks two claims.**
+  **Unlock the screen, then `bun run probe:pixels` and re-run `bun run probe:fade`.** The first settles
+  ISC-26.3 — whether transparency composites without `WS_EX_LAYERED` — and with it whether
+  `probe-shell.ts`'s S2 expectation gets corrected or the widget is genuinely painting a box. The second
+  turns ISC-26's provisional cadence figures into a claim about what a user sees. **Neither is a code
+  change and neither can be done from a tool call.** Until then `probe:shell` reads 7/1 and `probe:fade`
+  exits 1, both on purpose.
 - **Three Phase 3 arms need Alex's hands and nothing else.** (1) **Drag the widget**, including across
   the monitor seam, and check it lands inside the work area — ISC-20's live half, refused rather than
   synthesised because the only real synthetic drag moves his cursor. (2) **Restart the app** and confirm
@@ -1440,6 +1706,30 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **Phase 5 close-out, 2026-08-30. Ghost mode ships; one blocking gate is left RED on purpose and two
+  claims are blocked on an unlocked screen.** ISC-24 and ISC-25 closed, ISC-26 (PERF-01) closed as a
+  **comparative** claim and left `[~]` on its absolute figures, plus seven new sub-claims — ISC-26.1
+  (the pump's two deviations), 26.2 (the opacity product moved to the renderer on a platform
+  annotation), 26.3 (**the red S2 gate and the pixel instrument built for it**), 26.4 (the locked-session
+  contamination), 26.5 (three unowned features, one paid here and two moved to ISC-27), 26.6 (two C#
+  defects, one reproduced and one closed on a stated standard) and 26.7 (four platform facts, each after
+  a wrong first diagnosis). 8 files added / 6 changed, 3,482 new lines, **83 new tests → 2107 pass /
+  0 fail**.
+  - **The three decisions in this phase that were mine to make and are recorded rather than absorbed.**
+    (1) **No native module for global key state**, so the Ctrl+Alt override ships inert — a degradation
+    of shipped v4.2 behaviour, with four alternatives rejected on stated cost. (2) **`probe-pixels.ts`
+    was built rather than S2 relaxed.** The measured `WS_EX_LAYERED` table proves S2's *cause
+    attribution* was wrong from Phase 3 onward, and correcting the arm on that alone would still have
+    been rationalising a red gate, because no instrument in the tree could tell "the bit is irrelevant"
+    from "the widget is now an opaque box". (3) **The oversubscribed phases and the pixel subsystem are
+    past the plan's literal bar** — the first converts "passed the bar" into "no limit found below full
+    oversubscription", and the second was not optional: the alternative was a red blocking gate with no
+    path, or a silently relaxed arm whose green had been wrong.
+  - **The failure worth carrying out of this phase is not a bug, it is an instrument that lied
+    confidently.** `probe-pixels.ts` printed *"THE WIDGET IS PAINTING A BOX"* about a screen nobody was
+    looking at, and three plausible diagnoses came before the right one. Specific, alarming, wrong
+    output is worse than no probe — hence `lib/session-lock.ts`, which fails OPEN and reports
+    INCONCLUSIVE rather than FAIL.
 - **Phase 4 close-out, 2026-08-30.** ISC-21 and ISC-22 closed on `probe:display` (51/0/10/0-blocking
   across five launches); ISC-23 half-closed — the theme path measured through Chromium's cascade, the
   auto-contrast path left to `[FOG]`/Phase 8 rather than claimed. Two arms were added *after* a green

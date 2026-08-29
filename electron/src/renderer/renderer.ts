@@ -73,6 +73,7 @@ import {
 } from "../core/layout.js"
 import { STATS_PANEL_WIDTH, lineHeight } from "../core/text-metrics.js"
 import { parseAccentColor, resolveThemeColors } from "../core/display-colors.js"
+import { FadePump } from "../core/ghost-fade.js"
 import { phraseEngine } from "../core/phrase/engine.js"
 import { resolveLocaleKey } from "../core/phrase/locale-key.js"
 import type { AppSettings } from "../core/settings.js"
@@ -99,10 +100,19 @@ interface StatsSample {
   uptimeSec: number
 }
 
+/** The ghost channel's payload. Every field optional: main sends only what moved. */
+interface GhostState {
+  readonly ratio?: number
+  readonly menuOpen?: boolean
+  readonly reset?: boolean
+}
+
 interface FuzzyClockApi {
   /** Main pushes the whole settings object on every change, and once in reply to `ready()`. */
   onSettings(callback: (settings: AppSettings) => void): void
   onStats(callback: (sample: StatsSample) => void): void
+  /** The fade target and its pins. See `core/ghost-fade.ts` for why the animation is on this side. */
+  onGhost(callback: (state: GhostState) => void): void
   /** "I am listening" — main replies with the current settings. See `init()`. */
   ready(): void
   /** The content-measured window size. Main calls `setSize` and re-clamps to the work area. */
@@ -112,6 +122,8 @@ interface FuzzyClockApi {
   dragMove(): void
   dragEnd(): void
   contextMenu(): void
+  /** +1 brighter, -1 dimmer. Main clamps and persists; see `core/opacity-step.ts`. */
+  adjustOpacity(direction: number): void
 }
 
 declare global {
@@ -218,6 +230,34 @@ function init(): void {
   let dateDirty = true
 
   /**
+   * Ghost mode's renderer half (PERF-01): main sends where the fade is going, this side interpolates.
+   *
+   * `core/ghost-fade.ts` carries the whole argument for that split and the two deviations from
+   * `OnRenderingTick` that make it survivable. Only three things are left for this file, and all three are
+   * things main cannot see: the frame clock, the element the opacity goes on, and whether a drag is live.
+   */
+  const fade = new FadePump()
+  /** RMB-04's `_menuOpen`, pushed from main on the ghost channel. A pin, not a target. */
+  let menuOpen = false
+  /**
+   * The live `requestAnimationFrame` handle, or null when the pump is detached.
+   *
+   * Detaching rather than spinning a no-op frame is FADE-04's counterpart: `OnGhostEnabledChanged` removes
+   * the `CompositionTarget.Rendering` handler outright, so a converged or disabled fade costs the
+   * compositor nothing. A loop that woke 60 times a second to compare two equal numbers would read as
+   * "the fade is cheap" on a CPU probe while still keeping this renderer's frame production alive — the
+   * exact confusion `painted()` exists to prevent elsewhere in this file.
+   */
+  let fadeFrame: number | null = null
+  /**
+   * The pointer id of the drag in progress, or null.
+   *
+   * Declared up here rather than beside its handlers because the fade pump reads it as `FadeGuards.dragging`
+   * and is defined above them. The four notes that matter are on the drag block at the bottom.
+   */
+  let dragPointerId: number | null = null
+
+  /**
    * The stats panel's internal geometry, in panel-local coordinates.
    *
    * Written from `statsLayout()` rather than authored in `index.html`, because Phase 6's per-row
@@ -298,6 +338,53 @@ function init(): void {
     setAttr(statsEl, "transform", `translate(${String(at.stats.x)} ${String(at.stats.y)})`)
   }
 
+  /**
+   * The one place the window's opacity is written. Four decimal places, deliberately.
+   *
+   * `setAttr` stringifies a number with `String` and never rounds — its own doc says so — which makes
+   * precision the call site's job, as it already is for a bar width. 1e-4 is 0.0255 of one 8-bit alpha
+   * level, finer than the compositor can render, and it lets the memo collapse the tail of a fade instead
+   * of writing a fresh 17-digit string every frame while the asymptote crawls.
+   *
+   * A presentation attribute on `#root` rather than a stylesheet rule, because the CSP ships no
+   * `unsafe-inline` and a CSS declaration BEATS a presentation attribute. So `opacity` joins the colours on
+   * the property list `test/renderer-ids.test.ts` forbids `index.css` from declaring: a single
+   * `#root { opacity: 1 }` there would leave the fade running, the ratio moving, and nothing on screen.
+   */
+  const writeOpacity = (value: number): void => {
+    setAttr(rootEl, "opacity", value.toFixed(4))
+  }
+
+  /**
+   * One fade frame, then either another or a detach. See {@link fadeFrame} for why detaching matters.
+   *
+   * The stop condition is `"converged"` and nothing else, because that is the only state with no work left:
+   * a guard-skipped frame has a write *owed* (deviation 2 in `core/ghost-fade.ts`), so the loop has to stay
+   * attached across a menu or a drag and land it the moment the guard lifts. That means a held guard spins
+   * this at frame rate, which is what WPF does too — its `Rendering` handler is not detached by `_menuOpen`
+   * — and it is why the tray's pin carries a 30-second watchdog.
+   *
+   * `settingsOpen` is a literal `false`: there is no settings window yet (ISC-32). Passed rather than
+   * omitted so the guard is a wired input with one known caller to change, instead of a hole to rediscover.
+   */
+  const pumpFade = (nowMs: number): void => {
+    fadeFrame = null
+    const frame = fade.frame(nowMs, { dragging: dragPointerId !== null, settingsOpen: false, menuOpen })
+    if (frame.opacity !== null) writeOpacity(frame.opacity)
+    if (frame.skipped !== "converged") fadeFrame = requestAnimationFrame(pumpFade)
+  }
+
+  const startFade = (): void => {
+    if (fadeFrame !== null) return
+    fadeFrame = requestAnimationFrame(pumpFade)
+  }
+
+  const stopFade = (): void => {
+    if (fadeFrame === null) return
+    cancelAnimationFrame(fadeFrame)
+    fadeFrame = null
+  }
+
   const tick = (): void => {
     const current = settings
     if (current === null) return
@@ -369,6 +456,13 @@ function init(): void {
     setVisible(statsEl, next.statsVisible)
     layoutStats()
 
+    // The whole opacity product lives on this side now, window alpha included — `core/ghost-fade.ts` records
+    // why main stopped calling `setOpacity`. The direct write is REQUIRED and not belt-and-braces: at
+    // startup and after any settings change the pump is converged, so it returns a null opacity, and the
+    // user's saved opacity would never reach the DOM at all.
+    fade.setWindowOpacity(next.opacity)
+    writeOpacity(fade.visibleOpacity())
+
     dateDirty = true
     // Tick now rather than waiting up to a second: this is the push that has to complete a
     // measure-then-size cycle before `ready-to-show` fires, or the window is shown at the placeholder
@@ -381,11 +475,38 @@ function init(): void {
     setText(uptimeEl, formatUptime(sample.uptimeSec))
   }
 
+  /**
+   * A ghost push. Every field is optional and main sends one at a time, but any combination is handled.
+   *
+   * The pin is applied before the target is read, which is `OnRenderingTick`'s own order — though here it
+   * genuinely cannot matter, since both only take effect in the next frame rather than in this call.
+   */
+  const applyGhost = (state: GhostState): void => {
+    if (state.menuOpen !== undefined) menuOpen = state.menuOpen
+    if (state.reset === true) {
+      // Both edges that produce a reset — ghost mode disabled, and the full retreat that fires `Restored` —
+      // snap rather than fade back. `SetGhostModeEnabled(false)` writes `Opacity = _windowOpacity` directly,
+      // and a `Restored` means the cursor has already left the halo: animating a return to a state the user
+      // is no longer near is motion nobody asked for. Snapping also means this write cannot be swallowed by
+      // a guard, which is what makes the disable edge safe to take mid-drag.
+      fade.restore()
+      stopFade()
+      writeOpacity(fade.visibleOpacity())
+      return
+    }
+    if (state.ratio !== undefined) fade.setTarget(state.ratio)
+    // Unconditional, and that covers the case a `menuOpen`-only message creates: the pump may be detached at
+    // a non-zero ratio with a write owed from the instant the pin lifts. One frame that finds nothing to do
+    // returns `"converged"` and detaches itself again, so the cost of being wrong here is a single frame.
+    startFade()
+  }
+
   // Listeners BEFORE `ready()`. `webContents.send` into a renderer with no listener on that channel is
   // dropped silently, so a `ready()` that raced the registration would leave the clock on null settings
   // forever — with no error anywhere.
   window.fuzzyclock.onSettings(applySettings)
   window.fuzzyclock.onStats(applyStats)
+  window.fuzzyclock.onGhost(applyGhost)
   window.fuzzyclock.ready()
 
   setInterval(tick, TICK_MS)
@@ -408,9 +529,9 @@ function init(): void {
    *   4. **`pointercancel` ends the drag too.** The OS takes the pointer away on a session lock or a
    *      touch gesture being reinterpreted, and `pointerup` never arrives — leaving main convinced a drag
    *      is still in progress, which suppresses the context menu (RMB-02) until the next click.
+   *
+   * `dragPointerId` itself is declared with the other renderer state, because the fade pump reads it.
    */
-  let dragPointerId: number | null = null
-
   document.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return
     dragPointerId = event.pointerId
@@ -442,6 +563,31 @@ function init(): void {
     event.preventDefault()
     window.fuzzyclock.contextMenu()
   })
+
+  /**
+   * `Window_PreviewMouseWheel`: one notch is one 10% opacity step.
+   *
+   * Only the SIGN crosses the bridge, and it is inverted here rather than in `core/opacity-step.ts` — that
+   * module takes a direction, while "up is negative" is a DOM fact about `WheelEvent` that WPF's `e.Delta`
+   * reverses. Sending the raw delta would put a `deltaMode` and a device sensitivity on the wire for a
+   * setting that moves in tenths.
+   */
+  document.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault()
+      const direction = -Math.sign(event.deltaY)
+      // A horizontal-only scroll is a real event with `deltaY === 0`, and main would treat 0 as a no-op
+      // anyway. Returning here keeps a trackpad's sideways drift off the IPC channel entirely.
+      if (direction === 0) return
+      window.fuzzyclock.adjustOpacity(direction)
+    },
+    // Not passive. Chromium treats a `wheel` listener on `document` as passive by default, and
+    // `preventDefault` inside a passive listener is ignored with a console warning — so without this the
+    // page would scroll as well. Invisible on a document with no overflow, until a face is added that has
+    // some, at which point the widget's own content would slide under the wheel.
+    { passive: false },
+  )
 }
 
 // The one top-level DOM access in this directory, and the reason for the rule: Bun has to be able to

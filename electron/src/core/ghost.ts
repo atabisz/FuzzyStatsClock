@@ -179,6 +179,42 @@ export class GhostSampler {
     this.#isGhostMode = true
   }
 
+  /**
+   * The disable edge: forget both remembered things, because no future tick can clear either.
+   *
+   * The first write is the C#'s, and it is the reason `_isGhostMode` is `internal` rather than private
+   * there. `MainWindow.SetGhostModeEnabled(false)` writes `_ghostMode._isGhostMode = false` directly,
+   * because once `IsEnabled` is false `OnSampleThreadTick` returns before the restore branch and **no
+   * future tick can ever clear it**. Without it the flag stays set while the window style has been
+   * cleared, so a re-enable with the cursor still over the widget computes ratio 1.0 against an
+   * already-active state, emits `"none"`, and leaves a widget that is faded to invisible but NOT
+   * click-through -- curable only by a restart. The C# calls that write one-shot on the disable edge and
+   * explicitly not part of the sampler's single-owner contract (D-06); the same is true here, and
+   * `main/ghost.ts` is its only caller.
+   *
+   * ## The second write is a DEVIATION, and it closes the mirror image of that same defect
+   *
+   * `_lastProximityRatio` has no reset anywhere in the C# -- measured by reading every writer of it, which
+   * is this method's counterpart at GhostModeController.cs:441 and nothing else. So in the WPF app a
+   * re-enable with the cursor parked over the widget computes ratio 1.0 against a remembered 1.0, reports
+   * `RatioChanged = false`, and never raises `ProximityChanged` -- while the transition IS `Activate`, so
+   * `WS_EX_TRANSPARENT` goes back on. The widget is then click-through at FULL opacity: unclickable and
+   * showing no sign of why. It self-heals as soon as the cursor moves somewhere with a different ratio,
+   * which is what keeps it out of the restart-only class the flag above is in, and is also why it survived
+   * in the C# -- the tray menu is the only way to toggle ghost mode there, and using it puts the cursor at
+   * the other end of the screen.
+   *
+   * Closed rather than reproduced, because a fully-visible widget that ignores clicks reads as a broken
+   * app rather than as a one-DIP geometry difference -- the standard this port uses for whether an
+   * observed C# defect is ported faithfully or named and fixed. Clearing it to 0 is safe in the other
+   * direction too: a re-enable with the cursor far from the widget computes 0 against a remembered 0 and
+   * still reports no edge, which is correct, because the renderer is already at full opacity.
+   */
+  deactivate(): void {
+    this.#isGhostMode = false
+    this.#lastProximityRatio = 0
+  }
+
   onTick(
     cursorX: number,
     cursorY: number,
