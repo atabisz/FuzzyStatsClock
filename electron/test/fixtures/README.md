@@ -7,8 +7,9 @@ tested on one machine.
 
 The Windows captures are written by `bun scripts/capture-fixture.ts`. Do not hand-edit them.
 
-Two files here are **not** captures: `phrase-golden-*.tsv` are generated from the C# providers as
-the ISC-13 translation oracle. They follow different rules — see the section on them below.
+Four files here are **not** captures. `phrase-golden-*.tsv` are generated from the C# providers as
+the ISC-13 translation oracle, and `wpf-geometry.tsv` / `wpf-layout.tsv` are measurements of the
+running WPF controls. Both pairs follow different rules — see their sections below.
 
 The **macOS captures were taken on a host this machine cannot reach** (an Apple M1 laptop,
 macOS 26.6.2 arm64, via `mcp__mac-codex__codex` on 2026-08-28) and were transcribed here by
@@ -52,6 +53,79 @@ alone; they are meaningless once the processes are gone.
 | `macos-ioreg-agxaccelerator.txt` | One line of `ioreg -r -c AGXAccelerator -l`, holding `"Device Utilization %"=26`. This is the **unprivileged macOS GPU source** the plan assumed did not exist — see the note below. |
 | `phrase-golden-segments.tsv` | The ISC-13 oracle, part 1: `GetSegmentKey` for all 1440 minutes × 18 locales = 25,920 rows. Deterministic by the `IPhraseProvider` contract. For the 8 single-template locales this is also the complete phrase output. |
 | `phrase-golden-candidates.tsv` | The ISC-13 oracle, part 2: the **complete candidate set** per bucket for the 10 locales whose `GetPhrase` picks at random — 12,984 rows. See the note below; this one is not a capture, it is generated, and the distinction matters. |
+| `wpf-geometry.tsv` | Phase 4's display measurements, read off the **real** `SevenSegmentDigit` and `NixieDigit` controls — 602 lines: 23 header lines and 579 data rows across 23 blocks. See the section below. |
+| `wpf-layout.tsv` | Phase 4's layout measurements: WPF font line heights and the two clock views' `DesiredSize` — 100 lines: 4 headers and 96 data rows. Same section. |
+
+## About the two `wpf-*.tsv` measurement fixtures
+
+These are the port's answer to a question no amount of reading the C# settles: **what does WPF
+actually compute?** They are stdout from `dotnet run` on a probe in `%TEMP%/fc-appprobe`, which
+`<Page Include>`s `SevenSegmentDigit.xaml`, `NixieDigit.xaml`, `LcdClockView.xaml` and
+`NixieClockView.xaml` into its own assembly with `<Generator>MSBuild:Compile</Generator>`. So
+`InitializeComponent()` exists, the shipped private `RebuildGeometry()` runs, and the numbers are the
+real controls' rather than a replica's arithmetic. Read by `test/lib/wpf-fixture.ts`.
+
+**Format:** tab-separated; the first field is the row tag; a `#`-prefixed line is the column header
+for the tag that follows the `#`. Every number is `G17`, so it round-trips through `Number()` to the
+same double .NET had — which is what lets most assertions be exact rather than toleranced.
+
+**These are not captures and not generated-from-source either.** Re-running the probe rewrites them,
+like the phrase-golden files; unlike those, the probe has to be rebuilt from a tree that still has the
+WPF app in it. That matters for ISC-31: **deleting `FuzzyClock.App` makes these unreproducible.**
+Both regenerations so far diffed clean against the prior copy apart from the intended new rows, so the
+probe is deterministic — but its inputs are the very thing Phase 9 removes.
+
+**The only fixtures here NOT marked `-text`, on purpose.** `wpf-fixture.ts` splits on `/\r?\n/`, so
+unlike the `typeperf` captures, the macOS captures and the phrase-golden oracle — every one of which is
+byte-exact and pinned with `-text` in `.gitattributes` — nothing here depends on the line endings. So
+these two follow the repo's ordinary `* text=auto eol=crlf` policy instead, which is what makes a
+regeneration diff readable: the probe is `dotnet run` on Windows and emits CRLF, so redirecting its
+stdout straight over the file matches the working tree and diffs down to the rows that actually changed.
+Pinning them LF would make every regeneration a whole-file diff for no gain. The copies currently on this
+disk are LF, from a `tr -d '\r'` that predates working this out; git stores LF either way, so a fresh
+checkout gets CRLF and neither the parser nor any test can tell.
+
+**What is measured, what is transcribed, and what is only declared** — the distinction is the point
+of these files, and each level is worth a different amount:
+
+- **Measured on the compiled controls.** All the `seg-*` and `nix-*` blocks, `lcd-view`, `nixie-view`,
+  `text-line`, `text-size`, `accent-parse`, `dim-alpha`, `wrap-threshold`.
+- **Transcribed formulas the probe re-states.** The four `dial-*` blocks and `nix-flicker`.
+  `InitDialDecorations` and `UpdateDialDisplay` are private methods on a 2,221-line `MainWindow` with a
+  tray icon and a settings service behind it, so the probe cannot call them. What those rows therefore
+  prove is that **.NET's `Math.Sin`/`Math.Cos` agree with V8's** at the exact arguments the loops
+  produce — which is the part that could genuinely differ — and *not* that the transcription matches
+  MainWindow. Both `GeomProbe.cs` and `dial-geometry.test.ts` say so in their headers.
+- **Declared, and deliberately absent.** Padding 12, the two 8px row gaps, the 2px stats-child margin,
+  the 184px panel width, the 8px bar height, the 80×80 dial. These are literals in `MainWindow.xaml`,
+  and a probe measuring them would only be measuring my ability to copy a number.
+
+**`nixie-view` and `nixie-view-repath` are the same three sizes measured twice, and they disagree at
+Medium on purpose.** `NixieClockView.SizeProperty` is registered
+`new PropertyMetadata(LcdSize.Medium, OnSizePropertyChanged)`, so `new NixieClockView { Size = Medium }`
+writes the value the property already holds, WPF raises no change notification, and `OnSizeChanged()` —
+the only code that rescales the colon dots — never runs. The digits come out right anyway because
+`NixieDigit.DigitHeight` also defaults to `56.0`; the dots stay at the XAML's literal `Width="8"`
+instead of `56 * 0.13 = 7.28`, making the view 0.72px wider. So **a Medium Nixie's colon width depends
+on the path taken to reach Medium in the shipped app**: 8 if it started there, 7.28 after any switch
+away and back. Small and Large are identical on both paths, because their sizes differ from the
+registered default and the callback always fires. The port computes from the size every time, so it
+matches `nixie-view-repath` and necessarily differs from `nixie-view` at Medium — asserted as a
+divergence in `layout.test.ts` rather than averaged away.
+
+**Two blocks record deliberate divergences rather than parity.** `accent-parse` includes `Red` and
+`Transparent`, which `ColorConverter` resolves (to `255,255,0,0` and to a *transparent white*,
+`a=0 rgb=255,255,255`) and `parseAccentColor` does not — it handles the four hex shapes and falls back
+to white, because no code path in the app can write a colour name into the settings file. And the
+`text-line` rows carry a `widthOfSample` column that **nothing asserts**: a text width is a property of
+the installed font file, and "Segoe UI Light" is absent on macOS and Linux, so asserting those widths
+would pass here and fail on a Mac for a reason that is not a defect.
+
+**`text-size` includes 45 and 90 for one specific reason.** `45 * 1.40` is `62.99999999999999` as a
+double — the exact product *is* 63 and the double lands just under it — so C#'s `(int)` gives **62**.
+That is the only shape in which the floating-point error changes the truncated result, it is reachable
+through a hand-edited settings file, and `Math.Round` gets it wrong. Measured rather than argued from
+IEEE-754.
 
 ## About the two phrase-golden files
 
