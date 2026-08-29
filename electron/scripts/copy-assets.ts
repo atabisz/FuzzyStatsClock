@@ -21,6 +21,16 @@ const DIST = join(ROOT, "dist")
 /** Copied verbatim from `src/renderer/` — no transform, so no build step can alter them. */
 const ASSETS = ["index.html", "index.css"]
 
+/**
+ * Copied from `assets/` — the tray icon, resolved by `main.ts` as `join(HERE, "icon.png")`.
+ *
+ * Verified for existence like everything else here, and for the same reason: `nativeImage.createFromPath`
+ * on a missing file returns an EMPTY image rather than throwing, `new Tray(empty)` succeeds, and the
+ * result is a tray slot showing nothing. `main/tray.ts` logs that case, but a build that cannot produce
+ * a tray icon should fail at the build rather than at the user.
+ */
+const ROOT_ASSETS = ["icon.png"]
+
 /** Written by the `build:*` bundle steps that must have run before this one. */
 const REQUIRED_BUNDLES = ["main.js", "preload.cjs", "renderer.js"]
 
@@ -35,6 +45,15 @@ for (const name of ASSETS) {
   copyFileSync(from, join(DIST, name))
 }
 
+for (const name of ROOT_ASSETS) {
+  const from = join(ROOT, "assets", name)
+  if (!existsSync(from)) {
+    console.error(`copy-assets: ${name} missing from assets/ — run \`bun scripts/extract-icon.ts\``)
+    process.exit(1)
+  }
+  copyFileSync(from, join(DIST, name))
+}
+
 const missing = REQUIRED_BUNDLES.filter((name) => !existsSync(join(DIST, name)))
 if (missing.length > 0) {
   console.error(
@@ -44,4 +63,4 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
-console.log(`copy-assets: ${ASSETS.join(", ")} → dist/, bundles present`)
+console.log(`copy-assets: ${[...ASSETS, ...ROOT_ASSETS].join(", ")} → dist/, bundles present`)

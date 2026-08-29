@@ -48,6 +48,10 @@ interface StatsSample {
 interface FuzzyClockApi {
   onStats(callback: (sample: StatsSample) => void): void
   painted(): void
+  dragStart(): void
+  dragMove(): void
+  dragEnd(): void
+  contextMenu(): void
 }
 
 declare global {
@@ -152,3 +156,57 @@ function render(sample: StatsSample): void {
 }
 
 window.fuzzyclock.onStats(render)
+
+/**
+ * Drag-to-move and right-click, the renderer's half.
+ *
+ * `MainWindow.Grid_MouseLeftButtonDown` is where the WPF app calls `DragMove()`; this is that handler,
+ * except the movement itself happens in main. Four notes, each of which is a bug avoided:
+ *
+ *   1. **`document`, not `#root`.** SVG shapes only receive pointer events where they are painted, so
+ *      binding to the `<svg>` would make the 12px transparent strip below the panel dead to a drag —
+ *      and the WPF handler is on the root Grid, which covers everything.
+ *   2. **Pointer capture.** Without it a fast drag outstrips the window, the cursor leaves it, and the
+ *      moves stop arriving mid-gesture: the widget stalls and then jumps on the next event inside it.
+ *      Capture keeps the whole gesture addressed to this document however far the cursor gets.
+ *   3. **No throttle on `pointermove`.** Every move is an IPC message and a `setPosition`, and that is
+ *      the point: `DragMove` is a Win32 modal loop doing exactly this per mouse message. Coalescing
+ *      them would make the window lag the cursor, which is the one thing a drag must not do.
+ *   4. **`pointercancel` ends the drag too.** The OS takes the pointer away on a session lock or a
+ *      touch gesture being reinterpreted, and `pointerup` never arrives — leaving main convinced a drag
+ *      is still in progress, which suppresses the context menu (RMB-02) until the next click.
+ */
+const rootEl = element<SVGSVGElement>("root")
+let dragPointerId: number | null = null
+
+document.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return
+  dragPointerId = event.pointerId
+  rootEl.setPointerCapture(event.pointerId)
+  window.fuzzyclock.dragStart()
+  // Suppresses text selection and the native image drag; neither is meaningful on an overlay, and both
+  // leave the cursor in a drag state the window does not follow.
+  event.preventDefault()
+})
+
+document.addEventListener("pointermove", () => {
+  if (dragPointerId === null) return
+  window.fuzzyclock.dragMove()
+})
+
+function endDrag(): void {
+  if (dragPointerId === null) return
+  if (rootEl.hasPointerCapture(dragPointerId)) rootEl.releasePointerCapture(dragPointerId)
+  dragPointerId = null
+  window.fuzzyclock.dragEnd()
+}
+
+document.addEventListener("pointerup", endDrag)
+document.addEventListener("pointercancel", endDrag)
+
+document.addEventListener("contextmenu", (event) => {
+  // Chromium's own menu would appear over the widget with Reload/Inspect on it. Main decides whether
+  // the tray menu opens at all (RMB-02/RMB-03).
+  event.preventDefault()
+  window.fuzzyclock.contextMenu()
+})
