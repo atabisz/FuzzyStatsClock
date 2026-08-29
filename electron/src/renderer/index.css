@@ -1,6 +1,33 @@
 /*
- * A separate stylesheet rather than a `style` attribute, because the CSP in
- * index.html has no `unsafe-inline`. Inline styles would silently not apply.
+ * A separate stylesheet rather than `style` attributes, because index.html's CSP is
+ * `style-src 'self'` with no `unsafe-inline` — an inline style would silently not apply.
+ *
+ * ## This file is deliberately almost empty, and that is the invariant
+ *
+ * **A CSS declaration beats a presentation attribute.** Every colour, font family, font
+ * size, stroke width and coordinate in this renderer is a presentation attribute written
+ * by `applyTheme()`, by a face, or by `renderer.ts` from `core/layout.ts`. So a rule here
+ * on any selector that matches one of those elements does not "style" it — it *overrides
+ * the code that is supposed to own it*, permanently and silently.
+ *
+ * The previous revision did exactly that: `text { font-family; fill }` plus per-class
+ * `font-size` and `fill`, which would have defeated `applyTheme` on all 26 targets and
+ * `fontStackFor()` on all four styled texts. The defaults now live as inherited
+ * presentation attributes on `#root`, where a per-element attribute can beat them.
+ *
+ * So the rules below are only the ones with no attribute writer, and the class hooks the
+ * faces attach (`.lcdSeg`, `.nixieTube`, `.dialDot`, `.phraseLine`, …) deliberately have
+ * NO rules — they exist so `scripts/probe-display.ts` can select them.
+ *
+ * Specifically forbidden here, each because a real element depends on the attribute:
+ *   - `fill` or `font-family` on `text` or any themed id — see above.
+ *   - `stroke` or `stroke-width` on `.nixieGlow` / `.nixieGhost`. The bloom is four
+ *     `<use>` copies of one path at four widths; a width declared here would flatten all
+ *     four layers into one and there would be no glow.
+ *   - `stroke-width` on `.dialTick`. It is inherited from `<g id="hourTicks">`, which
+ *     mirrors `TICK_STROKE_WIDTH`.
+ *   - `transform` / `transform-origin` on the hands. They rotate via the SVG `transform`
+ *     attribute, which needs neither; see `handTransform()`.
  */
 
 html,
@@ -16,44 +43,31 @@ body {
   cursor: default;
 }
 
-/* "Segoe UI Light" is the WPF original's face. The fallbacks are what macOS and
-   Linux actually have — a missing font falls back to a heavier default and changes
-   the measured width of every string, which is visible as jitter. */
-text {
-  font-family: "Segoe UI Light", "Segoe UI", "Helvetica Neue", "DejaVu Sans", sans-serif;
-  fill: white;
+/* An `<svg>` is a replaced INLINE element, so the body's line box adds a descender gap
+   under it and the document ends up a few pixels taller than the window. With
+   `overflow: hidden` that reads as the widget sitting too high inside its own panel. */
+#root {
+  display: block;
 }
 
-.phrase {
-  font-size: 32px;
+/* The dial's hour numbers, and the only two properties in this file that no code writes.
+   `dial-face.ts` positions them at `hourNumbers()`'s radial centre (`cx`/`cy`) rather
+   than at WPF's hand-computed top-left (`cx - 4.0`, `cy - 4.5`), so the centring is the
+   renderer's job: `middle` centres the real advance width, and `central` centres the
+   glyph box between ascender and descender. WPF's 4.0/4.5 are half of a box it assumed;
+   these are half of the box the font actually has. */
+.dialNumber {
   text-anchor: middle;
+  dominant-baseline: central;
 }
 
-.date {
-  font-size: 26px;
-  text-anchor: middle;
-  fill: rgba(255, 255, 255, 0.8);
-}
-
-.label {
-  font-size: 12px;
-}
-
-.value {
-  font-size: 12px;
-  /* Right-aligned into the fixed 36px column, so "100%" and "9%" occupy the same
-     slot and the panel does not resize under them. */
-  text-anchor: end;
-}
-
-.track {
-  fill: rgba(255, 255, 255, 0.25);
-}
-
-.bar {
-  fill: white;
-}
-
-.line {
-  font-size: 11px;
+/* The lit glyph's four glow layers and the ten unlit cathodes are stroked outlines, so
+   they must not be filled. Round joins are `RebuildGeometry`'s
+   `StrokeLineJoin`/`StrokeLineCap` on every `Path` it creates. Stroke COLOUR and WIDTH
+   are attributes on each element — see the header. */
+.nixieGlow,
+.nixieGhost {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }

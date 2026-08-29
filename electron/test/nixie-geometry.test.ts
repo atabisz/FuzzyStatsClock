@@ -32,6 +32,8 @@
  */
 import { describe, expect, test } from "bun:test"
 import {
+  COLON_DOT_GAP,
+  COLON_SIDE_MARGIN,
   DIGIT_PATHS,
   DIGIT_PATH_HEIGHT,
   DIGIT_PATH_WIDTH,
@@ -42,6 +44,7 @@ import {
   flickerStep,
   flickerTarget,
   glowOpacity,
+  nixieColonPanel,
   nixieTransform,
 } from "../src/core/nixie-geometry.js"
 import { geometryFixture, num, rows } from "./lib/wpf-fixture.js"
@@ -320,6 +323,57 @@ describe("the cathode paths", () => {
       // introducing a WPF-only command (or a relative one, where the two differ in practice) fails here.
       expect(d).toMatch(/^[MLCAZ0-9 ,.-]+$/)
       expect(d.startsWith("M ")).toBe(true)
+    }
+  })
+})
+
+describe("the colon panel", () => {
+  // Every reachable digit height, read from the fixture rather than listed, so a new size tier is covered
+  // the moment it is measured.
+  const digitHeights = rows(fixture, "nix-metrics").map((r) => num(r, 0))
+
+  test("covers all three measured sizes", () => {
+    expect(digitHeights).toHaveLength(3)
+  })
+
+  test("the width is the two margins plus the dot, and only the dot scales", () => {
+    for (const digitHeight of digitHeights) {
+      const geometry = buildNixieDigit(digitHeight)
+      const panel = nixieColonPanel(digitHeight, geometry.height)
+      expect(panel.dotSize).toBe(colonDotSize(digitHeight))
+      expect(panel.width).toBe(2 * COLON_SIDE_MARGIN + panel.dotSize)
+      // The margin is the same absolute 4 at every size -- the C# rescales only the diameter. So the
+      // panel's non-dot width is a constant, which is the property that makes the colon look tighter at
+      // Large than at Small. `toBeCloseTo` rather than `toBe`: subtracting a `h * 0.13` back out of a sum
+      // it was added into loses an ulp (7.999999999999999 at digitHeight 30), and it is the *arithmetic
+      // here* that is inexact -- the line above asserts the exact identity the implementation computes.
+      expect(panel.width - panel.dotSize).toBeCloseTo(2 * COLON_SIDE_MARGIN, 12)
+      expect(panel.dotX).toBe(COLON_SIDE_MARGIN)
+    }
+  })
+
+  test("the two dots are one gap apart and the stack is vertically centred in the tube", () => {
+    for (const digitHeight of digitHeights) {
+      const geometry = buildNixieDigit(digitHeight)
+      const panel = nixieColonPanel(digitHeight, geometry.height)
+      expect(panel.dot2Y - panel.dot1Y).toBe(panel.dotSize + COLON_DOT_GAP)
+      // `VerticalAlignment="Center"`: the space above the first dot equals the space below the second.
+      const above = panel.dot1Y
+      const below = geometry.height - (panel.dot2Y + panel.dotSize)
+      expect(below).toBeCloseTo(above, 12)
+      expect(above).toBeGreaterThan(0)
+    }
+  })
+
+  test("the gap is the dot's bottom margin and not a derived fraction", () => {
+    // `Margin="4,0,4,6"` on ColonDot1 and `"4,0,4,0"` on ColonDot2. Both literals, so the gap does not
+    // move with the size -- asserted across all three because a fraction of the height would look correct
+    // at any single size and only show up as a difference between them. Recovering the gap needs a
+    // subtraction, so the comparison is to 12 places rather than exact; the three recovered values span
+    // 5.999999999999999 to 6.000000000000001, which is noise and not a scaling.
+    for (const digitHeight of digitHeights) {
+      const panel = nixieColonPanel(digitHeight, buildNixieDigit(digitHeight).height)
+      expect(panel.dot2Y - panel.dot1Y - panel.dotSize).toBeCloseTo(COLON_DOT_GAP, 12)
     }
   })
 })

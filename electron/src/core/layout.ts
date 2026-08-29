@@ -23,7 +23,9 @@
  * rows and the date row's own font. The Nixie
  * Large case (276) was found first and is real, but it is not the widest, which is why the number here
  * comes from the enumeration in `test/layout.test.ts` rather than from the mode that happened to be
- * measured first. The **tallest is 299** (`phrase/Split/fs=40/date=true/stats=true`), at 208 wide. And
+ * measured first. The **tallest is 299** (`phrase/Split/fs=40/date=true/stats=true`), at 208 wide -- and
+ * it survives the wrap path, which was not obvious: a two-line phrase reaches 298 and no further, because
+ * wrapping needs a non-Split style and Split's own two rows are the taller pair. And
  * the smallest reachable digit face is **111 x 60** (a bare LCD at font size 16), so the shell cannot
  * simply be enlarged either: a window sized for both maxima would surround that one with 250px of empty,
  * click-catching surface.
@@ -54,9 +56,45 @@
  * neither. `Hidden` would have kept the space -- the C# uses `Collapsed` for both, and this is the
  * difference between a window that tightens when you hide the date and one that keeps a gap where the
  * date used to be.
+ *
+ * ## The date row is one of the three rows the width is the max of, and this module used to forget it
+ *
+ * Measured, `lay-arrange` in `wpf-layout.tsv`: the `dial` config -- an 80px face and a visible 184px
+ * stats panel -- arranges **247.27** wide. Neither of the two rows this module knew about produced that
+ * number; the third one did. `DateBorder` has no `Width` and the default `HorizontalAlignment`, so it
+ * stretches, its desired width is `DateText`'s, and the `Grid`'s single implicit column is the max over
+ * all three rows. Reading the markup gives two rows, and two rows is a clipped date.
+ *
+ * So `windowLayout` takes a **`dateWidth`**, measured by the renderer exactly as `phraseWidth` is. It
+ * defaults to 0, which is the same shape `phraseLines` uses and keeps the settings-space enumeration in
+ * `test/layout.test.ts` a statement about the face and stats rows alone -- **which is why the 366 above
+ * is scoped to those two rows and is not the widest reachable window.** The widest date row measured is
+ * **422.24**: Consolas at date size 32 rendering `"Donnerstag, September 30"`, the longest string
+ * `dddd, MMMM d` can produce in the widest of `SetTextStyle`'s three families. That is a 446-wide
+ * window, and the reason a resize clamp cannot be written against a constant.
+ *
+ * ## Stretch with an explicit Width is CENTRED, not left-aligned
+ *
+ * `DialCanvas` is `Width="80"` and `StatsPanel` is `Width="184"`, and neither declares a
+ * `HorizontalAlignment`. The default is `Stretch`, which reads as "left edge at 0" -- but
+ * `FrameworkElement.ComputeAlignmentOffset` sends `Stretch` down the **same branch as `Center`** once an
+ * explicit `Width` has stopped the element filling its slot. Both are therefore centred in a wider row.
+ * Measured rather than argued from the framework source, because the consequence is large and silent: at
+ * the `dial` config above the canvas sits at x=95.63 rather than 12, and under the widest LCD face the
+ * stats panel sits at x=90.88 rather than 12. `windowPlacement` below is where that lands.
+ *
+ * ## `statsPanelHeight()` is the PORT's panel, and it is 16.63 shorter than WPF's
+ *
+ * `StatsPanel` has eight children, not six: the five rows, `UptimeText`, `TempsText` and `UpdateText`.
+ * `UpdateText` ships `Collapsed` and costs nothing. **`TempsText` ships `Visible` with empty text**, and
+ * an empty WPF `TextBlock` measures a full line height with zero width -- 14.63 at font size 11,
+ * measured in `lay-emptytext`. So the shipped panel is **123.06** tall and the port's six-child one is
+ * **106.43**, both measured, and the 16.63 difference is the temps row the port dropped by decision. It
+ * is recorded here rather than corrected because re-adding the row is one line if the divergence ever
+ * matters, and silently padding the height would make the port neither faithful nor self-consistent.
  */
 
-import { buildNixieDigit, colonDotSize } from "./nixie-geometry.js"
+import { buildNixieDigit, nixieColonPanel } from "./nixie-geometry.js"
 import { buildSevenSegmentDigit, type SegmentStyle } from "./seven-segment-geometry.js"
 import type { LcdSize } from "./digit-size.js"
 import { toDigitHeight, toSegmentHeight } from "./digit-size.js"
@@ -91,9 +129,32 @@ export const CORNER_RADIUS = 5
 /** `DialCanvas` is a fixed 80x80. */
 export const DIAL_CANVAS_SIZE = 80
 
+/** The five stat rows, in `StatsPanel`'s child order. */
+export const STATS_ROW_COUNT = 5
+
+/** `ColumnDefinition Width="35"` -- the label column on every stat row. */
+export const STATS_LABEL_WIDTH = 35
+
+/** `ColumnDefinition Width="36"` -- the value column. `TextAlignment="Right"` inside it. */
+export const STATS_VALUE_WIDTH = 36
+
+/**
+ * The `Width="*"` middle column: the bar track.
+ *
+ * Derived rather than written as 113, because it is the one of the three that is not a literal in the
+ * markup -- it is whatever the panel's 184 leaves over. `renderer.ts` held its own `TRACK_WIDTH = 113`,
+ * which is the same number arrived at by hand and the place a changed panel width would go unnoticed.
+ */
+export const STATS_TRACK_WIDTH = STATS_PANEL_WIDTH - STATS_LABEL_WIDTH - STATS_VALUE_WIDTH
+
 export interface Size {
   readonly width: number
   readonly height: number
+}
+
+export interface Point {
+  readonly x: number
+  readonly y: number
 }
 
 /**
@@ -124,15 +185,65 @@ export function lcdViewSize(style: SegmentStyle, size: LcdSize, showSeconds: boo
 export function nixieViewSize(size: LcdSize): Size {
   const digitHeight = toDigitHeight(size)
   const digit = buildNixieDigit(digitHeight)
-  const colonPanelWidth = 4 + colonDotSize(digitHeight) + 4
-  return { width: 4 * digit.width + colonPanelWidth, height: digit.height }
+  // The panel's width comes from `nixieColonPanel` rather than being written out again here: the renderer
+  // needs the same number to place the dots, and two copies of `4 + dot + 4` is where the window width and
+  // the painted colon drift apart by 8px without either one looking wrong on its own.
+  const panel = nixieColonPanel(digitHeight, digit.height)
+  return { width: 4 * digit.width + panel.width, height: digit.height }
 }
 
-/** The stats panel's height: five rows and the uptime line, each with its 2px top margin. */
-export function statsPanelHeight(): number {
+/** One stat row's box inside the panel, and where its 8px bar sits in that box. */
+export interface StatsRowLayout {
+  /** Panel-local top of the row, past its own 2px margin. */
+  readonly top: number
+  readonly height: number
+  /** Panel-local top of the track and bar. `VerticalAlignment="Center"` inside the row. */
+  readonly barY: number
+}
+
+export interface StatsLayout {
+  /** Five rows, in CPU/GPU/MEM/PAG/BATT order. */
+  readonly rows: readonly StatsRowLayout[]
+  readonly uptimeTop: number
+  readonly uptimeHeight: number
+  /** The panel's own height -- `uptimeTop + uptimeHeight`, by construction. */
+  readonly height: number
+}
+
+/**
+ * The stats panel's internal geometry: a vertical `StackPanel`, so each child starts where the last
+ * ended, past its own `Margin="0,2,0,0"`.
+ *
+ * A row's height is `Math.max(lineHeight(12), BAR_HEIGHT)` and not just the line height: the row is a
+ * `Grid` whose tallest child decides, and the 8px track would win if the label were ever smaller than
+ * it. At font size 12 the text is 15.96 and the max is a no-op -- which is exactly why it is written
+ * rather than assumed, since the number that makes it matter is a per-row font size Phase 6 could add.
+ *
+ * Measured against `lay-arrange`: row tops step by 17.96, and each bar track sits 3.98 below its row's
+ * top -- `(15.96 - 8) / 2`.
+ */
+export function statsLayout(): StatsLayout {
   const rowHeight = Math.max(lineHeight("Segoe UI Light", STATS_FONT_SIZE), BAR_HEIGHT)
   const uptimeHeight = lineHeight("Segoe UI Light", UPTIME_FONT_SIZE)
-  return 5 * (STATS_CHILD_GAP + rowHeight) + (STATS_CHILD_GAP + uptimeHeight)
+  const rows: StatsRowLayout[] = []
+  let top = 0
+  for (let index = 0; index < STATS_ROW_COUNT; index++) {
+    top += STATS_CHILD_GAP
+    rows.push({ top, height: rowHeight, barY: top + (rowHeight - BAR_HEIGHT) / 2 })
+    top += rowHeight
+  }
+  const uptimeTop = top + STATS_CHILD_GAP
+  return { rows, uptimeTop, uptimeHeight, height: uptimeTop + uptimeHeight }
+}
+
+/**
+ * The stats panel's height: five rows and the uptime line, each with its 2px top margin.
+ *
+ * Delegates rather than computing its own sum, so the height and the row tops cannot drift -- the whole
+ * point of `statsLayout` is that the last child's bottom IS the height.
+ */
+export function statsPanelHeight(): number {
+  return statsLayout().height
 }
 
 /**
@@ -163,8 +274,14 @@ export function lcdDigitSize(settings: AppSettings): LcdSize {
  * platform actually resolved, so the renderer measures it with `getComputedTextLength()` and passes it
  * in. Passing `0` gives the size of everything else, which is what the stats-panel width floor makes
  * useful even before any text exists.
+ *
+ * `phraseLines` is 2 when `ApplyPhraseWrap` split the phrase, and 1 otherwise. It has to be a parameter
+ * for the same reason `phraseWidth` does -- the split decision is made against a *measured* width, so
+ * nothing here can derive it -- and it defaults to 1 so every non-phrase caller and the settings-space
+ * enumeration are unaffected. Omitting it was a clipping bug rather than a simplification: a wrapped
+ * phrase is two lines tall in a window sized for one, and `SizeToContent` grows the WPF window for it.
  */
-export function contentSize(settings: AppSettings, phraseWidth: number): Size {
+export function contentSize(settings: AppSettings, phraseWidth: number, phraseLines = 1): Size {
   const sizes = deriveFontSizes(settings.fontSize)
   const font = fontNameFor(settings.textStyle)
 
@@ -180,13 +297,15 @@ export function contentSize(settings: AppSettings, phraseWidth: number): Size {
       return nixieViewSize(lcdDigitSize(settings))
     default:
       if (settings.textStyle === "Split") {
-        // A vertical StackPanel: the qualifier above the emphasis, so the heights add.
+        // A vertical StackPanel: the qualifier above the emphasis, so the heights add. Split never
+        // wraps -- it is the second of `ApplyPhraseWrap`'s three guards -- so `phraseLines` is ignored
+        // here rather than multiplied in, and that is the C#'s behaviour and not an approximation.
         return {
           width: phraseWidth,
           height: lineHeight(font, sizes.qualifier) + lineHeight(font, sizes.emphasis),
         }
       }
-      return { width: phraseWidth, height: lineHeight(font, sizes.phrase) }
+      return { width: phraseWidth, height: phraseLines * lineHeight(font, sizes.phrase) }
   }
 }
 
@@ -207,16 +326,29 @@ export interface WindowLayout extends Size {
  * The width is the widest row, which is why a visible stats panel pins it at 184 + 24 = **208** no
  * matter how short the phrase is -- exactly the jitter the XAML comment on `Width="184"` says the fixed
  * width exists to prevent.
+ *
+ * `dateWidth` is the third row's measured text width and defaults to 0. It is gated on `showDate` here
+ * rather than at the call site so a caller cannot pin the window wide with a stale measurement after the
+ * date has been hidden -- `Collapsed` takes the row out of the width as well as out of the height.
  */
-export function windowLayout(settings: AppSettings, phraseWidth: number): WindowLayout {
-  const content = contentSize(settings, phraseWidth)
+export function windowLayout(
+  settings: AppSettings,
+  phraseWidth: number,
+  phraseLines = 1,
+  dateWidth = 0,
+): WindowLayout {
+  const content = contentSize(settings, phraseWidth, phraseLines)
   const sizes = deriveFontSizes(settings.fontSize)
   const font = fontNameFor(settings.textStyle)
 
   const dateBlock = settings.showDate ? ROW_GAP + lineHeight(font, sizes.date) : 0
   const statsBlock = settings.statsVisible ? ROW_GAP + statsPanelHeight() : 0
 
-  const innerWidth = Math.max(content.width, settings.statsVisible ? STATS_PANEL_WIDTH : 0)
+  const innerWidth = Math.max(
+    content.width,
+    settings.showDate ? dateWidth : 0,
+    settings.statsVisible ? STATS_PANEL_WIDTH : 0,
+  )
 
   return {
     width: innerWidth + 2 * WINDOW_PADDING,
@@ -225,6 +357,50 @@ export function windowLayout(settings: AppSettings, phraseWidth: number): Window
     dateBlock,
     statsBlock,
     innerWidth,
+  }
+}
+
+/** Where each row lands inside the window, in the SVG's own coordinates. */
+export interface WindowPlacement {
+  /** Row 0's top-left: the face container's `transform`. */
+  readonly face: Point
+  /**
+   * The horizontal centre of the padded area -- the anchor for everything `TextAlignment="Center"`.
+   *
+   * One number for all three centred things, because the Grid's single column is the full inner width and
+   * every one of them is centred in it: the phrase (stretched, text centred), Split's panel (centred, and
+   * its children centred within it) and the date box (stretched, text centred).
+   */
+  readonly centerX: number
+  /** Row 1's baseline box top, valid only when `dateBlock > 0`. */
+  readonly dateTop: number
+  /** Row 2's top-left: the stats panel's own origin, which every `statsLayout()` row is relative to. */
+  readonly stats: Point
+}
+
+/**
+ * Where the three rows sit, given the layout they compose.
+ *
+ * The face and the stats panel are **centred**, not left-aligned, and that is the measured surprise this
+ * function exists to carry -- see the module header. Both have an explicit `Width` and no
+ * `HorizontalAlignment`, and WPF centres a `Stretch` element that has stopped filling its slot.
+ *
+ * Row 0's centring uses `content.width`, so it is a no-op for the two faces that stretch (phrase and
+ * Split fill the column) and real for the three fixed-size ones. Writing it unconditionally is what makes
+ * it one rule rather than a per-face table.
+ */
+export function windowPlacement(layout: WindowLayout): WindowPlacement {
+  return {
+    face: {
+      x: WINDOW_PADDING + (layout.innerWidth - layout.content.width) / 2,
+      y: WINDOW_PADDING,
+    },
+    centerX: WINDOW_PADDING + layout.innerWidth / 2,
+    dateTop: WINDOW_PADDING + layout.content.height + ROW_GAP,
+    stats: {
+      x: WINDOW_PADDING + (layout.innerWidth - STATS_PANEL_WIDTH) / 2,
+      y: WINDOW_PADDING + layout.content.height + layout.dateBlock + ROW_GAP,
+    },
   }
 }
 

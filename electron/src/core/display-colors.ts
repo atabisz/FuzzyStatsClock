@@ -23,10 +23,16 @@
  * would destroy contrast with it.
  *
  * The element sets are exported as **data** so a test can assert three things a hand-written renderer
- * cannot: that they are disjoint, that their union is exactly the addressable element set in
+ * cannot: that they are disjoint, that their union accounts for the addressable element set in
  * `index.html`, and that the exclusions are still excluded. That last one is the point -- an accent
  * regression here is a silent visual change, and the failure mode that matters is a *new* element being
  * added and themed by nobody.
+ *
+ * The union is *these five sets plus two more*, and the extras are deliberately not moved here:
+ * `NIXIE_GLYPH_IDS` and `NIXIE_COLON_GRADIENT_ID` live in `renderer/faces/nixie-face.ts`, which is the
+ * only module that references them. The gradient in particular carries a colour of its own, so
+ * `STRUCTURAL_IDS` -- documented as ids that carry none -- would be the wrong home for it.
+ * `test/renderer-ids.test.ts` is where all seven sets are added up.
  *
  * Two elements from the C# list are absent on purpose:
  *  - **`TempsText` never appears.** Temperatures are retired on all three platforms (Option C,
@@ -250,11 +256,19 @@ export const STRUCTURAL_IDS = [
   "stats",
 ] as const
 
+/**
+ * The two brushes `ApplyTheme` builds: `brush` and `qualifierBrush`.
+ *
+ * Named rather than left anonymous because `src/renderer/theme.ts` takes it as a parameter, and a
+ * structural type there would let a future third brush be added here without the renderer noticing.
+ */
+export interface ThemeColors {
+  readonly accent: RgbaColor
+  readonly dim: RgbaColor
+}
+
 /** The colour to paint the themed elements with, given the accent and any auto-contrast override. */
-export function resolveThemeColors(
-  accent: RgbaColor,
-  override: RgbColor | null,
-): { readonly accent: RgbaColor; readonly dim: RgbaColor } {
+export function resolveThemeColors(accent: RgbaColor, override: RgbColor | null): ThemeColors {
   // `ApplyDisplayColor` uses `Color.FromRgb`, so an override is opaque regardless of accent alpha.
   const base: RgbaColor = override === null ? accent : { a: 0xff, ...override }
   return { accent: base, dim: dimmed(base) }

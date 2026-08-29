@@ -215,3 +215,44 @@ export const FLICKER_INTERVAL_MS = 40
 export function colonDotSize(digitHeight: number): number {
   return digitHeight * 0.13
 }
+
+/** `ColonDot1`'s bottom margin -- the gap between the two dots. A literal 6 at every size. */
+export const COLON_DOT_GAP = 6
+
+/** `ColonDot1`/`ColonDot2`'s left and right margins. A literal 4 at every size. */
+export const COLON_SIDE_MARGIN = 4
+
+export interface NixieColonPanel {
+  /** The panel's contribution to the view width: `4 + dot + 4`. */
+  readonly width: number
+  readonly dotSize: number
+  /** Both dots' x, relative to the panel's own origin. */
+  readonly dotX: number
+  readonly dot1Y: number
+  readonly dot2Y: number
+}
+
+/**
+ * `ColonPanel`: a vertical `StackPanel` with `VerticalAlignment="Center"`, holding two ellipses.
+ *
+ * **Only the dot diameter scales.** `OnSizeChanged` pushes `dotSize = height * 0.13` onto both ellipses and
+ * touches nothing else, so the 4px side margins and the 6px gap between the dots are constants at every
+ * size -- which is why the colon looks tighter at Large than at Small. That is in the C# and is the whole
+ * reason this returns absolute offsets rather than a ratio.
+ *
+ * `VerticalAlignment="Center"` centres the stack's own `2*dot + gap` height inside the row, and the row's
+ * height is the tube's, so `tubeHeight` is the second parameter. SVG has no StackPanel, so the two `y`
+ * values are computed here and pinned by test rather than being reproduced by hand in the renderer.
+ */
+export function nixieColonPanel(digitHeight: number, tubeHeight: number): NixieColonPanel {
+  const dotSize = colonDotSize(digitHeight)
+  const stackHeight = 2 * dotSize + COLON_DOT_GAP
+  const top = (tubeHeight - stackHeight) / 2
+  return {
+    width: COLON_SIDE_MARGIN + dotSize + COLON_SIDE_MARGIN,
+    dotSize,
+    dotX: COLON_SIDE_MARGIN,
+    dot1Y: top,
+    dot2Y: top + dotSize + COLON_DOT_GAP,
+  }
+}

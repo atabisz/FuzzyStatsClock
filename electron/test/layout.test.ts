@@ -35,14 +35,20 @@ import {
   ROW_GAP,
   STATS_CHILD_GAP,
   STATS_FONT_SIZE,
+  STATS_LABEL_WIDTH,
+  STATS_ROW_COUNT,
+  STATS_TRACK_WIDTH,
+  STATS_VALUE_WIDTH,
   UPTIME_FONT_SIZE,
   WINDOW_PADDING,
   contentSize,
   lcdViewSize,
   nixieViewSize,
+  statsLayout,
   statsPanelHeight,
   windowLayout,
   windowPixelSize,
+  windowPlacement,
 } from "../src/core/layout.js"
 import { buildNixieDigit, colonDotSize } from "../src/core/nixie-geometry.js"
 import { toDigitHeight, type LcdSize } from "../src/core/digit-size.js"
@@ -53,7 +59,7 @@ import {
   type AppSettings,
   type ClockType,
 } from "../src/core/settings.js"
-import { STATS_PANEL_WIDTH, lineHeight } from "../src/core/text-metrics.js"
+import { STATS_PANEL_WIDTH, lineHeight, type WpfFontName } from "../src/core/text-metrics.js"
 import type { SegmentStyle } from "../src/core/seven-segment-geometry.js"
 import { field, layoutFixture, num, rows } from "./lib/wpf-fixture.js"
 
@@ -70,6 +76,19 @@ const asSize = (s: string): "small" | "medium" | "large" => {
 
 const asStyle = (s: string): SegmentStyle => {
   if (s !== "Classic" && s !== "Bold") throw new Error(`unexpected segment style: ${s}`)
+  return s
+}
+
+/**
+ * The probe writes a family name as a bare string; `lineHeight` takes the narrow union.
+ *
+ * Narrowing at the boundary rather than casting, so a fourth family appearing in the fixture -- which would
+ * mean `SetTextStyle` gained a style -- fails here by name instead of resolving to a missing metrics entry.
+ */
+const asFamily = (s: string): WpfFontName => {
+  if (s !== "Segoe UI Light" && s !== "Palatino Linotype" && s !== "Consolas") {
+    throw new Error(`unexpected font family: ${s}`)
+  }
   return s
 }
 
@@ -100,6 +119,56 @@ const TIER_OF_FONT_SIZE: Record<(typeof MENU_FONT_SIZES)[number], LcdSize> = {
   24: "medium",
   32: "large",
   40: "large",
+}
+
+/**
+ * The four `lay-arrange` configurations, which are row 0's four mutually exclusive displays.
+ *
+ * Deliberately not `as const`: `test.each` rejects a readonly table, the same way `describe.each` does in
+ * `wpf-fixture.test.ts`. Widening to `string[]` is what makes the per-config arms below type-check.
+ */
+const ARRANGE_CONFIGS: string[] = ["dial", "lcd", "phrase", "split"]
+
+/** The five stat rows, in `StatsPanel`'s child order -- the probe's element-name prefixes. */
+const STAT_PREFIXES = ["Cpu", "Gpu", "Mem", "Pag", "Batt"] as const
+
+interface ArrangedBox {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+/**
+ * One arranged element's absolute box, from `lay-arrange`.
+ *
+ * Throws rather than returning undefined: every name asked for below is one the probe emits, so a miss is
+ * a renamed element or a truncated capture, and both should fail here by name instead of as a comparison
+ * against `undefined`.
+ */
+const arranged = (config: string, element: string): ArrangedBox => {
+  const match = rows(fixture, "lay-arrange").filter(
+    (row) => field(row, 0) === config && field(row, 1) === element,
+  )
+  const only = match[0]
+  if (only === undefined || match.length !== 1) {
+    throw new Error(`lay-arrange has ${match.length} rows for ${config}/${element}, expected 1`)
+  }
+  return { x: num(only, 2), y: num(only, 3), width: num(only, 4), height: num(only, 5) }
+}
+
+/** Which of row 0's four displays is visible in a given `lay-arrange` config. */
+const FACE_ELEMENT: Readonly<Record<string, string>> = {
+  dial: "DialCanvas",
+  lcd: "LcdView",
+  phrase: "PhraseText",
+  split: "SplitPhrasePanel",
+}
+
+const faceElement = (config: string): string => {
+  const element = FACE_ELEMENT[config]
+  if (element === undefined) throw new Error(`no face element for config ${config}`)
+  return element
 }
 
 describe("the LCD view size, all twelve measured rows", () => {
@@ -246,6 +315,146 @@ describe("the stats panel height", () => {
     // scales. A panel that grew with the phrase font would change the window height on a font change and
     // is the kind of coupling the fixed 184 width exists to avoid.
     expect(statsPanelHeight()).toBe(106.43)
+  })
+
+  test("is the delegated sum, so the height and the row tops cannot drift apart", () => {
+    // `statsPanelHeight()` used to compute its own total. The two literals above are the reason that was
+    // safe to change and the reason it had to be checked: the refactor is only sound if the last child's
+    // bottom IS the height, which is the one property a second copy of the arithmetic can silently lose.
+    const panel = statsLayout()
+    expect(panel.height).toBe(statsPanelHeight())
+    expect(panel.uptimeTop + panel.uptimeHeight).toBe(panel.height)
+    const lastRow = panel.rows[STATS_ROW_COUNT - 1]
+    expect(lastRow).toBeDefined()
+    if (lastRow === undefined) return
+    expect(lastRow.top + lastRow.height + STATS_CHILD_GAP).toBe(panel.uptimeTop)
+  })
+})
+
+describe("the stats panel's internal geometry, measured", () => {
+  // Every arm here reads `lay-arrange` and subtracts the panel's own origin, so the numbers under test are
+  // panel-local -- which is what `statsLayout()` returns and what the SVG's `<g id="stats">` transform
+  // makes true of its children. Doing it in all four configs is deliberate: the panel's absolute x differs
+  // in every one of them, so an accidental dependence on the absolute position fails on three of four.
+
+  test.each(ARRANGE_CONFIGS)("%s: the five rows step by one row height plus its 2px margin", (config) => {
+    const panel = arranged(config, "StatsPanel")
+    const expected = statsLayout()
+    for (const [index, prefix] of STAT_PREFIXES.entries()) {
+      const row = arranged(config, `${prefix}Row`)
+      const model = expected.rows[index]
+      expect(model).toBeDefined()
+      if (model === undefined) continue
+      expect(row.y - panel.y).toBeCloseTo(model.top, 9)
+      expect(row.height).toBeCloseTo(model.height, 9)
+      expect(row.width).toBe(STATS_PANEL_WIDTH)
+      // The row itself is the panel's full width -- it is a Grid in a StackPanel with an explicit panel
+      // Width, so there is no centring question at this level.
+      expect(row.x).toBe(panel.x)
+    }
+  })
+
+  test.each(ARRANGE_CONFIGS)("%s: each bar track is centred in its row, not aligned to its top", (config) => {
+    // `VerticalAlignment="Center"` on the 8px track inside a 15.96 row: the offset is 3.98, and it is the
+    // one number in the panel that a top-aligned reading gets wrong by a visible amount.
+    const panel = arranged(config, "StatsPanel")
+    const expected = statsLayout()
+    for (const [index, prefix] of STAT_PREFIXES.entries()) {
+      const track = arranged(config, `${prefix}BarTrack`)
+      const model = expected.rows[index]
+      expect(model).toBeDefined()
+      if (model === undefined) continue
+      expect(track.y - panel.y).toBeCloseTo(model.barY, 9)
+      expect(track.height).toBe(BAR_HEIGHT)
+      expect(model.barY - model.top).toBeCloseTo((model.height - BAR_HEIGHT) / 2, 9)
+    }
+  })
+
+  test.each(ARRANGE_CONFIGS)("%s: the three columns are 35 / 113 / 36 at panel-local 0 / 35 / 148", (config) => {
+    // `STATS_TRACK_WIDTH` is the derived one -- 184 less the two literal columns -- so this is the arm that
+    // makes the derivation a measurement rather than a plausible subtraction.
+    const panel = arranged(config, "StatsPanel")
+    expect(STATS_TRACK_WIDTH).toBe(113)
+    for (const prefix of STAT_PREFIXES) {
+      const label = arranged(config, `${prefix}Label`)
+      const track = arranged(config, `${prefix}BarTrack`)
+      expect(label.x - panel.x).toBe(0)
+      expect(label.width).toBe(STATS_LABEL_WIDTH)
+      expect(track.x - panel.x).toBe(STATS_LABEL_WIDTH)
+      expect(track.width).toBe(STATS_TRACK_WIDTH)
+    }
+  })
+
+  test.each(ARRANGE_CONFIGS)("%s: all five values share one right edge, including Batt's", (config) => {
+    // The port paints all five with a single `text-anchor="end"` at panel-local 184. Four of them get there
+    // from `TextAlignment="Right"` inside a 36-wide column and `BattText` from its own
+    // `HorizontalAlignment="Right"`, which shrinks the box to the text instead -- 15.59 wide rather than 36.
+    // Two different mechanisms, so "the same edge" is a measurement and not a restatement of the markup.
+    const panel = arranged(config, "StatsPanel")
+    const rightEdge = panel.x + STATS_PANEL_WIDTH
+    for (const prefix of STAT_PREFIXES) {
+      const value = arranged(config, `${prefix}Text`)
+      expect(value.x + value.width).toBeCloseTo(rightEdge, 9)
+    }
+    const batt = arranged(config, "BattText")
+    const cpu = arranged(config, "CpuText")
+    expect(cpu.width).toBe(STATS_VALUE_WIDTH)
+    expect(batt.width).toBeLessThan(STATS_VALUE_WIDTH)
+    expect(batt.x).toBeGreaterThan(cpu.x)
+  })
+
+  test.each(ARRANGE_CONFIGS)("%s: the uptime line is the port's last child and is 11pt", (config) => {
+    const panel = arranged(config, "StatsPanel")
+    const uptime = arranged(config, "UptimeText")
+    const expected = statsLayout()
+    expect(uptime.y - panel.y).toBeCloseTo(expected.uptimeTop, 9)
+    expect(uptime.height).toBeCloseTo(expected.uptimeHeight, 9)
+    // `toBeCloseTo` and not `toBe`: the fixture's 14.630000000000003 is WPF's own accumulation of the same
+    // `LineSpacing * FontSize`, and the last bit differs. Same couple-of-ulps class as the view sizes.
+    expect(uptime.height).toBeCloseTo(lineHeight("Segoe UI Light", UPTIME_FONT_SIZE), 9)
+    expect(uptime.width).toBe(STATS_PANEL_WIDTH)
+  })
+
+  test("the shipped panel is 123.06 and the port's is 106.43, and the 16.63 is TempsText", () => {
+    // The divergence, measured on both sides rather than asserted on one. `TempsText` ships **Visible with
+    // empty text** and an empty TextBlock still measures a full line, so WPF's panel carries a row the port
+    // deliberately does not. Recorded here so the delta has a number attached to it and re-adding the row
+    // is a one-line change with a known effect, rather than a rediscovery.
+    for (const config of ARRANGE_CONFIGS) {
+      expect(arranged(config, "StatsPanel").height).toBe(123.06)
+    }
+    expect(statsPanelHeight()).toBe(106.43)
+    const temps = arranged("dial", "TempsText")
+    expect(temps.height).toBeCloseTo(lineHeight("Segoe UI Light", UPTIME_FONT_SIZE), 9)
+    expect(123.06 - 106.43).toBeCloseTo(STATS_CHILD_GAP + temps.height, 9)
+  })
+
+  test("an empty TextBlock measures a full line height and zero width", () => {
+    // The fact the divergence rests on, isolated from the panel: `lay-emptytext` at both stats font sizes.
+    // A reimplementation that skipped an empty row -- the reasonable thing to do -- would be 14.63 short.
+    const empties = rows(fixture, "lay-emptytext").filter((row) => field(row, 1) === "<empty>")
+    expect(empties).toHaveLength(2)
+    for (const row of empties) {
+      const fontSize = num(row, 0)
+      expect(num(row, 2)).toBe(lineHeight("Segoe UI Light", fontSize))
+      expect(num(row, 3)).toBe(0)
+    }
+    // A single space has the same height and a non-zero width, which is what makes the zero above a
+    // statement about the text and not about the measurement having failed.
+    const space = rows(fixture, "lay-emptytext").filter((row) => field(row, 1) === " ")
+    expect(space).toHaveLength(2)
+    for (const row of space) {
+      expect(num(row, 2)).toBe(lineHeight("Segoe UI Light", num(row, 0)))
+      expect(num(row, 3)).toBeGreaterThan(0)
+    }
+  })
+
+  test("UpdateText costs nothing, which is why the panel has seven children and not eight", () => {
+    // `Visibility="Collapsed"` in the markup: arranged at the panel's origin with a zero box. Asserted so
+    // the count in the header -- eight children, seven of them measured -- is checkable.
+    const panel = arranged("dial", "StatsPanel")
+    const update = arranged("dial", "UpdateText")
+    expect(update).toEqual({ x: panel.x, y: panel.y, width: 0, height: 0 })
   })
 })
 
@@ -410,6 +619,262 @@ describe("window composition", () => {
     // `CornerRadius="5"` is a paint property, not a layout one -- recorded so its absence from every
     // arithmetic above reads as deliberate.
     expect(CORNER_RADIUS).toBe(5)
+  })
+})
+
+describe("the date row participates in the width, which this module used to forget", () => {
+  test("the dial config is 247.27 inner, and neither the face nor the panel produced that", () => {
+    // The measurement that found the defect. An 80px face and a 184px panel, and the arranged inner width
+    // is 247.27 -- so a `Math.max` over those two rows is short by 63.27 in the very configuration a user
+    // gets by turning the stats panel on with a dial. The third row is `DateBorder`, which stretches.
+    const grid = arranged("dial", "innerGrid")
+    expect(grid.width).toBe(247.26666666666665)
+    expect(grid.width).toBeGreaterThan(Math.max(DIAL_CANVAS_SIZE, STATS_PANEL_WIDTH))
+    const dateText = arranged("dial", "DateText")
+    expect(dateText.width).toBeCloseTo(grid.width, 9)
+    // ...and the two rows that were known about are both narrower than it, so the max is genuinely over three.
+    expect(arranged("dial", "DialCanvas").width).toBe(DIAL_CANVAS_SIZE)
+    expect(arranged("dial", "StatsPanel").width).toBe(STATS_PANEL_WIDTH)
+  })
+
+  test("windowLayout folds the measured date width into innerWidth", () => {
+    const base = settings({ clockType: "dial", showDate: true, statsVisible: true })
+    // Same three inputs the arrangement had: an 80px dial, a visible panel, a 247.27 date.
+    const wide = windowLayout(base, 0, 1, 247.26666666666665)
+    expect(wide.innerWidth).toBe(247.26666666666665)
+    expect(wide.width).toBe(247.26666666666665 + 2 * WINDOW_PADDING)
+    // A narrow date changes nothing, because the panel is then the widest row.
+    expect(windowLayout(base, 0, 1, 100).innerWidth).toBe(STATS_PANEL_WIDTH)
+  })
+
+  test("hiding the date drops its width as well as its height", () => {
+    // `Collapsed` removes the element's box entirely, so a stale measured width must not keep the window
+    // wide. Gated inside `windowLayout` rather than at the call site: the renderer holds the last width it
+    // measured, and the tray toggle that hides the date does not clear it.
+    const hidden = settings({ clockType: "dial", showDate: false, statsVisible: true })
+    expect(windowLayout(hidden, 0, 1, 999).innerWidth).toBe(STATS_PANEL_WIDTH)
+    expect(windowLayout(hidden, 0, 1, 999).dateBlock).toBe(0)
+  })
+
+  test("omitting the argument is what every earlier caller did, and is still 0", () => {
+    // The parameter is fourth and defaults, so the 1536-row enumeration below and every test above are
+    // statements about the face and stats rows alone. Pinned so that stays true rather than assumed.
+    const base = settings({ clockType: "lcd", fontSize: 40, statsVisible: true })
+    expect(windowLayout(base, 0, 1)).toEqual(windowLayout(base, 0, 1, 0))
+  })
+
+  test("the widest reachable date row is 422.24, so the widest window is not 366", () => {
+    // 366 is the widest face-or-stats window. The date row can beat it, which is why a resize clamp cannot
+    // be written against a constant and why the "widest is 366" claim is scoped in the module header.
+    const dates = rows(fixture, "lay-date")
+    const widest = dates.reduce((best, row) => Math.max(best, num(row, 5)), 0)
+    expect(widest).toBe(422.24000000000001)
+    const row = dates.find((candidate) => num(candidate, 5) === widest)
+    expect(row).toBeDefined()
+    if (row === undefined) return
+    // Consolas, date size 32 -- the derived size at the largest menu font -- and the longest weekday and
+    // month names of the three locales measured.
+    expect([field(row, 0), num(row, 1), field(row, 2)]).toEqual(["Consolas", 32, "Long de"])
+    const layout = windowLayout(settings({ clockType: "dial", showDate: true }), 0, 1, widest)
+    // 422.24 + both paddings is 446.24, and `windowPixelSize` ceils -- so the window is 447 and not 446.
+    // Written out because the fractional part is exactly the kind of thing a hand-carried number loses.
+    expect(layout.width).toBeCloseTo(446.24000000000001, 9)
+    expect(windowPixelSize(layout).width).toBe(447)
+  })
+
+  test("the widest family is not the tallest, so neither one alone is the worst case", () => {
+    // Consolas is the widest of `SetTextStyle`'s three at equal size and has the SMALLEST line height of
+    // the three. A clamp derived from the tallest family would under-reserve width, and vice versa.
+    const atLargest = rows(fixture, "lay-date").filter((row) => num(row, 1) === 32)
+    const widthOf = (family: string): number =>
+      atLargest.filter((row) => field(row, 0) === family).reduce((best, row) => Math.max(best, num(row, 5)), 0)
+    const heightOf = (family: string): number => {
+      const row = atLargest.find((candidate) => field(candidate, 0) === family)
+      if (row === undefined) throw new Error(`no lay-date rows for ${family}`)
+      return num(row, 4)
+    }
+    expect(widthOf("Consolas")).toBeGreaterThan(widthOf("Segoe UI Light"))
+    expect(widthOf("Consolas")).toBeGreaterThan(widthOf("Palatino Linotype"))
+    expect(heightOf("Consolas")).toBeLessThan(heightOf("Segoe UI Light"))
+    expect(heightOf("Consolas")).toBeLessThan(heightOf("Palatino Linotype"))
+  })
+
+  test("every lay-date height is the line height this repo computes for that family and size", () => {
+    // 84 rows, and the height must not depend on the string -- which is the property that makes a line
+    // height a usable constant at all, and the one `text-metrics.ts` is built on.
+    const dates = rows(fixture, "lay-date")
+    expect(dates).toHaveLength(84)
+    for (const row of dates) {
+      expect(num(row, 4)).toBeCloseTo(lineHeight(asFamily(field(row, 0)), num(row, 1)), 9)
+    }
+    // Height is independent of the string, which is the property that makes a line height a constant at
+    // all. Checked separately, because the arm above would pass on a per-string table too.
+    const heights = new Set(dates.filter((row) => field(row, 0) === "Consolas" && num(row, 1) === 32).map((row) => num(row, 4)))
+    expect(heights.size).toBe(1)
+  })
+
+  test("Consolas is monospaced, which is the fixture's own control on the width column", () => {
+    // `12/30/2026` and `2026-12-30` are both ten characters. Equal widths in Consolas and unequal in the
+    // other two is a property of the font files, so it is evidence the widths were measured rather than
+    // computed from a character count -- and it fails if the probe ever resolves a fallback face.
+    const at = (family: string, label: string): number => {
+      const row = rows(fixture, "lay-date").find(
+        (candidate) =>
+          field(candidate, 0) === family && num(candidate, 1) === 32 && field(candidate, 2) === label,
+      )
+      if (row === undefined) throw new Error(`no lay-date row for ${family}/${label}`)
+      return num(row, 5)
+    }
+    expect(at("Consolas", "Numeric")).toBe(at("Consolas", "ISO"))
+    expect(at("Segoe UI Light", "Numeric")).not.toBe(at("Segoe UI Light", "ISO"))
+    expect(at("Palatino Linotype", "Numeric")).not.toBe(at("Palatino Linotype", "ISO"))
+  })
+})
+
+describe("windowPlacement: where the three rows land", () => {
+  /**
+   * The arranged configuration rebuilt as a `WindowLayout`, so `windowPlacement` can be checked against the
+   * absolute boxes the probe measured.
+   *
+   * Built from the measured row sizes rather than from `contentSize`, because the probe used the XAML's
+   * *authored* font sizes -- `PhraseText` at 32, `DateText` at 26 -- and not a settings-derived set. That
+   * makes this a test of the composition rules, which is what `windowPlacement` is, and leaves the
+   * font-size derivation to the tests that already cover it.
+   */
+  const asLayout = (config: string) => {
+    const grid = arranged(config, "innerGrid")
+    const content = arranged(config, "ContentBorder")
+    const date = arranged(config, "DateBorder")
+    const stats = arranged(config, "StatsPanel")
+    return {
+      width: grid.width + 2 * WINDOW_PADDING,
+      height: grid.height + 2 * WINDOW_PADDING,
+      content: { width: faceWidth(config), height: content.height },
+      dateBlock: ROW_GAP + date.height,
+      statsBlock: ROW_GAP + stats.height,
+      innerWidth: grid.width,
+    }
+  }
+
+  /**
+   * Row 0's *face* width, which is not `ContentBorder`'s.
+   *
+   * `ContentBorder` always stretches to the full inner width; the face inside it is what `contentSize`
+   * returns. Two of the four faces stretch with it (`PhraseText` is `Stretch`, and the LCD happens to be
+   * the widest row) and two do not, and it is the two that do not where the centring is visible.
+   */
+  const faceWidth = (config: string): number => arranged(config, faceElement(config)).width
+
+  test.each(ARRANGE_CONFIGS)("%s: the face is centred, not left-aligned", (config) => {
+    // The finding. `DialCanvas` has `Width="80"` and NO HorizontalAlignment -- the default is `Stretch`,
+    // which reads as "left edge at 0" -- and WPF centres it anyway, because an explicit Width stops it
+    // filling its slot and `ComputeAlignmentOffset` then takes the same branch as `Center`. The other three
+    // declare `Center` outright, so all four are centred and only the reason differs.
+    const placement = windowPlacement(asLayout(config))
+    expect(placement.face.x).toBeCloseTo(arranged(config, faceElement(config)).x, 9)
+    expect(placement.face.y).toBe(WINDOW_PADDING)
+  })
+
+  test("the dial's offset is 83.63 and not zero, which is the whole point", () => {
+    // Stated as a bare number as well as a formula: the two differ by more than 80 pixels here, so a
+    // left-aligned port would put an 80px dial hard against the padding with 167 of empty space beside it.
+    const placement = windowPlacement(asLayout("dial"))
+    expect(placement.face.x).toBeCloseTo(95.63333333333334, 9)
+    expect(placement.face.x - WINDOW_PADDING).toBeCloseTo(83.63333333333334, 9)
+  })
+
+  test.each(ARRANGE_CONFIGS)("%s: the stats panel is centred too, by the same rule", (config) => {
+    // `Width="184"`, no HorizontalAlignment. Under the widest LCD face the offset reaches 78.88, so this is
+    // the second and larger consequence of the same WPF branch.
+    const placement = windowPlacement(asLayout(config))
+    expect(placement.stats.x).toBeCloseTo(arranged(config, "StatsPanel").x, 9)
+    expect(placement.stats.y).toBeCloseTo(arranged(config, "StatsPanel").y, 9)
+  })
+
+  test("the LCD config's panel offset is 78.88, the largest the four configs reach", () => {
+    const placement = windowPlacement(asLayout("lcd"))
+    expect(placement.stats.x - WINDOW_PADDING).toBeCloseTo(78.88000000000002, 9)
+  })
+
+  test.each(ARRANGE_CONFIGS)("%s: centerX is the one anchor for all three centred things", (config) => {
+    // Three different mechanisms landing on the same x, which is what lets the port use one `centerX` and
+    // `text-anchor: middle` everywhere instead of a per-element rule:
+    //   - `PhraseText` stretches and centres its text (`HorizontalAlignment=Stretch` + `TextAlignment=Center`),
+    //   - `SplitPhrasePanel` centres its box and its children centre within it,
+    //   - `DateText` centres its box, which is exactly as wide as its text.
+    const layout = asLayout(config)
+    const placement = windowPlacement(layout)
+    const centreOf = (box: ArrangedBox): number => box.x + box.width / 2
+    expect(placement.centerX).toBeCloseTo(centreOf(arranged(config, "DateText")), 9)
+    expect(placement.centerX).toBeCloseTo(centreOf(arranged(config, "ContentBorder")), 9)
+    if (config === "split") {
+      expect(placement.centerX).toBeCloseTo(centreOf(arranged(config, "SplitPhrasePanel")), 9)
+      expect(placement.centerX).toBeCloseTo(centreOf(arranged(config, "QualifierText")), 9)
+      expect(placement.centerX).toBeCloseTo(centreOf(arranged(config, "EmphasisText")), 9)
+    }
+    if (config === "phrase") {
+      expect(placement.centerX).toBeCloseTo(centreOf(arranged(config, "PhraseText")), 9)
+    }
+  })
+
+  test("DateText is a centred box and not a stretched one, and under the LCD they differ", () => {
+    // Worth its own arm because the two readings agree in three of the four configs. In `lcd` the date is
+    // 247.27 inside a 341.76 row, so a stretched `DateText` would start at 12 and a centred one at 59.25 --
+    // and since its own text is centred inside it either way, the port's `text-anchor: middle` at `centerX`
+    // is right for both. The distinction matters for anything that ever paints the date's BOX.
+    const date = arranged("lcd", "DateText")
+    const border = arranged("lcd", "DateBorder")
+    expect(border.x).toBe(WINDOW_PADDING)
+    expect(date.x).toBeCloseTo(59.246666666666684, 9)
+    expect(date.width).toBeLessThan(border.width)
+    expect(date.x - border.x).toBeCloseTo((border.width - date.width) / 2, 9)
+  })
+
+  test.each(ARRANGE_CONFIGS)("%s: dateTop is the face's bottom plus the 8px gap", (config) => {
+    const placement = windowPlacement(asLayout(config))
+    expect(placement.dateTop).toBeCloseTo(arranged(config, "DateBorder").y, 9)
+  })
+
+  test.each(ARRANGE_CONFIGS)("%s: the composed window matches the arranged root exactly", (config) => {
+    // The closing arm: the three rows and both paddings add up to the size WPF's `SizeToContent` produced.
+    const layout = asLayout(config)
+    const root = arranged(config, "root")
+    expect(layout.width).toBeCloseTo(root.width, 9)
+    expect(layout.height).toBeCloseTo(root.height, 9)
+    expect(layout.height).toBeCloseTo(
+      layout.content.height + layout.dateBlock + layout.statsBlock + 2 * WINDOW_PADDING,
+      9,
+    )
+  })
+
+  test("the placement is pure arithmetic on the layout, so it needs no measurement of its own", () => {
+    // `windowPlacement` takes only a `WindowLayout`. Stated as a test because the alternative -- reading the
+    // rendered elements back to place them -- is the loop the port has to avoid: the elements are placed in
+    // order to be measured, and only the two text faces measure at all.
+    const layout = windowLayout(settings({ clockType: "nixie", fontSize: 32, statsVisible: true }), 0)
+    const placement = windowPlacement(layout)
+    expect(placement.centerX).toBe(WINDOW_PADDING + layout.innerWidth / 2)
+    expect(placement.face.x).toBe(WINDOW_PADDING + (layout.innerWidth - layout.content.width) / 2)
+    expect(placement.face.y).toBe(WINDOW_PADDING)
+    expect(placement.dateTop).toBe(WINDOW_PADDING + layout.content.height + ROW_GAP)
+    expect(placement.stats.y).toBe(
+      WINDOW_PADDING + layout.content.height + layout.dateBlock + ROW_GAP,
+    )
+  })
+
+  test("a face wider than the panel gets a zero offset rather than a negative one", () => {
+    // The centring is symmetric, so the widest row always lands at exactly the padding. Checked because a
+    // sign error here is invisible at the default settings and pushes the face off-window at the extremes.
+    const layout = windowLayout(settings({ clockType: "lcd", fontSize: 40, lcdStyle: "Silver" }), 0)
+    expect(layout.content.width).toBe(layout.innerWidth)
+    expect(windowPlacement(layout).face.x).toBe(WINDOW_PADDING)
+    // ...and the panel, in that same window, is the one pushed inward.
+    const withStats = windowLayout(
+      settings({ clockType: "lcd", fontSize: 40, lcdStyle: "Silver", statsVisible: true }),
+      0,
+    )
+    expect(windowPlacement(withStats).stats.x).toBeGreaterThan(WINDOW_PADDING)
+    expect(windowPlacement(withStats).face.x).toBe(WINDOW_PADDING)
   })
 })
 
@@ -609,5 +1074,91 @@ describe("THE BLOCKER: the fixed shell cannot hold the reachable sizes", () => {
       const atThreeHundred = windowLayout(settings({ clockType }), 300)
       expect(atZero).toEqual(atThreeHundred)
     }
+  })
+})
+
+describe("a wrapped phrase is two lines tall", () => {
+  const font = "Segoe UI Light"
+
+  test("the second line adds exactly one line height, at every menu font size", () => {
+    for (const fontSize of MENU_FONT_SIZES) {
+      const s = settings({ clockType: "phrase", fontSize })
+      const one = contentSize(s, 180, 1)
+      const two = contentSize(s, 180, 2)
+      expect(two.height - one.height).toBe(lineHeight(font, fontSize))
+      // Width is the caller's measurement either way: the renderer measures the WIDER of the two lines
+      // and passes that, so wrapping never widens the window here.
+      expect(two.width).toBe(one.width)
+    }
+  })
+
+  test("omitting the argument is the same as passing 1", () => {
+    // The default is what keeps the 1536-combination sweep above meaningful -- it enumerates settings,
+    // and the line count is not one.
+    for (const clockType of CLOCK_TYPES) {
+      const s = settings({ clockType })
+      expect(contentSize(s, 200)).toEqual(contentSize(s, 200, 1))
+      expect(windowLayout(s, 200)).toEqual(windowLayout(s, 200, 1))
+    }
+  })
+
+  test("the three fixed faces ignore the line count entirely", () => {
+    // `ApplyPhraseWrap`'s first guard is `_clockType != ClockType.Phrase`, so a line count reaching a
+    // digit or dial face at all would be a renderer bug; this pins that it would at least be harmless.
+    for (const clockType of ["dial", "lcd", "nixie"] as const) {
+      const s = settings({ clockType })
+      expect(contentSize(s, 0, 2)).toEqual(contentSize(s, 0, 1))
+    }
+  })
+
+  test("Split ignores it too, because Split never wraps", () => {
+    // The second of the three guards. Split's height is qualifier + emphasis and multiplying that by the
+    // line count would double a face that cannot reach the wrap path.
+    const s = settings({ clockType: "phrase", textStyle: "Split" })
+    expect(contentSize(s, 200, 2)).toEqual(contentSize(s, 200, 1))
+  })
+
+  test("the window grows by the same amount, and only in height", () => {
+    const s = settings({ clockType: "phrase", fontSize: 40, showDate: true, statsVisible: true })
+    const one = windowLayout(s, 200, 1)
+    const two = windowLayout(s, 200, 2)
+    // `toBeCloseTo`, not `toBe`, and the reason is worth keeping: at the `contentSize` level the same
+    // subtraction IS exact, because `2 * lh - lh` is a power-of-two multiply and cancels. Here the row
+    // gaps, the stats panel and the padding are added to both sides first, so the difference comes back
+    // 53.20333333333332 against a line height of 53.20333333333333. One ulp, from the addition -- not
+    // from the line count, which is what this arm is actually about.
+    expect(two.height - one.height).toBeCloseTo(lineHeight(font, 40), 10)
+    expect(two.width).toBe(one.width)
+    expect(two.dateBlock).toBe(one.dateBlock)
+    expect(two.statsBlock).toBe(one.statsBlock)
+  })
+
+  test("wrapping does not create a new tallest window, and that is measured", () => {
+    // I expected it to. It does not, and the reason is that the two settings are mutually exclusive:
+    // wrapping needs a non-Split text style, and Split's own two rows are taller than two phrase lines at
+    // the same font size -- `trunc(40*0.65)` + `trunc(40*1.4)` is 82 points of text against 80. So the
+    // 299 in the module header survives as the overall maximum, and the wrap-reachable maximum is 298.
+    //
+    // Enumerated rather than reasoned about, because the line-spacing ratio differs per font and the
+    // margin here is one pixel. Measured over the whole wrap-reachable subspace: 4 text styles x 4 font
+    // sizes x date x stats, two-line where the style permits it.
+    let tallestTwoLine = -1
+    let tallestOverall = -1
+    for (const textStyle of TEXT_STYLES)
+      for (const fontSize of MENU_FONT_SIZES)
+        for (const showDate of [true, false])
+          for (const statsVisible of [true, false]) {
+            const s = settings({ clockType: "phrase", textStyle, fontSize, showDate, statsVisible })
+            const oneLine = windowPixelSize(windowLayout(s, 200, 1)).height
+            tallestOverall = Math.max(tallestOverall, oneLine)
+            if (textStyle === "Split") continue
+            const twoLine = windowPixelSize(windowLayout(s, 200, 2)).height
+            tallestTwoLine = Math.max(tallestTwoLine, twoLine)
+            tallestOverall = Math.max(tallestOverall, twoLine)
+          }
+    expect(tallestTwoLine).toBe(298)
+    expect(tallestOverall).toBe(299)
+    // Still 38 past the Phase 3 shell's 260, so the resize requirement is untouched by any of this.
+    expect(tallestTwoLine).toBeGreaterThan(260)
   })
 })

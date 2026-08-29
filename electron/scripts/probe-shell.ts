@@ -50,7 +50,14 @@ const MAIN = join(HERE, "..", "dist", "main.js")
 const FLAGS_PS1 = join(HERE, "winflags.ps1")
 const IS_WIN = process.platform === "win32"
 
-/** The constructor's own numbers. A mismatch here is a real defect, not a rounding question. */
+/**
+ * The constructor's own numbers -- and since Phase 4, only the CREATION size.
+ *
+ * The renderer measures its content and sends a `resize`, so the live window is normally some other size
+ * by the time this probe reads it: on the run that first showed this, 208x243 against a 232x260
+ * constructor. That is the port working, not a placement bug, so S4 compares against main's own
+ * `PROBE-SIZE` line and falls back to these two only when no resize was needed.
+ */
 const WINDOW_WIDTH = 232
 const WINDOW_HEIGHT = 260
 
@@ -349,7 +356,18 @@ if (!IS_WIN || ours.length !== 1 || restoredLine === null) {
   const w = ours[0] as WindowFlags
   const wantX = Math.round(Number(restoredLine[1]))
   const wantY = Math.round(Number(restoredLine[2]))
-  const sized = w.width === WINDOW_WIDTH && w.height === WINDOW_HEIGHT
+  // The size the renderer asked for, which is the size the window should be. Its absence means the
+  // measured content happened to equal the creation size, so those constants are the fallback -- and
+  // naming which one was used is the point, because "232x260" proves nothing about the resize path.
+  const resizes = [...r.stdout.matchAll(/^PROBE-SIZE (\d+) (\d+)$/gm)].map((m) => [Number(m[1]), Number(m[2])])
+  const lastResize = resizes[resizes.length - 1]
+  const wantW = lastResize?.[0] ?? WINDOW_WIDTH
+  const wantH = lastResize?.[1] ?? WINDOW_HEIGHT
+  const sizeSource =
+    lastResize === undefined
+      ? `the constructor (no PROBE-SIZE line, so the content matched it and main never resized)`
+      : `main's own PROBE-SIZE after ${String(resizes.length)} resize(s) from the renderer's measurement`
+  const sized = w.width === wantW && w.height === wantH
   const placed = w.x === wantX && w.y === wantY
   if (sized && placed) {
     // The source is named in the verdict on purpose. `via key` means a saved position was found and
@@ -361,7 +379,7 @@ if (!IS_WIN || ours.length !== 1 || restoredLine === null) {
       "PASS",
       `live rect ${String(w.x)},${String(w.y)} ${String(w.width)}x${String(w.height)} equals the ` +
         `placement decision (${String(wantX)}, ${String(wantY)}) via ${source} on ` +
-        `${String(restoredLine[3])}` +
+        `${String(restoredLine[3])}, at the size from ${sizeSource}` +
         (source === "key"
           ? ""
           : ` -- NOTE: source is "${source}", not "key", so this run did NOT exercise restoring a ` +
@@ -373,10 +391,10 @@ if (!IS_WIN || ours.length !== 1 || restoredLine === null) {
       "S4 live rect",
       "FAIL",
       `live rect ${String(w.x)},${String(w.y)} ${String(w.width)}x${String(w.height)} vs expected ` +
-        `${String(wantX)},${String(wantY)} ${String(WINDOW_WIDTH)}x${String(WINDOW_HEIGHT)}. ` +
-        `GetWindowRect is in PHYSICAL PIXELS and Electron's setPosition is in DIPs, so a display at a ` +
-        `scale factor other than 1.00 makes these disagree legitimately -- check the scale before ` +
-        `reading this as a placement bug`,
+        `${String(wantX)},${String(wantY)} ${String(wantW)}x${String(wantH)}, the size taken from ` +
+        `${sizeSource}. GetWindowRect is in PHYSICAL PIXELS and Electron's setPosition and ` +
+        `setContentSize are both in DIPs, so a display at a scale factor other than 1.00 makes these ` +
+        `disagree legitimately -- check the scale before reading this as a placement bug`,
     )
   }
 }

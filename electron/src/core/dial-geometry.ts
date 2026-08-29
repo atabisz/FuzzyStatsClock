@@ -178,7 +178,20 @@ export function rotateUpwardPoint(degrees: number, length: number): { x: number;
   }
 }
 
-/** The `transform` a hand carries. `transform-origin` is the centre, set in CSS. */
+/**
+ * The `transform` **attribute** a hand carries: `rotate(angle cx cy)`, with the dial centre written out.
+ *
+ * The attribute form and not the CSS-property form, and that is a change of mind with a reason. CSS's
+ * `transform` needs `45deg` and a separate `transform-origin` rule, so the renderer would have to write
+ * `element.style.transform` -- a CSSOM write, under a document whose CSP is `style-src 'self'` with no
+ * `unsafe-inline`. Whether CSP reaches CSSOM property writes is exactly the kind of question whose wrong
+ * answer here is a hand that silently never moves. The attribute takes a unitless angle and its own
+ * centre, is provably not a style-src subject, and drops the coupling to a `transform-origin` rule in
+ * `index.css` that nothing but the hands would have needed.
+ *
+ * `40 40` rather than the two constants interpolated: the centre is the same literal in both, and a
+ * reader checking this against `UpdateDialDisplay` should see the numbers.
+ */
 export function handTransform(degrees: number): string {
-  return `rotate(${String(degrees)}deg)`
+  return `rotate(${String(degrees)} 40 40)`
 }

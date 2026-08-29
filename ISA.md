@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 16/35
+progress: 18/35
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-29T23:22:18+10:00
+updated: 2026-08-30T04:20:05+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -634,11 +634,75 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 4 — SVG display
 
-- [ ] **ISC-21. All four display modes render: phrase, dial, LCD, Nixie.**
-- [ ] **ISC-22. Animation touches only composited properties.** `transform`/`opacity` only; never
+- [x] **ISC-21. All four display modes render: phrase, dial, LCD, Nixie.** **CLOSED 2026-08-30 —
+  measured on a live Chromium document, not on the source.** `scripts/probe-display.ts` launches the
+  built app five times, once per face, and reads the DOM back over CDP: **51 arms green / 0 failed / 10
+  inconclusive-by-design / 0 blocking**.
+  - **"Four modes" is five faces, and the fifth is why the count is stated.** `clockType: "phrase"` with
+    `textStyle: "Split"` is structurally a different face — `#qualifier` + `#emphasis`, not a font
+    change — so a four-launch probe would have left one face unrendered and still read green.
+  - **Three failures a fake DOM cannot have, which is the whole reason this is a probe.** An
+    unresolvable `<use>` renders nothing *with no console error*; a CSS declaration silently beats a
+    presentation attribute; a replaced inline element with no `#root { display: block }` collapses.
+    Only Chromium's own cascade can answer the middle one. All 16 `<use>` hrefs resolve against
+    `getElementById` in every case, and all 46 contract ids are present with no strays — checked in
+    **both** directions, so an added id fails as loudly as a missing one.
+  - **Element counts are derived from the geometry tables, never relisted in the probe:**
+    `lcdSlot=8 lcdSeg=56 lcdDot=16`, `nixieTube=4 nixieGlow=16 nixieGhost=40 nixieColonDot=2`,
+    `dialTick=12 dialDot=60 dialNumber=12`, `phraseLine=2`. A relisted expectation would pass against a
+    face that had drifted from its own table.
+  - **The hole in my own green run, found after it passed.** The first run read 46 green and printed
+    `phrase="" qualifier="" emphasis=""` as diagnostic output — correct for that case, but it exposed
+    that **no arm could catch a blank face**: `#phrase` is a child of `#phraseFace` whether or not it
+    holds text, so a phrase engine returning `""` passed everything. **Arm D11 added**, with its
+    negative control: the active text face must be non-empty, and on a dial/lcd/nixie case all three
+    text elements must be *empty* (proving only the active face ticks). Live values:
+    `phrase="just after four"`, `qualifier="five past"` + `emphasis="four"`, `date="Sun, Aug 30"`.
+  - **Two-sided control on the dial decorations, because the one-sided version proves nothing.** All
+    three flags — `showHourTicks`/`showMinuteDots`/`showHourNumbers` — **default FALSE**, so a probe
+    that does not set them reads an *empty dial* as correct. The dial case sets all three (12/60/12
+    visible); the other four leave them at their defaults and assert `display="none"`.
+  - **A design decision converted into a measurement.** The LCD case sets `textStyle: "Literary"` and
+    **no LCD pixel depends on it** — it is there to measure the "all five faces rebuild on every
+    settings push" decision, since `#phrase` computing the Palatino stack while the LCD is visible is
+    only possible if the hidden phrase face rebuilt.
+  - Bounded: **no pixel is compared.** No screenshot is taken and no glyph is measured against WPF's.
+- [x] **ISC-22. Animation touches only composited properties.** `transform`/`opacity` only; never
   `r`/`rx`/`ry`/`cx`/`cy`/`d` per frame. Falsifier: a frame scrub or a paint-flash capture showing
-  re-rasterisation.
-- [ ] **ISC-23. Every theme and the auto-contrast colour path render correctly.**
+  re-rasterisation. **CLOSED 2026-08-30, with the falsifier replaced because it was not measurable as
+  written — the deviation is stated, not glossed.**
+  - **The dial cannot be frame-scrubbed.** `dialPlan` reads hours and minutes only, so the hands move
+    once a *minute*: a 3-second scrub samples a window in which a **correct** dial is motionless, and
+    that green is equally true of a dial that never rendered. Replaced with three claims a broken dial
+    cannot pass — the hands' `transform` equals `handTransform(dialPlan(now))` **accepting this minute
+    or the previous one** (a minute boundary between the renderer's last tick and the harvest is
+    legitimate; the probe names which it matched, which is the difference between a probe and a flaky
+    probe); the `x1/y1/x2/y2` endpoints are unchanged, so rotation is not faked by moving points; and
+    `el.style.transform === ""`, read off the element rather than assumed from the source.
+  - **The scrub moved to the faces that actually animate.** Nixie glow `opacity` (40 ms) and the LCD
+    colon dot fills (1 s): **nixie 11 distinct DOM states across 3,155 ms, lcd 4 across 3,187 ms.**
+  - **The negative half is what makes the positive half evidence.** Phrase, split and dial must each
+    produce **exactly one** DOM state across the same window — all three do. This is also the only
+    observable form of the `svg.ts` write memo: **the renderer bundle exports to no global, so CDP
+    cannot see a closure** and `setAttr`'s return count is unreachable from outside the renderer. The
+    probe hashes the visible face's `outerHTML` and measures the effect instead.
+  - Bounded: **no paint-flash capture was taken.** The composited-property claim rests on the attribute
+    /`style` distinction and the per-frame diff, not on a rasterisation trace.
+- [~] **ISC-23. Every theme and the auto-contrast colour path render correctly.** **Theme half CLOSED
+  2026-08-30; the auto-contrast half stays open and is not this phase's to close.**
+  - **All 26 themed elements COMPUTE the accent the settings file carried** — five different accents
+    across five launches, read as Chromium's *computed* `fill`/`stroke`, which is the only place the
+    central trap is answerable: **a CSS declaration beats a presentation attribute**, and every colour
+    here goes on as an attribute because the CSP ships no `unsafe-inline`. `#80FFFFFF` on the Nixie case
+    exercises `cssColor`'s alpha path (CSS Color 4 `rgb(r g b / a)` against Chromium's legacy
+    `rgba(…)`, normalised by channel with alpha to ±0.005).
+  - The trap is guarded twice on purpose: `test/renderer-ids.test.ts` forbids `index.css` declaring any
+    property code writes as an attribute on a matching element, over the *source*; arm D5 checks the
+    same claim over Chromium's *cascade*. The source check cannot see the cascade and the cascade check
+    cannot see an unreached rule.
+  - **Open half:** `core/contrast.ts` is translated and tested but **wired to nothing** — auto-contrast
+    is `[FOG]`/Phase 8 and first on the cut list, and `desktopCapturer` dies on the same denial noted at
+    ISC-10's macOS arm. Nothing here renders that path, so it is not claimed.
 
 ### Phase 5 — Ghost mode
 
@@ -1193,7 +1257,8 @@ measured on this branch at or after that base.
 
 | ISC-15 / ISC-16 (the shell's window traits, Windows) | `bun run probe:shell` — builds first, then `scripts/probe-shell.ts` launches `dist/main.js` into a `mkdtemp` `--user-data-dir` and `scripts/winflags.ps1 -Pids <pid>` reads the style bits back over `EnumWindows`. 8 arms, 8 PASS at `ff4899d` | **Read off a LIVE window, never off `main.ts`** — the distinction the claim is worded around, because asserting `frame: false, transparent: true` from the source proves the constructor was *called*, and Chromium degrades window traits silently under real compositors. **Positive control on the absence (claim 18):** `altTabTotal` computes the shell's eligibility rule over *every* visible window, giving **0 ours against 13 others** — an enumerator that found nothing would return the same zero as a real absence, so the denominator is what makes it evidence. **Discriminating per-flag:** each of the 6 expectations names the option that should have produced it, so a red identifies the line rather than the file. **Not inherited blindly:** `garry-desktop`'s version scans by process *name* and would attribute another Electron app's window to the overlay; the pid parameter is the only substantive change. **Bounded:** one host, one launch, scale 1.00 — `GetWindowRect` is physical pixels and `setPosition` is DIPs, so the rect arm is only meaningful while they coincide, and the probe says so in its own FAIL text |
 | ISC-18 (settings persistence + the one-time WPF import) | `bun test` (`test/settings-store.test.ts`, 35 cases; `test/settings-import.test.ts`) plus the live arms of `probe:shell` — S5 and S6 | **The live import ran against his real file and matched the prediction ISC-7.1 made from reading it**: `1 re-keyed, 1 dropped, 6 ignored, 0 unrecognised`, the dropped entry being the (−227, 510) orphan, and the fallback landing at (3188, 20) = 3440 − 232 − 20 — arithmetic that only comes out right if `FIRST_RUN_PADDING_PX` and the work area are both what the C# says. **The isolation is measured, not assumed:** S5 asserts the store path is *inside* the throwaway profile, so a `--user-data-dir` Electron stopped honouring would fail rather than let the run quietly read and write the real profile. **Field count read off `DEFAULTS`** rather than hardcoded, so adding a setting cannot make the probe stale. **A real defect, caught by the test rather than by inspection:** `??` collapsed an explicit `null` into the platform default, making "`null` disables the import" unreachable and every opted-out test a reader of his live file — three arms expecting `defaults` returned `wpf-import`. **Atomicity has a real obstruction:** `settings.json.tmp` is made a *directory*, so the write throws `EISDIR` before `renameSync` and the arm can check the previous file survived byte-intact; a truncate-first implementation (which is what the WPF original does) fails it |
-| ISC-19 / ISC-20 (placement across restarts, display changes and drags) | `bun test` (`test/window-placement.test.ts`, ~35 cases) against `FakeScreen`/`FakeWindow`; S4 of `probe:shell` for the live rect | **The regression this file exists for:** `commit` used to take `{ snap: boolean }` and dropped the source monitor's key whenever the display had changed, so wiring `display-removed` to it would have **deleted the position the user set on a monitor at the moment that monitor was unplugged.** Provable only because `FakeScreen.displays` is *mutable* — the unplug is modelled, not inspected. **Both LG fakes carry an identical label, asserted**, so any future name-based key scheme fails here first (ISC-7's finding, pinned as a test rather than a memory). **Honest about what the live run did NOT show:** the source was `first-run`, so restoring from a saved key was never exercised, and the probe says so *inside its PASS verdict* rather than letting a green over-read. **The snap/clamp composition is pinned by outcome, not by order** — `snapToEdge`'s own −72 is asserted directly before the composition, because clamp-then-snap and snap-then-clamp agree on every reachable input and a test claiming to discriminate them would be claiming discriminating power it does not have. **ISC-20's live half is refused rather than faked:** `onDragMove` reads `screen.getCursorScreenPoint()` by design, so a `sendInputEvent` drag moves the window by a zero delta, and the only real synthetic drag is `SetCursorPos` on his live desk — the same input-synthesis line ISC-14 already declined to cross |
+| ISC-19 / ISC-20 (placement across restarts, display changes and drags) | `bun test` (`test/window-placement.test.ts`, ~35 cases) against `FakeScreen`/`FakeWindow`; S4 of `probe:shell` for the live rect | **The regression this file exists for:** `commit` used to take `{ snap: boolean }` and dropped the source monitor's key whenever the display had changed, so wiring `display-removed` to it would have **deleted the position the user set on a monitor at the moment that monitor was unplugged.** Provable only because `FakeScreen.displays` is *mutable* — the unplug is modelled, not inspected. **Both LG fakes carry an identical label, asserted**, so any future name-based key scheme fails here first (ISC-7's finding, pinned as a test rather than a memory). **Honest about what the live run did NOT show:** the source was `first-run`, so restoring from a saved key was never exercised, and the probe says so *inside its PASS verdict* rather than letting a green over-read. **The snap/clamp composition is pinned by outcome, not by order** — `snapToEdge`'s own −72 is asserted directly before the composition, because clamp-then-snap and snap-then-clamp agree on every reachable input and a test claiming to discriminate them would be claiming discriminating power it does not have. **ISC-20's live half is refused rather than faked:** `onDragMove` reads `screen.getCursorScreenPoint()` by design, so a `sendInputEvent` drag moves the window by a zero delta, and the only real synthetic drag is `SetCursorPos` on his live desk — the same input-synthesis line ISC-14 already declined to cross. **S4's live-rect expectation was VOIDED by Phase 4 and re-earned — rule 17 in its literal form.** Phase 4 makes the window size a renderer decision (the renderer measures its content and main honours a `resize`), so S4 went to FAIL at `208x243 vs 232x260` with the **position exact and only the size wrong**. The expectation was stale, not the code: S4 now parses main's own `PROBE-SIZE` out of the app's stdout and compares against the last one, falling back to the constructor constants only when no resize was needed — **and names which source it used in both verdict branches**, because `232×260` proves nothing about the resize path. Back to 8/0/0. A non-blocking arm is not a waivable one |
+| ISC-21 / ISC-22 / ISC-23 (the five faces, the composited-property rule, the theme) | `bun run probe:display` — builds, then `scripts/probe-display.ts` launches `dist/main.js` five times into throwaway `--user-data-dir` profiles (one per face) with `--remote-debugging-port` + `--remote-allow-origins=*`, and harvests one in-page IIFE over CDP: **51 passed / 0 failed / 10 inconclusive / 0 blocking**. Plus `bun test` — `test/renderer-ids.test.ts`, `test/theme.test.ts`, `test/display-plan.test.ts`, `test/locale-key.test.ts` | **Read off the live document, never off the markup**, because three of the failures being guarded against cannot exist in a fake DOM: an unresolvable `<use>` renders nothing *with no console error*, a CSS declaration silently beats a presentation attribute, and a replaced inline element with no `#root { display: block }` collapses. **Only Chromium's cascade can answer the middle one**, which is why the CSS-shadowing claim is guarded twice — over the source in `renderer-ids.test.ts` and over the cascade in arm D5 — and neither check subsumes the other. **The reduction to five launches is logged at run start rather than hidden**: one launch per settings combination is the only route (main does not watch the settings file; CDP reaches the page but not `ipcRenderer`), and accent × face is not dropped for convenience since only the LCD reads the accent for anything beyond a paint, through a separately-tested pure function. **Two negative controls carry the two claims that would otherwise be vacuous**: three faces must produce *exactly one* DOM state across 3 s (a phrase face rewriting identical text every second passes every other arm in the file), and the dial decorations must be `display="none"` on the four cases that leave their **false defaults** alone (a probe that never sets those flags reads an empty dial as correct). **The memo is measured as an effect, not a count** — the bundle exports to no global, so CDP cannot see `setAttr`'s return value; the probe hashes `outerHTML` instead. **`harvestExpression` deliberately uses string concatenation and no template literals inside the page code**, since the file is already inside one and the nesting is how you get a probe that measures a syntax error. **Bounded, and the bounds are in the probe's own header:** no pixel is compared, no screenshot is taken, no paint-flash trace is captured, and the `text-before-edge` vs WPF `FontFamily.Baseline` offset is *recorded* by D10 (`#date y=110 bbox=97.23,110.00 81.47×21.00`) and **checked by nothing** |
 
 ### Still outstanding
 
@@ -1211,12 +1276,20 @@ measured on this branch at or after that base.
   `core/reset.ts`, whose `ResetToDefaults` is a private method on a WPF `Window` and unreachable from
   the console harness. Both headers say so in place; every other Phase 3 expectation is a recorded C#
   value.
-- **ISC-6's greens are void again, by rule 17, and this is the second time.** `main.ts` changed
-  substantially in Phase 3 (settings, tray, placement, drag, IPC) and `settings-store.ts` changed after
-  its own tests were written. The cost figures were measured on the old harness, so the CPU comparison
-  needs a re-run against `ff4899d` before any of them is quoted again. It gates nothing right now — the
-  go/no-go already passed with a 1.93–2.43× margin — but the *number* is stale and must not be repeated
-  as current.
+- **ISC-6's greens are void again, by rule 17, and this is now the third time.** `main.ts` changed
+  substantially in Phase 3 (settings, tray, placement, drag, IPC), `settings-store.ts` changed after its
+  own tests were written, and **Phase 4 added an 87.73 KB renderer bundle that ticks every second** —
+  which is exactly the thing a CPU comparison measures. The cost figures were measured on the old
+  harness, so the comparison needs a re-run before any of them is quoted again. It gates nothing right
+  now — the go/no-go already passed with a 1.93–2.43× margin — but the *number* is stale and must not be
+  repeated as current, and Phase 4 is the change most likely to have moved it.
+- **Phase 4 renders no pixel comparison and does not pretend to.** No screenshot, no glyph measured
+  against WPF's. The concrete residual is the **`text-before-edge` vs WPF `FontFamily.Baseline` offset**:
+  arm D10 *records* it (`#date y=110 bbox=97.23,110.00 81.47×21.00`) and **nothing checks it**, so a
+  systematic vertical offset in the date line would ship green. Carried as debt, not closed.
+- **The stats panel renders all bars at `0` and all values `"--"`, which is correct for Phase 4.** Arm
+  D10b is deliberately inconclusive-by-design: it is the before-picture for Phase 6, which owns the
+  sources. Do not read the panel's presence as the panel working.
 - **The Linux runtime arms are entirely unprobed, and there is no host.** ISC-10's Linux half plus the
   Linux halves of ISC-15..20 and ISC-27..30. What exists for Linux is API-surface evidence from Electron
   33.4.11's typings and nothing else — no window ever opened. `[DEFERRED-VERIFY]`, and unlike the macOS
@@ -1367,6 +1440,26 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **Phase 4 close-out, 2026-08-30.** ISC-21 and ISC-22 closed on `probe:display` (51/0/10/0-blocking
+  across five launches); ISC-23 half-closed — the theme path measured through Chromium's cascade, the
+  auto-contrast path left to `[FOG]`/Phase 8 rather than claimed. Two arms were added *after* a green
+  run rather than before it, and both are recorded that way on purpose: **D11** (a face with children but
+  no words passed all 46 earlier arms) and **S4's fix** in `probe-shell.ts`. Ownership of
+  `test/fixtures/wpf-layout.tsv` (96 → 326 data rows) and `test/wpf-fixture.test.ts` was **determined
+  before staging, not assumed**: `test/layout.test.ts` — my own uncommitted Phase 4 file — consumes all
+  three new row families (`lay-arrange` 140 = 4 configs × 35 elements, `lay-date` 84, `lay-emptytext` 6)
+  and the guard's counts match, so they are mine and no foreign path was held back.
+- **four false doc claims removed, and the class matters more than the count.** `svg.ts:34` said
+  `probe-display.ts` "counts" `setAttr`'s return value; `theme.ts:106` said it reads `applyTheme`'s write
+  count. **Both are impossible** — the renderer bundle exports to no global, so CDP has no route to a
+  closure — and both were written by me in this phase, describing a verification that cannot happen.
+  Rewritten to state what the probe measures instead (`outerHTML` hashing for the memo, computed paint
+  for the theme). The other two, caught pre-compaction, were `nixie-face.ts`'s "listed in
+  `STRUCTURAL_IDS`" and `display-colors.ts`'s "their union is exactly the addressable element set".
+  **My first correction was itself false** — it cited `test/svg.test.ts`, which does not exist — which is
+  the tell for the whole class: **nothing executes a doc comment**, so a claim about test coverage
+  written into a header passes typecheck, `bun test`, `build` and both probes untouched. The only
+  available control is grepping the *claim* for the artefact it names, which is how all four surfaced.
 - **conjectured** that translating `MultilingualPhraseProviderTests` would add coverage, since 104 of its
   128 cases assert only `IsNullOrEmpty == false` and every one of them could become an exact string.
   **refuted-by** reading `phrase-golden.test.ts` before writing anything: it already sweeps all 1440

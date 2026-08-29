@@ -3,7 +3,7 @@
 **Project:** FuzzyClock v5.0 — rewrite the WPF/.NET 10 Windows overlay as an Electron desktop overlay with an SVG-rendered display, targeting Windows + macOS + Linux
 **Researched:** 2026-08-28
 **Base:** `ca61130` (clean tree at planning time)
-**Status:** last updated **2026-08-29** — see § Status below. Branch `v5.0-electron-port` at `ff4899d`, Phase 3 closed on Windows, Phase 4 next.
+**Status:** last updated **2026-08-30** — see § Status below. Branch `v5.0-electron-port` at `9532f1b` plus the uncommitted renderer, Phase 4 closed on Windows, Phase 5 next.
 **Confidence:** **HIGH** on the Windows arms, the API surface, and the cost figures — all measured on this machine or read from Electron 33.4.11's own typings. **The macOS behavioural arms moved from LOW to mixed on 2026-08-28** — a real M1 laptop was probed (P1.6), so the mac rows are now a mix of `[MEASURED]` and three named `[INCONCLUSIVE]`. **Linux is still LOW on every behavioural arm: no Linux box has been touched.** Rows in this document are tagged `[MEASURED]`, `[TYPED]` (the API exists and Electron annotates it for that platform) or `[UNPROBED]`. Treat `[TYPED]` as "will compile and is documented to exist", never as "works".
 
 ---
@@ -20,9 +20,11 @@
 
 ---
 
-## Status — 2026-08-29
+## Status — 2026-08-30
 
-Branch `v5.0-electron-port` at **`ff4899d`**. Gates at that commit: `bun test` **1188 pass / 0 fail** (187,046 assertions across 28 files), `bun run typecheck` exit 0, `bun run build` exit 0, and `bun run probe:shell` **8 arms / 0 failed / 0 inconclusive**. ~~At `6370ecc`: 846 pass / 186,489 / 20 files.~~ ~~At `36072c5`: 700 pass / 185,894 / 16 files.~~
+Branch `v5.0-electron-port` at **`9532f1b`** plus the uncommitted renderer half of Phase 4. Gates on that tree, all re-measured for this update: `bun test` **2024 pass / 0 fail** (271,317 `expect()` calls across 39 files), `bun run typecheck` exit 0, `bun run build` exit 0, `bun run probe:shell` **8 arms / 0 failed / 0 inconclusive**, and `bun run probe:display` **51 passed / 0 failed / 10 inconclusive / 0 blocking** across five launches. ~~At `ff4899d`: 1188 pass / 187,046 / 28 files.~~ ~~At `6370ecc`: 846 pass / 186,489 / 20 files.~~ ~~At `36072c5`: 700 pass / 185,894 / 16 files.~~
+
+**The two probes now answer different questions, and running only one of them hides half of Phase 4.** `probe:shell` reads the *window* off Win32; `probe:display` reads the *document* off CDP. Phase 4 broke `probe:shell`'s size arm precisely because it made the window's size a renderer decision — see § Phase 4.
 
 | Phase | State | Where it stands |
 |---|---|---|
@@ -31,8 +33,8 @@ Branch `v5.0-electron-port` at **`ff4899d`**. Gates at that commit: `bun test` *
 | **2 — Core translation** | **DONE** | 27 files / 2,467 LOC translated; **all 457 translated Core cases green**, plus 147 measured additions and the golden-file oracle. Both exit conditions met. |
 | **App-layer pure seams** (not a phase — the last of Phase 2's kind) | **DONE 2026-08-29** | Ghost mode's four Win32-free seams, the LCD time formatter, both size maps and the right-click gate: **46 C# cases translated, 100 measured additions**, mutation-verified 38/41 with the 3 survivors documented as dead code. `UpdateVersionComparer` was **never in this unit** — it is Core, and closed with ISC-12. |
 | **3 — Shell** | **DONE on Windows 2026-08-29; the other two platforms are host-blocked** | ~~next~~ 12 files, 342 tests added. The flag set, Alt-Tab absence, the live rect, the settings round trip and the live WPF import are all **read back off a running app** by `probe:shell` — 8 arms, 8 green. Two things Windows cannot answer here: **drag-to-move under a human hand** and **a real monitor unplug** (both covered against fakes, neither seen on hardware). mac/linux flag arms report INCONCLUSIVE by design — same host gap as P1.6. |
-| **4 — SVG display** | **next** | |
-| **5 — Ghost mode** | not started | Carries PERF-01 as a claim. |
+| **4 — SVG display** | **DONE on Windows 2026-08-30** | ~~next~~ All five faces build and paint in a live Chromium: `probe:display` **51 arms green, 0 failed**, read off the DOM over CDP across five launches, one per face. **The exit bar's "frame scrub" was wrong and is replaced rather than reinterpreted** — the dial hands move once a *minute*, so a 3-second scrub greens on a dead dial. The stated deviation and its stronger replacement are in the exit status. |
+| **5 — Ghost mode** | **next** | Carries PERF-01 as a claim. |
 | **6 — Stats panel** | not started | The Windows parsers exist and are fixture-tested from Phase 1; the mac/linux ones do not. |
 | **6.5 — Settings window** | **NEW, added 2026-08-29** | Not in the original phase list. The feature port table listed a second `BrowserWindow`; no phase's exit criteria did, and wiring the tray in Phase 3 walked straight into it. Every setting it edits is already persisted and tray-togglable, so this is a missing editing surface, not missing state. |
 | **7 — Packaging** | **partly pre-paid** | `electron-builder` already produced a real NSIS installer for P1.5, so the toolchain is standing. Auto-launch, the Falcon re-proof and the update check are untouched. |
@@ -287,9 +289,44 @@ Window flags, tray, settings persistence at `app.getPath('userData')` (with a on
 
 **Two modules ship with no C# counterpart test, and their headers say so:** `core/tray-menu.ts` (`TrayMenuBuilder` has no C# suite) and `core/reset.ts` (`ResetToDefaults` is a private method on a WPF `Window`, unreachable from the console harness). Every other added expectation in this phase is a recorded C# value.
 
-### Phase 4 — SVG display
+### Phase 4 — SVG display → **DONE on Windows 2026-08-30**
 Phrase, dial, LCD, Nixie. Obey the composited-property rule above.
 **Exits on:** all four modes render at every theme; a frame scrub shows the dial hands moving via `transform` only.
+
+**Exit status: met, with one exit condition rewritten because it was not measurable as written.** `bun test` **2024 pass / 0 fail** (271,317 `expect()` calls, 39 files), `typecheck` and `build` exit 0, and `scripts/probe-display.ts` reads **51 arms green / 0 failed / 10 inconclusive-by-design / 0 blocking** off a live Chromium document over CDP.
+
+**"All four modes" is five faces, and the fifth is the reason the count is worth stating.** `clockType: "phrase"` with `textStyle: "Split"` is a structurally different face — two elements, `#qualifier` and `#emphasis` — not a font change, so the probe launches **five** cases: phrase, split, dial, lcd, nixie. Each gets its own accent (`#FFFF8C00`, `#FF00BFFF`, `#FF7FFF00`, `#FFFF1493`, `#80FFFFFF` — the last semi-transparent, to exercise `cssColor`'s alpha path).
+
+**Five launches and not fifteen, with the reduction stated rather than hidden.** One launch per settings combination is the only route available: main does not watch the settings file, and CDP reaches the page but not `ipcRenderer`. Accent × face is not dropped for convenience — only the LCD reads the accent for anything beyond a paint, and it does so through `lcdSkin`, which is a pure function with its own tests.
+
+#### The exit bar's dial scrub is wrong, and this is the deviation
+**`dialPlan` reads hours and minutes only.** The hands move once a minute, so "a frame scrub shows the dial hands moving" would sample a 3-second window in which a *correct* dial is motionless — the green would mean "the dial did not change", which is equally true of a dial that never rendered. Replaced with three claims that a broken dial cannot pass:
+- the `hourHand`/`minuteHand` `transform` equals `handTransform(dialPlan(now))` — **accepting this minute or the previous one**, because a minute boundary between the renderer's last tick and the harvest is legitimate, and the probe names which one it matched. That is the difference between a probe and a flaky probe.
+- the hands' `x1/y1/x2/y2` are unchanged from their authored values, so rotation is not being faked by moving endpoints.
+- `el.style.transform` is `""` — the composited-property rule, checked on the element rather than assumed from the source.
+
+The animation scrub moved to the two faces that genuinely animate: the LCD colon dots (per second) and the Nixie glow opacity (per 40 ms). Measured: **nixie 11 distinct DOM states across 3,155 ms; lcd 4 across 3,187 ms.**
+
+#### The negative half, which is what makes the positive half evidence
+Three of the five faces must produce **exactly one** DOM state across the same 3-second window — phrase, split and dial update slower than 1 Hz, so more than one state means something is rewriting identical content every tick. All three read exactly one. This is also the only way the `svg.ts` write memo is observable at all: **the renderer bundle exports to no global, so CDP cannot see a closure**, and `setAttr`'s and `applyTheme`'s return counts are unreachable from outside. The probe hashes the visible face's `outerHTML` instead and measures the effect.
+
+Two more two-sided controls, both added because the one-sided version proves nothing:
+- **The dial decorations.** All three flags — `showHourTicks`, `showMinuteDots`, `showHourNumbers` — **default FALSE**, so a dial probe that does not set them reads an empty dial as correct. The dial case sets all three and finds 12 ticks / 60 dots / 12 numbers visible; the other four cases leave them at their defaults and assert the groups are `display="none"`.
+- **Text leakage.** `renderer.ts` ticks only the active face, so on a dial/lcd/nixie case `#phrase`, `#qualifier` and `#emphasis` must all be *empty*. Measured empty in all three.
+
+#### One hole in my own green run, found after it passed
+The first run came back **46 green / 0 failed** and printed `face texts: phrase="" qualifier="" emphasis=""` as diagnostic output. That is correct for the case it was printed on — but it exposed that no arm could catch a *blank* face: `#phrase` is a child of `#phraseFace` whether or not it contains any text, so a phrase engine returning `""` would have passed every arm in the file. **Arm D11 was added for it** and takes the real values through the live DOM: `phrase="just after four"`, `qualifier="five past"` + `emphasis="four"`, `date="Sun, Aug 30"` in every case.
+
+#### A design decision converted into a measurement
+The LCD case sets `textStyle: "Literary"`, and **no LCD pixel depends on it.** It is there to measure the renderer's decision that *all five* faces rebuild on a settings push: `#phrase` computes the Palatino stack while the LCD is the visible face, which can only be true if the hidden phrase face rebuilt. Both `rebuild()`s write `font-family` unconditionally, outside their structure gate, which is what makes the check reach.
+
+#### Phase 4 broke `probe:shell`'s S4, and the expectation was stale rather than the code
+`probe:shell` regressed to **7 passed / 1 failed** with `live rect 3188,20 208x243 vs expected 3188,20 232x260`. **The position was exact; only the size differed** — because Phase 4 makes the window size a renderer decision: the renderer measures its own content and sends a `resize`, and main honours it. S4 was asserting the *constructor's* numbers against a window that had legitimately moved past them. Fixed by parsing main's own `PROBE-SIZE` lines out of the app's stdout and comparing against the last one, falling back to the two constants only when no resize was needed — and **naming which source was used in both verdict branches**, because "232×260" proves nothing about the resize path. Back to **8 / 0 / 0**, S4 now reading `the size from main's own PROBE-SIZE after 1 resize(s) from the renderer's measurement`. A non-blocking arm is not a waivable one.
+
+#### Four false doc claims removed, two of them mine from this phase
+`svg.ts:34` claimed `probe-display.ts` "counts" `setAttr`'s return value and `theme.ts:106` claimed it reads `applyTheme`'s write count. **Both are impossible** for the closure reason above; both now state what the probe actually measures. The other two were caught pre-compaction — `nixie-face.ts`'s "listed in `STRUCTURAL_IDS`" and `display-colors.ts`'s "their union is exactly the addressable element set". One correction was itself wrong on the first attempt: it named `test/svg.test.ts`, a file that does not exist. **This class of defect — a comment asserting a verification that cannot happen — is the one that survives every gate**, since nothing executes a doc comment.
+
+**What Phase 4 does NOT prove.** Nothing here is pixel comparison: no screenshot is taken and no rendered glyph is compared to WPF. The `text-before-edge` vs WPF `FontFamily.Baseline` offset is *recorded* by the probe's diagnostic arms (`#date y=110 bbox=97.23,110.00 81.47×21.00`) and **checked by nothing** — it is carried as debt, not closed. The stats panel renders with all bars at `0` and all values `"--"`, which is the correct Phase 4 state: Phase 6 owns the sources, and D10b exists to be the before-picture.
 
 ### Phase 5 — Ghost mode
 Cursor poll in main, proximity ratio, rAF lerp in the renderer, click-through toggle, configurable override.
@@ -359,10 +396,14 @@ Of the **163** `FuzzyClock.App.Tests`, the pure-seam ones port directly; the Win
 | **NSIS 80,089,948 B vs Inno 57,389,487 B; unpacked 281,087,190 B vs exe 200,457,651 B — 1.40× both** | `electron/scripts/probe-size.ts`, `electron-builder` 26.15.3 (ISC-8) |
 | **457 of 457 translatable Core cases green; `bun test` 700 pass / 0 fail / 185,894 assertions** | `bun test` at `36072c5`, per-class counts from a TRX parse of the C# run (37 classes, 469 results, 0 unmapped) |
 | **46 of 46 App-layer pure-seam cases green; `bun test` 846 pass / 0 fail / 186,489 assertions across 20 files** | `bun test` + `bun run typecheck` + `bun run build`, all at `6370ecc` |
-| **Phase 3's shell: 6 of 6 Win32 style bits, 0 of ours Alt-Tab-eligible against 13 that are, live rect 3188,20 232×260, 41 fields written into an isolated profile** | `electron/scripts/probe-shell.ts` + `scripts/winflags.ps1`, 8 arms on a running build of `ff4899d`. **Read off a live window with `EnumWindows`/`GetWindowLong`, never off `main.ts`** — and the Alt-Tab zero carries its own denominator, without which a blind enumerator is indistinguishable from a real absence |
+| **Phase 3's shell: 6 of 6 Win32 style bits, 0 of ours Alt-Tab-eligible against 13 that are, live rect 3188,20 ~~232×260~~, 41 fields written into an isolated profile** | `electron/scripts/probe-shell.ts` + `scripts/winflags.ps1`, 8 arms on a running build of `ff4899d`. **Read off a live window with `EnumWindows`/`GetWindowLong`, never off `main.ts`** — and the Alt-Tab zero carries its own denominator, without which a blind enumerator is indistinguishable from a real absence. **The size is superseded by Phase 4:** the renderer measures its content and main resizes, so the same host now reads **208×243**, and S4 compares against main's own `PROBE-SIZE` rather than the constructor. The position is unaffected |
+| **Phase 4's display: 51 arms green over CDP — 46 contract ids present with no strays, 16 of 16 `<use>` resolving, 26 of 26 themed elements COMPUTING the accent, one face `display="inline"` per case** | `electron/scripts/probe-display.ts`, five launches (one per face) against a running build. **Chromium's own cascade is the only thing that can answer whether a stylesheet shadowed a presentation attribute**, which is why this arm is a probe and not a test. Element counts derived from the geometry tables, never relisted: `lcdSlot=8 lcdSeg=56 lcdDot=16`, `nixieTube=4 nixieGlow=16 nixieGhost=40`, `dialTick=12 dialDot=60 dialNumber=12`, `phraseLine=2` |
+| **The write memo holds: nixie 11 distinct DOM states / 3,155 ms and lcd 4 / 3,187 ms, against exactly 1 each for phrase, split and dial** | same probe, arm D9, by hashing the visible face's `outerHTML` on a sample schedule run on the renderer's own clock. **Measured as an effect because the cause is unreachable** — the bundle exports to no global, so CDP cannot see `setAttr`'s return value |
+| **Real phrase-engine text through the live DOM: `phrase="just after four"`, `qualifier="five past"` + `emphasis="four"`, `date="Sun, Aug 30"`** | same probe, arm D11 — added *after* a 46-green run, because no arm until then could distinguish a rendered face from a blank one with the right children |
 | **The live WPF import: 1 position re-keyed, 1 dropped, 6 keys ignored, 0 unrecognised** | same probe, against his real `%LOCALAPPDATA%\FuzzyClock\settings.json` — read, never written. The dropped entry is P1.4's (−227, 510) orphan, and because `LastActiveMonitor` named it the restore fell to `first-run` at (3188, 20) = 3440 − 232 − 20 |
 | **`??` made "`legacyPath: null` disables the import" unreachable** | found by `test/settings-store.test.ts` — three arms expecting `defaults` returned `wpf-import` from Alex's live file. `?? ` treats an explicit `null` as absent; fixed to `=== undefined`, which keeps the branch `main.ts` depends on |
-| **`bun test` 1188 pass / 0 fail / 187,046 assertions across 28 files** | `bun test` + `bun run typecheck` + `bun run build`, all at `ff4899d` |
+| ~~**`bun test` 1188 pass / 0 fail / 187,046 assertions across 28 files**~~ | `bun test` + `bun run typecheck` + `bun run build`, all at `ff4899d` |
+| **`bun test` 2024 pass / 0 fail / 271,317 `expect()` calls across 39 files** | `bun test` + `bun run typecheck` + `bun run build`, all on `9532f1b` plus the uncommitted renderer, re-measured 2026-08-30 for this update rather than quoted forward from the run that produced them |
 | **Every added App-seam expectation is a recorded C# value, not a derived one** | `$TEMP/fc-appprobe`, a throwaway console project that `<Compile Include>`s the five real `.cs` files so `internal` members are reachable without editing `FuzzyClock.App`; doubles printed `G17` invariant, then each literal re-checked bit-exact in Bun before being written |
 | **A negative `GhostFadeRadiusPx` clamps HIGH — the whole screen becomes the widget** | measured on the compiled C#; I predicted it would clamp to 0.0 and was wrong. Pinned in `test/ghost.test.ts` so a settings path admitting one fails a test rather than silently pinning click-through on |
 | **Edge inclusion in `ComputeProximityRatio` is unobservable at every radius except 0** | mutation run: strictening `>=` to `>` changed no answer, because an edge has Chebyshev distance 0 and `1 - 0/r` is 1.0 anyway. PROX-08 makes radius 0 a real setting, where the two paths differ (1.0 vs 0.0) — ten measured `r=0` rows added for it |

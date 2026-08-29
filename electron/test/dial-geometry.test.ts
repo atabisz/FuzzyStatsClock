@@ -209,13 +209,23 @@ describe("ISC-22: a CSS rotation is the same point as the WPF arithmetic", () =>
     }
   })
 
-  test("the transform string is a CSS angle, not a bare number", () => {
-    // SVG's `transform` attribute takes `rotate(45)` and CSS's `transform` property takes `rotate(45deg)`
-    // -- and a bare number in the CSS property is invalid and silently drops the whole declaration, so
-    // the hand would simply never move. The port animates via CSS, hence the unit.
-    expect(handTransform(0)).toBe("rotate(0deg)")
-    expect(handTransform(359.5)).toBe("rotate(359.5deg)")
-    expect(handTransform(-90)).toBe("rotate(-90deg)")
+  test("the transform is the SVG attribute form: unitless, with the centre in it", () => {
+    // The two forms are not interchangeable and each rejects the other's syntax. SVG's `transform`
+    // attribute takes `rotate(45)` or `rotate(45 cx cy)` and treats `45deg` as a parse error; CSS's
+    // `transform` property requires the unit and drops the whole declaration without it. Either mistake
+    // leaves the hand pointing at twelve forever, which is why this is pinned as a string.
+    //
+    // The attribute is what the renderer writes -- see `handTransform`'s own note on the CSP.
+    expect(handTransform(0)).toBe("rotate(0 40 40)")
+    expect(handTransform(359.5)).toBe("rotate(359.5 40 40)")
+    expect(handTransform(-90)).toBe("rotate(-90 40 40)")
+    expect(handTransform(90)).not.toContain("deg")
+  })
+
+  test("the rotation centre in the string is the dial centre", () => {
+    // Written as literals in the function, so this is the arm that catches them drifting from the
+    // constants the ticks, dots and numbers are all placed against.
+    expect(handTransform(12)).toBe(`rotate(12 ${String(DIAL_CENTER_X)} ${String(DIAL_CENTER_Y)})`)
   })
 })
 

@@ -68,8 +68,13 @@ const GEOMETRY_ROWS: Readonly<Record<string, number>> = {
   "wrap-threshold": 4,
 }
 
-/** Same, for the layout fixture: 96 data rows in 100 lines. */
+/** Same, for the layout fixture: 326 data rows in 333 lines. */
 const LAYOUT_ROWS: Readonly<Record<string, number>> = {
+  // 4 configs (dial, lcd, phrase, split) x 35 elements.
+  "lay-arrange": 140,
+  // 3 families x 4 derived date sizes x 7 candidate strings.
+  "lay-date": 84,
+  "lay-emptytext": 6,
   "lcd-view": 12,
   "nixie-view": 3,
   "nixie-view-repath": 3,
@@ -91,7 +96,7 @@ const FIXTURES: {
     lines: 602,
     dataRows: 579,
   },
-  { label: "wpf-layout.tsv", load: layoutFixture, expected: LAYOUT_ROWS, lines: 100, dataRows: 96 },
+  { label: "wpf-layout.tsv", load: layoutFixture, expected: LAYOUT_ROWS, lines: 333, dataRows: 326 },
 ]
 
 describe.each(FIXTURES)("$label", (spec) => {
@@ -224,13 +229,13 @@ describe("the guard would catch the noise it was written for", () => {
 
   test("and an empty allow-list rejects everything, so the check cannot pass vacuously", () => {
     // A guard called with the wrong tag list would otherwise report nothing and read as green.
-    expect(foreignLines(layoutFixture(), []).length).toBe(96)
+    expect(foreignLines(layoutFixture(), []).length).toBe(326)
   })
 
   test("both fixtures load by name as well as through their helpers", () => {
     // The helpers are the only callers of `loadFixture`, so the name strings are pinned here rather than
     // being discovered as a missing-file error inside an unrelated suite.
     expect(loadFixture("wpf-geometry.tsv").rows.length).toBe(579)
-    expect(loadFixture("wpf-layout.tsv").rows.length).toBe(96)
+    expect(loadFixture("wpf-layout.tsv").rows.length).toBe(326)
   })
 })

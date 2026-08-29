@@ -52,6 +52,18 @@ import type { TrayAction, TrayMenuState } from "../core/tray-menu.js"
 
 const REPAINT_MS = 1_000
 
+/**
+ * The size the window is CREATED at, and nothing more.
+ *
+ * `MainWindow.xaml` is `SizeToContent="WidthAndHeight"`, and there is no Electron equivalent — so the
+ * real size arrives from the renderer over `resize` as soon as it has measured its own text, which
+ * happens on the first settings push and therefore before `ready-to-show`. These two are what the window
+ * occupies for the few frames before that, matching `index.html`'s authored `viewBox` so the pre-measured
+ * frame is at least self-consistent.
+ *
+ * 24.7% of the 1536 reachable settings combinations exceed one of these two, so they are a floor rather
+ * than a design: the widest reachable face row is 366 and the widest date row 422.24.
+ */
 const WINDOW_WIDTH = 232
 const WINDOW_HEIGHT = 260
 
@@ -82,6 +94,15 @@ let store: SettingsStore | null = null
 let placer: WindowPlacer | null = null
 let tray: AppTray | null = null
 let mainWindow: BrowserWindow | null = null
+
+/**
+ * Whether the renderer has registered its IPC listeners.
+ *
+ * `webContents.send` into a renderer that has not yet run `ipcRenderer.on` for that channel is dropped
+ * silently, and `applyWindowSettings()` runs during startup — before the renderer has loaded — so the
+ * FIRST push is exactly the one that would go missing. The renderer's `ready` message releases the gate.
+ */
+let rendererReady = false
 
 /**
  * Latest reading, held in main rather than pushed straight through.
@@ -169,10 +190,70 @@ function applySettings(next: AppSettings, why: string): void {
   log("info", `settings: ${why}${saved ? "" : " (NOT SAVED)"}`)
 }
 
-/** The subset of settings the window itself carries. `opacity` is the only one wired in Phase 3. */
+/**
+ * The window's own share of the settings, plus the push that makes the renderer redraw.
+ *
+ * `setOpacity` is the only one the window carries itself; everything else is the renderer's, and it gets
+ * the whole object rather than a diff — `ApplySettings` re-pushes to every control too, and a diff would
+ * need both processes to agree on what changed, which is a second copy of the settings shape on the wire.
+ *
+ * Both callers matter: `applySettings` for a change, and startup for the initial state. Routing both
+ * through here is what stops a settings change from reaching the tray and the file but not the screen.
+ */
 function applyWindowSettings(): void {
   if (mainWindow === null || mainWindow.isDestroyed()) return
   mainWindow.setOpacity(settings.opacity)
+  pushSettings()
+}
+
+/** Send the current settings down, once the renderer is listening. See {@link rendererReady}. */
+function pushSettings(): void {
+  if (!rendererReady || mainWindow === null || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send("settings", settings)
+}
+
+/**
+ * The renderer measured its content: match the window to it.
+ *
+ * CSS pixels are DIPs at zoom factor 1, which is the unit `setContentSize` takes — so there is no
+ * conversion to do here, and doing one would double-scale on a HiDPI display. `setContentSize` rather than
+ * `setSize` because the renderer measured *content*; on this frameless window they are the same number,
+ * but only one of them says so by contract.
+ *
+ * This window is `resizable: false`, and whether that also blocks a programmatic resize varies by
+ * platform. Rather than trusting either answer, the size is read back and the flag is toggled only if the
+ * first attempt did not take — so the workaround costs nothing where it is unnecessary and leaves a log
+ * line where it is.
+ */
+function onResize(width: number, height: number): void {
+  if (mainWindow === null || mainWindow.isDestroyed()) return
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
+    log("warn", `resize: refusing ${String(width)}x${String(height)}`)
+    return
+  }
+  const want = { width: Math.ceil(width), height: Math.ceil(height) }
+  const before = mainWindow.getContentBounds()
+  if (before.width === want.width && before.height === want.height) return
+
+  mainWindow.setContentSize(want.width, want.height)
+  let after = mainWindow.getContentBounds()
+  if (after.width !== want.width || after.height !== want.height) {
+    mainWindow.setResizable(true)
+    mainWindow.setContentSize(want.width, want.height)
+    mainWindow.setResizable(false)
+    after = mainWindow.getContentBounds()
+    log(
+      after.width === want.width && after.height === want.height ? "info" : "error",
+      `resize: ${String(want.width)}x${String(want.height)} needed the resizable toggle` +
+        ` — now ${String(after.width)}x${String(after.height)}`,
+    )
+  }
+  // Reported on stdout because `probe-display.ts` needs to see that the window followed the content, and
+  // the DOM it reads over CDP cannot tell it what the OS window ended up as.
+  process.stdout.write(`PROBE-SIZE ${String(after.width)} ${String(after.height)}\n`)
+  // The window just changed size, so a position that was inside the work area may no longer be. This is
+  // the same re-clamp a display change gets, for the same reason.
+  commitPlacement("display-change")
 }
 
 /**
@@ -285,7 +366,7 @@ function onResetToDefaults(): void {
 function handleTrayAction(action: TrayAction): void {
   const clockType = CLOCK_TYPE_ACTIONS[action]
   if (clockType !== undefined) {
-    applySettings({ ...settings, clockType }, `clockType = ${clockType} (renders in Phase 4)`)
+    applySettings({ ...settings, clockType }, `clockType = ${clockType}`)
     return
   }
   switch (action) {
@@ -303,7 +384,9 @@ function handleTrayAction(action: TrayAction): void {
     case "toggle-stats":
       applySettings(
         { ...settings, statsVisible: !settings.statsVisible },
-        `statsVisible = ${String(!settings.statsVisible)} (the panel obeys it in Phase 6)`,
+        // The panel obeys this now. What Phase 6 adds is per-ROW visibility and the platform sources
+        // behind the numbers — so a toggle today shows a panel of `--`s on macOS and Linux.
+        `statsVisible = ${String(!settings.statsVisible)}`,
       )
       return
     case "toggle-auto-contrast":
@@ -343,6 +426,19 @@ app.whenReady().then(() => {
 
   ipcMain.on("painted", () => {
     paints++
+  })
+  ipcMain.on("ready", () => {
+    rendererReady = true
+    pushSettings()
+    log("info", "renderer: ready — settings pushed")
+  })
+  // Validated rather than destructured straight: this is a process boundary, and a malformed payload
+  // reaching `setContentSize` is a thrown exception in the main process, which takes the whole app down.
+  ipcMain.on("resize", (_event, payload: unknown) => {
+    if (typeof payload !== "object" || payload === null) return
+    const { width, height } = payload as { width?: unknown; height?: unknown }
+    if (typeof width !== "number" || typeof height !== "number") return
+    onResize(width, height)
   })
   ipcMain.on("drag-start", onDragStart)
   ipcMain.on("drag-move", onDragMove)

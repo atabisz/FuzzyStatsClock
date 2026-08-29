@@ -18,6 +18,7 @@
     "probe:typeperf": "bun scripts/probe-typeperf.ts",
     "probe:cost": "bun scripts/probe-cost.ts",
     "probe:displays": "bun scripts/probe-displays.ts",
+    "probe:display": "bun run build && bun scripts/probe-display.ts",
     "probe:size": "bun scripts/probe-size.ts",
     "probe:shell": "bun run build && bun scripts/probe-shell.ts",
     "dist:win": "bun run build && electron-builder --win --publish never"
