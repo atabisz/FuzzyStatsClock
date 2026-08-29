@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 13/34
+progress: 14/34
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-29T14:16:04+10:00
+updated: 2026-08-29T15:12:09+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -476,9 +476,66 @@ misses it, because every feature either ported or was consciously retired with t
     implementation — the other 16 are one delegating line each. Read off the source and worth stating
     because the interface's two methods imply 18 pairs of implementations, and 16 of them are the same
     line.
-- [ ] **ISC-14. The pure seams from the App layer are ported with their tests.**
+- [x] **ISC-14. The pure seams from the App layer are ported with their tests.**
   `ComputeProximityRatio`, `LerpRatio`, the formatters and the version comparer are already static and
   pure in C#.
+  - **Scope enumerated from the test tree, not from that sentence — and the sentence was wrong.**
+    `UpdateVersionComparer` lives in `FuzzyClock.Core`, not the App layer, and closed under ISC-12 as
+    `core/update-version.ts` with its 20 cases. What is actually here is **46 C# cases across 7 files**:
+    `GhostModeControllerProximityTests` 12, `LerpRatioTests` 5, `GhostModeControllerTests` 12,
+    `OnSampleTickTests` 4, `LcdTimeFormatHelperTests` 4, `NixieSizeMapTests` 3,
+    `RightClickMenuGateTests` 6. The temps suites are out by Alex's "C, drop temps", contrast is
+    `[FOG]`/Phase 8, and settings is Phase 3.
+  - **CLOSED at `6370ecc`.** `bun test` → **846 pass / 0 fail / 186,489 expect() across 20 files**,
+    `bun run typecheck` exit 0, `bun run build` exit 0. Against ISC-12's close (`36072c5`, 700 pass /
+    185,894 / 16 files) this unit adds **146 tests, 595 expectations and 4 files** — 46 translations and
+    **100 additions, counted apart** for the same reason ISC-12 separated its 147.
+  - **Every added expectation is a recorded C# value.** `$TEMP/fc-appprobe` is a throwaway console
+    project that `<Compile Include>`s the five real `.cs` files, so `internal` members are reachable
+    without editing `FuzzyClock.App` or its `InternalsVisibleTo` list. Subcommands
+    `prox|lerp|tick|modifier|lcdfmt|sizes|rmb`, doubles printed `G17` invariant. Every float literal was
+    then re-checked bit-exact in Bun before being written into a test: .NET and Bun agreed on all of
+    them, including the four `Math.exp` rows — which are nonetheless asserted with
+    `toBeCloseTo(literal, 15)` *plus* an exact `toBe` against the formula inline, because neither spec
+    pins `exp` bitwise.
+  - **`IsModifierHeld` is the one seam whose C# test cannot discriminate, and the port fixes that
+    rather than inheriting it.** The predicate calls `GetAsyncKeyState` inside itself, so in a test
+    process no key is ever down and all 12 rows expect `false` — eleven of them would pass against
+    `return false`. Splitting the read out makes the logic testable over all **256 (config × held)
+    pairs** against a deliberately different formulation (collect the configured keys, ask whether all
+    are down), with `expect(heldTrue).toBe(65)` as the guard: two formulations that both collapsed to
+    `return false` would agree on all 256 rows. Synthesising keystrokes to measure the held rows was
+    rejected — `SendInput` would press keys on his live desktop.
+  - **REFUTED, and pinned: a negative fade radius clamps HIGH.** I assumed it would clamp to 0.0. The
+    clamp applies to `1 - distance/radius`, which a negative divisor sends above 1, so a negative radius
+    makes the entire screen count as the widget and pins click-through on. Measured on the C#, pinned in
+    a test so a settings path that ever admits one fails here.
+  - **Discriminating power (claim 18): 41 mutations, 38 caught by the owning suite ALONE, 17 of those by
+    the added rows only.** Columns were MINE / SIBLINGS / the 16 pre-existing suites enumerated from
+    `test/` on disk, plus a fourth projection — `bun test -t "translated from"` — that runs the 46
+    translated rows and nothing else, which is what makes "what the additions bought" a measurement
+    rather than a claim. Sibling and pre-existing columns were **0 as predicted**, restore byte-identical.
+    The projection also needed a guard: `-t` exits 0 when it matches nothing, so the baseline asserts the
+    count, and that assertion is what caught the projection matching **50** — four all-keys-up rows the
+    C# omits were sitting inside a describe titled "translated from". Split out, so the title is true.
+  - **The first run found a real gap and two things that are dead code.** The gap: edge inclusion is
+    **unobservable at every radius except 0**, because a cursor on an edge has Chebyshev distance 0 and
+    `1 - 0/r` is 1.0 through the arithmetic anyway — strictening `>=` to `>` changed no answer. PROX-08
+    makes radius 0 a real setting, and there the two paths disagree (1.0 vs 0.0, i.e. a fade-disabled
+    widget would stop ghosting with the cursor on its own border), so ten measured `r=0` rows were added
+    and both mutations now die. The three survivors are behaviourally dead and documented in place: the
+    zero-radius arm the clamp already covers, the `if (ratioChanged)` write guard, and the RMB-02-beats-
+    RMB-03 precedence the C# asserts but which **no input can observe** — both rules return false, so
+    swapping the guards changes nothing. That last one is a corrected claim in two files, not just a
+    survivor.
+  - **Two findings for later phases, both from his live `%LOCALAPPDATA%\FuzzyClock\settings.json`** —
+    read, never written. (1) `System.Text.Json` writes a C# enum as its **ordinal**, and his file holds
+    `"LcdSize": 0` / `"ClockType": 1`, so **ISC-18's importer cannot read these as names**;
+    `lcdSizeFromOrdinal` exists for it. (2) His `GhostFadeRadiusPx` is **200**, not the 80 default, so
+    the halo reaches 2.5× further than every C# test row exercises — pinned as its own row.
+  - **One documented deviation from the otherwise 1:1 file mapping:** `LcdSize.cs` and `NixieSize.cs`
+    (14 and 12 lines, same shape, same three-value domain) are one `digit-size.ts`. Splitting them would
+    leave a module whose entire body is an `import type`. Provenance is per-function instead.
 
 ### Phase 3 — Shell
 

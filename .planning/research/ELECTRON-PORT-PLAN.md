@@ -22,14 +22,15 @@
 
 ## Status — 2026-08-29
 
-Branch `v5.0-electron-port` at **`36072c5`**. Gates at that commit: `bun test` **700 pass / 0 fail** (185,894 assertions across 16 files), `bun run typecheck` exit 0, `bun run build` exit 0.
+Branch `v5.0-electron-port` at **`6370ecc`**. Gates at that commit: `bun test` **846 pass / 0 fail** (186,489 assertions across 20 files), `bun run typecheck` exit 0, `bun run build` exit 0. ~~At `36072c5`: 700 pass / 185,894 / 16 files.~~
 
 | Phase | State | Where it stands |
 |---|---|---|
 | **0 — Decide** | **2 of 4 answered** | WPF retired at parity (in the goal verbatim); temps = **C** (2026-08-28). Linux-XWayland and auto-contrast are still Alex's calls, and neither gates Phases 1-3. |
 | **1 — Telemetry spike (go/no-go)** | **PASSED, one half of one item outstanding** | P1.1-P1.5 all closed by probe. **The premise held with room: 8.21-10.88% of one core against WPF's 19.92-20.98%, back to back on one instrument — 1.93-2.43× cheaper.** P1.6's macOS half is done on a real M1; **the Linux half has no host.** |
 | **2 — Core translation** | **DONE** | 27 files / 2,467 LOC translated; **all 457 translated Core cases green**, plus 147 measured additions and the golden-file oracle. Both exit conditions met. |
-| **3 — Shell** | not started | Next after the App-layer pure seams. |
+| **App-layer pure seams** (not a phase — the last of Phase 2's kind) | **DONE 2026-08-29** | Ghost mode's four Win32-free seams, the LCD time formatter, both size maps and the right-click gate: **46 C# cases translated, 100 measured additions**, mutation-verified 38/41 with the 3 survivors documented as dead code. `UpdateVersionComparer` was **never in this unit** — it is Core, and closed with ISC-12. |
+| **3 — Shell** | **next** | ~~Next after the App-layer pure seams.~~ Unblocked: the seams it consumes are landed. |
 | **4 — SVG display** | not started | |
 | **5 — Ghost mode** | not started | Carries PERF-01 as a claim. |
 | **6 — Stats panel** | not started | The Windows parsers exist and are fixture-tested from Phase 1; the mac/linux ones do not. |
@@ -270,6 +271,7 @@ Phrase, dial, LCD, Nixie. Obey the composited-property rule above.
 
 ### Phase 5 — Ghost mode
 Cursor poll in main, proximity ratio, rAF lerp in the renderer, click-through toggle, configurable override.
+**Pre-paid: all four pure seams are landed and tested** (`core/ghost.ts` — `computeProximityRatio`, `lerpRatio`, `isModifierHeld`, `GhostSampler.onTick`), so what is left here is platform plumbing, not logic. Three constraints came out of porting them: the flat 7-argument signature mirrors the C# deliberately, so **converting Electron's `{x, y, width, height}` bounds to left/top/right/bottom edges is this phase's adapter**; the sampler emits `"activate"` on *every* tick over the widget and never sets its own flag, so **whoever applies click-through must call `markActive()`** or the transition repeats; and **the global key-state read has no Electron API without a native module** — picking a mechanism is this phase's decision, and until then `onTick` takes the held-state as an argument.
 **Exits on:** fade stays smooth under a synthetic 25–50% CPU load — i.e. **PERF-01 closed**, not deferred again.
 
 ### Phase 6 — Stats panel + per-platform sources
@@ -300,12 +302,13 @@ Delete `FuzzyClock.App`, keep `FuzzyClock.Core` in git history, retarget the rel
 | Surface | How |
 |---|---|
 | `src/core/` (translated logic) | `bun test`, 1:1 with the **457** translatable C# cases (469 less the 12 that retire with temps) — **DONE, all 457 green** |
-| Pure seams from the App layer (`ComputeProximityRatio`, `LerpRatio`, formatters, comparers) | `bun test` — these are already static and pure in C#. **Not started; this is the next unit of work.** |
+| Pure seams from the App layer (`ComputeProximityRatio`, `LerpRatio`, formatters, ~~comparers~~) | `bun test` — these are already static and pure in C#. **DONE: 46 C# cases across 7 files translated, 100 measured additions.** ~~Not started; this is the next unit of work.~~ **"Comparers" was wrong** — `UpdateVersionComparer` is `FuzzyClock.Core` and closed with the Core translation, so the row over-stated its own scope. The real list is `GhostModeControllerProximityTests` 12, `LerpRatioTests` 5, `GhostModeControllerTests` 12, `OnSampleTickTests` 4, `LcdTimeFormatHelperTests` 4, `NixieSizeMapTests` 3, `RightClickMenuGateTests` 6. |
+| The one seam whose C# tests **cannot** discriminate | `IsModifierHeld` calls `GetAsyncKeyState` inside the predicate, so in a test process every one of its 12 rows expects `false` and eleven would pass against `return false`. The port takes key state as an argument and sweeps all **256 (config × held)** pairs against an independently formulated oracle, guarded by a `heldTrue === 65` count so the sweep cannot pass vacuously. The keyboard read itself becomes a Phase 5 platform seam — **there is no Electron API for global key state without a native module**, and choosing one is Phase 5's call. |
 | Per-platform parsers | fixture-driven, run on every platform in CI. **Windows done** (the `typeperf` CSV parser, both defects fixture-pinned); macOS fixtures captured, parsers not written; Linux neither |
 | Acquisition | one smoke test per platform in CI matrix (win/mac/linux runners), asserting a plausible range, not a value |
 | Window/overlay traits | scripted probes in the `garry-desktop` style — the flag set read back off a live window, not off the source |
 
-Of the **163** `FuzzyClock.App.Tests`, the pure-seam ones port directly; the Windows-service ones are *replaced* by the fixture parsers rather than translated. **Expect the final count to differ from 632 — say which cases were replaced and why, rather than quoting a number that looks like parity.**
+Of the **163** `FuzzyClock.App.Tests`, the pure-seam ones port directly; the Windows-service ones are *replaced* by the fixture parsers rather than translated. **Expect the final count to differ from 632 — say which cases were replaced and why, rather than quoting a number that looks like parity.** **Now split by measurement: 46 ported (DONE), 42 retired with Option C, 75 to be replaced.**
 
 **The parity denominator is now measured, and both halves of it moved.** `dotnet test FuzzyClock.slnx -c Release` at the branch point gives **469 Core + 163 App = 632**, not the 633 this plan carried — so the figure every parity comparison rested on was off by one, and it was a quote rather than a reading. **Of those 632, 54 cover temperatures** and retire with Option C: `TemperatureFormatterTests` 12, `TemperatureServiceTests` 21, `TempsLineTests` 10, and 11 temps-key cases in `AppSettingsTests`. **So the real bar before WPF may be deleted is 578, not 632** — a consciously retired feature must not read as 54 missing tests, which is exactly how a raw count comparison reads it.
 
@@ -315,7 +318,7 @@ Of the **163** `FuzzyClock.App.Tests`, the pure-seam ones port directly; the Win
 
 **Buys:** one codebase on three platforms · **roughly half the CPU of the WPF app under the real workload, 1.93-2.43× cheaper across two back-to-back runs** `[MEASURED: ISC-6 — this replaces the "~20% of idle CPU, floor only" figure, which was a parked overlay]` · a display native to SVG · a plausible fix for PERF-01 · a far cheaper settings UI · auto-contrast's feedback-loop guard reduced from a Z-order walk to one API call (on 2 of 3 platforms).
 
-**Costs:** **2,467 LOC of Core translated — DONE** · **632 tests re-earned, 578 of them after Option C; the 457 Core translations are DONE and the App half is not started** · 7,605 LOC of `FuzzyClock.App` deleted and ~2,500–3,000 LOC of TS written in its place · **temperatures retired on all three platforms, a shipped v4.2 feature deliberately given up (Option C)** · GPU unavailable on macOS · auto-contrast unavailable on Linux · Wayland users on XWayland · an Apple Developer ID · three packaging targets with no precedent in his tree · CrowdStrike autostart re-proof · **1.40× more disk than the WPF installer** `[MEASURED: ISC-8]`.
+**Costs:** **2,467 LOC of Core translated — DONE** · **632 tests re-earned, 578 of them after Option C; the 457 Core translations are DONE, and of the App half's 163, the 46 pure-seam cases are DONE** ~~and the App half is not started~~ — of the 117 App cases left, **42 retire with Option C** (`TemperatureServiceTests` 21, `TempsLineTests` 10, 11 temps keys in `AppSettingsTests`; the 12 in `TemperatureFormatterTests` are Core and already counted there), leaving **75** that the fixture parsers and shell probes *replace* rather than translate · 7,605 LOC of `FuzzyClock.App` deleted and ~2,500–3,000 LOC of TS written in its place · **temperatures retired on all three platforms, a shipped v4.2 feature deliberately given up (Option C)** · GPU unavailable on macOS · auto-contrast unavailable on Linux · Wayland users on XWayland · an Apple Developer ID · three packaging targets with no precedent in his tree · CrowdStrike autostart re-proof · **1.40× more disk than the WPF installer** `[MEASURED: ISC-8]`.
 
 ---
 
@@ -329,6 +332,13 @@ Of the **163** `FuzzyClock.App.Tests`, the pure-seam ones port directly; the Win
 | **`Display.label` is `""` on the internal display and duplicated across both LGs** | `electron/scripts/probe-displays.ts`, 6 arms, two cold launches (ISC-7) |
 | **NSIS 80,089,948 B vs Inno 57,389,487 B; unpacked 281,087,190 B vs exe 200,457,651 B — 1.40× both** | `electron/scripts/probe-size.ts`, `electron-builder` 26.15.3 (ISC-8) |
 | **457 of 457 translatable Core cases green; `bun test` 700 pass / 0 fail / 185,894 assertions** | `bun test` at `36072c5`, per-class counts from a TRX parse of the C# run (37 classes, 469 results, 0 unmapped) |
+| **46 of 46 App-layer pure-seam cases green; `bun test` 846 pass / 0 fail / 186,489 assertions across 20 files** | `bun test` + `bun run typecheck` + `bun run build`, all at `6370ecc` |
+| **Every added App-seam expectation is a recorded C# value, not a derived one** | `$TEMP/fc-appprobe`, a throwaway console project that `<Compile Include>`s the five real `.cs` files so `internal` members are reachable without editing `FuzzyClock.App`; doubles printed `G17` invariant, then each literal re-checked bit-exact in Bun before being written |
+| **A negative `GhostFadeRadiusPx` clamps HIGH — the whole screen becomes the widget** | measured on the compiled C#; I predicted it would clamp to 0.0 and was wrong. Pinned in `test/ghost.test.ts` so a settings path admitting one fails a test rather than silently pinning click-through on |
+| **Edge inclusion in `ComputeProximityRatio` is unobservable at every radius except 0** | mutation run: strictening `>=` to `>` changed no answer, because an edge has Chebyshev distance 0 and `1 - 0/r` is 1.0 anyway. PROX-08 makes radius 0 a real setting, where the two paths differ (1.0 vs 0.0) — ten measured `r=0` rows added for it |
+| **The App seams' discriminating power: 41 mutations, 38 caught by the owning suite alone, 17 by the added rows only, 0 by any sibling or pre-existing suite** | `$TEMP/fc-mutate-appseams.ts`, predictions written before the run, restore verified byte-identical. Three survivors, all documented in place as behaviourally dead (the zero-radius arm the clamp already covers, a redundant conditional write, and the RMB-02-beats-RMB-03 precedence **no input can observe**) |
+| **The WPF settings file stores enums as ORDINALS, so the importer cannot read them as names** | his live `%LOCALAPPDATA%\FuzzyClock\settings.json` holds `"LcdSize": 0` / `"ClockType": 1` — read, never written. `lcdSizeFromOrdinal` exists for Phase 3's importer |
+| **His live `GhostFadeRadiusPx` is 200, not the 80 default** | same file — the halo reaches 2.5× further than any C# test row exercises, so it has its own measured row |
 | 200,457,651-byte exe / 57,389,487-byte installer | `ls -la publish/ installer/` |
 | ~~Core 2,510 LOC = 1,987 (18 providers) + 523 (10 logic)~~ → **2,467 = 1,987 + 480 across 9** | per-file `wc -l`, sums exactly; re-measured after Option C deleted `TemperatureFormatter.cs` (43 LOC) |
 | ~~633 tests (469 + 164)~~ → **632 (469 + 163), of which 578 survive Option C** | `dotnet test FuzzyClock.slnx -c Release`, exit 0, re-measured on the branch — **README:92 (274) and `.planning/STATE.md:129` (621) are both still stale, and 633 was this document's own quote** |
