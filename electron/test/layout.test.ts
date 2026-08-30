@@ -539,6 +539,138 @@ describe("per-row visibility, which the panel height used to ignore", () => {
   })
 })
 
+describe("the update notice is a seventh panel child, and it is a RESULT not a setting", () => {
+  // Phase 7. `UpdateText` (MainWindow.xaml:304) is a child of `StatsPanel`, `Collapsed` at startup, and
+  // `ShowUpdateNotice` sets it `Visible` exactly once when the check finds a newer release. So its height
+  // belongs in the panel arithmetic -- but its flag does NOT belong in `StatsVisibility`: the other six are
+  // user settings read from `settings.json`, and this one is the outcome of a network call. That is why
+  // `statsLayout`/`statsPanelHeight`/`windowLayout` take it as a separate parameter.
+  //
+  // The C# never measures it. `MainWindow.xaml.cs:1343` estimates "~13px" in a comment; at `FontSize="11"`
+  // in Segoe UI Light the line measures 14.63, and `Margin="0,2,0,0"` makes the child cost 16.63.
+
+  const UPDATE_COST = STATS_CHILD_GAP + lineHeight("Segoe UI Light", UPTIME_FONT_SIZE)
+
+  const hideAll: StatsVisibility = { cpu: false, gpu: false, mem: false, pag: false, batt: false, uptime: false }
+
+  const ALL_COMBINATIONS: StatsVisibility[] = Array.from({ length: 64 }, (_, mask) => ({
+    cpu: (mask & 1) !== 0,
+    gpu: (mask & 2) !== 0,
+    mem: (mask & 4) !== 0,
+    pag: (mask & 8) !== 0,
+    batt: (mask & 16) !== 0,
+    uptime: (mask & 32) !== 0,
+  }))
+
+  test("the default is DOWN, so every existing height arm in this file still measures a fresh launch", () => {
+    // The parameter defaults to false and `statsLayout()` means "no notice". If it defaulted the other way,
+    // the 106.43 pinned against `lay-arrange` above would silently have become 123.06 and the fixture
+    // comparison would be the only thing that noticed.
+    const panel = statsLayout()
+    expect(panel.updateHeight).toBe(0)
+    expect(statsLayout(ALL_STATS_VISIBLE, false)).toEqual(panel)
+    expect(statsPanelHeight()).toBe(106.43)
+    expect(statsPanelHeight(ALL_STATS_VISIBLE, false)).toBe(106.43)
+  })
+
+  test("while it is down its top sits AT the cursor with no gap -- collapsed, like every other child", () => {
+    // The rule `uptimeTop` already encodes, applied to the new child: a `Collapsed` StackPanel child takes
+    // its margin with it. So `updateTop` and `uptimeTop + uptimeHeight` are the same point while it is
+    // hidden and DELIBERATELY differ by 2 once it is shown. Asserting both is what separates "hidden with
+    // its gap already reserved" from "hidden".
+    const down = statsLayout()
+    expect(down.updateTop).toBe(down.uptimeTop + down.uptimeHeight)
+    expect(down.updateTop).toBe(down.height)
+
+    const up = statsLayout(ALL_STATS_VISIBLE, true)
+    expect(up.updateTop).toBe(up.uptimeTop + up.uptimeHeight + STATS_CHILD_GAP)
+    expect(up.updateTop - down.updateTop).toBe(STATS_CHILD_GAP)
+  })
+
+  test("showing it grows the panel by 16.63 and the panel's bottom is still its last child's bottom", () => {
+    const up = statsLayout(ALL_STATS_VISIBLE, true)
+    expect(UPDATE_COST).toBeCloseTo(16.63, 9)
+    expect(up.updateHeight).toBeCloseTo(14.63, 9)
+    expect(up.height).toBeCloseTo(106.43 + 16.63, 9)
+    expect(up.updateTop + up.updateHeight).toBe(up.height)
+    expect(statsPanelHeight(ALL_STATS_VISIBLE, true)).toBe(up.height)
+  })
+
+  test("123.06 here is ARITHMETIC COINCIDENCE with the shipped WPF panel, not parity", () => {
+    // Worth stating before someone reads it as a parity win. The shipped panel is 123.06 because
+    // `TempsText` ships `Visible` with empty text; the port's is 123.06 *with a notice showing* because the
+    // notice happens to be the same 11pt line plus the same 2px margin. The two numbers agree and the two
+    // panels do not: the shipped one has a temps line and no notice, this one has a notice and no temps
+    // line (Option C, Alex's call). A fixture comparison against `lay-arrange` in this state would pass on
+    // the height and be comparing different children.
+    expect(statsPanelHeight(ALL_STATS_VISIBLE, true)).toBeCloseTo(123.06, 9)
+    expect(UPDATE_COST).toBeCloseTo(123.06 - 106.43, 9)
+  })
+
+  test("it never moves anything above it -- the rows and the uptime line are byte-identical", () => {
+    // The property the renderer leans on. `layoutStats` re-runs the whole panel when the notice arrives, so
+    // if showing it perturbed any earlier child the whole panel would visibly jump at that moment -- and
+    // the jump would only ever be seen by a user who had an update waiting.
+    for (const visible of ALL_COMBINATIONS) {
+      const down = statsLayout(visible, false)
+      const up = statsLayout(visible, true)
+      expect(up.rows).toEqual(down.rows)
+      expect(up.uptimeTop).toBe(down.uptimeTop)
+      expect(up.uptimeHeight).toBe(down.uptimeHeight)
+      // ...and everything it DOES change, changes by exactly one child's cost.
+      expect(up.height).toBeCloseTo(down.height + UPDATE_COST, 9)
+    }
+  })
+
+  test("the cost is the same 16.63 in all 64 row profiles, including the empty panel", () => {
+    // A rule rather than a point, and the empty-panel case is the one with teeth: with all six rows hidden
+    // the panel is height 0, and a notice arriving then makes it 16.63 -- its own gap included, because the
+    // notice is a StackPanel child and the gap is its margin, not a separator between siblings.
+    for (const visible of ALL_COMBINATIONS) {
+      expect(statsPanelHeight(visible, true) - statsPanelHeight(visible, false)).toBeCloseTo(UPDATE_COST, 9)
+    }
+    expect(statsPanelHeight(hideAll, false)).toBe(0)
+    expect(statsPanelHeight(hideAll, true)).toBeCloseTo(UPDATE_COST, 9)
+    const emptyWithNotice = statsLayout(hideAll, true)
+    expect(emptyWithNotice.updateTop).toBe(STATS_CHILD_GAP)
+    expect(emptyWithNotice.height).toBeCloseTo(UPDATE_COST, 9)
+  })
+
+  test("windowLayout grows the window by the same 16.63, and re-clamping is the caller's free ride", () => {
+    // UI-05 in the port needs no special case, and this is the arm that says why: the notice makes the
+    // widget taller, the renderer's measure-then-resize cycle sends the taller size up, and `main.ts`'s
+    // `onResize` already calls `commitPlacement("display-change")`. So the "re-clamp after showing the
+    // notice" step the C# does by hand at `MainWindow.xaml.cs:1352` falls out of the resize path here.
+    const base = { clockType: "dial" as const, showDate: false, statsVisible: true }
+    const down = windowLayout(settings(base), 0, 1, 0, false)
+    const up = windowLayout(settings(base), 0, 1, 0, true)
+    expect(up.height - down.height).toBeCloseTo(UPDATE_COST, 9)
+    expect(up.statsBlock - down.statsBlock).toBeCloseTo(UPDATE_COST, 9)
+    // And never the width. Same negative control as the row flags: the 184 floor is what stops the window
+    // resizing sideways as content changes.
+    expect(up.width).toBe(down.width)
+    expect(up.innerWidth).toBe(down.innerWidth)
+  })
+
+  test("THE NEGATIVE CONTROL: with the panel collapsed, a notice changes nothing", () => {
+    // Not a guard, a parity fact: `UpdateText` is a child of `StatsPanel`, so a user running with Stats
+    // off never sees the notice at all -- and the window must not grow by 16.63 for a line nobody can see.
+    // This is the arm that fails an implementation which adds the notice's height to the window instead of
+    // to the panel, and every other arm in this block passes such an implementation.
+    const collapsed = windowLayout(settings({ clockType: "dial", showDate: false, statsVisible: false }), 0, 1, 0, true)
+    const same = windowLayout(settings({ clockType: "dial", showDate: false, statsVisible: false }), 0, 1, 0, false)
+    expect(collapsed.statsBlock).toBe(0)
+    expect(collapsed.height).toBe(same.height)
+  })
+
+  test("the default fifth argument is false, so every existing windowLayout call is unaffected", () => {
+    // 40-odd calls in this file pass four arguments or fewer. If the parameter defaulted to true they would
+    // all be measuring a window with an update notice in it, and the fixture arms would be the only failure.
+    const s = settings({ clockType: "dial", showDate: true, statsVisible: true })
+    expect(windowLayout(s, 120, 1, 80)).toEqual(windowLayout(s, 120, 1, 80, false))
+  })
+})
+
 describe("the stats panel's internal geometry, measured", () => {
   // Every arm here reads `lay-arrange` and subtracts the panel's own origin, so the numbers under test are
   // panel-local -- which is what `statsLayout()` returns and what the SVG's `<g id="stats">` transform

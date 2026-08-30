@@ -59,7 +59,6 @@ import { formatDate } from "../core/date.js"
 import { FACES, FACE_CONTAINER_IDS, activeFace, type Face } from "../core/display-plan.js"
 import {
   BAR_HEIGHT,
-  STATS_CHILD_GAP,
   STATS_FONT_SIZE,
   STATS_LABEL_WIDTH,
   STATS_TRACK_WIDTH,
@@ -123,6 +122,8 @@ interface FuzzyClockApi {
   onGhost(callback: (state: GhostState) => void): void
   /** Paint the hover backdrop, or clear it. Main decides; `core/backdrop.ts` turns it into a fill. */
   onBackdrop(callback: (painted: boolean) => void): void
+  /** `"v5.1.0 available"`, at most once per launch. There is no message that hides it again. */
+  onUpdate(callback: (text: string) => void): void
   /** "I am listening" — main replies with the current settings. See `init()`. */
   ready(): void
   /** The content-measured window size. Main calls `setSize` and re-clamps to the work area. */
@@ -271,6 +272,16 @@ function init(): void {
   let dateWidth = 0
   /** Set by a settings push: the date's font may have changed, so its measured width is stale. */
   let dateDirty = true
+  /**
+   * Whether the update notice is up. One-way: it goes true when main's check finds a newer release.
+   *
+   * Renderer state rather than a settings field, because it is not a setting — `updateChecksEnabled` gates
+   * the check and this is the check's *answer* (`core/layout.ts`'s `statsLayout` has the whole argument).
+   * It is read by both {@link layoutStats} and the `windowLayout` call in {@link tick}, which is why it
+   * lives up here with the other cross-cutting state: the notice changes the panel's internal geometry AND
+   * the window's height, and a copy in one of those two places would leave the other stale.
+   */
+  let updateVisible = false
 
   /**
    * Ghost mode's renderer half (PERF-01): main sends where the fade is going, this side interpolates.
@@ -349,7 +360,7 @@ function init(): void {
    * overwrites anyway.
    */
   const layoutStats = (visible: StatsVisibility): void => {
-    const stats = statsLayout(visible)
+    const stats = statsLayout(visible, updateVisible)
     // A row is a `Grid` and its label/value are `VerticalAlignment="Center"` in it. At font size 12 the
     // row height IS the line height, so this is 0 — written anyway, because the thing that makes it
     // non-zero is a per-row font size.
@@ -389,10 +400,14 @@ function init(): void {
     setAttr(uptimeEl, "x", 0)
     setAttr(uptimeEl, "y", stats.uptimeTop)
     setAttr(uptimeEl, "font-size", UPTIME_FONT_SIZE)
-    // `UpdateText` is the panel's 8th child and ships `Collapsed`, so it is placed but contributes
-    // nothing to `statsPanelHeight()`. Phase 7 only has to unhide it.
+    // `UpdateText` is the panel's 8th child and ships `Collapsed`, so it is placed but contributes nothing
+    // to `statsPanelHeight()` until the check answers. `stats.updateTop` rather than the sum this line used
+    // to compute by hand: the two agree while the notice is up, and they deliberately DIFFER while it is
+    // down — a collapsed StackPanel child sits at the cursor with no margin, and `statsLayout` is the one
+    // place that rule is written.
+    setVisible(updateEl, updateVisible)
     setAttr(updateEl, "x", 0)
-    setAttr(updateEl, "y", stats.uptimeTop + stats.uptimeHeight + STATS_CHILD_GAP)
+    setAttr(updateEl, "y", stats.updateTop)
     setAttr(updateEl, "font-size", UPTIME_FONT_SIZE)
   }
 
@@ -525,7 +540,7 @@ function init(): void {
     }
 
     const measured = face.measure?.() ?? { width: 0, lines: 1 }
-    const layout = windowLayout(current, measured.width, measured.lines, dateWidth)
+    const layout = windowLayout(current, measured.width, measured.lines, dateWidth, updateVisible)
     const size = windowPixelSize(layout)
 
     // Compared whole rather than field by field, so a field added to `WindowLayout` is covered without
@@ -702,6 +717,34 @@ function init(): void {
   window.fuzzyclock.onBackdrop((painted) => {
     backdropPainted = painted
     writeBackdrop()
+  })
+  /**
+   * `ShowUpdateNotice`, the renderer's half: text in, then the panel and the window grow by 16.63.
+   *
+   * Four calls in this order, and the order is the C#'s (`MainWindow.xaml.cs:1339-1355`):
+   *
+   *   1. The text, before anything is measured — the notice is `x=0` with no `text-anchor`, so its width
+   *      does not reach `windowLayout`, but writing it after the resize would show an empty line for a frame.
+   *   2. The flag, which is what both layout paths read.
+   *   3. `layoutStats`, because the panel's internal geometry is written on a settings push and a settings
+   *      push is not what happened here. Without this the notice would be `hidden` with a stale `y`.
+   *   4. `tick()`, rather than waiting up to a second for the next one. That is also what re-clamps the
+   *      position: the tick's `windowLayout` now returns a taller window, the size travels to main, and
+   *      `onResize` calls `commitPlacement` — so a widget sitting on the bottom edge of the work area is
+   *      moved up by the same path a display change uses. UI-05 needs no special case here.
+   *
+   * `settings === null` cannot happen in practice (main answers `ready()` with a settings push, and the
+   * check is dispatched from `whenReady` several seconds later) but `layoutStats` needs the visibility
+   * record, so the guard is real rather than defensive: with no settings there is no panel to lay out yet,
+   * and the flag alone is enough — the first push runs `layoutStats` itself.
+   */
+  window.fuzzyclock.onUpdate((text) => {
+    setText(updateEl, text)
+    updateVisible = true
+    const current = settings
+    if (current === null) return
+    layoutStats(statsVisibility(current))
+    tick()
   })
   window.fuzzyclock.ready()
 

@@ -238,8 +238,11 @@
 
         <text id="uptime" dominant-baseline="text-before-edge">up —</text>
 
-        <!-- `UpdateText`: Collapsed until Phase 7's check finds something. Already in
-             `THEME_TARGETS`, so that phase has no colour work to remember. -->
+        <!-- `UpdateText`: Collapsed until the update check finds a newer release, which arrives on the
+             `update` channel and is the only thing that unhides this. Already in `THEME_TARGETS`, so it is
+             coloured with the rest of the panel and needed no work when the check landed. Empty rather
+             than placeholder text: it is `display="none"`, so a placeholder could only ever be seen by
+             someone reading this file, and `setText` overwrites it before the element is shown. -->
         <text id="update" dominant-baseline="text-before-edge" display="none"></text>
       </g>
     </svg>

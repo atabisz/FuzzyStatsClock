@@ -11,8 +11,7 @@
  * every one of those greens is void the moment this file changes — which it just did.
  *
  * What is NOT here yet, and where it lands:
- *   - Per-row stat visibility (Phase 6).
- *   - Auto-launch registration (Phase 7) and auto-contrast (Phase 8).
+ *   - Auto-contrast (Phase 8).
  *   - **The settings window, which no phase in the plan owns.** Found while wiring the tray: the plan's
  *     component table lists it ("second `BrowserWindow`") but no phase's exit criteria mention it. The
  *     `open-settings` action therefore logs and does nothing, and the plan has been corrected rather
@@ -32,11 +31,16 @@
  *
  * Every tray toggle in between persists its setting NOW, so nothing is lost while those phases land:
  * the state is real and saved, only the visible effect is pending.
+ *
+ * Phase 7 added the two things that reach outside this process: `main/auto-launch.ts` writes the login item
+ * (three sinks, one contract) and `main/update-check.ts` asks GitHub once per launch. Both are constructed
+ * with injected seams — a process runner, a file writer, a `fetch` — so both are driven by tests and probes
+ * with no Electron on the path, and this file is the only place either one meets a real OS.
  */
 
 import { BrowserWindow, app, ipcMain, powerMonitor, screen } from "electron"
 import { join } from "node:path"
-import { uptime as osUptime } from "node:os"
+import { homedir, uptime as osUptime } from "node:os"
 import { Win32StatsSource } from "./telemetry/win32.js"
 import { DarwinStatsSource } from "./telemetry/darwin.js"
 import { LinuxStatsSource } from "./telemetry/linux.js"
@@ -53,6 +57,11 @@ import {
   platformWindowOptions,
 } from "../platform.js"
 import { SettingsStore } from "./settings-store.js"
+import { AutoLaunch, type AutoLaunchPlatform } from "./auto-launch.js"
+// `processRunner`/`fileSeam` live in their own module so `scripts/probe-autolaunch.ts` can drive the SAME
+// adapters this app uses. See `main/seams.ts`.
+import { fileSeam, processRunner } from "./seams.js"
+import { UpdateChecker, shouldOfferUpdate, updateNoticeText } from "./update-check.js"
 import { WindowPlacer, displayGeometries } from "./window-placement.js"
 import type { CommitReason } from "./window-placement.js"
 import { AppTray } from "./tray.js"
@@ -151,6 +160,18 @@ let placer: WindowPlacer | null = null
 let tray: AppTray | null = null
 let mainWindow: BrowserWindow | null = null
 let ghost: GhostDriver | null = null
+let autoLaunch: AutoLaunch | null = null
+let updateChecker: UpdateChecker | null = null
+
+/**
+ * The notice text, held until the renderer is listening.
+ *
+ * Same hazard as {@link rendererReady} guards for settings, and it is not theoretical here: the check is
+ * dispatched from `ready-to-show` and answers up to five seconds later, so it can land at any point — and a
+ * `webContents.send` on a channel with no listener is dropped with no error on either side. Holding the
+ * text means the ordering question has one answer instead of two.
+ */
+let pendingUpdateText: string | null = null
 
 /**
  * Whether the renderer has registered its IPC listeners.
@@ -537,6 +558,95 @@ function onDragEnd(): void {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// Auto-launch and the update check
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * `process.platform` narrowed to the three sinks, with linux as the fallback.
+ *
+ * The same shape {@link createStatsSource} uses, and for the same reason: an unknown platform gets the
+ * POSIX path rather than a thrown error, because a freebsd host with an XDG desktop is far better served by
+ * a `.desktop` file that might work than by an app that will not start.
+ */
+function autoLaunchPlatform(): AutoLaunchPlatform {
+  if (process.platform === "win32") return "win32"
+  if (process.platform === "darwin") return "darwin"
+  return "linux"
+}
+
+/**
+ * Register or unregister the login item to match a setting, and log what happened.
+ *
+ * Fire-and-forget from the caller's point of view -- `handleTrayAction` is synchronous and the C#'s
+ * equivalent is a synchronous registry write, so making the tray wait on a spawned `reg.exe` would be a
+ * behaviour the original does not have. The failure path is a log line rather than a revert: the setting is
+ * the user's choice and it has already been persisted, and silently un-ticking the menu because a registry
+ * write failed would hide the failure behind something that looks like the click not registering.
+ */
+function syncAutoLaunch(enabled: boolean): void {
+  const service = autoLaunch
+  if (service === null) return
+  void (enabled ? service.enable() : service.disable()).then(
+    (ok) => {
+      if (!ok) log("error", `auto-launch: could not ${enabled ? "register" : "unregister"} ${service.describe()}`)
+    },
+    (error: unknown) => {
+      log("error", `auto-launch: ${enabled ? "register" : "unregister"} threw — ${String(error)}`)
+    },
+  )
+}
+
+/** Push the notice down, or hold it until the renderer says `ready`. See {@link pendingUpdateText}. */
+function sendUpdate(text: string): void {
+  if (!rendererReady || mainWindow === null || mainWindow.isDestroyed()) {
+    pendingUpdateText = text
+    log("info", `update: notice held until the renderer is listening — "${text}"`)
+    return
+  }
+  pendingUpdateText = null
+  mainWindow.webContents.send("update", text)
+  log("info", `update: notice shown — "${text}"`)
+}
+
+/**
+ * `KickoffUpdateCheck` (`MainWindow.xaml.cs:1312-1334`): check once, and show a notice only if the release
+ * is strictly newer than what is running.
+ *
+ * The C# posts this at `DispatcherPriority.ApplicationIdle` so the check never delays the first frame; the
+ * port dispatches it from `ready-to-show`, after `win.show()`, which is the same intent through the event
+ * this process actually has. Not awaited, and nothing waits on it: a 5-second network call on the startup
+ * path would be 5 seconds of no clock.
+ *
+ * `settings.updateChecksEnabled` is read HERE rather than inside the checker, which is the C#'s own split
+ * (`:207-210` constructs the service unconditionally and gates the kickoff) -- so a disabled check leaves a
+ * live object whose `cancelInFlight` is still safe to call at teardown.
+ */
+function kickoffUpdateCheck(): void {
+  const checker = updateChecker
+  if (checker === null) return
+  if (!settings.updateChecksEnabled) {
+    log("info", "update: checks disabled by settings — not dispatching")
+    return
+  }
+  void checker.check().then(
+    (latestRelease) => {
+      if (latestRelease === null) return
+      const running = app.getVersion()
+      if (!shouldOfferUpdate(running, latestRelease)) {
+        log("info", `update: ${updateNoticeText(latestRelease)} is not newer than ${running}`)
+        return
+      }
+      sendUpdate(updateNoticeText(latestRelease))
+    },
+    // Unreachable by contract -- `check()` catches everything and answers null -- and logged rather than
+    // left to become an unhandled rejection if that contract is ever broken by an edit.
+    (error: unknown) => {
+      log("error", `update: check rejected — ${String(error)}`)
+    },
+  )
+}
+
+// ---------------------------------------------------------------------------------------------------
 // Tray actions
 // ---------------------------------------------------------------------------------------------------
 
@@ -555,8 +665,15 @@ const CLOCK_TYPE_ACTIONS: Readonly<Record<string, ClockType>> = {
  * replaced, then the new position is committed — so the single entry the commit writes is keyed to the
  * primary display the reset just centred on. Replacing the settings first would commit against a
  * `lastActiveMonitor` that has no stored position, which `resolveStartPosition` reads as first-run.
+ *
+ * **The login item is unregistered here, unconditionally, and that is `core/reset.ts`'s "the caller's job".**
+ * `autoLaunchEnabled: false` is in `RESET_FIELDS`, so without this call a reset would leave the tick off and
+ * the Run entry in place — an app that still starts at login with nothing in the UI saying so. Unconditional
+ * rather than gated on the previous value, because `AutoLaunchService.Disable()` is unconditional in the C#
+ * and `disable()` is a no-op when nothing is registered.
  */
 function onResetToDefaults(): void {
+  syncAutoLaunch(false)
   const displays = displayGeometries(screen)
   const primary = primaryDisplay(displays)
   if (primary === null || mainWindow === null || mainWindow.isDestroyed()) {
@@ -603,16 +720,16 @@ function handleTrayAction(action: TrayAction): void {
         `autoContrastEnabled = ${String(!settings.autoContrastEnabled)} (takes effect in Phase 8)`,
       )
       return
-    case "toggle-auto-launch":
-      // The setting is persisted here and the login item is registered in Phase 7 (ISC-30). Split on
-      // purpose: the C# also keeps the two apart (`_autoLaunchEnabled` and `AutoLaunchService`), and a
-      // tick that survives a restart with no registration is a visible, findable inconsistency —
-      // whereas registering without persisting would be an invisible one.
-      applySettings(
-        { ...settings, autoLaunchEnabled: !settings.autoLaunchEnabled },
-        `autoLaunchEnabled = ${String(!settings.autoLaunchEnabled)} (registration lands in Phase 7)`,
-      )
+    case "toggle-auto-launch": {
+      // Both halves now, and still two statements rather than one: the C# keeps `_autoLaunchEnabled` and
+      // `AutoLaunchService` apart for the reason that survives here — the setting is persisted FIRST, so a
+      // failed registry write leaves a tick that disagrees with the OS, which is visible and findable,
+      // whereas registering without persisting would be an inconsistency nothing can see.
+      const next = !settings.autoLaunchEnabled
+      applySettings({ ...settings, autoLaunchEnabled: next }, `autoLaunchEnabled = ${String(next)}`)
+      syncAutoLaunch(next)
       return
+    }
     case "reset-defaults":
       onResetToDefaults()
       return
@@ -639,6 +756,11 @@ app.whenReady().then(() => {
     rendererReady = true
     pushSettings()
     log("info", "renderer: ready — settings pushed")
+    // A notice that answered before the renderer was listening. Unreachable on the ordinary path — `ready`
+    // arrives before `ready-to-show`, which is what dispatches the check — and this is the flush that makes
+    // the ordering not matter. After `pushSettings`, because the renderer's `onUpdate` handler lays the panel
+    // out and needs settings in hand.
+    if (pendingUpdateText !== null) sendUpdate(pendingUpdateText)
   })
   // Validated rather than destructured straight: this is a process boundary, and a malformed payload
   // reaching `setContentSize` is a thrown exception in the main process, which takes the whole app down.
@@ -753,10 +875,43 @@ app.whenReady().then(() => {
   screen.on("display-removed", onDisplayChange)
   screen.on("display-metrics-changed", onDisplayChange)
 
+  // Both constructed unconditionally, and neither reads a setting at construction time. That is the C#'s
+  // shape (`MainWindow.xaml.cs:202-211`): the service exists whether or not the feature is on, so every
+  // later call site can be a plain method call rather than a null check plus a decision.
+  autoLaunch = new AutoLaunch({
+    platform: autoLaunchPlatform(),
+    // `process.execPath`, which in a packaged app IS `FuzzyClock.exe` — the same shape
+    // `Environment.ProcessPath` gives the C#. In a DEV run it is `node_modules/electron/dist/electron.exe`,
+    // which would be a Run entry that launches a bare Electron with no app: `probe-autolaunch.ts` is what
+    // exercises this path, under its own value name, and a dev toggle writing a useless entry is a real
+    // (small) divergence recorded in the plan rather than papered over with an `isPackaged` guard that would
+    // then make the tray toggle silently do nothing in development.
+    exePath: process.execPath,
+    homeDir: homedir(),
+    runner: processRunner,
+    fs: fileSeam,
+    log,
+  })
+  updateChecker = new UpdateChecker({
+    version: app.getVersion(),
+    // UPD-09's `#if DEBUG`, through the only signal Electron has. A dev run does not dispatch at all.
+    enabled: app.isPackaged,
+    // The platform `fetch`. Injected rather than imported inside the module so `update-check.ts` loads under
+    // plain `bun` with no network — every arm of `test/update-check.test.ts` depends on that.
+    fetchImpl: (url, init) => fetch(url, init),
+    log,
+  })
+  log(
+    "info",
+    `auto-launch: ${autoLaunch.describe()} — setting is ${String(settings.autoLaunchEnabled)}`,
+  )
+
   win.once("ready-to-show", () => {
     win.show()
     log("info", `window shown, transparent+topmost, paints will follow at ${String(REPAINT_MS)}ms`)
     process.stdout.write(`PROBE-READY pid=${String(process.pid)}\n`)
+    // `DispatcherPriority.ApplicationIdle`'s counterpart: after the first frame is on screen, never before.
+    kickoffUpdateCheck()
   })
 
   source = createStatsSource()
@@ -832,5 +987,9 @@ app.on("before-quit", () => {
   // Without this the `typeperf` children outlive the app: they are spawned by this process but nothing
   // reparents or reaps them on exit.
   source?.stop()
+  // `_updateCts.Cancel()` in the C#'s shutdown tier. The one live caller of `cancelInFlight` today: the
+  // other one is the settings window's update-checks checkbox (PERS-10), which no phase has built yet, so
+  // that path is unreachable rather than missing — the tray has no toggle for `updateChecksEnabled`.
+  updateChecker?.cancelInFlight()
   tray?.destroy()
 })

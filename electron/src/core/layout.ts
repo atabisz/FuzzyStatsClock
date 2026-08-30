@@ -86,7 +86,9 @@
  * ## `statsPanelHeight()` is the PORT's panel, and it is 16.63 shorter than WPF's
  *
  * `StatsPanel` has eight children, not six: the five rows, `UptimeText`, `TempsText` and `UpdateText`.
- * `UpdateText` ships `Collapsed` and costs nothing. **`TempsText` ships `Visible` with empty text**, and
+ * `UpdateText` ships `Collapsed` and costs nothing **until the update check finds a newer release, which
+ * Phase 7 made reachable** -- `statsLayout`'s `updateVisible` parameter is that state, and the panel is
+ * 16.63 taller while the notice is up. **`TempsText` ships `Visible` with empty text**, and
  * an empty WPF `TextBlock` measures a full line height with zero width -- 14.63 at font size 11,
  * measured in `lay-emptytext`. So the shipped panel is **123.06** tall and the port's six-child one is
  * **106.43**, both measured, and the 16.63 difference is the temps row the port dropped by decision. It
@@ -208,6 +210,10 @@ export interface StatsLayout {
   readonly rows: readonly StatsRowLayout[]
   readonly uptimeTop: number
   readonly uptimeHeight: number
+  /** The update notice's top, valid whether or not it is shown -- see {@link statsLayout}. */
+  readonly updateTop: number
+  /** Zero unless a newer release was found. The notice is not a setting. */
+  readonly updateHeight: number
   /** The panel's own height -- the last VISIBLE child's bottom, by construction. */
   readonly height: number
 }
@@ -267,8 +273,31 @@ export const ALL_STATS_VISIBLE: StatsVisibility = {
  * A hidden row still gets an entry, with `visible: false` and `height: 0`, rather than being filtered
  * out. The renderer indexes rows by position to reach five fixed element ids, and a compacted array
  * would silently shift `batt`'s geometry onto `pag`'s elements the moment one row was hidden.
+ *
+ * ## The update notice is a SEPARATE parameter, and that is a decision rather than a signature accident
+ *
+ * `updateVisible` is not in {@link StatsVisibility} and does not appear in {@link ALL_STATS_VISIBLE},
+ * because it is **not a setting**. The six flags are persisted user choices; `UpdateText`'s visibility is
+ * a *result* -- it flips only when the GitHub check finds a strictly-newer release
+ * (`MainWindow.xaml.cs:1339-1340`), and no settings key controls it. `updateChecksEnabled` gates whether
+ * the check runs, which is a different fact: checks on and no newer release is the common case, and it
+ * shows nothing.
+ *
+ * Putting it in `StatsVisibility` would have forced a choice between two wrong things: `update: true` in
+ * `ALL_STATS_VISIBLE` changes the shipped panel height from 106.43 to 123.06 and makes every existing
+ * measured expectation wrong, and `update: false` in a constant named "all visible" is a lie the next
+ * reader has to discover. Keeping it out costs one parameter and keeps both honest.
+ *
+ * **The height it contributes is measured, not the C#'s estimate.** `MainWindow.xaml.cs:1343`'s comment
+ * says showing the line "increases window height by ~13px"; at `FontSize="11"` in Segoe UI Light the line
+ * measures **14.63** and its `Margin="0,2,0,0"` adds 2, so the real figure is **16.63** -- the same number
+ * as the temps row this port dropped, which is what makes the coincidence worth stating rather than
+ * trusting. The comment was an estimate someone wrote; `lineHeight` is a measurement.
  */
-export function statsLayout(visible: StatsVisibility = ALL_STATS_VISIBLE): StatsLayout {
+export function statsLayout(
+  visible: StatsVisibility = ALL_STATS_VISIBLE,
+  updateVisible = false,
+): StatsLayout {
   const rowHeight = Math.max(lineHeight("Segoe UI Light", STATS_FONT_SIZE), BAR_HEIGHT)
   const rows: StatsRowLayout[] = []
   let top = 0
@@ -286,7 +315,13 @@ export function statsLayout(visible: StatsVisibility = ALL_STATS_VISIBLE): Stats
   }
   const uptimeHeight = visible.uptime ? lineHeight("Segoe UI Light", UPTIME_FONT_SIZE) : 0
   const uptimeTop = visible.uptime ? top + STATS_CHILD_GAP : top
-  return { rows, uptimeTop, uptimeHeight, height: uptimeTop + uptimeHeight }
+  // The same `Collapsed` rule the uptime line above gets, applied to the panel's last child. A hidden
+  // notice sits AT the cursor with zero height -- the renderer writes its `y` unconditionally, exactly as
+  // it does for a hidden uptime line, so the coordinate has to be the StackPanel's real one rather than a
+  // placeholder that would place the text somewhere visible the moment it was unhidden.
+  const updateHeight = updateVisible ? lineHeight("Segoe UI Light", UPTIME_FONT_SIZE) : 0
+  const updateTop = updateVisible ? uptimeTop + uptimeHeight + STATS_CHILD_GAP : uptimeTop + uptimeHeight
+  return { rows, uptimeTop, uptimeHeight, updateTop, updateHeight, height: updateTop + updateHeight }
 }
 
 /**
@@ -301,8 +336,8 @@ export function statsLayout(visible: StatsVisibility = ALL_STATS_VISIBLE): Stats
  * `windowLayout` below adds `ROW_GAP` to nothing -- the widget keeps an 8px gap under the date and shows
  * an empty panel, which is what the original does.
  */
-export function statsPanelHeight(visible: StatsVisibility = ALL_STATS_VISIBLE): number {
-  return statsLayout(visible).height
+export function statsPanelHeight(visible: StatsVisibility = ALL_STATS_VISIBLE, updateVisible = false): number {
+  return statsLayout(visible, updateVisible).height
 }
 
 /** `AppSettings`' six flags in the shape `statsLayout` takes. */
@@ -407,6 +442,7 @@ export function windowLayout(
   phraseWidth: number,
   phraseLines = 1,
   dateWidth = 0,
+  updateVisible = false,
 ): WindowLayout {
   const content = contentSize(settings, phraseWidth, phraseLines)
   const sizes = deriveFontSizes(settings.fontSize)
@@ -416,7 +452,15 @@ export function windowLayout(
   // Per-row visibility reaches the WINDOW size, not just the panel's internals: hiding GPU and PAG makes
   // the widget 35.92 shorter, and a window sized for six children with four in it leaves a dead strip
   // below the panel that still catches clicks.
-  const statsBlock = settings.statsVisible ? ROW_GAP + statsPanelHeight(statsVisibility(settings)) : 0
+  // `updateVisible` reaches the window through here and NOT through a settings flag, which is the whole
+  // reason it is a parameter: the notice makes the widget 16.63 taller the instant the check comes back,
+  // and `MainWindow.xaml.cs:1343-1355` re-clamps the position for exactly that reason. In this port the
+  // re-clamp is not a special case -- the renderer's measure-then-resize cycle sends the taller size and
+  // main's `onResize` already calls `commitPlacement`, so a notice arriving at a widget sitting on the
+  // bottom edge of the work area moves it up through the path a display change uses.
+  const statsBlock = settings.statsVisible
+    ? ROW_GAP + statsPanelHeight(statsVisibility(settings), updateVisible)
+    : 0
 
   const innerWidth = Math.max(
     content.width,

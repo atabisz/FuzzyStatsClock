@@ -3,7 +3,8 @@
  *
  * `contextIsolation` is on and `nodeIntegration` off, so the renderer has no
  * `require` and no `ipcRenderer` of its own. This is the entire surface between
- * them: main pushes settings, stats and the ghost proximity ratio down, and the
+ * them: main pushes settings, stats, the ghost proximity ratio and — at most once
+ * per launch — an update notice down, and the
  * renderer reports what it is the only half able to see — that it is listening,
  * the size its content measured, a completed paint, a pointer drag, and a
  * right-click.
@@ -64,6 +65,18 @@ contextBridge.exposeInMainWorld("fuzzyclock", {
    */
   onBackdrop(callback: (painted: boolean) => void): void {
     ipcRenderer.on("backdrop", (_event, painted: boolean) => callback(painted))
+  },
+  /**
+   * The update notice's text, sent at most once per launch and only when there is one.
+   *
+   * A string rather than a boolean, and the string is composed in main: `ShowUpdateNotice` builds
+   * `$"v{newer} available"` from the parsed version, so the renderer would otherwise need the version
+   * shape and the format on the wire to rebuild the same sentence. There is no "hide" message on this
+   * channel because the C# has no path that hides the notice again — `UpdateText` goes `Visible` once and
+   * stays, and a mid-session toggle-off only cancels a check that has not answered yet (PERS-10).
+   */
+  onUpdate(callback: (text: string) => void): void {
+    ipcRenderer.on("update", (_event, text: string) => callback(text))
   },
   /**
    * The ghost sampler's proximity ratio, and the pins that suppress acting on it.

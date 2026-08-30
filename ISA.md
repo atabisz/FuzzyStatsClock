@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 26/43
+progress: 30/46
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T06:07:24+10:00
+updated: 2026-08-30T12:27:32+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -197,9 +197,13 @@ misses it, because every feature either ported or was consciously retired with t
     40.3MB of locales, 10MB `icudtl.dat`. So this ratio *improves* for Electron through Phases 2-8,
     because the WPF side grows with every feature and this side does not. Quoting today's 1.40× at
     Phase 9 would overstate the disadvantage.
-  - **An available reduction, deliberately not taken:** 55 locale `.pak` files are 40.3MB, 15.0% of
-    the payload, for languages this app never renders. ISC-8 measures the *default* build on purpose —
-    a tuned number would not be the one a `dist:win` reproduces. Carried to ISC-29.
+  - **An available reduction, deliberately not taken here — TAKEN in Phase 7 and measured:** 55 locale
+    `.pak` files are 40.3MB, 15.0% of the payload, for languages this app never renders. ISC-8 measures
+    the *default* build on purpose — a tuned number would not be the one a `dist:win` reproduces.
+    ~~Carried to ISC-29.~~ **PAID: `electronLanguages: [en-US]` takes it to 1 file / 490,357 B, the
+    installer to 72,661,907 B and the ratios to 1.27× / 1.20×** (ISC-29.1). Both figures in this claim
+    remain the *default*-build readings, which is what they were written to be, and every Phase 7 number
+    is a trimmed one — **the two sets are not comparable and neither supersedes the other.**
   - **The size is only meaningful because containment was checked (C4).** A wrong `files:` glob
     produces a perfectly plausible installer size for a shell that launches to nothing. All six
     runtime files are present in `app.asar` — read from the asar header directly rather than via a
@@ -211,6 +215,12 @@ misses it, because every feature either ported or was consciously retired with t
     both of which add bytes. And `installer/` + `publish/` are gitignored, so C2 and C3 only run on a
     machine that has built the WPF side — a fresh clone gets INCONCLUSIVE, by design rather than by
     silent pass.
+    - **Phase 7 settled both of those, and not the same way.** The icon exists and C7 finds its 6,199
+      bytes at offset 187,762,152 inside the packaged exe and **absent from the stock `electron.exe`**.
+      The signature does not exist: `Get-AuthenticodeSignature` reads **`NotSigned` on the installer and
+      on `win-unpacked\FuzzyClock.exe`** while electron-builder logs `signing with signtool.exe` on the
+      way past — **so the build log is not evidence and the measurement is.** Still Windows-only: `dmg`
+      and `AppImage` remain configured and unbuilt (AC-3).
 - [x] **ISC-9. The temps sidecar is built and measured — and the finding is not the size, it is that
   unelevated it reads GPU only.** `electron/sidecar/FuzzyClock.Temps/`, 231 lines of C# over
   `LibreHardwareMonitorLib 0.9.6` (pinned to the exact version `FuzzyClock.App.csproj:15` uses), one
@@ -763,8 +773,9 @@ misses it, because every feature either ported or was consciously retired with t
     the widget's right-click stops working, silently, until restart. **On Linux `popUp()` returns
     early** (no `popUpContextMenu` there), and the pin is set *after* that return so a Linux
     right-click does not freeze the fade for 30 s for nothing.
-- [~] **ISC-26. PERF-01 is closed as a COMPARATIVE claim and measured. The absolute figures are
-  provisional, and the reason is not the code.** The fade stays smooth under the synthetic 25–50% CPU
+- [x] **ISC-26. PERF-01 is closed as a COMPARATIVE claim and measured. ~~The absolute figures are
+  provisional~~ — CLOSED 2026-08-30 on an unlocked re-run, and the reason it was open was never the
+  code.** The fade stays smooth under the synthetic 25–50% CPU
   load — the v4.4 defect still open in `.planning/STATE.md`. `scripts/probe-fade.ts` (new) builds the
   shipped `FadePump` **and a v4.4-shaped negative control** — `win.setOpacity()` driven from main at
   30 Hz — into one Electron process and runs both across eight phases: idle, main-blocked, system-load,
@@ -790,8 +801,22 @@ misses it, because every feature either ported or was consciously retired with t
     60/75/90/120/144/165/240 Hz. **The comparative result is unaffected**: both architectures ran in one
     process, on one host, under one load, and the control degraded while the pump did not. **The
     absolute numbers are not yet a claim about what a user sees.** F0 is blocking, so a locked run exits
-    1 on purpose — PERF-01 cannot be quoted as closed from a locked desk. **Trigger to close: re-run
-    `bun run probe:fade` from an unlocked session.**
+    1 on purpose — PERF-01 cannot be quoted as closed from a locked desk. ~~**Trigger to close: re-run
+    `bun run probe:fade` from an unlocked session.**~~
+    - **PAID 2026-08-30. Unlocked, F0 green, 8 of 8 blocking arms pass: idle median 11.8 ms ≈ 85 Hz
+      against this 90 Hz panel**, where the locked 12.7 ms / ~79 Hz matched no real refresh rate. **The
+      comparative result did not move at all** (control 30.0 → 62.0 ms), exactly as this claim predicted
+      — which is the part worth keeping: the thing the lock invalidated was the absolute figure, and the
+      claim said so before the re-run rather than after it.
+    - **F7 changed its answer on an unlocked compositor: p99 47.0 ms, max 70.7 ms, 12 frames past the
+      33.4 ms bar at 36 workers.** Phase 5 reported "no limit found below full oversubscription" — **a
+      probe that never finds a limit has usually not looked hard enough**, and this one had been looking
+      through a compositor that was not presenting.
+    - **F6's band needs `--workers` chosen for the host, and the right number is not stable across
+      sessions:** 8 workers read 71.5% in Phase 5 and 58.8% in Phase 7, 6 read 59.8%, the default 12 read
+      68.6% — against a 20-65% window. The instrument **blocks the gate and prints the flag** rather than
+      passing on a load it did not achieve, which is why the same value lands inside the window on one run
+      and outside it on another. F5 carries the PERF-01 claim regardless.
   - **What no probe here has seen: the REAL app fading under a REAL cursor.** Pushing a target needs
     `ipcRenderer`, which CDP cannot reach; moving the cursor needs `SendInput`, which moves Alex's own.
     Manual, alongside the drag and the monitor unplug.
@@ -830,9 +855,9 @@ misses it, because every feature either ported or was consciously retired with t
   - Written at **four decimal places** deliberately: `setAttr` stringifies with `String` and never
     rounds, so precision is the call site's job. 1e-4 is 0.0255 of one 8-bit alpha level, so the memo
     can collapse the tail of a fade instead of writing a fresh 17-digit string every frame.
-- [ ] **ISC-26.3. BLOCKING GATE RED, deliberately not waived: `probe-shell.ts`'s S2 reports
-  `layered=false, want true`, and the correction needs pixel evidence that cannot be gathered from a
-  locked screen.** Removing main's `setOpacity` call is what turned S2 red. A five-stage scratch probe
+- [x] **ISC-26.3. ~~BLOCKING GATE RED, deliberately not waived~~ — CLOSED 2026-08-30 on the pixel
+  evidence the claim was waiting for: `probe-shell.ts`'s S2 reported `layered=false, want true`, and the
+  expectation was the wrong half.** Removing main's `setOpacity` call is what turned S2 red. A five-stage scratch probe
   measured where `WS_EX_LAYERED` actually comes from on this build: `transparent: true` with nothing
   called → false/false; after `setIgnoreMouseEvents(false)` → false/false; after
   `setIgnoreMouseEvents(true)` → **true/true**; after `setOpacity(0.9)` then `(false)` → **true**/false.
@@ -854,8 +879,15 @@ misses it, because every feature either ported or was consciously retired with t
     backdrop all along and X3's magenta means nothing.
   - **`capturePage()` cannot answer this question** — it captures the page's own surface, so a
     transparent page captures as transparent whether or not the OS honoured it.
-  - **Trigger to close: unlock the screen, `bun run probe:pixels`, then correct or confirm S2's
-    `layered` expectation on that evidence and re-run `bun run probe:shell`.**
+  - ~~**Trigger to close: unlock the screen, `bun run probe:pixels`, then correct or confirm S2's
+    `layered` expectation on that evidence and re-run `bun run probe:shell`.**~~ **DONE 2026-08-30.
+    `probe:pixels` 3 of 3 blocking arms pass, X1-X4 green, worst channel off by 0.0 in all four stages —
+    modern Chromium composites translucent windows through DirectComposition, not the legacy layered
+    path. So `WS_EX_LAYERED` is absent AND the alpha is honoured, which makes S2's `layered=false` an
+    expectation with a citation rather than a relaxed gate: `probe:shell` now reads 8 / 0 / 0, and a run
+    where the widget really is an opaque box fails X3.** The order matters and is the reusable part —
+    the instrument was built first, the arm corrected second, and at no point was a red gate reasoned
+    away.
 - [x] **ISC-26.4. A capture-based probe must establish that anyone was looking before it reports
   anything, and this claim exists because mine did not.** `probe-pixels.ts` reported all four arms red
   on its first two runs, including the line *"THE WIDGET IS PAINTING A BOX — removing main's setOpacity
@@ -948,7 +980,8 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 6 — Stats panel + per-platform sources
 
-- [ ] **ISC-27. All 15 telemetry cells resolve.** Was 18; the three temperature cells retire with
+- [~] **ISC-27. All 15 telemetry cells resolve. CLOSED on Windows 2026-08-30; `[~]` because mac and
+  linux are host-blocked, not unwritten.** Was 18; the three temperature cells retire with
   Option C. Each shows a live number on its platform or renders `--` through the existing `-1` sentinel
   path. Two rows moved under ISC-10's M7 and the claim inherits both: **macOS MEM must come from
   `vm_stat`, not `os.freemem()`** (which read 3.1% free on a healthy 8GB Mac), and **macOS GPU% may
@@ -963,9 +996,48 @@ misses it, because every feature either ported or was consciously retired with t
     battery-alert colour override** (`theme.ts` declares `ThemeOverrides.batteryAlertActive`,
     `BATTERY_ALERT_OWNED_ID = "battBar"`) **and `SetDateFormat`'s `_currentDateText = ""` force-redraw**
     are the rest of this claim's unwired surface — all named in Phase 4's landing, none of them wired.
-- [ ] **ISC-28. Every per-platform parser is fixture-driven and runs on every platform.** Captured
+  - **CLOSED on Windows 2026-08-30.** 12 modules / 1,980 LOC + 12 test files / 3,454 LOC + a new probe;
+    `bun test` **2371 pass / 0 fail** at the time, `probe:display` **61 / 0 / 10 / 0**, `probe:battery`
+    **5 / 0**, `probe:typeperf` **7 / 0 / 1**. All 15 cells resolve live on this host and **both hover
+    behaviours are wired** (backdrop and the 0.5 s fast-refresh). The two sub-surfaces above that
+    remain unwired are `stats-rows.ts`'s per-row visibility and its auto-collapse rule, both of which
+    wait on ISC-32 because the settings window is their only route in the C# too.
+  - **The phase's real product is a FOURTH unowned feature, and it is the finding rather than the
+    work: the uptime line renders five fields in the C# and the port shipped one of them**, through two
+    phases, with every gate green. `core/load-average.ts` had correct tests and **zero importers** — the
+    module was not wrong, it was unreachable. `probe:display` D11b now asserts **shape, value and
+    fed-ness separately**, because `0.00  0.00  0.00` is both a valid line and what an empty sample queue
+    prints, and an arm that cannot tell those apart is well-formed and undiscriminating. Discriminating
+    power **15/15**, three mutations × five cases.
+  - **`Np`, the busy-process count, is DROPPED rather than zeroed**, on this tree's own numbers: the
+    field counts processes over `processCountThresholdPercent` of *whole-machine* capacity, so on 32 cores
+    one saturated core is 3.125% and falls under the 5% default; `typeperf "\Process(*)"` inherits P1.2's
+    spawn-time enumeration defect, and a per-tick one-shot costs 2.55-2.81 s. **`0p` is a legitimate C#
+    reading, so zero-instead-of-absent would be indistinguishable from a real count.**
+  - **The placeholder was wrong in three places and one of them was an exit criterion.** The C# writes
+    the literal `"N/A"` and tests `< 0f`, not `== -1f`; this ISA, the plan and the port's own sentinel
+    test all said `--`. **No WPF test asserts that string**, so nothing could have caught it, and a port
+    graded against a wrong criterion passes by rendering the wrong thing.
+  - **Phase 4's D6 had been asserting a defect AS the expectation** — the date font — so it went green on
+    the strength of the bug. Corrected, and D6b added for the `font-size` half. That is a worse failure
+    than an untested surface, and it is why the arm count went 51 → 61 rather than 51 → 59.
+- [~] **ISC-28. Every per-platform parser is fixture-driven and runs on every platform. CLOSED
+  2026-08-30 for Windows and macOS; `[~]` because the LINUX FIXTURES ARE SYNTHETIC.** Captured
   `/proc/meminfo`, `typeperf` CSV, `pmset -g batt`, `hwmon` tree checked in. This is what makes three
   platforms testable from one.
+  - **The macOS captures are real** — a physical M1, macOS 26.6.2 — and irreplaceable, which is why
+    `test/fixtures/macos-*.txt` are marked `-text` so a `.gitattributes` CRLF conversion cannot corrupt
+    them and the literal TAB in `macos-pmset-batt-ac-charged.txt` survives.
+  - **The Linux ones are not, and that is a real gap rather than a nick:** a wrong sysfs path is then
+    wrong in the module *and* in the fixture at once and nothing fails. Both globs log the path they
+    settled on, and the test header says so out loud. Closing it needs a Linux host, not another test.
+  - **Three defects the new source tests found in the sources themselves**, all of which had green tests
+    before: `linux.ts` would have spawned `nvidia-smi` every tick forever on a machine without it (the
+    "neither" branch was reached from the spawn's `ENOENT` and nothing called for it — **and the module
+    header claimed the probe returned it**, a false doc claim in a file with green tests);
+    `node:path`'s `join` composes `/sys/class/drm\card0\...` under Windows, so every Linux path depended
+    on the host running the *test*; and `cpu-delta.ts:95` returns the sentinel for a zero total delta,
+    which two `os.cpus()` reads inside one tick produce.
 
 ### Phase 6.5 — Settings window *(NEW — no phase owned it; added 2026-08-29)*
 
@@ -986,11 +1058,136 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 7 — Packaging, auto-launch, update check
 
-- [ ] **ISC-29. An installer per platform installs, launches and auto-launches at login.** Includes a
-  **CrowdStrike Falcon re-proof on Windows** — Falcon blocks `garry-desktop`'s autostart spawn pair on
-  this machine, and a packaged installer is a different case that must be proven, not assumed.
-- [ ] **ISC-30. Linux auto-launch works via a hand-written `~/.config/autostart/*.desktop`.**
+- [~] **ISC-29. An installer per platform installs, launches and auto-launches at login. CLOSED on
+  Windows 2026-08-30 for install / launch / uninstall / update-check; `[~]` on two counts, and they are
+  different kinds of open: NO LOGIN HAS BEEN OBSERVED on any platform, and the mac and linux installers
+  are configured but unbuildable on this host.** Includes a **CrowdStrike Falcon re-proof on Windows** —
+  Falcon blocks `garry-desktop`'s autostart spawn pair on this machine, and a packaged installer is a
+  different case that must be proven, not assumed.
+  - 8 files added (**2,245 LOC** of TS plus a 21,301-byte `.ico`) and 10 changed (**+625 / −37**);
+    `bun test` **2428 pass / 0 fail** (279,762 `expect()` calls, 57 files — **57 new tests**),
+    `typecheck` and `build` exit 0, `probe:autolaunch` **9 / 0**, `probe:update` **5 / 0 / 1**,
+    `probe:size` **7 / 0** (up from 5 arms). **Every Phase 5-6 probe was re-run rather than carried
+    forward**, because Phase 7 edits `main.ts` and an edit to main voids every green taken against the
+    previous build.
+  - **The exit criterion is met with the login half split off rather than absorbed.** What is proven is
+    that the mechanism the OS reads at login is written, correct, and readable by a reader this port does
+    not own. What is not proven is a login. That is one logoff, and it is the manual list's item 5 — **a
+    registry value is not a launch**, and the two were about to be written as one sentence.
+  - **A finding this phase owes to Phase 9: the v5 uninstall entry sits BESIDE the WPF one.** After
+    install, Apps & Features listed `FuzzyClock 5.0.0-alpha.0` (NSIS) and `FuzzyClock 4.5.5` (Inno) as
+    two separate products, because NSIS does not replace an Inno registration. The mirror image of the
+    Run-key problem, which *is* handled — the value name is shared on purpose. Recorded here because the
+    install that showed it will not be re-run.
+  - **`ELECTRON_RUN_AS_NODE` produced a confident false failure for the second time on this port**, in
+    the one place `scripts/lib/electron-launch.ts:68`'s strip cannot reach: an ad-hoc install probe
+    launching the packaged exe by hand. The app looked like it died instantly — **exit 9** with an empty
+    profile — and had not: VS Code exports the variable, PowerShell children inherit it, and under it
+    `FuzzyClock.exe` runs as plain Node, which rejects `--user-data-dir` as `bad option` and exits 9,
+    Node's "Invalid Argument". Stripped the same three by hand and it came up.
+- [x] **ISC-29.1. Two of the three P1.5 size debts are PAID and measured; the third is measured to be
+  unpaid.** `probe:size` went 5 arms → 7 for exactly this sentence.
+  - **C6, the locale trim: 55 `.pak` files / 41.0MB → 1 / 490,357 B**, and the installer with it from
+    **80,089,948 → 72,661,907 bytes**. The arm's pass condition is deliberately **not** "few `.pak`
+    files": a name matching nothing makes electron-builder log `no locales found matching wanted
+    languages, skipping cleanup` and keep all 41MB silently, and an over-aggressive glob that removed
+    `en-US.pak` would leave Chromium with no resource bundle at all. **C6 fails in both directions** and
+    passes only on "exactly one, and it is `en-US`".
+  - **C7, the icon: `assets/icon.png`'s 6,199 bytes found byte-for-byte at offset 187,762,152** inside
+    the packaged `FuzzyClock.exe`, and **absent from the stock `node_modules/electron/dist/electron.exe`**
+    — the negative control. **If the control ever matches, the arm reports INCONCLUSIVE rather than
+    PASS**, because that would mean the control failed rather than the subject.
+  - **The signature is NOT paid, and the build log actively misleads about it.** electron-builder prints
+    `signing with signtool.exe` on the way past; `Get-AuthenticodeSignature` reads **`NotSigned`** on the
+    installer *and* on `win-unpacked\FuzzyClock.exe`. The measurement wins and the log line is not
+    evidence. Needs a code-signing certificate, which does not exist.
+  - **Every byte count on this run is a trimmed number and is not comparable to the P1.5 figures.**
+    Installer **72,661,907** vs Inno **57,389,487** = **1.27×**; payload **239,563,972** across 19 files
+    vs the WPF single-file exe **200,457,651** = **1.20×**; `app.asar` **217,576 B**, so the app is
+    **0.091%** of what ships and the ratio is a floor that improves as the port fills in.
+- [x] **ISC-29.2. The Falcon re-proof passed, with its control stated and its bound stated.** Measured
+  end to end: **`CSFalconService` Running and Defender realtime protection `False`** — the control,
+  without which a clean run would only prove Defender allowed it; silent install `/S` **exit 0**, 20
+  files / 228.6MB; the app **launched and lived 20 s as a 4-process tree with a real window**
+  (`hwnd=30607408`, 105.7MB) and wrote 35 files into its own profile including a 1,165-byte
+  `settings.json`; the installed tree byte-intact afterwards; uninstall `/S` **exit 0 with zero
+  residue**.
+  - **Falcon's channel silence is WEAK evidence and is labelled as such.** A readability control showed
+    `CrowdStrike-Falcon Sensor-CSFalconService/Operational` carries only 4-hourly service-lifecycle
+    records, so it would likely be silent about a block too. **The behavioural evidence is what carries
+    this claim**; the empty channel is corroboration at best.
+  - **The bound: 20 seconds, one host, an unsigned artefact, and no login-time arm.** Falcon's
+    autostart-specific behaviour — the thing that blocks `garry-desktop` — is precisely what manual item
+    5 tests and this run does not.
+- [~] **ISC-29.3. The update check reaches GitHub live and gives up on time; `[~]` because the OFFERED
+  branch has no live input and B2 could not be settled.** `probe:update` **5 / 0 / 1**.
+  - **The coordinate resolves: 200, `tag_name 'v4.5.5'`, parsed in 22 ms.** B1 fetches `/repos`
+    alongside `/releases/latest` on purpose, because GitHub answers 404 both for "no releases yet" and
+    for "not visible to you" and those are different facts.
+  - **`shouldOfferUpdate("5.0.0-alpha.0", v4.5.5)` is `false`, and that is the prerelease rule firing on
+    real data** — so the branch the live network exercised is *not offered*, and **`updateNoticeText` has
+    no live input on this run.** A green whose green comes from the negative branch is not coverage of
+    the positive one. It closes itself the first time a release newer than the running version exists.
+  - **B2 is INCONCLUSIVE and stays that way.** GitHub documents a 403 for a request with no User-Agent;
+    an empty-UA request got **200**, so either the runtime substituted its own header or the rule is no
+    longer enforced. Our UA is accepted either way, which is what the app needs — what is unproven is
+    that it is *required*. **Claiming a reproduced 403 here would have been the easiest false green in
+    the phase.**
+  - **B5/B6 use a real socket, not a fake.** A `Bun.serve` that accepts and never answers: the deadline
+    aborted at **5008 ms** against a 5000 ms budget with one connection recorded, and `cancelInFlight()`
+    killed a live request at **152 ms** rather than letting it run to the deadline. A fake `fetchImpl`
+    chooses when to reject, which is the behaviour under test, so it cannot answer this. **B4's absence
+    arm has a positive control**: `enabled: false` moves the HTTP counter zero times *on the same adapter
+    B3 moved exactly once*.
+- [~] **ISC-30. Linux auto-launch works via a hand-written `~/.config/autostart/*.desktop`. WRITTEN AND
+  PROBED 2026-08-30; `[~]` because no Linux host exists** — this is a hosts gap, not unwritten work.
   `setLoginItemSettings` is `@platform darwin,win32` — there is no API to call.
+  - **One contract over three sinks.** `main/auto-launch.ts` (279 LOC) exposes `enable()` / `disable()` /
+    `isEnabled()` over a `Runner` and an `Fs` seam and dispatches on platform: `reg.exe` against
+    `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` on win32, a LaunchAgent plist on darwin, an XDG
+    `.desktop` on linux. **Electron's own API lost three times over**, and only the first ground is the
+    one usually quoted: it is typed `@platform darwin,win32` (`electron.d.ts:1634`), so Linux needs the
+    hand-written file regardless and a mixed design is two designs; it would import `electron`, putting
+    the module out of reach of `bun test` *and* of the probe; and **the Windows value name has to be the
+    literal `FuzzyClock`** so a v5 install *replaces* the WPF Run entry instead of adding a second one —
+    at parity, two entries means both apps launch at login — and `setLoginItemSettings` does not let the
+    name be chosen.
+  - **A9 runs the darwin and linux sinks for real on this Windows box**, against a `mkdtemp` HOME,
+    through **the production `fileSeam`**, with a runner that throws if reached: the file lands at the
+    computed path with the generator's exact bytes, the parent directory is created (a fresh account has
+    neither `~/Library/LaunchAgents` nor `~/.config/autostart`), presence is what `isEnabled()` reads,
+    `RunAtLoad` present, `KeepAlive` absent, `X-GNOME-Autostart-enabled=true` present, and **not one
+    process is spawned** — a `launchctl load` would start a second copy the moment the box is ticked.
+    **Whether launchd and GNOME then honour the file needs a real host and stays open.**
+  - **Two Windows details are load-bearing and neither is obvious.** `reg.exe` takes `HKCU\...`, never
+    PowerShell's `HKCU:\`. And the exe path goes into argv as **one element with no added quotes** —
+    quoting it writes the quote characters *into* the value, producing a Run entry Windows silently
+    cannot launch, which is why A4 asserts the read-back contains no `"` at all.
+  - **The probe was designed around Alex's live Run entry before anything was written**, because the
+    module under test is a thing whose whole job is to write and delete that exact value name. Three
+    properties, in the order they were established: **the app cannot touch it at startup** —
+    `syncAutoLaunch` is called from exactly two places, the tray toggle and reset-to-defaults, never
+    startup, read out of the source before any probe ran, and that fact is what made it safe to install
+    and launch the packaged app later in the same session; **the probe drives the real writer under a
+    scoped value name**, `FuzzyClockProbe-<pid>`, through a `guardedRunner` that refuses five ways
+    (not `reg`, not the Run key, **no `/v` at all** — which names the *whole key*, where a `reg delete`
+    would take every startup entry on the machine — more than one hit for the real name, and any rewrite
+    the real name survives), with **A1 proving each refusal against a runner that throws if reached** so
+    a leak is a loud failure rather than a write; and **his entry is a read-only positive control**, A2,
+    which is the one arm proving the reader works against a value **written by the C# app** —
+    `RegistryValueKind.String` from `SetValue(string,string)` and `REG_SZ` from `reg add` are the same
+    kind, and that is the cross-implementation parity claim. **A8 censuses the whole key before and
+    after and shows his entry byte-identical.**
+  - **A4 is the arm worth keeping:** after `enable()` the value is read back through **two independent
+    readers** — `reg query` for kind, exact data and the absence of quote characters, and
+    `[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(...)` for `GetValue()` *and* `GetValueKind()`.
+    A5 pins idempotency (two `enable()`s, one value), A6 repoints the entry at the `(x86)` install
+    location — the shell-injection canary — and A7 proves `disable()` twice still reports true, against
+    `reg delete`'s real exit 1 for an absent value rather than a scripted one.
+  - **What no arm in that file proves, named rather than implied: that the value name is `FuzzyClock`.**
+    The probe writes a scoped name *by design*, so the shipped constant is asserted by
+    `test/auto-launch.test.ts` and by reading the source — never by a probe, and never against a live
+    key. And **neither half proves the app starts at login.**
 
 ### Phase 8-9 — Auto-contrast, then retirement
 
@@ -1516,18 +1713,51 @@ measured on this branch at or after that base.
 | ISC-21 / ISC-22 / ISC-23 (the five faces, the composited-property rule, the theme) | `bun run probe:display` — builds, then `scripts/probe-display.ts` launches `dist/main.js` five times into throwaway `--user-data-dir` profiles (one per face) with `--remote-debugging-port` + `--remote-allow-origins=*`, and harvests one in-page IIFE over CDP: **51 passed / 0 failed / 10 inconclusive / 0 blocking**. Plus `bun test` — `test/renderer-ids.test.ts`, `test/theme.test.ts`, `test/display-plan.test.ts`, `test/locale-key.test.ts` | **Read off the live document, never off the markup**, because three of the failures being guarded against cannot exist in a fake DOM: an unresolvable `<use>` renders nothing *with no console error*, a CSS declaration silently beats a presentation attribute, and a replaced inline element with no `#root { display: block }` collapses. **Only Chromium's cascade can answer the middle one**, which is why the CSS-shadowing claim is guarded twice — over the source in `renderer-ids.test.ts` and over the cascade in arm D5 — and neither check subsumes the other. **The reduction to five launches is logged at run start rather than hidden**: one launch per settings combination is the only route (main does not watch the settings file; CDP reaches the page but not `ipcRenderer`), and accent × face is not dropped for convenience since only the LCD reads the accent for anything beyond a paint, through a separately-tested pure function. **Two negative controls carry the two claims that would otherwise be vacuous**: three faces must produce *exactly one* DOM state across 3 s (a phrase face rewriting identical text every second passes every other arm in the file), and the dial decorations must be `display="none"` on the four cases that leave their **false defaults** alone (a probe that never sets those flags reads an empty dial as correct). **The memo is measured as an effect, not a count** — the bundle exports to no global, so CDP cannot see `setAttr`'s return value; the probe hashes `outerHTML` instead. **`harvestExpression` deliberately uses string concatenation and no template literals inside the page code**, since the file is already inside one and the nesting is how you get a probe that measures a syntax error. **Bounded, and the bounds are in the probe's own header:** no pixel is compared, no screenshot is taken, no paint-flash trace is captured, and the `text-before-edge` vs WPF `FontFamily.Baseline` offset is *recorded* by D10 (`#date y=110 bbox=97.23,110.00 81.47×21.00`) and **checked by nothing** |
 
 | ISC-24 / ISC-25 / ISC-26.1 / ISC-26.2 / ISC-26.6 (the driver, the click-through toggle, the pump's deviations, the opacity move, the two C# defects) | `bun test` — `test/ghost-driver.test.ts`, `test/ghost-fade.test.ts`, `test/ghost-rect.test.ts`, `test/opacity-step.test.ts`: **83 new tests, 2107 pass / 0 fail overall** (271,808 `expect()` calls, 43 files). Plus `bun run typecheck`, `bun run build`, and `bun run probe:shell` for S8's before-half | **Structurally typed like `window-placement.ts`, so the whole driver runs with literal fakes and no Electron on the path** — which is what makes the 30-ticks-per-second `markActive()` claim measurable at all rather than reasoned about. **The pure/platform split is the discriminator**: `FadePump.frame()` returns the number to write and lets the caller write it, so Bun drives the state machine, and `null` means *"do not write"* rather than *"write the same value again"* — collapsing those two would hide the guard-swallowed-write deviation entirely, because `svg.ts`'s memo makes them look identical from outside. **`isModifierHeld` is swept over all 256 (config × held) pairs against an independently formulated oracle with a `heldTrue === 65` count**, because the C# suite's own 12 rows all expect `false` in a test process and eleven of them pass against `return false`. **Bounded, and stated rather than left to infer:** none of this sees a real cursor, a real screen or a second platform — `setIgnoreMouseEvents` is one call on all three and has been read back off a live window on one |
-| ISC-26 (PERF-01) | `bun run probe:fade` — builds, then `scripts/probe-fade.ts` launches `probe-fade-app.cjs`, which constructs a window with `main.ts:137-157`'s options and runs **the shipped `FadePump` and a v4.4-shaped `win.setOpacity()`-from-main control** across 8 phases (idle / main-blocked / system-load / oversubscribed × both architectures), releasing each phase through a counter file: **7 of 8 blocking arms pass; F0 INCONCLUSIVE, exit 1** | **The negative control is itself a blocking arm, and that is the whole design.** A flat frame clock under a load that never arrived is indistinguishable from success, so F4 requires the control to degrade (measured 31.0 → 62.0 ms median, 63 ticks vs 145 in the same 4 s) before F5's green means anything. **The bar is derived, not tuned**: F4 compares medians against `BUSY_SPIN_MS` because `setInterval(16)` coalesces to ~31 ms on Windows even idle, so the first bar (`busy.max > idle.max × 2`) returned INCONCLUSIVE at exactly 64 > 64 on a load that had plainly arrived. **F6b and F7 refuse to over-claim in the direction the run favours**: 12 saturated cores of 32 starves nothing on this host, so F5 carries the claim rather than F6, and 100% oversubscription is reported as *"no limit found below full oversubscription"*, never as "immune". **F0 is why this row does not close the claim** — the session was locked, so the cadence was measured against a compositor that was not presenting, and the idle median of 12.7 ms is ~79 Hz, matching no standard refresh rate. F0 checks against 60/75/90/120/144/165/240 Hz and blocks. **The comparative result survives the lock; the absolute figures do not.** **Bounded:** Windows only, one host, and no probe has seen the real app fade under a real cursor — `ipcRenderer` is unreachable from CDP and `SendInput` would move Alex's own pointer |
-| ISC-26.3 / ISC-26.4 (does a transparent window actually composite; and was anyone looking) | `bun run probe:pixels` — `scripts/probe-pixels.ts` + `probe-pixels-app.cjs` + `screengrab.ps1`. **Currently INCONCLUSIVE, exit 0: the workstation is locked, so nothing is launched and nothing is measured** | **The first arm in this repo that reads a rendered pixel** — every other probe reads a decision, and `probe-display.ts:64` says so. **The backdrop is OURS, not the wallpaper**: the naive version captures the desktop, shows the transparent window, captures again and passes when they match — which also passes when a dark desktop sits under an opaque dark box. Magenta is chosen for being un-supplyable by any theme, wallpaper or Chromium default. **X2 is the control and is reported before X3 on purpose**: "still magenta" is equally what a window that never showed produces, so the same window with the same flags must turn the capture green when asked to paint opaque, or X3 is VOID and says so in its own verdict text. **The grid is not decoration** — a mean alone cannot tell magenta from a red/blue checker. **The rect is taken from the window's own reported bounds with a 12-DIP inset and multiplied by `scaleFactor`**, because the first run grabbed the *requested* rect, photographed the wallpaper and called it a failed paint; PowerShell is not per-monitor DPI aware. **`capturePage()` cannot answer this** — it captures the page's own surface, so a transparent page captures as transparent regardless of whether the OS honoured it. **The lock gate is the discriminator for the probe itself**: without it this file produced four specific, alarming, false FAILs, and `lib/session-lock.ts` fails OPEN so a broken query costs one contaminated run rather than permanently disabling every capture arm |
+| ISC-26 (PERF-01) | `bun run probe:fade` — builds, then `scripts/probe-fade.ts` launches `probe-fade-app.cjs`, which constructs a window with `main.ts:137-157`'s options and runs **the shipped `FadePump` and a v4.4-shaped `win.setOpacity()`-from-main control** across 8 phases (idle / main-blocked / system-load / oversubscribed × both architectures), releasing each phase through a counter file: ~~7 of 8 blocking arms pass; F0 INCONCLUSIVE, exit 1~~ **8 of 8 blocking arms pass on an unlocked session, and re-run again on the Phase 7 tree as `probe:fade --workers 8`** | **The negative control is itself a blocking arm, and that is the whole design.** A flat frame clock under a load that never arrived is indistinguishable from success, so F4 requires the control to degrade (measured 31.0 → 62.0 ms median, 63 ticks vs 145 in the same 4 s) before F5's green means anything. **The bar is derived, not tuned**: F4 compares medians against `BUSY_SPIN_MS` because `setInterval(16)` coalesces to ~31 ms on Windows even idle, so the first bar (`busy.max > idle.max × 2`) returned INCONCLUSIVE at exactly 64 > 64 on a load that had plainly arrived. **F6b and F7 refuse to over-claim in the direction the run favours**: 12 saturated cores of 32 starves nothing on this host, so F5 carries the claim rather than F6, and 100% oversubscription is reported as *"no limit found below full oversubscription"*, never as "immune". ~~**F0 is why this row does not close the claim**~~ — the locked session's idle median of 12.7 ms was ~79 Hz, matching no standard refresh rate, and F0 checks against 60/75/90/120/144/165/240 Hz and blocked on exactly that. **Re-run unlocked it reads 11.8 ms ≈ 85 Hz on a 90 Hz panel and passes, which is the arm working rather than the arm being satisfied** — the figure moved, and it moved into the band the instrument was built to recognise. **F7 changed its answer on the same re-run and is the reason a green here is not "immune":** under full oversubscription p99 reached 47.0 ms, 12 frames past the bar, where the locked run found no limit at all. A probe that never finds a limit has usually not looked hard enough. **F6's worker count is not stable across sessions** — the default read 68.6% system CPU on the Phase 7 tree and blocked, and `--workers 8` put it at 58.8% inside the 20-65% window; the instrument printing the flag to use is what kept that a measurement instead of a tuning. **Bounded:** Windows only, one host, and no probe has seen the real app fade under a real cursor — `ipcRenderer` is unreachable from CDP and `SendInput` would move Alex's own pointer |
+| ISC-26.3 / ISC-26.4 (does a transparent window actually composite; and was anyone looking) | `bun run probe:pixels` — `scripts/probe-pixels.ts` + `probe-pixels-app.cjs` + `screengrab.ps1`. ~~Currently INCONCLUSIVE, exit 0: the workstation is locked, so nothing is launched and nothing is measured~~ **3 of 3 blocking arms pass — X1-X4 all green on an unlocked session, and re-run on the Phase 7 tree** | **The first arm in this repo that reads a rendered pixel** — every other probe reads a decision, and `probe-display.ts:64` says so. **The backdrop is OURS, not the wallpaper**: the naive version captures the desktop, shows the transparent window, captures again and passes when they match — which also passes when a dark desktop sits under an opaque dark box. Magenta is chosen for being un-supplyable by any theme, wallpaper or Chromium default. **X2 is the control and is reported before X3 on purpose**: "still magenta" is equally what a window that never showed produces, so the same window with the same flags must turn the capture green when asked to paint opaque, or X3 is VOID and says so in its own verdict text. **The grid is not decoration** — a mean alone cannot tell magenta from a red/blue checker. **The rect is taken from the window's own reported bounds with a 12-DIP inset and multiplied by `scaleFactor`**, because the first run grabbed the *requested* rect, photographed the wallpaper and called it a failed paint; PowerShell is not per-monitor DPI aware. **`capturePage()` cannot answer this** — it captures the page's own surface, so a transparent page captures as transparent regardless of whether the OS honoured it. **The lock gate is the discriminator for the probe itself**: without it this file produced four specific, alarming, false FAILs, and `lib/session-lock.ts` fails OPEN so a broken query costs one contaminated run rather than permanently disabling every capture arm |
+
+| ISC-27 / ISC-28 (the 15 telemetry cells, and the per-platform sources) | `bun test` (2371 pass / 0 fail at `48e217c`, 12 new test files / 3,454 LOC), `bun run typecheck` and `bun run build` exit 0, `bun run probe:display` (**61 / 0 / 10 / 0**, five launches), `bun run probe:battery` (**5 / 0**, a live source watched for 30 s), `bun run probe:typeperf` (7 / 0 / 1); then a 15-case mutation run, three mutations × five cases | **The arm that found the phase's real defect is D11b, and it is the discriminator because it splits one question into three**: `0.00  0.00  0.00` is both a valid load-average line *and* exactly what an empty sample queue prints, so shape, value and **fed-ness** are asserted separately. A well-formed arm that cannot tell those apart is undiscriminating, and that is what let `core/load-average.ts` sit with correct tests and **zero importers** through two phases of green gates. **A live source's cadence cannot be faked by a fixture** — `probe:battery` watches 30 s of real readings, because a parser cannot fail to *arrive*, and arrival is the failure mode a fixture is structurally blind to. **The fixtures' provenance is asserted asymmetrically, because it differs**: the macOS captures are real (a physical M1, macOS 26.6.2) and pinned `-text` in `.gitattributes` so a CRLF conversion cannot corrupt the literal TAB in `macos-pmset-batt-ac-charged.txt`; **the Linux ones are synthetic, and both globs log the path they settled on** precisely because a wrong sysfs path is otherwise wrong in the module and in the fixture at once with nothing failing. **The tests found three defects in sources that already had green tests** — an `nvidia-smi` respawn every tick on a machine without it (whose module header *claimed* the probe returned it, a false doc claim in a green file), `node:path`'s `join` composing `/sys/class/drm\card0\...` so every Linux path depended on the host running the *test*, and `cpu-delta.ts:95` returning the sentinel for the zero total delta two `os.cpus()` reads inside one tick produce. **The placeholder was corrected against the C# rather than against this ISA**: the original writes the literal `"N/A"` and tests `< 0f`, and no WPF test asserts that string, so the port was being graded against a criterion three of our own documents got wrong. **Bounded**: Windows live only. All three platforms' sources are written and fixture-tested; one has been run |
+| ISC-29.1 (the two paid size debts, and the one measured-absent) | `bun run probe:size` from `electron/` after `bun run dist:win` — arms C1..C7, **7 / 0**, up from 5; plus `Get-AuthenticodeSignature` on both artefacts | **C6 fails in BOTH directions, which is the only shape that can measure a trim**: a language name matching nothing makes electron-builder log `no locales found matching wanted languages, skipping cleanup` and keep all 41MB **silently**, while an over-aggressive glob that removed `en-US.pak` would leave Chromium with no resource bundle at all — so the pass condition is "exactly one, and it is `en-US`", never "few `.pak` files". Measured 55 files / 41.0MB → 1 / 490,357 B. **C7 has a negative control and a defined inconclusive**: `assets/icon.png`'s 6,199 bytes are found byte-for-byte at offset **187,762,152** in the packaged exe and **absent from the identically-built stock `electron.exe`** — and if the control ever matches, C7 reports INCONCLUSIVE rather than PASS, because that means the control failed rather than the subject. **The build log is explicitly refused as evidence**: electron-builder prints `signing with signtool.exe` while `Get-AuthenticodeSignature` reads **`NotSigned`** on the installer *and* on `win-unpacked\FuzzyClock.exe`; the measurement wins. **Comparability is asserted rather than assumed**: every Phase 7 byte count is a *trimmed* number, so C5's own note says the P1.5 figures are not comparable and neither supersedes the other — 1.40× / 1.40× and 1.27× / 1.20× are two different packages. **Bounded**: Windows artefacts only, and C7 is a Windows-only pass — `dmg` and `AppImage` carry no `icon` key because `app.ico`'s largest entry is 256×256 where the conversion needs 512×512, and the config is validated as a whole, so pointing them at it would break `dist:win` too |
+| ISC-29.2 (the Falcon re-proof) | A one-off install probe, not a checked-in gate: silent `/S` install of `FuzzyClock Setup 5.0.0-alpha.0.exe`, launch with a `--user-data-dir` under `%TEMP%`, 20 s of process-tree and window sampling, tree re-hash, silent `/S` uninstall, then `Get-WinEvent` over Falcon's operational channel. **Not re-runnable without re-installing** | **The AV control comes first and is what licenses the result**: `CSFalconService` **Running** and Defender realtime protection **`False`**, so a clean run cannot be explained by Defender having allowed it — without that pair the whole probe measures the wrong product. **The evidence is behavioural, and the channel silence is labelled WEAK on a readability control**: `CrowdStrike-Falcon Sensor-CSFalconService/Operational` was read and carries only 4-hourly service-lifecycle records, so it would likely be silent about a block too — an empty channel is corroboration at best, and calling it proof was the easy false green here. **A launch is asserted as a window and a tree, not as an exit code**: a 4-process tree alive 20 s with a real `hwnd=30607408` at 105.7MB and 35 files written into its own profile including a 1,165-byte `settings.json`, because `Start-Process` returning is what a process that died immediately also looks like — **and it did look like that**: `ELECTRON_RUN_AS_NODE=1`, inherited from VS Code, made the packaged exe run as plain Node and exit **9** on `--user-data-dir`, which reads exactly like a Falcon block. **Alex's live profile is untouched by construction** — every launch is `--user-data-dir` into a temp dir, and `%LOCALAPPDATA%\FuzzyClock\settings.json`'s mtime was unchanged after the whole sequence. **Bounded, and the bound is the interesting part**: 20 seconds, one host, an **unsigned** artefact, and **no login-time arm** — Falcon's autostart-specific behaviour, the thing that actually blocks `garry-desktop`, is what manual item 5 tests and this run does not |
+| ISC-29.3 (the update check, live) | `bun run probe:update` from `electron/` — arms B1..B6, **5 / 0 / 1**. Three real requests to api.github.com plus a `Bun.serve` that accepts and never answers; ~6 s | **B1 disambiguates a 404 instead of shrugging at it**: `/repos` is fetched alongside `/releases/latest` because GitHub answers 404 both for "no releases yet" and for "not visible to you", and a check whose URL is wrong is a check that silently never fires. Live: **200, `tag_name 'v4.5.5'`, parsed in 22 ms.** **B2 stays INCONCLUSIVE rather than claiming a reproduction**: an empty-UA request got 200, not the documented 403, so either the runtime substituted its own header or the rule is no longer enforced — our UA is accepted either way, which is what the app needs; that it is *required* is unproven. **B4's absence arm has a positive control on the same adapter**: `enabled: false` moves the HTTP counter zero times where B3 moved it exactly once, so this is a real absence and not an adapter that cannot dial. **B5/B6 use a real socket because a fake `fetchImpl` chooses when to reject, which is the behaviour under test** — the deadline aborted at **5008 ms** against a 5000 ms budget *with one connection recorded* (null-in-5s is also what a request that never left the process looks like), and `cancelInFlight()` killed a live request at **152 ms**. **What the live answer exercised is the negative branch, and that is stated inside the PASS text rather than left to a reader**: `shouldOfferUpdate("5.0.0-alpha.0", v4.5.5)` is `false`, so **`updateNoticeText` has no live input on this run** and the offered path stays unexercised until a newer release exists. **Bounded**: no arm here proves the notice reaches the screen — the geometry is `test/layout.test.ts`, the glass is `probe:fade`/`probe:pixels`, the wiring is `main.ts`'s `pendingUpdateText`, and **nothing crosses all three** |
+| ISC-30 (auto-launch, all three sinks) | `bun run probe:autolaunch` from `electron/` — arms A1..A9, **9 / 0**, driving `main/auto-launch.ts` through the **production** `processRunner` and `fileSeam` from `src/main/seams.ts` against a live `HKCU` Run key and a real filesystem; plus `bun test` (`test/auto-launch.test.ts`, 303 LOC) for the value name | **The interlock is asserted before anything is written, and it is the first arm on purpose**: A1 puts five unsafe shapes through the guard against a runner that **throws if reached** — not `reg`, not the Run key, **no `/v` at all** (which names the *whole key*, where a `reg delete` would take every startup entry on the machine), more than one hit for the real value name, and any rewrite the real name survives — and the probe `process.exit(1)`s before touching the registry if the guard misbehaves. **A guard nobody tested is the likeliest thing here to be wrong, so it gets a positive control too**: a real `enable()` must pass *through* it with the name rewritten and the path untouched, or the five refusals would pass against a guard that simply refuses everything. **Two independent readers, and the second one is the parity claim**: A4 reads the value back through `reg query` (kind, exact data, **no `"` character at all** — quoting writes the quotes *into* the value and produces a Run entry Windows silently cannot launch) and through `[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(...)`'s `GetValue()` *and* `GetValueKind()`, which is the same .NET API `AutoLaunchService.cs` reads with. **A2 is the one arm proving the reader works against a value the module did not write** — Alex's own C#-written entry, read-only, where `RegistryValueKind.String` and `REG_SZ` are the same kind. **A8 is the arm that must never fail**: a before/after census of every value name under the key plus his entry byte-identical. **The seams were extracted so the probe drives the app's adapters and not a copy** — a green certifying an adapter the app does not use is worse than no probe, because it reads as coverage. **A9's absence arm is a dead runner**: the darwin and linux sinks write through the production `fileSeam` into a `mkdtemp` HOME with **zero processes spawned**, because a `launchctl load` would start a second copy the moment the box is ticked. **Two things this file deliberately does NOT prove, named in its own closing lines**: that the value name is `FuzzyClock` (it writes `FuzzyClockProbe-<pid>` by design, so the constant is the unit test's arm and the source's), and that anything starts at login |
 
 ### Still outstanding
 
-- **The lock is now the top of this list, and it is one physical action that unblocks two claims.**
-  **Unlock the screen, then `bun run probe:pixels` and re-run `bun run probe:fade`.** The first settles
-  ISC-26.3 — whether transparency composites without `WS_EX_LAYERED` — and with it whether
-  `probe-shell.ts`'s S2 expectation gets corrected or the widget is genuinely painting a box. The second
-  turns ISC-26's provisional cadence figures into a claim about what a user sees. **Neither is a code
-  change and neither can be done from a tool call.** Until then `probe:shell` reads 7/1 and `probe:fade`
-  exits 1, both on purpose.
+- ~~**The lock is now the top of this list, and it is one physical action that unblocks two claims.**~~
+  **PAID 2026-08-30, and it was the cheapest item on this list by a wide margin.** One unlock, then
+  `probe:pixels` (X1-X4 green) and `probe:fade` re-run (F0 green): ISC-26.3 closed, `probe-shell.ts`'s S2
+  expectation **corrected on the pixel evidence rather than relaxed**, and ISC-26's cadence figures are no
+  longer provisional. `probe:shell` reads 8/0 and `probe:fade` 8/8.
+- **The login arm is the new top of this list, and it is the one item here that is genuinely
+  unautomatable rather than merely awkward.** **Log out, log back in, with auto-launch enabled, and
+  confirm the overlay appears.** `probe:autolaunch` proves the Run value exists, holds the right
+  unquoted path, is `REG_SZ`/`String`, and reads back through a reader this port does not own — **a
+  registry value is not a launch**, and the gap between them is Winlogon, Falcon and the shell's startup
+  sequencing. Same shape on macOS (`launchctl` loading the LaunchAgent) and Linux (the desktop
+  environment honouring `~/.config/autostart`), where it also needs the hosts. This is what keeps ISC-29
+  and ISC-30 at `[~]`, and it is one logoff.
+- **The shipped artefacts are unsigned, and this one is a purchase rather than a task.**
+  `Get-AuthenticodeSignature` reads `NotSigned` on both `FuzzyClock Setup 5.0.0-alpha.0.exe` and
+  `win-unpacked\FuzzyClock.exe`, while **electron-builder logs `signing with signtool.exe` on the way
+  past** — so the build log is not evidence here and the measurement is. SmartScreen and Gatekeeper both
+  bite on it; it needs a code-signing certificate and an Apple Developer ID, neither of which exists.
+  Two consequences already recorded rather than deferred: ISC-29.2's Falcon run measured an **unsigned**
+  artefact, and every ISC-29.1 byte count will move when a signature is added.
+- **There is no ≥512px icon source, so the mac and linux targets would package the stock Electron icon.**
+  `app.ico`'s largest entry is **256×256** and electron-builder's PNG→icns/Linux-set conversion needs
+  **512×512** — so pointing those targets at it would *fail* the build rather than skip the icon, and
+  because the config is validated as a whole before a target is chosen, that failure would break
+  `dist:win` too. Both therefore carry no `icon` key, which is what makes **C7 a Windows-only pass**.
+- **The v5 uninstall entry sits BESIDE the WPF one, and that is Phase 9's problem to close.** Apps &
+  Features listed `FuzzyClock 5.0.0-alpha.0` (NSIS) and `FuzzyClock 4.5.5` (Inno) as two separate
+  products, because NSIS does not replace an Inno registration. The mirror image of the Run-key problem,
+  which *is* handled — the value name is shared on purpose. Recorded because the install that showed it
+  will not be re-run.
+- **`update-check.ts`'s `cancelInFlight()` has no caller, and it waits on ISC-32.** The only route to
+  turning update checks off mid-session is the settings window, so the method is exercised by
+  `probe:update` B6 and by unit tests and by nothing in the app. Third item Phase 6.5 now owes, after
+  `stats-rows.ts`'s auto-collapse rule and the re-clamp a re-shown row needs.
 - **Three Phase 3 arms need Alex's hands and nothing else.** (1) **Drag the widget**, including across
   the monitor seam, and check it lands inside the work area — ISC-20's live half, refused rather than
   synthesised because the only real synthetic drag moves his cursor. (2) **Restart the app** and confirm
@@ -1542,20 +1772,27 @@ measured on this branch at or after that base.
   `core/reset.ts`, whose `ResetToDefaults` is a private method on a WPF `Window` and unreachable from
   the console harness. Both headers say so in place; every other Phase 3 expectation is a recorded C#
   value.
-- **ISC-6's greens are void again, by rule 17, and this is now the third time.** `main.ts` changed
-  substantially in Phase 3 (settings, tray, placement, drag, IPC), `settings-store.ts` changed after its
-  own tests were written, and **Phase 4 added an 87.73 KB renderer bundle that ticks every second** —
-  which is exactly the thing a CPU comparison measures. The cost figures were measured on the old
-  harness, so the comparison needs a re-run before any of them is quoted again. It gates nothing right
-  now — the go/no-go already passed with a 1.93–2.43× margin — but the *number* is stale and must not be
-  repeated as current, and Phase 4 is the change most likely to have moved it.
+- ~~**ISC-6's greens are void again, by rule 17, and this is now the third time.**~~ **Re-measured on
+  the Phase 7 tree: `probe:cost` 4 / 0, CPU 8.01% against WPF's 25.81% — 3.22× cheaper**, with the full
+  renderer bundle, the stats sources and the packaging changes all in. So the CPU half is a current
+  reading rather than a stale one, and the go/no-go premise has now held on **four** runs: Electron 8.21 /
+  10.88 / 9.47 / 8.01% against a WPF baseline that read 19.92 / 20.98 / 32.19 / 25.81% on one host with
+  no code change at all — **a 12.3pp spread on the side that never moved**, which is the reason this
+  comparison is always run back to back and never quoted across sessions.
+- **The RSS half of ISC-6 is unresolved by METHOD, not by result, and a fifth run will not close it.**
+  The measured intervals overlap in both directions on all four runs. Closing it needs per-process
+  shared-page accounting, and until then neither side may be reported as cheaper on memory. **The Phase 7
+  run's RSS intervals are deliberately not quoted anywhere in this file** — I did not record them, and a
+  remembered interval is not a measurement; the verdict (INDETERMINATE, fourth time) is the reading.
 - **Phase 4 renders no pixel comparison and does not pretend to.** No screenshot, no glyph measured
   against WPF's. The concrete residual is the **`text-before-edge` vs WPF `FontFamily.Baseline` offset**:
   arm D10 *records* it (`#date y=110 bbox=97.23,110.00 81.47×21.00`) and **nothing checks it**, so a
   systematic vertical offset in the date line would ship green. Carried as debt, not closed.
-- **The stats panel renders all bars at `0` and all values `"--"`, which is correct for Phase 4.** Arm
-  D10b is deliberately inconclusive-by-design: it is the before-picture for Phase 6, which owns the
-  sources. Do not read the panel's presence as the panel working.
+- ~~**The stats panel renders all bars at `0` and all values `"--"`, which is correct for Phase 4.**~~
+  **PAID by Phase 6: all 15 cells resolve live on this host**, `probe:display` 61 / 0 / 10 / 0. What is
+  still not wired is the *editing* surface — `stats-rows.ts`'s per-row visibility and its auto-collapse
+  rule — because the settings window is their only route in, in the C# too. That is ISC-32, not this
+  bullet.
 - **The Linux runtime arms are entirely unprobed, and there is no host.** ISC-10's Linux half plus the
   Linux halves of ISC-15..20 and ISC-27..30. What exists for Linux is API-surface evidence from Electron
   33.4.11's typings and nothing else — no window ever opened. `[DEFERRED-VERIFY]`, and unlike the macOS
@@ -1657,16 +1894,20 @@ measured on this branch at or after that base.
   measures, against ~2× cheaper on CPU. Not a blocker and not a question I should stop on, but it is
   the first Phase 1 result that goes the wrong way, and it is the kind of thing better surfaced now
   than discovered by him at Phase 9.
-- **40.3MB of unused locales are shipping, 15.0% of the payload.** 55 `.pak` files for languages the
-  app never renders. Removable via an `afterPack` hook on Windows (`electronLanguages` covers macOS
-  only), which would cut the installer meaningfully and narrow the 1.40×. Deliberately out of ISC-8's
-  scope, which measures the default build; belongs to ISC-29.
-- **No icon and no code signature yet**, both of which add bytes and change the measured size. So the
-  76.4MB figure will move upward once packaging is real, and ISC-29 should re-run `probe-size.ts`
-  rather than carrying this number forward. The phrase layer is a third reason the same way: `b66579e`
-  adds ~37KB of generated tables plus four source files that were not in the tree when 76.4MB was
-  measured. It is noise against 76.4MB and it is still a stale denominator, so it is named here rather
-  than left for someone to notice — the re-run ISC-29 already owes covers it, and no *new* work is owed.
+- ~~**40.3MB of unused locales are shipping, 15.0% of the payload.**~~ **PAID by ISC-29.1: 55 `.pak`
+  files / 41.0MB → 1 / 490,357 B**, and the installer 80,089,948 → 72,661,907 B. **The mechanism named in
+  this bullet was wrong and no `afterPack` hook was needed** — `electronLanguages` is not macOS-only;
+  `node_modules/app-builder-lib/out/electron/ElectronFramework.js:58-101` applies it on Windows and Linux
+  too in electron-builder 26.15.3. Read out of the installed dependency rather than out of the docs,
+  which is what turned a hook into a one-line config key.
+- **The icon is paid, the signature is not, and the re-measure this bullet asked for has happened.**
+  ISC-29.1 re-ran `probe:size` on the packaged artefact: the icon is embedded and located at a byte
+  offset, and `Get-AuthenticodeSignature` reads **`NotSigned`** on both artefacts, so the size figures
+  will move once more when a certificate exists. ~~The phrase layer is a third reason the same way~~ —
+  moot: every current number is measured on the whole tree at Phase 7, so there is no stale denominator
+  left in this bullet. **What replaces it: the P1.5 and Phase 7 figures are not comparable in either
+  direction** — one is an untrimmed package with no icon, the other trimmed with one — and neither
+  supersedes the other.
 - **Claim 17 checked against `b66579e`, and no green reverts.** The commit adds nine files and modifies
   none, so every Phase 1 measurement — which was taken on the Electron shell, the C# tree and the
   telemetry path, all untouched — still describes the code it was taken from. The one number the commit
@@ -1706,6 +1947,86 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **Phase 7 close-out, 2026-08-30. Packaging, auto-launch and the update check ship on Windows; the
+  exit criterion's "auto-launches at login" is split rather than claimed.** ISC-29 → `[~]` with three new
+  sub-claims — 29.1 (**two of the three P1.5 size debts paid and measured, the third measured to be
+  absent**), 29.2 (the Falcon re-proof with its AV control and its 20-second bound), 29.3 (the live
+  update check, `[~]` because the offered branch has no live input) — and ISC-30 → `[~]`, written and
+  probed through all three sinks with no Linux or macOS host to run them on. 8 files added (**2,245 LOC**
+  of TS plus a 21,301-byte `.ico`), 10 changed (**+625 / −37**), **57 new tests → 2428 pass / 0 fail**;
+  `probe:autolaunch` **9 / 0**, `probe:update` **5 / 0 / 1**, `probe:size` **7 / 0**.
+  - **Every Phase 5-6 probe was re-run, because Phase 7 edits `main.ts` and rule 17 is literal.** That
+    re-measurement is what found `probe:fade`'s F6 needing `--workers 8` on this session's load, and it
+    is the fourth time on this port that a stale *expectation or description* — not a stale build — was
+    the thing the gate caught.
+  - **Two of `probe:size`'s own prose notes had gone stale in the change that paid them.** They still
+    said the locale trim was "deliberately not taken" and that no icon was set, *after* the commit that
+    took both. Same class as Phase 4's four false doc claims: a file describing a verification that no
+    longer matches what it does.
+  - **`setLoginItemSettings` was rejected on three separate grounds and only the first is the one usually
+    quoted.** Typed `@platform darwin,win32`, so Linux needs a hand-written file regardless; it would
+    import `electron` and put the module out of reach of both `bun test` and the probe; and **the Windows
+    value name must be the literal `FuzzyClock`** so a v5 install *replaces* the WPF Run entry instead of
+    launching both apps at login, which that API does not allow.
+  - **The probe was designed around Alex's live Run key before anything was written, and the guard got
+    the first arm.** A module whose whole job is to write and delete `FuzzyClock` cannot be probed
+    casually: the writer is driven under `FuzzyClockProbe-<pid>` through a five-way interlock, A1 proves
+    each refusal against a runner that throws if reached, A2 uses his real entry as a **read-only**
+    positive control, and A8 censuses the key before and after. **`syncAutoLaunch` was read out of the
+    source first** — called from the tray toggle and reset-to-defaults, never at startup — and that fact
+    is what made it safe to install and launch the packaged app later in the same session.
+  - **`main.ts`'s two seams moved to `src/main/seams.ts` so the probe drives the app's adapters rather
+    than a copy of them.** No behavioural change, and the reason is the whole point: a green certifying
+    an adapter the app does not use is worse than no probe, because it reads as coverage.
+  - **`ELECTRON_RUN_AS_NODE` produced a confident false failure for the second time on this port**, in
+    the one place `scripts/lib/electron-launch.ts`'s strip cannot reach — an ad-hoc install probe
+    launching the packaged exe by hand. Exit **9** with an empty profile reads exactly like a Falcon
+    block, and was Node rejecting `--user-data-dir`.
+  - **Two live-network findings, both recorded as *not* what a green would suggest.** The repo publishes
+    releases (200, `tag_name 'v4.5.5'`), so the branch the live check exercised is *not offered* and
+    `updateNoticeText` has no live input. And B2's empty-UA control got **200 instead of the documented
+    403**, so it stays INCONCLUSIVE — claiming a reproduced 403 would have been the easiest false green
+    in the phase.
+  - **The install surfaced a Phase 9 finding that will not be re-measurable:** the NSIS uninstall entry
+    sits *beside* the WPF Inno one as a separate product. The mirror image of the Run-key problem, which
+    is handled because the value name is shared.
+  - **The close-out's own finding: this ISA was TWO PHASES STALE, and the file that wins on disagreement
+    is the file that was wrong.** `48e217c` closed Phase 6 without touching it, so at the start of this
+    close-out the ISA still carried ISC-26.3 as a **RED blocking gate** that had been green since the
+    unlock, ISC-26/27/28 open after they were paid, and no Phase 6 changelog entry at all. The plan's own
+    last line says the ISA wins where the two disagree — which is exactly why committing Phase 7 with it
+    in that state would have published a contradiction rather than a status. Repaired here as part of the
+    phase, not deferred: five claim boxes moved, five sub-claims added, four stale Verification rows and
+    four stale Still-outstanding bullets corrected in place with the old text struck rather than deleted.
+- **Phase 6 close-out, 2026-08-30 (`48e217c`). The stats panel resolves all 15 cells live, and the
+  phase's real product is a fourth unowned feature it found rather than the work it planned.** ISC-27 →
+  `[~]` (closed on Windows; mac and linux host-blocked, not unwritten) and ISC-28 → `[~]` (**the Linux
+  fixtures are synthetic**, which is a real gap: a wrong sysfs path is then wrong in the module and in
+  the fixture at once and nothing fails). 12 modules / 1,980 LOC + 12 test files / 3,454 LOC + a new
+  probe; **`bun test` 2371 pass / 0 fail**, `probe:display` **61 / 0 / 10 / 0**, `probe:battery`
+  **5 / 0**, `probe:typeperf` **7 / 0 / 1**; discriminating power **15/15**, three mutations × five cases.
+  - **The uptime line renders five fields in the C# and the port shipped one of them**, through two
+    phases with every gate green: `core/load-average.ts` had correct tests and **zero importers** — not
+    wrong, unreachable. D11b now asserts **shape, value and fed-ness separately**, because
+    `0.00  0.00  0.00` is both a valid line and what an empty sample queue prints, and an arm that cannot
+    tell those apart is well-formed and undiscriminating.
+  - **`Np`, the busy-process count, is DROPPED rather than zeroed**, on this tree's own numbers — and the
+    deciding one is that **`0p` is a legitimate C# reading**, so a zero would be indistinguishable from a
+    real count. On 32 cores one saturated core is 3.125% and falls under the 5% default; the enumeration
+    inherits P1.2's spawn-time defect and a per-tick one-shot costs 2.55-2.81 s.
+  - **The unavailable placeholder was wrong in three documents and one of them was an exit criterion.**
+    The C# writes the literal `"N/A"` and tests `< 0f`, not `== -1f`, where this ISA, the plan and the
+    port's own sentinel test all said `--`. **No WPF test asserts that string**, so nothing could have
+    caught it — a port graded against a wrong criterion passes by rendering the wrong thing.
+  - **Phase 4's D6 had been asserting a defect AS the expectation** (the date font), so it went green on
+    the strength of the bug. Corrected, D6b added for the `font-size` half, and that is why the arm count
+    went 51 → 61 rather than 51 → 59. Worse than an untested surface, and the second instance of the
+    class on this port.
+  - **Three defects were found in sources that already had green tests**: an `nvidia-smi` respawn every
+    tick on a machine without it, whose module header *claimed* the probe returned it; `node:path`'s
+    `join` composing `/sys/class/drm\card0\...` so every Linux path depended on the host running the
+    test; and `cpu-delta.ts:95` returning the sentinel for the zero total delta two `os.cpus()` reads
+    inside one tick produce.
 - **Phase 5 close-out, 2026-08-30. Ghost mode ships; one blocking gate is left RED on purpose and two
   claims are blocked on an unlocked screen.** ISC-24 and ISC-25 closed, ISC-26 (PERF-01) closed as a
   **comparative** claim and left `[~]` on its absolute figures, plus seven new sub-claims — ISC-26.1

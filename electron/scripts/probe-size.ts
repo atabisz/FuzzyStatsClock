@@ -342,9 +342,121 @@ console.log("=== C5: runtime vs app payload — does this figure grow with the p
         `overstate Electron's disadvantage, not understate it` +
         (locales === null
           ? ""
-          : `. ${String(locales.files)} locale .pak files are ${mb(locales.bytes)} of that, for ` +
-            `languages this app never renders — an available reduction, deliberately not taken here ` +
-            `because ISC-8 measures the default build`),
+          : `. ${String(locales.files)} locale .pak files are ${mb(locales.bytes)} of that — a figure ` +
+            `that used to read 55 files / 41.0MB, for languages this app never renders. Phase 7 took ` +
+            `that reduction (C6 measures it), so every payload and installer byte count on this run is ` +
+            `a TRIMMED one and is not comparable to the P1.5 numbers in the plan`),
+    )
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// C6 — Phase 7: the locale trim landed, and it did not land too hard.
+// ───────────────────────────────────────────────────────────────────────────────
+console.log("=== C6: the locale payload after `electronLanguages: [en-US]` ===")
+{
+  const localesDir = join(UNPACKED, "locales")
+  const files = (() => {
+    try {
+      return readdirSync(localesDir).filter((f) => f.endsWith(".pak"))
+    } catch {
+      return null
+    }
+  })()
+  if (files === null || unpacked === null) {
+    record("C6 locale trim", "INCONCLUSIVE", "no unpacked build to measure")
+  } else {
+    const bytes = treeSize(localesDir).bytes
+    console.log(`    locales/ : ${String(files.length)} .pak files, ${mb(bytes)} — ${files.join(", ")}`)
+    // BOTH directions. Chromium loads `en-US.pak` for its own built-in strings and a payload with the
+    // directory swept clean is a crash at startup, not a saving -- so "few" is not the pass condition,
+    // "exactly the one we asked for, and it is present" is. The C5 baseline was 55 files / 41.0MB.
+    const hasEnUs = files.includes("en-US.pak")
+    if (!hasEnUs) {
+      record(
+        "C6 locale trim",
+        "FAIL",
+        `en-US.pak is NOT in the payload — Chromium has no resource bundle to fall back to. This is ` +
+          `the failure mode the option's own "no locales found matching wanted languages" warning ` +
+          `describes, arriving as a silent 41MB saving`,
+      )
+    } else if (files.length !== 1) {
+      record(
+        "C6 locale trim",
+        "FAIL",
+        `${String(files.length)} .pak files survive where the config asks for one — the option was ` +
+          `either ignored or matched more than en-US`,
+      )
+    } else {
+      record(
+        "C6 locale trim",
+        "PASS",
+        `1 .pak (${mb(bytes)}) where the default build shipped 55 (41.0MB) — ${mb(41_000_000 - bytes)} ` +
+          `off the installed payload, and en-US is the one that survived`,
+      )
+    }
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// C7 — the product icon is really in the binary, not just named in the config.
+// ───────────────────────────────────────────────────────────────────────────────
+console.log("=== C7: the app icon is embedded in the packaged exe ===")
+{
+  // `assets/icon.png` is the 256x256 PNG entry lifted verbatim out of `FuzzyClock.App/app.ico`, and
+  // `build/icon.ico` is that whole ICO. An ICO entry can BE a complete PNG file, so if electron-builder
+  // really rewrote the exe's icon resources, these exact 6,199 bytes are somewhere inside the binary.
+  //
+  // A byte search rather than a PE resource walk, and it is not the lazy option: it compares the SHIPPED
+  // bytes against the SOURCE bytes with nothing in between to be wrong about. The negative control is
+  // what makes it discriminating -- the stock `node_modules/electron/dist/electron.exe` is the same size
+  // to the byte, so "found in a 188MB binary" would otherwise be an easy accident.
+  const iconPng = (() => {
+    try {
+      return readFileSync(join(import.meta.dirname, "..", "assets", "icon.png"))
+    } catch {
+      return null
+    }
+  })()
+  const packagedExe = join(UNPACKED, "FuzzyClock.exe")
+  const stockExe = join(import.meta.dirname, "..", "node_modules", "electron", "dist", "electron.exe")
+  const indexOfIcon = (path: string): number | null => {
+    if (iconPng === null) return null
+    try {
+      return readFileSync(path).indexOf(iconPng)
+    } catch {
+      return null
+    }
+  }
+  const inPackaged = indexOfIcon(packagedExe)
+  const inStock = indexOfIcon(stockExe)
+  console.log(
+    `    icon source   : ${iconPng === null ? "MISSING" : `${String(iconPng.length)} bytes`}\n` +
+      `    packaged exe  : ${inPackaged === null ? "unreadable" : inPackaged >= 0 ? `found at offset ${String(inPackaged)}` : "ABSENT"}\n` +
+      `    stock electron: ${inStock === null ? "unreadable" : inStock >= 0 ? `found at offset ${String(inStock)}` : "absent (control holds)"}`,
+  )
+  if (iconPng === null || inPackaged === null) {
+    record("C7 app icon", "INCONCLUSIVE", "need assets/icon.png and a packaged exe")
+  } else if (inStock !== null && inStock >= 0) {
+    record(
+      "C7 app icon",
+      "INCONCLUSIVE",
+      "the stock electron.exe contains these bytes too, so finding them in the packaged exe proves " +
+        "nothing — the control has failed, not the subject",
+    )
+  } else if (inPackaged < 0) {
+    record(
+      "C7 app icon",
+      "FAIL",
+      "the product icon is not in the packaged exe — `win.icon` is set but the build shipped the stock " +
+        "Electron icon, which is exactly the state the P1.5 size measurement was taken in",
+    )
+  } else {
+    record(
+      "C7 app icon",
+      "PASS",
+      `all ${String(iconPng.length)} bytes of the 256x256 product icon are embedded at offset ` +
+        `${String(inPackaged)}, and absent from the identically-sized stock binary`,
     )
   }
 }
@@ -360,10 +472,15 @@ console.log(
 console.log(
   "\nWindows only. The mac dmg and linux AppImage targets are configured but NOT built —\n" +
     "electron-builder needs the host platform for those, and a size asserted from this box\n" +
-    "would be exactly the class of claim AC-3 forbids.",
+    "would be exactly the class of claim AC-3 forbids. Both also carry no `icon` — app.ico's\n" +
+    "largest entry is 256x256 and the icns/Linux conversion needs 512, so C7's arm below is a\n" +
+    "Windows-only pass and those two targets ship the stock Electron icon.",
 )
 console.log(
-  "Unsigned, and no application icon is set — both add bytes. The installer will grow a\n" +
-    "little once an icon and a signature are real (ISC-29).",
+  "The icon half of that debt is PAID and C7 measures it. The signature half is NOT, and it\n" +
+    "was measured rather than assumed: electron-builder logs `signing with signtool.exe` on\n" +
+    "every run, and `Get-AuthenticodeSignature` still reports `NotSigned` for both the\n" +
+    "installer and win-unpacked/FuzzyClock.exe. So the log line is not evidence, and every\n" +
+    "byte count above is an UNSIGNED one — it grows a little when a certificate is real.",
 )
 process.exit(failed > 0 ? 1 : 0)

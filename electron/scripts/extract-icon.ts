@@ -14,16 +14,32 @@
  * Run manually, output committed:
  *     bun scripts/extract-icon.ts
  *
- * Phase 7 will want a real per-platform icon set (a 22px macOS template image, several Linux sizes,
- * an installer icon). This is one 256px PNG scaled by the OS -- correct, not yet polished.
+ * ## Phase 7 added the second output, and deliberately not a third
+ *
+ * `build/icon.ico` is the whole `app.ico` copied byte for byte, because that is where
+ * `electron-builder` looks for the Windows application and installer icon (`directories.buildResources`
+ * is `build`, and `win.icon` defaults to `icon.ico` inside it). It is a copy rather than a reference to
+ * `../FuzzyClock.App/app.ico` for one hard reason: **Phase 9 deletes `FuzzyClock.App`**, so a packaging
+ * config pointing outside `electron/` would break the build at the exact moment the WPF app is retired.
+ * Copying keeps the derivation in this one script, where the source is named and the copy is reproducible.
+ *
+ * **No `build/icon.png` and no `build/icon.icns`, and that is a decision rather than an omission.**
+ * `electron-builder` converts a PNG to an `.icns` for macOS and to a Linux icon set, and it requires the
+ * source to be **at least 512x512**. The largest entry in `app.ico` is 256x256 (enumerated below on every
+ * run). So supplying `build/icon.png` at 256 would not produce mac and linux icons -- it would make those
+ * two builds *fail* on a size check, and neither can be built on this host to find that out. The only
+ * honest ways forward are a real 512+ source or an upscale, and an upscale is fabricating pixels and
+ * calling them the product's icon. Recorded as Phase 7 debt in the port plan instead.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 const ICO = join(import.meta.dirname, "..", "..", "FuzzyClock.App", "app.ico")
 const OUT_DIR = join(import.meta.dirname, "..", "assets")
 const OUT = join(OUT_DIR, "icon.png")
+const BUILD_DIR = join(import.meta.dirname, "..", "build")
+const BUILD_ICO = join(BUILD_DIR, "icon.ico")
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -76,3 +92,10 @@ writeFileSync(OUT, bytes)
 console.log(
   `extract-icon: ${String(png.width)}x${String(png.height)} PNG, ${String(bytes.length)} bytes -> assets/icon.png`,
 )
+
+// The packaging icon. `electron-builder` requires the ICO to carry a 256x256 entry, which the check above
+// has already proven -- the entry it extracted for the tray IS that one, so a `app.ico` that would be
+// rejected by the packager cannot reach this line.
+mkdirSync(BUILD_DIR, { recursive: true })
+copyFileSync(ICO, BUILD_ICO)
+console.log(`extract-icon: ${String(ico.length)} bytes -> build/icon.ico (whole ICO, ${String(count)} entries)`)

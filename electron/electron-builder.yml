@@ -31,9 +31,34 @@ files:
 # future change to `files` could otherwise sweep it in without anyone noticing.
 extraResources: []
 
+# ~41MB of the 268MB payload was Chromium locale `.pak` files for 55 languages
+# (`probe:size` C5 measured it: 55 files, 41M, 15.3% of the payload). Every string this
+# app renders is its own SVG text and every tray label is authored in `main/tray.ts`, so
+# nothing in the product reads those tables — Chromium falls back to `en-US` for the few
+# built-in strings it owns, which is why `en-US` is the one that must stay rather than an
+# arbitrary pick.
+#
+# Two things checked before writing this, because the option is silently ignored when
+# either is false:
+#   1. THIS version of app-builder-lib honours it on Windows and Linux, not only macOS —
+#      `node_modules/app-builder-lib/out/electron/ElectronFramework.js:58-101`, where the
+#      non-mac branch globs `locales/*.pak`. Older releases were mac-only, so the option
+#      would have been a no-op that read as a saving.
+#   2. It logs `no locales found matching wanted languages, skipping cleanup` and keeps
+#      everything if the name matches nothing — so a typo here costs 41MB silently. The
+#      measured payload after this change is the check, and `probe:size` prints it.
+electronLanguages:
+  - en-US
+
 win:
   target:
     - nsis
+  # `build/icon.ico` is `FuzzyClock.App/app.ico` copied by `scripts/extract-icon.ts` — the
+  # shipped product icon, not a placeholder. Named explicitly rather than left to the
+  # `buildResources` default so that a missing file is an error here instead of a silent
+  # fallback to the stock Electron icon, which is how the P1.5 build came to be measured
+  # without one.
+  icon: build/icon.ico
 
 nsis:
   # Not one-click: the WPF app's Inno installer asks where to go, and an installer that
@@ -43,10 +68,35 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
 
+# ── The two targets that cannot be built or measured on this host ──────────────────
+#
+# `dmg` needs macOS (hdiutil) and `AppImage` needs Linux tooling; electron-builder refuses
+# both from Windows rather than producing something wrong, and `probe:size` says so in its
+# closing note. So everything below is CONFIGURED AND UNBUILT, and it is written out in
+# full anyway because the alternative — discovering the config gaps on a borrowed mac — is
+# the expensive order.
+#
+# Neither carries an `icon`: see `scripts/extract-icon.ts`. `app.ico`'s largest entry is
+# 256x256 and electron-builder's PNG→icns/Linux-set conversion requires 512x512, so
+# pointing these at the 256 source would fail the build rather than skip the icon. Both
+# therefore package with the stock Electron icon until a real 512+ source exists.
+
 mac:
   target: dmg
   category: public.app-category.utilities
+  # The overlay is not a document app and has no dock presence worth keeping; `LSUIElement`
+  # is the plist half of what `app.dock.hide()` does at runtime, and setting it here stops
+  # the dock icon appearing for the moment between launch and that call.
+  extendInfo:
+    LSUIElement: true
 
 linux:
   target: AppImage
   category: Utility
+  # No `desktop:` override. electron-builder derives the launcher entry's `Name` from
+  # `productName`, which is the same literal `main/auto-launch.ts` writes into its XDG
+  # autostart file — so the two agree without a third place to keep in step. The override
+  # was written and then removed: the schema types `linux.desktop.entry` as a *function*
+  # (`app-builder-lib/scheme.json`, LinuxDesktopFile), so a plain YAML mapping there is a
+  # config-validation failure — and it would fail the `dist:win` run too, since the config
+  # is validated as a whole before any target is selected.
