@@ -40,6 +40,7 @@
     "probe:mac-focus": "bun run build && bun scripts/probe-mac-focus.ts",
     "probe:mac-package": "bun scripts/probe-mac-package.ts",
     "probe:update": "bun scripts/probe-update.ts",
+    "probe:restart": "bun run build && bun scripts/probe-restart.ts",
     "dist:win": "bun run build && electron-builder --win --publish never",
     "dist:mac": "bun run build && electron-builder --mac --publish never",
     "dist:linux": "bun run build && electron-builder --linux --publish never"

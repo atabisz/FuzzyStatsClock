@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 37/52
+progress: 38/53
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T22:38:00+10:00
+updated: 2026-08-30T23:20:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -700,7 +700,55 @@ misses it, because every feature either ported or was consciously retired with t
     `onDragMove` reads `screen.getCursorScreenPoint()` (deliberately, so a drag across this desk's
     negative-x seam does not jump), so `sendInputEvent` alone would move the window by a zero delta.
   - **This is the one Phase 3 arm left for Alex: drag the widget, including across the monitor seam,
-    and check it lands inside the work area.**
+    and check it lands inside the work area.** ~~Everything about this claim is fake-covered only.~~
+    **Narrowed 2026-08-30 — the clamp and the persistence are now live readings (ISC-20.1); what is left
+    for Alex is the cursor: the drag itself and the seam.**
+
+- [x] **ISC-20.1. The saved position survives a real restart, and the clamp corrects an off-screen one on
+  real display geometry.** **CLOSED 2026-08-30 — `probe:restart`, 8 / 0 on win32.** Three launches on
+  **one** throwaway profile plus a control: seeded as a first run, a placement committed over CDP, the
+  stored position then rewritten 99,999px off-screen, a second launch that must correct it, and a **third
+  launch on the untouched profile** that is the restart itself.
+  - **Three readings per launch, from places that do not share a bug**: main's own
+    `placement: restored to (x, y) on <key> via <source>` off stdout, `window.screenX/screenY` read in the
+    renderer over CDP (Chromium's view, not ours), and `settings.json` parsed off disk. Every arm that
+    grades a position pairs at least two of them, and the delta is always printed. **They agreed exactly
+    — delta (0, 0) on all four launches** — so the DIP-vs-CSS-pixel tolerance the probe allows was never
+    drawn on; it stays for a fractionally-scaled display.
+  - **Mutation 1 is why the pairing is not ceremony.** With `restore()`'s `setPosition` deleted, main still
+    logged `restored to (3188, 20)` while the window sat at Chromium-reported `(1604, 566)`. **Main's own
+    log alone would have passed every arm.** 4 / 4 under that mutation (P1, P3b, P5, P6).
+  - **P5 took three passes and both failures were the same mistake.** First version: with the restore
+    neutered the window sat at Electron's default, the commit correctly saved *that*, and the restart
+    "restored" to a position the window was already at — three readings agreeing on one wrong number, green.
+    Second version added "differs from where the app puts a window with nothing stored" but took that
+    baseline from launch 1's **log** — the thing under suspicion — so it found a difference that existed
+    only in main's words, and stayed green. It now compares Chromium's reading to Chromium's reading.
+    **Using the claim as the baseline for checking the claim, twice in one arm.**
+  - **P4 is discriminating by ~99,000px in both axes.** The soft version of this probe cannot tell "the
+    commit saved where the window is" from "the commit echoed the settings it was handed"; seeding the
+    position 99,999px off-screen makes an echo miss by a margin no tolerance can absorb.
+  - **P0 is an interlock, not an arm, and it is why no launch here is a bare first run.**
+    `SettingsStore.load()` falls back to `legacyWpfSettingsPath()` — Alex's **real** v4.x
+    `%LOCALAPPDATA%\FuzzyClock\settings.json` — whenever a profile has no file of its own. That is a read
+    and breaks no rule, but it would make every first-run reading depend on his personal configuration, and
+    `settings-store.ts:96-101` records that exact thing happening once already in the unit tests. So every
+    profile is seeded, the `first-run` *branch* is reached by seeding `lastActiveMonitor: ""` instead, and
+    P0 requires all three launches to have logged `loaded from own-file`.
+  - **A finding that came out of mutation 3, and it revises what the clamp buys on Windows.** With the
+    startup clamp removed, main logged `restored to (99999, 99999)` and Chromium reported the window at
+    `(3251, 1241)` — **Windows itself refused the off-screen placement.** So on win32 our clamp is not the
+    only thing keeping the widget reachable; the shell corrects a gross `SetWindowPos` too. What the clamp
+    buys is the *saved value* being sane and the position being predictable rather than the OS's choice —
+    which is still worth having, and is a smaller claim than "without this the widget is lost".
+  - **Bounded to win32.** The mechanism is platform-independent and the probe is too (no PowerShell, no
+    Win32 calls — CDP and stdout only), so it should run as-is on darwin and linux; neither has.
+  - **Three mutations, each hitting a different arm group, all reverted**: no `setPosition` on restore →
+    4/4 (P1, P3b, P5, P6); `commitPlacement` never persisting → 4/4 (P2, P3b, P4, P5 — where P3b's red is a
+    *cascade* off P2's rather than an independent detection, since an unpersisted key sends launch 2 down
+    the first-run branch); no clamp on restore → **7/1, P3b alone**. `src/` restored and verified by hash:
+    `dist/main.js`, `dist/renderer.js` and `dist/preload.cjs` all back to their pre-mutation sha256, so
+    **nothing else's greens are voided.**
 
 ### Phase 4 — SVG display
 
@@ -2341,14 +2389,19 @@ measured on this branch at or after that base.
   covers it. That last one is worth keeping as a finding rather than a deletion: the debt was written
   from reading the C#, where a re-shown row and a re-clamp are two steps, and the port's
   renderer-measures-its-own-content design had already collapsed them into one.
-- **Three Phase 3 arms need Alex's hands and nothing else.** (1) **Drag the widget**, including across
-  the monitor seam, and check it lands inside the work area — ISC-20's live half, refused rather than
-  synthesised because the only real synthetic drag moves his cursor. (2) **Restart the app** and confirm
-  it comes back on the monitor it was left on: the probe's run fell to `first-run` because his
-  `LastActiveMonitor` names the orphaned display, so *no* run has yet restored from a saved key. (3)
-  **Unplug a monitor** with the widget on it. All three are covered against recorded C# values or fakes;
-  none has been seen on hardware. **Do not read the 8/8 probe as covering them** — it does not, and it
-  says so in its own closing lines.
+- ~~**Three Phase 3 arms need Alex's hands and nothing else.**~~ **Two, since 2026-08-30.** (1) **Drag the
+  widget**, including across the monitor seam, and check it lands inside the work area — ISC-20's live
+  half, refused rather than synthesised because the only real synthetic drag moves his cursor. (2)
+  ~~**Restart the app** and confirm it comes back on the monitor it was left on: the probe's run fell to
+  `first-run` because his `LastActiveMonitor` names the orphaned display, so *no* run has yet restored from
+  a saved key.~~ **CLOSED — ISC-20.1, `probe:restart` 8/0.** A run has now restored from a saved key
+  (`via key`, unclamped, matching the file and Chromium's `screenX/screenY` exactly), and the reason the
+  earlier run fell to `first-run` is precisely why this probe seeds its own settings file: the default path
+  imports Alex's live WPF file, whose `LastActiveMonitor` names an orphaned display. **The residual is
+  multi-monitor**: one display key existed on this host, so "comes back on the monitor it was left on" is
+  measured for one monitor and inferred for two. (3) **Unplug a monitor** with the widget on it. What is
+  left is covered against recorded C# values or fakes and has not been seen on hardware. **Do not read the
+  8/8 `probe:display` run as covering them** — it does not, and it says so in its own closing lines.
 - **Nothing has clicked the tray (ISC-17).** The icon's presence in the notification area, the menu
   opening, and the Linux `click`-vs-`right-click` difference are all unexercised. `core/tray-menu.ts`
   additionally has **no C# counterpart test** — `TrayMenuBuilder` has no suite — and so does
@@ -2566,6 +2619,35 @@ measured on this branch at or after that base.
   would assert the correspondence without having measured it, which is worse than leaving it open.
 
 ## Changelog
+
+- **The restart half of manual item 3 is closed — `probe:restart`, 8 / 0, ISC-20.1, 2026-08-30.** Manual
+  item 3 is one sentence carrying two claims: *drag the widget, including across the monitor seam, then
+  restart and confirm the position restores.* The drag needs a pointer (`onDragMove` moves the window by
+  `screen.getCursorScreenPoint()`'s delta, so a cursor-free synthetic drag moves it by zero) and the seam
+  needs two monitors and that same cursor. **The restart needs neither.** Three real launches on one
+  throwaway profile, `drag-start`/`drag-end` driven over CDP with no `dragMove` between them, and a third
+  launch on the untouched profile. ISC-20 stays `[~]` and is narrowed; ISC-20.1 is `[x]`. Progress 37/52 →
+  38/53.
+  - **The clamp had never run on real display geometry** — `core/placement.ts` is covered against a *fake*
+    screen, which is exactly the coverage that cannot see a wiring defect. Seeding the stored position
+    99,999px off-screen makes it work visibly, and makes P4 discriminate an echo from a live read by a
+    margin no tolerance can absorb.
+  - **Mutation 1 justified the whole three-reading design in one line of output**: with `restore()`'s
+    `setPosition` deleted, main logged `restored to (3188, 20)` while Chromium reported the window at
+    `(1604, 566)`. Main's own log alone would have passed every arm.
+  - **P5 was green under that mutation twice before it bit**, and both times for the same reason — it used
+    main's claim as the baseline for checking main's claim. Written up on the claim and in the probe's own
+    header rather than quietly fixed, because one paragraph of header prose about that trap evidently was
+    not enough to stop me walking into it.
+  - **A finding that revises a belief rather than confirming one:** with the startup clamp removed, Windows
+    refused the off-screen placement itself — logged `(99999, 99999)`, observed `(3251, 1241)`. So on win32
+    our clamp buys a sane *saved value* and a predictable position, not the widget's basic reachability.
+  - **P0 is an interlock**: `SettingsStore.load()` falls back to Alex's live WPF
+    `%LOCALAPPDATA%\FuzzyClock\settings.json` when a profile has no file of its own, so no launch here is a
+    bare first run — every profile is seeded and all three launches must log `loaded from own-file`.
+  - **Nothing is voided.** `scripts/` + `package.json` only; the three `src/` mutations were reverted and
+    all three `dist/` bundles verified back to their pre-mutation sha256. `bun test` **2511 / 0** at 280,470
+    expects and `typecheck` exit 0 are unchanged figures.
 
 - **The channel-name half of the last stand-in is no longer a stand-in — `test/ipc-channels.test.ts`,
   2026-08-30.** Manual item 6 named a defect and then left it uncovered: `probe:settings-window` is 37/37
