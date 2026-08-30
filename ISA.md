@@ -7,7 +7,7 @@ phase: build
 progress: 34/50
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T21:12:00+10:00
+updated: 2026-08-30T22:40:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -278,7 +278,9 @@ misses it, because every feature either ported or was consciously retired with t
     construction — Linux reads `/sys/class/hwmon` from TypeScript and never touches this project, and
     macOS has no temperature source at all.
 - [~] **ISC-10. The shell flags are smoked on macOS and on an X11 Linux session. The macOS half is
-  DONE; the Linux half has no host, so the claim stays open.** Dispatched to
+  DONE; the Linux half was smoked on a real Ubuntu 24.04.4 x86_64 / X11 host on 2026-08-30 — the
+  window opens and paints, but the pixel arms (transparency, click-through, Alt-Tab exclusion with a
+  positive control) are still `[UNPROBED]` there, so the claim stays `[~]`.** Dispatched to
   `mcp__mac-codex__codex` on Alex's explicit go-ahead. Host: **Apple M1 laptop, 8GB, 8 logical cores,
   macOS 26.6.2 build 25G83, arm64**, with Electron pinned to **exactly 33.4.11** so the evidence is
   comparable to the Windows-side typings claims. Seven arms; **4 measured, 3 INCONCLUSIVE and stated
@@ -344,7 +346,29 @@ misses it, because every feature either ported or was consciously retired with t
   - Bounds, stated because the temptation is to let this stand for "macOS works": **one Mac, one OS
     version, Apple silicon only, and screen capture denied throughout** — which is precisely why the
     three visual arms are inconclusive rather than absent. An Intel Mac has a different GPU driver
-    class and is untested. **The Linux half of this claim has no host and no evidence.**
+    class and is untested.
+  - **L (Linux) — smoked 2026-08-30 on a real Ubuntu 24.04.4 x86_64 / X11 host** (NVIDIA GTX 1080,
+    desktop — no battery). Validation ISA:
+    `LIFEOS/MEMORY/WORK/20260830-165458_fuzzyclock-linux-build-validate/ISA.md`.
+    - **L1 — the window renders (the gate).** `bun run start` and the packaged AppImage both map a
+      real `FuzzyClock` X11 window (`wmctrl -lp` shows it owned by our electron pid), log
+      `window shown, transparent+topmost` and `PROBE-PAINTS 10`, exit only on the `timeout` SIGTERM.
+      `did-fail-load` absent. `[MEASURED]` for "opens and paints", `[UNPROBED]` for the pixels —
+      same discipline as M1/M5: a transparent window with nothing in it looks identical.
+    - **L2 — `forceX11OnLinux` fires and propagates.** `linux: ozone-platform=x11` in the main log,
+      and the packaged AppImage's `--type=gpu-process` child carries `--ozone-platform=x11` in its
+      argv. `type: "toolbar"` applied (`Add _NET_WM_WINDOW_TYPE_TOOLBAR to kAtomsToCache` — benign
+      ozone atom-cache line, not an error despite the prefix). Placement restored via `first-run`.
+    - **L3 — tray attaches, no crash.** `tray: linux -- context menu attached up front` on GNOME.
+      **Nobody clicked it** — `click` vs `right-click` semantics still `[UNPROBED]` (ISC-17).
+    - **L4 — `LinuxStatsSource` selected and driven live.** `telemetry: Linux: os.cpus() delta +
+      /proc/meminfo every 1s, gpu via nvidia-smi, battery every 60s`; `linux gpu: no gpu_busy_percent
+      among [card1], falling back to nvidia-smi`; `linux battery: battery=none mains=none`. Every
+      cell cross-checked against the OS-native tool in a standalone run — see ISC-27's Linux note.
+    - **L5 — the packaged AppImage did a live GitHub update check** (`latest release is v4.5.5 …
+      not newer than 5.0.0-alpha.0`), so `update-check.ts` is confirmed on Linux too.
+    - **Pixel arms, Alt-Tab exclusion with a positive control, a real logout, and native Wayland
+      remain `[UNPROBED]` on Linux.** This is a smoke, not a full pass — hence `[~]`.
 
 ### Phase 2 — Core translation
 
@@ -579,8 +603,11 @@ misses it, because every feature either ported or was consciously retired with t
   there. The live app logs `tray: win32/darwin -- menu rebuilt per open`. **NOT met, and the gap is
   the interaction, not the code: nothing has clicked it.** No probe confirms the icon is in the
   notification area, no probe opens the menu, and the Linux `click` difference is handled in code and
-  unexercised. `core/tray-menu.ts` also has **no C# counterpart test** (`TrayMenuBuilder` has no
-  suite), which its header says in place.
+  unexercised. **2026-08-30: on a real Ubuntu 24.04 / GNOME host the tray at least *attaches* with no
+  crash** — the live overlay run logs `tray: linux -- context menu attached up front, refreshed on
+  every state change` — so libappindicator is present and `Tray` construction succeeds there; the
+  click/right-click semantics are still `[UNPROBED]`. `core/tray-menu.ts` also has **no C# counterpart
+  test** (`TrayMenuBuilder` has no suite), which its header says in place.
 - [x] **ISC-18. Settings persist at `app.getPath('userData')`, and the existing Windows settings file
   is imported once — matching monitors by GEOMETRY, not by key.** `%LOCALAPPDATA%\FuzzyClock\settings.json`
   must survive the transition; his live file is the one an upgrade meets, and per ISC-7.1 its
@@ -980,10 +1007,24 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 6 — Stats panel + per-platform sources
 
-- [~] **ISC-27. All 15 telemetry cells resolve. CLOSED on Windows 2026-08-30; `[~]` because mac and
-  linux are host-blocked, not unwritten.** Was 18; the three temperature cells retire with
-  Option C. Each shows a live number on its platform or renders `--` through the existing `-1` sentinel
-  path. Two rows moved under ISC-10's M7 and the claim inherits both: **macOS MEM must come from
+- [~] **ISC-27. All 15 telemetry cells resolve. CLOSED on Windows 2026-08-30; the LINUX source ran
+  live on a real Ubuntu 24.04.4 host 2026-08-30 with every cell cross-checked against the OS-native
+  tool; `[~]` because macOS has still never run live and the Linux laptop `BAT*` and amdgpu-`sysfs`
+  paths were not exercised (this host is a desktop with an NVIDIA card).** Was 18; the three
+  temperature cells retire with Option C. Each shows a live number on its platform or renders `N/A`
+  through the existing `-1` sentinel path.
+  - **L (Linux, real host, 2026-08-30) —** validation ISA claims L7-L9. `LinuxStatsSource` driven
+    for 5 ticks: `cpu` warms `−1`→~2% (correct — first tick has no delta), `mem` 35.87-35.94% tracks
+    `/proc/meminfo` to <0.01pp, `pag` 28.499% == `SwapTotal`/`SwapFree` hand math (real non-zero
+    swap), `gpu` via the `nvidia-smi` fallback 3-14%, `battery` `N/A` + `pluggedIn` false (the
+    no-`/sys/class/power_supply`-entry branch). Parsers cross-checked: `parseMemInfo` byte-exact vs
+    `/proc/meminfo` *and* `free -b`; `parseNvidiaSmiPercent` == raw; `cpuBusyPercent` 2.33% vs
+    `/proc/stat` hand math 2.17% (within the iowait/steal-fold tolerance the module documents).
+    `probeGpuMode` resolved to `nvidia-smi` (no `gpu_busy_percent` under `/sys/class/drm/card1` —
+    proprietary driver), no throw, no wrong `sysfs` path. **Not exercised: a laptop `BAT*/capacity`
+    read, and the amdgpu `gpu_busy_percent` path — both need different hardware.**
+
+  Two rows moved under ISC-10's M7 and the claim inherits both: **macOS MEM must come from
   `vm_stat`, not `os.freemem()`** (which read 3.1% free on a healthy 8GB Mac), and **macOS GPU% may
   resolve after all** via unprivileged `ioreg -c AGXAccelerator` — a candidate, not an adoption, so the
   `-1` path stays reachable and tested on that cell rather than being treated as dead code.
@@ -1030,7 +1071,11 @@ misses it, because every feature either ported or was consciously retired with t
     them and the literal TAB in `macos-pmset-batt-ac-charged.txt` survives.
   - **The Linux ones are not, and that is a real gap rather than a nick:** a wrong sysfs path is then
     wrong in the module *and* in the fixture at once and nothing fails. Both globs log the path they
-    settled on, and the test header says so out loud. Closing it needs a Linux host, not another test.
+    settled on, and the test header says so out loud. **2026-08-30: a real Ubuntu 24.04.4 host is now
+    available and the parsers were cross-checked live against its `/proc/meminfo`, `/proc/stat` and
+    `nvidia-smi` (byte- or value-exact vs `free -b` and hand math — ISC-27's L note).** Capturing
+    those real reads as fixtures — replacing the synthetic text — is the remaining step, and it is
+    now a `capture-fixture.ts` run rather than a hosts gap.
   - **Three defects the new source tests found in the sources themselves**, all of which had green tests
     before: `linux.ts` would have spawned `nvidia-smi` every tick forever on a machine without it (the
     "neither" branch was reached from the spawn's `ENOENT` and nothing called for it — **and the module
@@ -1059,9 +1104,10 @@ misses it, because every feature either ported or was consciously retired with t
 ### Phase 7 — Packaging, auto-launch, update check
 
 - [~] **ISC-29. An installer per platform installs, launches and auto-launches at login. CLOSED on
-  Windows 2026-08-30 for install / launch / uninstall / update-check; **the mac installer is now BUILT
-  too** (ISC-29.4); `[~]` on two counts, and they are different kinds of open: NO LOGIN HAS BEEN OBSERVED
-  on any platform, and no Linux host exists so `AppImage` has never been assembled.** Includes a
+  Windows 2026-08-30 for install / launch / uninstall / update-check; **the mac installer is BUILT**
+  (ISC-29.4); **the Linux `AppImage` is now BUILT too — `dist:linux` exit 0 on a real Ubuntu 24.04.4
+  x86_64 host, 2026-08-30** (ISC-29.7); `[~]` because NO LOGIN HAS BEEN OBSERVED on any platform, and
+  the AppImage's runtime install/launch on a range of distros is one host of evidence.** Includes a
   **CrowdStrike Falcon re-proof on Windows** —
   Falcon blocks `garry-desktop`'s autostart spawn pair on this machine, and a packaged installer is a
   different case that must be proven, not assumed.
@@ -1281,8 +1327,11 @@ misses it, because every feature either ported or was consciously retired with t
     macOS arm64.** That is the load-bearing half for the product rather than the suite — Windows takes CPU
     from `typeperf`, so `cpu-delta.ts` only ever runs on macOS and Linux, where a 6-16% per-sample
     UNAVAILABLE rate would have made the CPU row flicker to `N/A` several times a minute — in visible
-    bursts, since the regressions cluster. Linux is still unmeasured, and that is stated rather than
-    assumed from the macOS result.
+    bursts, since the regressions cluster. **Linux measured 2026-08-30 on a real Ubuntu 24.04.4 x86_64
+    host: `bun run probe:cpu-counter` → `3 passed / 0 failed / 1 reading`, per-core regression rate 0 of
+    600 pairs** (A1 rules out tick granularity, so the 0 is the guard not a stopped clock). So both
+    platforms that use this module are clean; Windows, which does not use it, is the only one that
+    regresses.
   - **The fix retries the sample; it does NOT loosen what is asserted.** `busy === UNAVAILABLE || in range`
     would have passed against a function that returns nothing else, and that is the version not written.
     The arm samples until one reading is available and still demands a real percentage in `[0, 100]`;
@@ -1322,9 +1371,50 @@ misses it, because every feature either ported or was consciously retired with t
     comment-only edit to it still has to be shown not to move the artefact: `dist/main.js` carries **no**
     comment text at all (no docblock phrase from any source file appears in it, and it has zero JSDoc
     continuation lines), so bun strips them and no probe green is voided. `bun run build` exit 0.
-- [~] **ISC-30. Linux auto-launch works via a hand-written `~/.config/autostart/*.desktop`. WRITTEN AND
-  PROBED 2026-08-30; `[~]` because no Linux host exists** — this is a hosts gap, not unwritten work.
-  `setLoginItemSettings` is `@platform darwin,win32` — there is no API to call.
+
+- [~] **ISC-29.7. The Linux `AppImage` builds. DONE 2026-08-30 on a real Ubuntu 24.04.4 x86_64 host —
+  `[~]` because "builds" is not "installs and runs on a range of distros", which is still one host of
+  evidence.** `bun run dist:linux` **exit 0** (was `exit 1` at `spawn EBADARCH` from the borrowed mac —
+  `mksquashfs` is native on a Linux host, so that failure mode cannot occur). Artefact:
+  `release/FuzzyClock-5.0.0-alpha.0.AppImage`, **97,383,021 bytes**, ELF x86-64, embedded block map
+  built. `--appimage-extract` yields a valid tree:
+  - `fuzzyclock.desktop` — `Name=FuzzyClock` (matches `linuxDesktopEntry()`'s literal, which is the
+    check the port plan's L6 wanted), `Type=Application`, `Icon=fuzzyclock`, `StartupWMClass=FuzzyClock`,
+    `Categories=Utility;`, `Exec=AppRun --no-sandbox %U`.
+  - `usr/share/icons/hicolor/1024x1024/apps/fuzzyclock.png` — **PNG 1024×1024 RGBA**, the first time
+    `make-icon.ts`'s redrawn output has been inside a Linux package. The `set` conversion returns the
+    1024px PNG as-is, no size ladder — as `electron-builder.yml`'s comment already predicted.
+  - **One non-fatal build warning carried forward:** `desktopName is not set in package.json` →
+    "desktop environments may not link running windows to this .desktop entry" (WM_CLASS ↔ launcher).
+    The bundled entry does carry `StartupWMClass=FuzzyClock`; whether Electron's runtime WM_CLASS
+    matches was not checked. Fix: `desktopName` + `linux.syncDesktopName: true`.
+  - **The packaged AppImage was run** (~9 s, X11): it mounts at `/tmp/.mount_Fuzzy*`, comes up as a
+    4-process tree (main + zygotes + `--type=gpu-process --ozone-platform=x11` + network utility),
+    maps a real `FuzzyClock` window, `PROBE-PAINTS 10`, and did a live GitHub update check
+    (`latest release is v4.5.5 … not newer than 5.0.0-alpha.0`). Clean SIGTERM.
+  - **Not proven:** AppImage install/run on any other distro or desktop, the `--no-sandbox` implication
+    for a shipped build, and the `desktopName` window-association gap above.
+
+- [~] **ISC-30. Linux auto-launch works via a hand-written `~/.config/autostart/*.desktop`. WRITTEN,
+  PROBED on Windows via seams 2026-08-30, and RUN END-TO-END ON A REAL UBUNTU 24.04.4 HOST 2026-08-30;
+  `[~]` because a real logout honouring the file is still owed, and an AppImage-specific defect was
+  found.** `setLoginItemSettings` is `@platform darwin,win32` — there is no API to call.
+  - **L (Linux, real host, 2026-08-30) —** `LIFEOS/MEMORY/WORK/20260830-165458_fuzzyclock-linux-build-validate/ISA.md`,
+    claim L10. `AutoLaunch({platform:"linux", homeDir:<mktemp -d>})` driven against a real filesystem
+    with a runner that throws if reached: `enable()` wrote `<tmp>/.config/autostart/fuzzyclock.desktop`
+    byte-identical to `linuxDesktopEntry()`, `desktop-file-validate` exit 0 clean, `isEnabled()`
+    true → `disable()` removed it → `isEnabled()` false, a second `disable()` a silent no-op. **The
+    real `~/.config/autostart` was verified untouched** (task AC-1). The live overlay run also
+    exercised the read-only path: `auto-launch: /home/alex/.config/autostart/fuzzyclock.desktop —
+    setting is false`, nothing written.
+  - **Linux-only defect (not yet a fix): `main.ts:889` passes `exePath: process.execPath`.** Confirmed
+    live inside the running AppImage — `process.execPath` is `/tmp/.mount_FuzzyCOMM83Q/fuzzyclock`, an
+    ephemeral FUSE mount, gone on exit, different every run. Toggling auto-launch from the tray while
+    running as an AppImage writes a dead `Exec=` line. Fix: `process.env.APPIMAGE ?? process.execPath`
+    on Linux; Windows and macOS unaffected. Follow-up task, does not block `[~]` → the box stays open
+    on the logout arm regardless.
+  - **Still owed on Linux:** a real logout/login with the entry present, the desktop environment
+    honouring `~/.config/autostart`, and the `process.execPath` fix above.
   - **One contract over three sinks.** `main/auto-launch.ts` (279 LOC) exposes `enable()` / `disable()` /
     `isEnabled()` over a `Runner` and an `Fs` seam and dispatches on platform: `reg.exe` against
     `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` on win32, a LaunchAgent plist on darwin, an XDG
@@ -2028,15 +2118,17 @@ measured on this branch at or after that base.
   still not wired is the *editing* surface — `stats-rows.ts`'s per-row visibility and its auto-collapse
   rule — because the settings window is their only route in, in the C# too. That is ISC-32, not this
   bullet.
-- **The Linux runtime arms are entirely unprobed, and there is no host.** ISC-10's Linux half plus the
-  Linux halves of ISC-15..20 and ISC-27..30. What exists for Linux is API-surface evidence from Electron
-  33.4.11's typings and nothing else — no window ever opened. `[DEFERRED-VERIFY]`, and unlike the macOS
-  half this one cannot be closed by a dispatch: **no Linux host is identified.** The two rows that will
-  hurt are XWayland (`setIgnoreMouseEvents` and always-on-top behave differently under Wayland
-  compositors) and ISC-30's hand-written `~/.config/autostart/*.desktop`, since `setLoginItemSettings`
-  is `@platform darwin,win32` — there is no API to call. **macOS is no longer in this bullet**: ISC-10's
-  macOS half is measured (see the Verification row), which narrows the gap rather than closing it — one
-  M1 on one OS version, Apple silicon only.
+- **The Linux runtime arms are PARTLY probed as of 2026-08-30 — a real Ubuntu 24.04.4 x86_64 / X11
+  host ran the build.** Closed on that host: the suite (2428/0), `dist:linux` → a real AppImage
+  (ISC-29.7), `LinuxStatsSource` + parsers cross-checked live against `/proc` + `nvidia-smi` (ISC-27,
+  ISC-28), `probe:cpu-counter` 0/600 (ISC-29.6), the auto-launch `.desktop` sink end-to-end (ISC-30),
+  the overlay opening an X11 window with `ozone-platform=x11` forced and the tray attaching (ISC-10,
+  ISC-17). **Still `[DEFERRED-VERIFY]` on Linux:** the pixel arms of ISC-10/15/16 (transparency,
+  click-through, always-on-top over a fullscreen window), Alt-Tab exclusion with a positive control
+  like `winflags.ps1`'s, a real logout honouring `~/.config/autostart` (ISC-29/30), the AppImage
+  `process.execPath` fix (ISC-30), and anything Wayland-native (XWayland-via-the-switch was not
+  exercised — this was an X11 session). One M1 on one macOS version and one Ubuntu box on x86_64 is
+  what "three platforms" rests on today; neither is a matrix.
 - **Three macOS arms are blocked on a TCC grant, not on effort.** M4(b) the Cmd-Tab switcher, M5
   layering over a fullscreen window, M6 click-through into another application. All three need a screen
   capture and `screencapture -x` answers `could not create image from display` on that host. They are
@@ -2147,10 +2239,11 @@ measured on this branch at or after that base.
   none, so every Phase 1 measurement — which was taken on the Electron shell, the C# tree and the
   telemetry path, all untouched — still describes the code it was taken from. The one number the commit
   does perturb is the packaged size, handled in the entry above.
-- **The mac `dmg` and linux `AppImage` targets are configured but never built.** They cannot be built
-  from this host, so their sizes are unknown — not estimated, unknown. Whoever runs ISC-10's hosts
-  should run `probe:size` there too, since the artefacts differ enough per platform that a Windows
-  figure predicts little.
+- **The mac `dmg` and linux `AppImage` targets are configured; both are now BUILT** (mac on a borrowed
+  arm64 host — ISC-29.4; linux on a real Ubuntu 24.04.4 x86_64 host 2026-08-30 — ISC-29.7, AppImage
+  97,383,021 B). `probe:size` still only runs against `dist:win` output, so a comparable per-platform
+  size breakdown is not captured; the AppImage's raw byte count is recorded in ISC-29.7 and is not
+  comparable to the NSIS figure.
 - **`probe-size.ts` cannot run on a fresh clone.** `installer/` and `publish/` are gitignored, so C2
   and C3 return INCONCLUSIVE without a local WPF build. That is the intended degradation — they say so
   rather than passing — but it means the ISC-8 figures are reproducible only on a machine that has
@@ -2181,6 +2274,26 @@ measured on this branch at or after that base.
   would assert the correspondence without having measured it, which is worse than leaving it open.
 
 ## Changelog
+
+- **Linux smoked on a real host, 2026-08-30. No box flipped to `[x]` — a smoke is not a pass — but
+  five claims moved from "no host" to partially measured, and one new claim was minted.** An Ubuntu
+  24.04.4 x86_64 / X11 machine (NVIDIA GTX 1080, desktop) ran the Linux-relevant build: `bun install`
+  / `typecheck` / `build` / `bun test` (**2428 / 0**, expect() delta = exactly the 16-core `os.cpus()`
+  loop), **`dist:linux` exit 0 → a real AppImage** (new claim **ISC-29.7**, `[~]`), `LinuxStatsSource`
+  driven live with every parser cross-checked against `/proc` + `free -b` + `nvidia-smi` (ISC-27 L
+  note, ISC-28), `probe:cpu-counter` **0 / 600** per-core regressions (ISC-29.6 — Linux is clean like
+  macOS), the auto-launch `.desktop` sink end-to-end with `desktop-file-validate` clean against a
+  throwaway HOME (ISC-30 L note), and the overlay opening a real X11 window from both the dev binary
+  and the packaged AppImage (ISC-10 L note, ISC-17 — tray attaches, no crash). **Two Linux-only
+  defects surfaced, neither a fix yet:** `main.ts:889` passes `process.execPath`, which inside an
+  AppImage is the ephemeral `/tmp/.mount_*` path (dead `Exec=` after a reboot — ISC-30); and
+  `desktopName` is unset, so `dist:linux` warns the running window may not associate with its launcher
+  entry (ISC-29.7). **Still `[UNPROBED]` on Linux:** pixels (transparency, click-through,
+  always-on-top-over-fullscreen), Alt-Tab exclusion with a positive control, a real logout, native
+  Wayland. Count: the 3 `[ ]` and the passed 34 are unchanged; total 49 → 50 with ISC-29.7, so
+  `progress: 34/50` now matches the checkboxes exactly (it had been one ahead). Validation ISA:
+  `LIFEOS/MEMORY/WORK/20260830-165458_fuzzyclock-linux-build-validate/ISA.md`. `.planning/research/ELECTRON-PORT-PLAN.md`
+  updated in step.
 
 - **The icon and the borrowed mac, 2026-08-30 (after Phase 7 closed). Four claims bought, two of them
   defects in our own suite, and three published claims retracted — all three self-caught, none pushed.**
