@@ -7,7 +7,7 @@ phase: build
 progress: 40/55
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-31T02:10:00+10:00
+updated: 2026-08-31T02:55:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -695,7 +695,9 @@ misses it, because every feature either ported or was consciously retired with t
     emits `menu-will-show` / `menu-will-close` on the `tray.popUpContextMenu` path — which needs a real
     menu at a real cursor and a real dismissal. Everything **downstream** of that event is graded, and the
     third close route, an item being clicked, needs no Electron event at all and is driven end to end.
-    win32 only; a Linux run flips T8 and T14 to their other branch and is the only evidence for it.
+    win32 only; a Linux run flips T8 and T14 to their other branch and is the only evidence for it —
+    written up as plan task **L9**, one command, and the branch it grades is the one that carries the
+    stale-tick risk, since Linux freshness is pushed by `setStateAndRefresh` rather than pulled at open.
 - [x] **ISC-18. Settings persist at `app.getPath('userData')`, and the existing Windows settings file
   is imported once — matching monitors by GEOMETRY, not by key.** `%LOCALAPPDATA%\FuzzyClock\settings.json`
   must survive the transition; his live file is the one an upgrade meets, and per ISC-7.1 its
@@ -2590,11 +2592,21 @@ measured on this branch at or after that base.
     **window manager's** decision rather than Chromium's — so H5b's Linux expectation is an inference from
     Win32 behaviour and is labelled as one in the probe's own comment. A red there is a finding about the
     port's z-order, not a broken probe.
-  **Tasks L1-L8 remain in `.planning/research/ELECTRON-PORT-PLAN.md` § "Linux — the open task list"**
-  with L1-L5 marked done, L6/L7 the Alex-only / wrong-session-type items, and L8 appended rather than
+  - **NEW 2026-08-30, added by `probe:tray-menu` itself: the Linux tray branch has never executed (plan L9,
+    ISC-17.1).** Also one command, also no new code, and nothing appears on screen — the probe reaches the
+    menu through the TS-`private` `buildMenu()` and never calls `popUpContextMenu`. It is not a re-run of
+    the win32 arms: `main/tray.ts` branches on `IS_LINUX` at construction *and* on every refresh, and
+    **T8 and T14 are written against `IS_LINUX`**, so they grade the `setContextMenu` path rather than skip
+    it. The reason that branch is the one worth measuring is that Linux freshness is **pushed** —
+    `popUpContextMenu` is `@platform darwin,win32` (`electron.d.ts:13846`), so there is no open event to
+    hook and `setStateAndRefresh` must re-attach a rebuilt menu. A refresh that silently fails to
+    re-attach is the stale-tick bug that design exists to prevent, and **no Windows arm can see it.**
+  **Tasks L1-L9 remain in `.planning/research/ELECTRON-PORT-PLAN.md` § "Linux — the open task list"**
+  with L1-L5 marked done, L6/L7 the Alex-only / wrong-session-type items, and L8/L9 appended rather than
   sorted into place so the existing numbering stays stable; this list is the source, that file is the
-  derived view. **Note the count went UP after five tasks closed** — L8 is a new claim's Linux half, not
-  an old one's, which is the shape to expect while phases are still landing. One M1 on one macOS version and two Ubuntu x86_64 boxes is
+  derived view. **Note the count went UP twice while five tasks closed** — L8 and L9 are new claims' Linux
+  halves, not old ones', which is the shape to expect while phases are still landing: a probe written on
+  Windows that branches on platform mints a Linux task by existing. One M1 on one macOS version and two Ubuntu x86_64 boxes is
   what "three platforms" rests on today; neither platform is a matrix.
 - **Three macOS arms are blocked on a TCC grant, not on effort.** M4(b) the Cmd-Tab switcher, M5
   layering over a fullscreen window, M6 click-through into another application. All three need a screen
@@ -2742,6 +2754,16 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **The tray probe minted a Linux task: L9, 2026-08-30 (`cd80c72` pushed, then this bookkeeping).** No new
+  claim and no code — `probe:tray-menu` shipped with `T8` and `T14` written against `IS_LINUX`, so the
+  `setContextMenu` branch of `main/tray.ts` is *already graded by the instrument* and simply has never been
+  run on a host that takes it. Written into the plan's Linux list as **L9** rather than left implicit in
+  ISC-17.1's last sentence, because the two open cheap Linux items (L8, L9) can be run back to back on one
+  build and a reader of a task list should not have to mine an ISC to find that out. Also corrected a stale
+  clause in the plan's own status header, which still listed "the macOS and Linux halves of Phase 6.5" as
+  open **on the same line that records the macOS half closing at 37/37** — retracted in place. The shape
+  worth naming, and now stated in both files: **a probe written on Windows that branches on platform mints
+  a Linux task by existing**, so the Linux count going up while tasks close is expected rather than drift.
 - **The tray ADAPTER is measured — `probe:tray-menu`, 18 / 0, ISC-17.1, 2026-08-30.** ISC-17 said the gap
   was "the interaction, not the code". Half of that was wrong: `toMenuTemplate` and `AppTray` are code no
   test could reach, because `main/tray.ts` imports `electron`. The way in is the same one ISC-32.1 used —
