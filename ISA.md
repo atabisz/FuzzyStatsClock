@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 36/51
+progress: 37/52
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-31T00:40:00+10:00
+updated: 2026-08-30T21:55:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -1174,10 +1174,13 @@ misses it, because every feature either ported or was consciously retired with t
 ### Phase 7 — Packaging, auto-launch, update check
 
 - [~] **ISC-29. An installer per platform installs, launches and auto-launches at login. CLOSED on
-  Windows 2026-08-30 for install / launch / uninstall / update-check; **the mac installer is BUILT**
-  (ISC-29.4); **the Linux `AppImage` is now BUILT too — `dist:linux` exit 0 on a real Ubuntu 24.04.4
-  x86_64 host, 2026-08-30** (ISC-29.7); `[~]` because NO LOGIN HAS BEEN OBSERVED on any platform, and
-  the AppImage's runtime install/launch on a range of distros is one host of evidence.** Includes a
+  Windows 2026-08-30 for install / launch / uninstall / update-check; **the mac dmg now INSTALLS AND
+  RUNS**, not merely builds — `probe:mac-package` 9/9 on a real macOS 26.6.2 arm64 host, 2026-08-30
+  (ISC-29.8, on top of ISC-29.4's artefact inspection); **the Linux `AppImage` is BUILT and RUN on a real
+  Ubuntu 24.04.4 x86_64 host, 2026-08-30** (ISC-29.7); `[~]` because NO LOGIN HAS BEEN OBSERVED on any
+  platform, and the AppImage's runtime install/launch on a range of distros is one host of evidence. **All
+  three platforms have now had their package executed rather than only inspected** — macOS was the last,
+  and it was the one where "BUILT" was closest to being read as "works".** Includes a
   **CrowdStrike Falcon re-proof on Windows** —
   Falcon blocks `garry-desktop`'s autostart spawn pair on this machine, and a packaged installer is a
   different case that must be proven, not assumed.
@@ -1486,6 +1489,64 @@ misses it, because every feature either ported or was consciously retired with t
   - **Not proven:** AppImage install/run on any other distro or desktop, and the `--no-sandbox`
     implication for a shipped build. `[~]` stands on distro breadth, not on the window-association gap,
     which is closed.
+
+- [x] **ISC-29.8. The packaged mac app INSTALLS AND RUNS, not just builds.** `bun run probe:mac-package`
+  **9 / 9** on macOS 26.6.2 arm64, 2026-08-30 — a new permanent instrument, `scripts/probe-mac-package.ts`.
+  - **The gap was a category error sitting in plain sight, and Linux is what exposed it.** ISC-29.4
+    closed on `dist:mac` exit 0 plus an artefact inspection — dmg byte count, icns ladder measured image
+    by image, `Info.plist` keys read back. Every one of those is a claim about a FILE. ISC-29.7 had gone
+    on to *run* the AppImage; Windows had install / launch / uninstall. macOS was the one platform whose
+    package had never been a process, and "the mac installer is BUILT" was one sentence away from reading
+    as "the mac app works".
+  - **What now runs is the shipped bundle and nothing else.** The dmg is mounted `-readonly -nobrowse`,
+    `FuzzyClock.app` is `ditto`'d off the image the way a user drags it, and **that copy's own
+    `Contents/MacOS/FuzzyClock` is launched** — no `dist/` from the working tree, no
+    `node_modules/electron`, no probe host. So the asar, the packaged Electron Framework and the
+    inspected `Info.plist` are what execute. The CDP page target proves it:
+    `file:///private/var/.../install/FuzzyClock.app/Contents/Resources/app.asar/dist/index.html` (P4).
+  - **One arm is worth six, and that is why the settings file is seeded with NON-defaults.** P6 grades
+    the DOM's date text against `formatDate("ISO", now)` and the stats group's visibility, with
+    `dateFormat: "ISO"` and `statsVisible: true` both differing from `DEFAULTS`. Passing therefore means,
+    in one reading: `--user-data-dir` honoured, the file found, parsed, two non-default fields kept,
+    `core/date.ts` run over the current date, renderer put the result in the DOM — `2026-08-30`,
+    `statsDisplay: "inline"`. ISO is the one date format with no `Intl` in it, so the expectation is
+    computable without this script and the app having to agree about a locale.
+  - **The phrase is graded non-empty ON PURPOSE and the two runs prove why**: `"a quarterbefore ten"`
+    then `"fifteen to ten"` at the same time of day. Classic English picks from candidate lists, so an
+    exact expectation would be a flake — the WPF suite already carries one of those. (The missing space
+    is `textContent` concatenating two `tspan`s across the wrap, not a render defect.)
+  - **The control manufactures a broken package and the arms catch it.** Same installed bundle, cloned,
+    with `Contents/Resources/app.asar` renamed away: no page of ours is ever served, no DOM harvested
+    (P9). **And it exits 1 rather than sitting on a modal "unable to find application" dialog** — the
+    opposite of what I expected when I wrote the arm, recorded because the guess going the other way is
+    the reason no arm grades aliveness on its own.
+  - **Both of this probe's OWN bugs are kept in its header, because each is a shape that reads as a
+    broken app.** First run came back **7 / 9** with P3 and P4 red while the same run's CDP target proved
+    the bundle had launched from the very path P3 called absent. P3 graded `existsSync` **after** the
+    `finally` that deletes the install tree — an arm can be looking at the right path at the wrong
+    moment. P4 compared `tmpdir()`'s `/var/folders/…` against Chromium's `/private/var/folders/…`, which
+    is the same directory spelled two ways because `/var` is a symlink into `/private` on macOS. Neither
+    red was about the app, and a probe that had been written to pass first time would have hidden both.
+  - **Residue is an arm, not an afterthought (P8).** This is a borrowed host, so `~/Library/Application
+    Support/FuzzyClock` and `~/Library/LaunchAgents/org.tabisz.fuzzyclock.plist` are checked absent
+    **before as well as after** — a run that "restored" over something already there would be worse than
+    one that left litter. Both absent both times; everything the app wrote went to a temp
+    `--user-data-dir` (`Cache`, `GPUCache`, `DevToolsActivePort`, … plus the seeded `settings.json`), and
+    the whole tree is deleted. No crash report appeared in `~/Library/Logs/DiagnosticReports`, and it
+    went down on **SIGTERM** with exit 0, no SIGKILL needed.
+  - **Corroboration worth naming: the shipped `PROBE-READY pid=` line came out of the PACKAGED app's
+    stdout.** `main.ts:1030` writes it unconditionally and `main.ts:8` says that instrumentation is
+    deliberately still there — this is the first evidence it survives packaging, which is what every
+    launch-timing probe depends on. The same stdout shows the packaged app kicking off a real update
+    check and cancelling it in-flight on shutdown (PERS-10), so `kickoffUpdateCheck` runs from a package
+    too.
+  - **Bounded, and none of these is folklore-able:** not a login (that is ISC-29's remaining `[~]`); not
+    `/Applications` — the bundle is copied to a scratch directory instead, because an unsigned alpha put
+    into Alex's `/Applications` is a thing left behind on a borrowed host and the destination is not what
+    a launch depends on; not Gatekeeper — the dmg was built locally and carries no quarantine attribute,
+    so nothing here says what a downloaded copy does; and **not a signed artefact** (ISC-29.2's caveat
+    applies unchanged). No `src/` file was touched, so **no green is voided**: `bun test` **2501 / 0**
+    (280,451 expects) and `typecheck` exit 0 on both hosts, unchanged figures.
 
 - [~] **ISC-30. Linux auto-launch works via a hand-written `~/.config/autostart/*.desktop`. WRITTEN,
   PROBED on Windows via seams 2026-08-30, and RUN END-TO-END ON A REAL UBUNTU 24.04.4 HOST 2026-08-30;
@@ -2187,6 +2248,7 @@ measured on this branch at or after that base.
 | ISC-29.4 (the 512px icon, and the mac/linux packaging it unblocks) | `bun run icon` then `bun run probe:icon` from `electron/` — arms A1..A6, **6 / 0**; plus `bun run dist:win` (exit 0) and `bun run probe:size` (**7 / 0**) re-run on Windows after the config edit, per claim 17; plus `bun run dist:mac` (exit 0) and a `dist:linux` attempt on `alex@10.127.60.135` (macOS 26.6.2 arm64), with `iconutil`, `sips` and `plutil` reading the artefacts back | **The blocker was a measurement before it was a fix, and the fix has a negative control for it**: pointing `mac.icon` at a 256px downsample of our own file fails with `Icon must be at least 512x512 pixels, provided: 256x256` (`app-builder-lib/src/util/iconConverter.ts:307`, exit 1) — so the config comment's account of what the 256px `app.ico` *would* have done is now a run, not a prediction. **The artwork is REDRAWN, not resampled**: `scripts/make-icon.ts` reconstructs the dial from geometry recovered off the shipped 256px raster, and the recovered parameters landing on a round grid (outer 0.48·S, ring inner 0.40, hub 0.09, hands at 60°/300°) is itself the evidence the recovery is right rather than fitted. **A3's residual is a best case BY CONSTRUCTION and the file says so — which is why A4 exists**: A3 compares our 1024 render downsampled against the shipped 256 raster, so a systematically wrong redraw could still score well; A4 therefore perturbs one parameter at a time, six ways, and every mutation must break the comparison. **Two error scales, because one hides the other**: global premultiplied MAE (0.402/255) is blind to a small localised error and worst-16×16-tile MAE (1.848/255) is not, each held to the geometric mean of measured residual and weakest mutation — and the weakest mutation sits **3.74×** its limit. **Determinism is cross-architecture, not just repeatable**: the Mac regenerated `build/icon.png` from transferred source and produced a byte-identical file (sha256 `347e64c6…`, pixel sha256 `5b82fb9d…`). **The mac results are artefact-level, not log-level**: 87,794,076-byte dmg, a 174,738-byte `icon.icns` generated from our PNG, an eleven-image ladder whose pixel dimensions were **checked one by one rather than read off the filenames** — worth doing, because two pairs share a byte size and look like duplicates until measured — and `LSUIElement`, the category and the appId all read back out of the built bundle's `Info.plist`. **The artwork was VIEWED**, decoded back to PNG by macOS's own decoder, per claim 8's appearance modality. **The Linux half carried a claim that was WRONG and is retracted in place rather than deleted**: an earlier version of this row said the conversion "emits all eight sizes at exit 0 — the exact path `linux.icon` drives." It emits no ladder — for a single `.png` source `convertIcon({format: "set"})` returns the file as-is at `[1024]` (`iconConverter.js`, *"set: source is already a .png — return as-is with its dimensions"*), and **no 512 floor applies to that format at all**: a 256px PNG returns `[256]` where `icns` throws `ERR_ICON_TOO_SMALL` on the same input. **The claim survived because it was read off a build log instead of an artefact, and the build never ran the step** — `release/.icon-set` does not exist and a re-run's log has zero `icon` lines, because `dist:linux` dies at AppImage *assembly* with `spawn EBADARCH (86)` on a Linux `mksquashfs`. **Bounded**: Linux has a pass-through PNG and nothing more — no AppImage, no desktop environment that has drawn it — and `win.icon` stays `build/icon.ico` on purpose, since ICO size fields are single bytes and the format cannot express 512 at all |
 | ISC-29.5 (the suite is architecture-portable) | `bun test` from `electron/` — **2428 pass / 0 fail** on Windows x64 **and** 2428 / 0 on macOS arm64 | **Seven real failures, enumerated rather than chased**: 13 of 376 dial-geometry fixture fields diverge by 1–4 ULP on arm64, because ECMA-262 does not bit-specify `Math.sin`/`Math.cos`. **The remedy was prescribed by the file's own docblock before the divergence existed**, and it is an exact two-element set, not a tolerance: `ARCH_DIVERGENT` maps each field to `[recorded, arm64]` as exact doubles and asserts the host produced one of the two and not a third. **The cheap fix was rejected on measurement**: deriving arm64 from recorded by "add N ulps" is unsound because the ULP step changes at every power of two. **A non-divergent row is kept exact as the counter-case** — `dial-num 12`'s `39.999999999999993` and the tick coordinates still assert `toBe`, so the table cannot quietly grow. **An absent coordinate falls through to the exact assertion**, so a short fixture array fails loudly rather than reading as "not one of the two values". **The 264-expect delta between hosts was traced, not waved at**: no test file reads `process.platform`, and per-file diffing pinned it to `cpu-delta.test.ts:162` looping `os.cpus()` at 11 expects per core — 32 cores vs 8 |
 | ISC-29.6 (the suite is flake-free) | `bun test` from `electron/` — **2428 / 0 on six consecutive runs** at 279,775 expects, plus **three separate 120-run tallies of `test/cpu-delta.test.ts`** as the repair-path instrument, plus `bun run probe:cpu-counter` — the throwaway promoted to a permanent 4-arm probe (600, 1200 and 2000 pairs) — with the original throwaways run under **both** bun and real node v24.20.0 on Windows x64 **and** on macOS arm64 | **A red gate on an unrelated edit is the only reason this was seen**: the edits in flight were prose, and `bun test` returned 2427 / 1 at `cpu-delta.test.ts:185`. Five runs of that file alone were green, so the honest first word was "intermittent". **The test's own stated premise was the false thing, and the obvious explanation was ruled out by measurement rather than by inspection**: it asserted `not.toBe(UNAVAILABLE)` on the reasoning that "60ms is several ticks, so the counters must have moved", and the ticks *do* move — 400 trials, **zero** zero-deltas, min 1262ms. **The cause is the module's backwards guard firing for a reason its docblock did not list**: a per-core `idle` counter regresses between two ordinary reads, by up to **−312ms**, on an idle desktop with no sleep and no core offlining — `total` moving by exactly the same amount each time, so `idle` is the sole bucket. **The rate is run-to-run variable and an earlier version of this row stated it too precisely — a self-caught repeat of the retracted Linux claim's defect.** It said "38 of 600 pairs under bun (6.3%) and 69 of 600 under real node (11.5%)" and read that gap as a runtime difference; five runs now read **6.0%, 6.3%, 11.2%, 13.7%, 16.4%**, with bun landing above node's figure and the lowest of the five coming from the most heavily loaded run, so the gap was noise and the variation is not even monotonic in load. **Real node reproducing it AT ALL is the discriminator, and the size of any gap is not**: bun-only would have made it a runtime bug worth working around, and both runtimes showing it makes it the Windows per-processor counter, which this port cannot fix. **The platform that actually ships this module was measured and is clean — 0 of 600 under both runtimes on macOS arm64** — which is the load-bearing half for the product, since Windows takes CPU from `typeperf` and a 6-16% per-sample `N/A` would have flickered the CPU row several times a minute — in bursts, since the regressions cluster — on the two platforms that use it. Linux stays unmeasured and is said so rather than inferred. **The fix retries, and the loosened version is the one deliberately not written**: `busy === UNAVAILABLE \|\| in range` would pass against a function that returns nothing else, so the arm samples until a reading is available, still demands `[0, 100]`, and reports the count on exhaustion instead of `-1 !== -1`. **The bound is 40 because the probe falsified the arithmetic that first set it to 10.** That 10 came from a per-sample rate raised to the tenth power — **3.2e-10, assuming independent samples**. A4's run-length histogram over 2000 pairs reads `1x139 2x49 3x17 4x6 5x2 7x1`: **a run of 7 consecutive UNAVAILABLEs where independence predicts 4.6e-3 of them**, with a second run of 7 inside a later 600-pair run, so they cluster and the tail decays slower than geometric. 10-against-7 is 1.4× of headroom; 40 is 5.7× and costs nothing when the first sample succeeds. **A4 cannot drift from the bound because it reads the constant out of the test file** and demands 2× rather than "larger" — the criterion that fails the original 10. **Mutation control:** patched to `4`, A4 read *"bound of 4 (read from the file) … margin 1.3x, need 2x"* and FAILed; restored, `sha256sum -c` OK. **The repair path is exercised, not merely present, and the `expect()` count is the instrument**: one expect per attempt makes a retry read 384 instead of 383, and the tally on the file as it now stands is **119 at 383, 1 at 384, 0 failures**. **A third tally is the most useful of the three: 120 of 120 at 383, the path never taken**, minutes after the probe read 13.7% on the same host — because the probe loops back-to-back in one long-lived process while the test takes one sample in a fresh one, so **the probe's rate is an upper bound on what the suite sees, not a prediction of it**, and the 1-in-120 above needed the probe running alongside to provoke it. **Rule 17 checked rather than argued**: the shipped module's edit is comment-only and `dist/main.js` contains no comment text at all (zero JSDoc continuation lines, no docblock phrase from any source file), so bun strips them and no probe green is voided; `bun run build` exit 0 |
+| ISC-29.8 (the packaged mac app installs and runs) | `bun run probe:mac-package` from `electron/` on `alex@10.127.60.135` (macOS 26.6.2 arm64, Apple M1, `export PATH="$HOME/.bun/bin:$PATH"` first) — arms P1..P9, **9 / 9**. `hdiutil attach -readonly -nobrowse` the dmg in `release/`, `plutil -extract` its `Info.plist`, `ditto` `FuzzyClock.app` off the image, launch **that copy's own** `Contents/MacOS/FuzzyClock` with a temp `--user-data-dir` seeded `dateFormat: "ISO"` + `statsVisible: true` and `--remote-debugging-port`, then read the DOM over CDP. Deliberately NOT prefixed with `bun run build`: building would substitute the working tree for the artefact under test | **The control is a package that is present, launchable and broken** — the same installed bundle cloned with `app.asar` renamed away — and P9 requires the probe to catch it: no page of ours served, no DOM. It also **exits 1** rather than sitting on a modal dialog, which is the opposite of the guess in the arm's own comment, so aliveness happens to discriminate here and is still not graded alone. **P6 is the six-in-one arm**: both seeded fields are non-default, so `2026-08-30` in the DOM means user-data-dir honoured → file found → parsed → fields kept → `core/date.ts` run → renderer drew it. **The probe's first run was 7/9 and both reds were the instrument** — `existsSync` graded after the `finally` that deletes the tree, and `/var/folders` compared against Chromium's `/private/var/folders`. Kept in its header. **Bound:** no login, not `/Applications`, no Gatekeeper quarantine, unsigned artefact |
 | ISC-30 (auto-launch, all three sinks) | `bun run probe:autolaunch` from `electron/` — arms A1..A9, **9 / 0**, driving `main/auto-launch.ts` through the **production** `processRunner` and `fileSeam` from `src/main/seams.ts` against a live `HKCU` Run key and a real filesystem; plus `bun test` (`test/auto-launch.test.ts`, 303 LOC) for the value name | **The interlock is asserted before anything is written, and it is the first arm on purpose**: A1 puts five unsafe shapes through the guard against a runner that **throws if reached** — not `reg`, not the Run key, **no `/v` at all** (which names the *whole key*, where a `reg delete` would take every startup entry on the machine), more than one hit for the real value name, and any rewrite the real name survives — and the probe `process.exit(1)`s before touching the registry if the guard misbehaves. **A guard nobody tested is the likeliest thing here to be wrong, so it gets a positive control too**: a real `enable()` must pass *through* it with the name rewritten and the path untouched, or the five refusals would pass against a guard that simply refuses everything. **Two independent readers, and the second one is the parity claim**: A4 reads the value back through `reg query` (kind, exact data, **no `"` character at all** — quoting writes the quotes *into* the value and produces a Run entry Windows silently cannot launch) and through `[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(...)`'s `GetValue()` *and* `GetValueKind()`, which is the same .NET API `AutoLaunchService.cs` reads with. **A2 is the one arm proving the reader works against a value the module did not write** — Alex's own C#-written entry, read-only, where `RegistryValueKind.String` and `REG_SZ` are the same kind. **A8 is the arm that must never fail**: a before/after census of every value name under the key plus his entry byte-identical. **The seams were extracted so the probe drives the app's adapters and not a copy** — a green certifying an adapter the app does not use is worse than no probe, because it reads as coverage. **A9's absence arm is a dead runner**: the darwin and linux sinks write through the production `fileSeam` into a `mkdtemp` HOME with **zero processes spawned**, because a `launchctl load` would start a second copy the moment the box is ticked. **Two things this file deliberately does NOT prove, named in its own closing lines**: that the value name is `FuzzyClock` (it writes `FuzzyClockProbe-<pid>` by design, so the constant is the unit test's arm and the source's), and that anything starts at login — the darwin side of that second one is now ISC-30.1's, measured against real `launchd` |
 | ISC-30.1 (darwin: launchd honours the plist) | `bun run probe:launchd` from `electron/` on `alex@10.127.60.135` (macOS 26.6.2 arm64, real GUI login session) — arms A1..A9, **9 / 0**, driving `main/auto-launch.ts` through the **production** `fileSeam` and `processRunner`; `plutil -lint`, `plutil -p`, `launchctl bootstrap`/`print`/`bootout` as the readers | **The interlock is first and it guards six of Alex's real agents**: A1 requires our label ABSENT, censuses `com.google.GoogleUpdater.wake`, `com.google.keystone.agent`, `com.google.keystone.xpcservice`, `com.interceptor.daemon`, `com.pai.pulse` and `com.pai.voice-server` with sha256s, confirms `launchctl print gui/501/org.tabisz.fuzzyclock` is non-zero, and `process.exit(1)`s before writing if the label is in use. **A9 is the arm that must never fail** — same census after teardown, `missing=[]` / `changed=[]` / `added=[]` and our plist gone, with teardown in a `finally` so a mid-run assertion failure still deregisters. **The chain is valid → registered → spawns, and each link has its own reader**: `plutil -lint` exit 0 (a real parser, not a regex), `plutil -p` for `Label` / `RunAtLoad=true` / `ProcessType=Interactive` / `ProgramArguments[0]` **and `KeepAlive` absent** — the absence load-bearing, since `KeepAlive` would respawn the job forever and quitting would not stick — `launchctl bootstrap gui/501` exit 0 with `print` finding the agent, then a marker file **polled 40×100ms rather than slept for**. **A7 is A6's control and the reason A6 means anything**: a byte-identical plist minus `RunAtLoad` registers fine and writes no marker, so A6 cannot be explained by `bootstrap` starting the job as a side effect. **One substitution, declared in the header**: `ProgramArguments` runs a marker-writing script in a `mkdtemp` dir, not FuzzyClock's binary — same shape as `probe-update.ts` substituting its URL. **One informational field is labelled as such after being wrong**: `launchctl print` lists the flag as a bare token in a pipe-delimited `properties = …` line, so an earlier `=`-matching regex printed `false` while A6 was green — an informational field contradicting a load-bearing one is worse than no field. **Bounded, and this is the interesting half**: nothing here is a *login*. The agent was bootstrapped into the running session by hand, so the claim is "launchd accepts our plist and honours `RunAtLoad` when it loads the job", never "the overlay appears after a reboot" |
 | ISC-30.2 premise MEASURED (plan L1/L2, host Rome, 2026-08-30) | Fresh `dist:linux` AppImage at HEAD `7f0a567`, launched under `--user-data-dir=$(mktemp -d)`. Its own `[main]` startup line: `registers <abs .AppImage path> (execPath=/tmp/.mount_FuzzyCqUv07H/fuzzyclock, APPIMAGE=<same abs .AppImage path>)` — printed by the caller of `autoLaunchExePath()`, so not the `echo $APPIMAGE` false green. Tray "Auto-Launch at Login" toggled via the real `com.canonical.dbusmenu` `Event` (GNOME owns the popup) → `~/.config/autostart/fuzzyclock.desktop` written with `Exec=<that path>`, `desktop-file-validate` exit 0, byte-identical to `linuxDesktopEntry()`. **L2** from `~/My Apps/FuzzyClock.AppImage`: `Exec="/home/alex/My Apps/FuzzyClock.AppImage"` (quoted), validate exit 0, independent Desktop-Entry unescape round-trips to the spaced path as one arg. `~/.config/autostart` sha256-censused and restored around every toggle | The `execPath=/tmp/.mount_*` printed *beside* the registered path is the built-in discriminator: `registers` ≠ `execPath`, and `registers` is the survivable one. L2's quoting is the case defect 2 (unquoted `Exec=`) would have word-split |
@@ -2475,6 +2537,46 @@ measured on this branch at or after that base.
   would assert the correspondence without having measured it, which is worse than leaving it open.
 
 ## Changelog
+
+- **The mac package had never been a process, only a file — ISC-29.8 closes that, 2026-08-30.** New claim,
+  new permanent instrument, no `src/` edit: `bun run probe:mac-package` **9 / 9** on macOS 26.6.2 arm64.
+  Progress 36/51 → **37/52**.
+  - **How the gap was found: by reading ISC-29's three platform halves against each other.** Windows had
+    install / launch / uninstall. ISC-29.7 had *run* the AppImage. macOS had `dist:mac` exit 0 plus an
+    artefact inspection — dmg byte count, icns ladder image by image, `Info.plist` keys read back — and
+    every one of those is a claim about a FILE. It is the same move that caught ISC-29.4's own worst
+    finding, where a `dist:linux` claim was taken off a build log for a step that never ran: look for the
+    thing the artefact is supposed to produce, not the artefact.
+  - **What runs is the shipped bundle.** dmg mounted `-readonly -nobrowse`, `FuzzyClock.app` `ditto`'d off
+    the image, and *that copy's* `Contents/MacOS/FuzzyClock` launched — no working-tree `dist/`, no
+    `node_modules/electron`, no probe host. The CDP page target is inside the copy's own `app.asar`, which
+    is what makes P4 a claim about the package rather than about the repo.
+  - **The strongest single arm is P6, and it is strong because the seed is non-default.** `dateFormat:
+    "ISO"` and `statsVisible: true` both differ from `DEFAULTS`, so `2026-08-30` in the DOM means
+    `--user-data-dir` honoured → file found → parsed → both fields kept → `core/date.ts` run → renderer
+    drew it. Six links, one arm, no `Intl` in the format so the expectation needs no locale agreement.
+  - **The control is a broken package, and it corrected me.** Same bundle cloned with `app.asar` renamed
+    away: no page served, no DOM (P9) — and it **exits 1** rather than sitting on a modal "unable to find
+    application" dialog, which is what the arm's comment had predicted. Recorded as a wrong guess rather
+    than quietly reworded, and it is why no arm grades "the process is alive" on its own.
+  - **7/9 on the first run, and both reds were mine.** `existsSync` graded **after** the `finally` that
+    deletes the install tree — the same run's CDP target proved the bundle had launched from the path P3
+    called absent — and `tmpdir()`'s `/var/folders/…` compared against Chromium's `/private/var/folders/…`,
+    two spellings of one directory because `/var` is a symlink into `/private`. Both fixes are one line;
+    both bugs stay written in the probe's header, because each is a shape that reads as a broken app.
+  - **Two things the run turned up that were not what it was looking for.** The packaged app's stdout
+    carries the shipped `PROBE-READY pid=` line, so `main.ts:8`'s deliberately-kept instrumentation
+    survives packaging — every launch-timing probe depends on that and nothing had shown it before. And
+    the packaged app ran a **live GitHub update check**, cancelled in-flight on shutdown (PERS-10), so
+    `kickoffUpdateCheck` works from a package too.
+  - **Residue was graded before and after, not tidied afterwards (P8).** `~/Library/Application
+    Support/FuzzyClock` and `~/Library/LaunchAgents/org.tabisz.fuzzyclock.plist` absent both times; a
+    "restore" over something already present would be worse than litter. Clean SIGTERM, exit 0, no crash
+    report. `/Applications` deliberately untouched — an unsigned alpha registered on a borrowed host, for
+    a destination the launch does not depend on.
+  - **Nothing is voided.** `scripts/` + `package.json` only; `bun test` **2501 / 0** at 280,451 expects and
+    `typecheck` exit 0, both figures unchanged from before the run. ISC-29 stays `[~]`, and now for exactly
+    one reason on all three platforms: **no login has been observed**.
 
 - **Phase 6.5's macOS half, and the `UNVERIFIED` in its source is closed by DELETING the line, 2026-08-30.**
   Two commands on the mac and one edit to `src/`. `probe:settings-window` is **37/37 on darwin** (arm64, macOS
