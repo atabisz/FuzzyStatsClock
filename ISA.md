@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 35/51
+progress: 36/51
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T19:45:00+10:00
+updated: 2026-08-30T22:10:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -1073,9 +1073,13 @@ misses it, because every feature either ported or was consciously retired with t
   - **CLOSED on Windows 2026-08-30.** 12 modules / 1,980 LOC + 12 test files / 3,454 LOC + a new probe;
     `bun test` **2371 pass / 0 fail** at the time, `probe:display` **61 / 0 / 10 / 0**, `probe:battery`
     **5 / 0**, `probe:typeperf` **7 / 0 / 1**. All 15 cells resolve live on this host and **both hover
-    behaviours are wired** (backdrop and the 0.5 s fast-refresh). The two sub-surfaces above that
+    behaviours are wired** (backdrop and the 0.5 s fast-refresh). ~~The two sub-surfaces above that
     remain unwired are `stats-rows.ts`'s per-row visibility and its auto-collapse rule, both of which
-    wait on ISC-32 because the settings window is their only route in the C# too.
+    wait on ISC-32 because the settings window is their only route in the C# too.~~ **PAID by Phase 6.5:
+    both are wired through `applySettingsEdit`, and the per-row checkboxes are among the 1536
+    combinations `test/settings-form.test.ts` covers.** The re-clamp a re-shown row needs turned out to
+    need no new code — `onResize` already covers it, because the renderer measures its own content and
+    main honours the `resize`, which is the same path Phase 4 built for the faces.
   - **The phase's real product is a FOURTH unowned feature, and it is the finding rather than the
     work: the uptime line renders five fields in the C# and the port shipped one of them**, through two
     phases, with every gate green. `core/load-average.ts` had correct tests and **zero importers** — the
@@ -1119,20 +1123,50 @@ misses it, because every feature either ported or was consciously retired with t
 
 ### Phase 6.5 — Settings window *(NEW — no phase owned it; added 2026-08-29)*
 
-- [ ] **ISC-32. The settings window exists and edits every setting the WPF window exposes.** A second
-  `BrowserWindow` replacing `SettingsWindow.xaml` (521 LOC of XAML → HTML/CSS): changes apply live, and
-  closing it does not take the overlay down. **Found by wiring the tray in Phase 3, not by planning.**
-  The plan's component table always listed a "second `BrowserWindow`"; **no phase's exit criteria ever
-  mentioned it**, and a table and a phase list disagreeing is how a shipped feature goes missing. The
-  `open-settings` tray action therefore logs and does nothing today, `main.ts`'s header says so, and
-  § Phase 6.5 now exists in the plan rather than the gap living in a comment.
-  - **What is missing is the editing surface, not the state.** Every setting is already validated,
-    persisted and — for the ones the tray exposes — togglable now, so nothing is lost by this landing
-    late.
+- [x] **ISC-32. The settings window exists and edits every setting the WPF window exposes. CLOSED on
+  Windows 2026-08-30.** A second `BrowserWindow` replacing `SettingsWindow.xaml` (521 LOC of XAML →
+  HTML/CSS): changes apply live, and closing it does not take the overlay down. **Found by wiring the
+  tray in Phase 3, not by planning.** The plan's component table always listed a "second
+  `BrowserWindow`"; **no phase's exit criteria ever mentioned it**, and a table and a phase list
+  disagreeing is how a shipped feature goes missing. § Phase 6.5 exists in the plan rather than the gap
+  living in a comment, and `main.ts`'s header now records how it got there rather than that it is absent.
+  - **What was missing was the editing surface, not the state.** Every setting was already validated,
+    persisted and — for the ones the tray exposes — togglable, so nothing was lost by this landing late.
   - **This is scope that did not exist when "continue until you finish Phase 7" was said.** Flagged
-    here for Alex rather than absorbed into that sentence or quietly dropped: whether it lands before
-    Phase 7 is his call, and the plan states the case for before (an installer that ships without it
-    ships a v5.0 configurable only from a tray menu).
+    for Alex rather than absorbed into that sentence or quietly dropped; the plan states the case for
+    landing it before an installer ships a v5.0 configurable only from a tray menu.
+  - **The split is the design and it is what makes the exit bar testable.** `core/settings-form.ts`
+    builds the whole form as data with **no Electron on its path**, so `bun test` drives the entire
+    control surface — **1536 combinations** in `test/settings-form.test.ts` across the four clock types,
+    covering the gating rules, every label, and `applySettingsEdit`'s rounding and rejection.
+    `main/settings-window.ts` is window lifetime only: create-or-focus, the handshake, and a `push()`
+    that is a projection of the live `settings` record rather than a second copy of it.
+  - **`isStyleSupported` is the port of `PopulateControls`' divergence rule**, not a new invention —
+    which clock type hides which rows is the C#'s behaviour, ported rather than re-derived.
+  - **Three findings that came out of the wiring, each now load-bearing somewhere.** (1) `ipcMain.on`
+    is per-**channel**, not per-window, so reusing the overlay's `ready` would have given one handler
+    two senders — hence `settings-ready`, and hence `markReady(sender)` comparing the sender against
+    its own `webContents`. (2) `preload-settings.cjs` must be **CJS** and its absence is silent at every
+    layer: `loadFile` succeeds, the CSS applies, and `settings.js` dies on the first control because
+    `window.fuzzyclock` was never injected — so it is now in `copy-assets.ts`'s `REQUIRED_BUNDLES` and
+    the **build** fails instead of the user. (3) The CSP carries no `unsafe-inline`, so **zero inline
+    `style` attributes** is a graded arm (R10) rather than an accident of how the swatches happen to be
+    written.
+  - **`settingsOpen` stops being a literal `false` in the renderer, and it has TWO readers.** The
+    middle guard of the fade chain is the obvious one. The second is the write that has to get through
+    *while that chain is suppressing the pump*: `SetOpacity`'s unfaded branch
+    (`MainWindow.xaml.cs:1775-1778`), so a user dragging the opacity slider sees the value they are
+    choosing rather than that value dimmed by a proximity halo the cursor happens to be inside. The
+    settings window is centred and the widget can sit anywhere, so that branch is reachable rather than
+    theoretical, and `test/ghost-fade.test.ts` now pins `windowOpacity` diverging from
+    `visibleOpacity()` **mid-fade** — the arm cannot be written at rest, where the two agree.
+  - **`probe:settings-window` is 37/37 on win32** against real Electron under the shipped CSP, and it
+    **did not go green on its first run** (claim 18): 30/36, one probe bug and one real finding. See the
+    Verification row for H5b, which turned an argued z-order claim into a measured one.
+  - **Bounded**: win32 only. The trait arms adapt to the platform and the probe prints which one it ran
+    on, so this green is one platform and not three. `#focusApp()`'s `app.focus({ steal: true })` is
+    still **UNVERIFIED on a macOS host**, and H5b is an **ungraded prediction on Linux** — X11
+    transient-for z-order is the window manager's business, not Chromium's.
 
 ### Phase 7 — Packaging, auto-launch, update check
 
@@ -2142,6 +2176,7 @@ measured on this branch at or after that base.
 | ISC-26.3 / ISC-26.4 (does a transparent window actually composite; and was anyone looking) | `bun run probe:pixels` — `scripts/probe-pixels.ts` + `probe-pixels-app.cjs` + `screengrab.ps1`. ~~Currently INCONCLUSIVE, exit 0: the workstation is locked, so nothing is launched and nothing is measured~~ **3 of 3 blocking arms pass — X1-X4 all green on an unlocked session, and re-run on the Phase 7 tree** | **The first arm in this repo that reads a rendered pixel** — every other probe reads a decision, and `probe-display.ts:64` says so. **The backdrop is OURS, not the wallpaper**: the naive version captures the desktop, shows the transparent window, captures again and passes when they match — which also passes when a dark desktop sits under an opaque dark box. Magenta is chosen for being un-supplyable by any theme, wallpaper or Chromium default. **X2 is the control and is reported before X3 on purpose**: "still magenta" is equally what a window that never showed produces, so the same window with the same flags must turn the capture green when asked to paint opaque, or X3 is VOID and says so in its own verdict text. **The grid is not decoration** — a mean alone cannot tell magenta from a red/blue checker. **The rect is taken from the window's own reported bounds with a 12-DIP inset and multiplied by `scaleFactor`**, because the first run grabbed the *requested* rect, photographed the wallpaper and called it a failed paint; PowerShell is not per-monitor DPI aware. **`capturePage()` cannot answer this** — it captures the page's own surface, so a transparent page captures as transparent regardless of whether the OS honoured it. **The lock gate is the discriminator for the probe itself**: without it this file produced four specific, alarming, false FAILs, and `lib/session-lock.ts` fails OPEN so a broken query costs one contaminated run rather than permanently disabling every capture arm |
 
 | ISC-27 / ISC-28 (the 15 telemetry cells, and the per-platform sources) | `bun test` (2371 pass / 0 fail at `48e217c`, 12 new test files / 3,454 LOC), `bun run typecheck` and `bun run build` exit 0, `bun run probe:display` (**61 / 0 / 10 / 0**, five launches), `bun run probe:battery` (**5 / 0**, a live source watched for 30 s), `bun run probe:typeperf` (7 / 0 / 1); then a 15-case mutation run, three mutations × five cases | **The arm that found the phase's real defect is D11b, and it is the discriminator because it splits one question into three**: `0.00  0.00  0.00` is both a valid load-average line *and* exactly what an empty sample queue prints, so shape, value and **fed-ness** are asserted separately. A well-formed arm that cannot tell those apart is undiscriminating, and that is what let `core/load-average.ts` sit with correct tests and **zero importers** through two phases of green gates. **A live source's cadence cannot be faked by a fixture** — `probe:battery` watches 30 s of real readings, because a parser cannot fail to *arrive*, and arrival is the failure mode a fixture is structurally blind to. **The fixtures' provenance is asserted asymmetrically, because it differs**: the macOS captures are real (a physical M1, macOS 26.6.2) and pinned `-text` in `.gitattributes` so a CRLF conversion cannot corrupt the literal TAB in `macos-pmset-batt-ac-charged.txt`; **the Linux ones are synthetic, and both globs log the path they settled on** precisely because a wrong sysfs path is otherwise wrong in the module and in the fixture at once with nothing failing. **The tests found three defects in sources that already had green tests** — an `nvidia-smi` respawn every tick on a machine without it (whose module header *claimed* the probe returned it, a false doc claim in a green file), `node:path`'s `join` composing `/sys/class/drm\card0\...` so every Linux path depended on the host running the *test*, and `cpu-delta.ts:95` returning the sentinel for the zero total delta two `os.cpus()` reads inside one tick produce. **The placeholder was corrected against the C# rather than against this ISA**: the original writes the literal `"N/A"` and tests `< 0f`, and no WPF test asserts that string, so the port was being graded against a criterion three of our own documents got wrong. **Bounded**: Windows live only. All three platforms' sources are written and fixture-tested; one has been run |
+| ISC-32 (the settings window) | `bun test` (**2501 pass / 0 fail / 280,451 expect() across 58 files**), `bun run typecheck` and `bun run build` exit 0; `bun run probe:settings-window` — **37 / 37 on win32**, which bundles `src/main/settings-window.ts` with `bun build --format cjs --external electron` into a temp dir and `require`s it from `scripts/probe-settings-window-app.cjs`, launching real Electron with `--user-data-dir` on a `mkdtemp` profile; then `bun run probe:settings-window:control` — the same probe against a `dist/` with `preload-settings.cjs` removed | **It did not go green on its first run, and neither red was a wasted arm** (claim 18). 30/36: one probe bug (reading `win.webContents` after the close threw `Object has been destroyed` and took four arms down with it — the ID is now captured before the close) and **one real finding, H5b, which upgraded an argued claim to a measured one.** `settings-window.ts`'s header argued from Win32 documentation that an owned window inherits its owner's topmost-ness, which is the entire reason the port takes `parent` at all; nothing here requests always-on-top — the constructor never passes it, `setAlwaysOnTop` is never called — and `isAlwaysOnTop()` read **`true`** off the live window, where it reads `WS_EX_TOPMOST` rather than a remembered flag. So the propagation is measured. My expectation was `false` and the arm was right. **Mutation control: 35 of 37 arms go red with `preload-settings.cjs` removed, and the two that stay green are the CORRECT two** — W1/W2, window creation, because in that scenario the window really is created and only the renderer is broken. That file is the right mutation precisely because nothing complains about it: `loadFile` succeeds, the CSS applies, and main sees a window that loaded fine. **Expectations are DERIVED from the form the window receives, not hardcoded** — control count, tab labels, `#ctl-` id list and row count are all counted out of `buildSettingsForm(DEFAULTS, "en")`, so adding a setting cannot leave this probe asserting yesterday's shape (census: 3 tabs, 24 rows, 40 controls, 29 with an id, 2 rows invisible in DEFAULTS). **Two silent-by-construction failures are what this probe exists for**, and both are graded: a CSP refusal is a console message and nothing else (R1 grades an empty warning-and-above list), and a missing preload leaves a window that opened fine (R0 reads `#panels`' child count **at the instant** `settings-ready` arrives and requires **0**, so the form arriving in *reply* to the handshake is measured rather than assumed). **Refresh-in-place is asserted by element IDENTITY, not by value**: a `dataset` tag written from the probe survives a second `push()` and cannot survive a rebuild (R15), paired in the same push with a row that goes invisible (R17) so one arm cannot borrow the other's evidence. **The three exit-bar clauses map to arms rather than to prose** — editable (R5/R12/R13, and the checkbox and slider are tested separately because one rides `change` and the other `input`, and a builder wired to the wrong one is silent rather than broken), applies live (R15-R18), closable without taking the overlay down (C1-C3, where `window-all-closed` is **recorded rather than obeyed** so the arm can read that it did not fire). **What this probe does NOT prove, stated in its own header**: nothing about `main.ts` — the three relays are reimplemented here with a recorder in front, so a channel name typo'd in `main.ts` is out of reach — and nothing about `onSettingsEdit`'s persistence, rounding or rejection, which is `applySettingsEdit` and belongs to the 1536 test combinations. **Bounded**: win32. The trait arms adapt per platform and the probe prints which one it ran on; `app.focus({ steal: true })` is unverified on a macOS host, and H5b on Linux is a prediction no host has graded |
 | ISC-29.1 (the two paid size debts, and the one measured-absent) | `bun run probe:size` from `electron/` after `bun run dist:win` — arms C1..C7, **7 / 0**, up from 5; plus `Get-AuthenticodeSignature` on both artefacts | **C6 fails in BOTH directions, which is the only shape that can measure a trim**: a language name matching nothing makes electron-builder log `no locales found matching wanted languages, skipping cleanup` and keep all 41MB **silently**, while an over-aggressive glob that removed `en-US.pak` would leave Chromium with no resource bundle at all — so the pass condition is "exactly one, and it is `en-US`", never "few `.pak` files". Measured 55 files / 41.0MB → 1 / 490,357 B. **C7 has a negative control and a defined inconclusive**: `assets/icon.png`'s 6,199 bytes are found byte-for-byte at offset **187,762,152** in the packaged exe and **absent from the identically-built stock `electron.exe`** — and if the control ever matches, C7 reports INCONCLUSIVE rather than PASS, because that means the control failed rather than the subject. **The build log is explicitly refused as evidence**: electron-builder prints `signing with signtool.exe` while `Get-AuthenticodeSignature` reads **`NotSigned`** on the installer *and* on `win-unpacked\FuzzyClock.exe`; the measurement wins. **Comparability is asserted rather than assumed**: every Phase 7 byte count is a *trimmed* number, so C5's own note says the P1.5 figures are not comparable and neither supersedes the other — 1.40× / 1.40× and 1.27× / 1.20× are two different packages. **Bounded**: Windows artefacts only. `mac.icon` and `linux.icon` now both carry `build/icon.png` (ISC-29.4) and the greens here were **re-earned after that edit** under claim 17 rather than carried across it — but C1..C7 still measure `dist:win` output alone, and the 87,794,076-byte dmg built on the borrowed mac is deliberately **not** a row in this table: it came off a host with a `/tmp` node, not the release pipeline, so it is a build result and not a size baseline |
 | ISC-29.2 (the Falcon re-proof) | A one-off install probe, not a checked-in gate: silent `/S` install of `FuzzyClock Setup 5.0.0-alpha.0.exe`, launch with a `--user-data-dir` under `%TEMP%`, 20 s of process-tree and window sampling, tree re-hash, silent `/S` uninstall, then `Get-WinEvent` over Falcon's operational channel. **Not re-runnable without re-installing** | **The AV control comes first and is what licenses the result**: `CSFalconService` **Running** and Defender realtime protection **`False`**, so a clean run cannot be explained by Defender having allowed it — without that pair the whole probe measures the wrong product. **The evidence is behavioural, and the channel silence is labelled WEAK on a readability control**: `CrowdStrike-Falcon Sensor-CSFalconService/Operational` was read and carries only 4-hourly service-lifecycle records, so it would likely be silent about a block too — an empty channel is corroboration at best, and calling it proof was the easy false green here. **A launch is asserted as a window and a tree, not as an exit code**: a 4-process tree alive 20 s with a real `hwnd=30607408` at 105.7MB and 35 files written into its own profile including a 1,165-byte `settings.json`, because `Start-Process` returning is what a process that died immediately also looks like — **and it did look like that**: `ELECTRON_RUN_AS_NODE=1`, inherited from VS Code, made the packaged exe run as plain Node and exit **9** on `--user-data-dir`, which reads exactly like a Falcon block. **Alex's live profile is untouched by construction** — every launch is `--user-data-dir` into a temp dir, and `%LOCALAPPDATA%\FuzzyClock\settings.json`'s mtime was unchanged after the whole sequence. **Bounded, and the bound is the interesting part**: 20 seconds, one host, an **unsigned** artefact, and **no login-time arm** — Falcon's autostart-specific behaviour, the thing that actually blocks `garry-desktop`, is what manual item 5 tests and this run does not |
 | ISC-29.3 (the update check, live) | `bun run probe:update` from `electron/` — arms B1..B6, **5 / 0 / 1**. Three real requests to api.github.com plus a `Bun.serve` that accepts and never answers; ~6 s | **B1 disambiguates a 404 instead of shrugging at it**: `/repos` is fetched alongside `/releases/latest` because GitHub answers 404 both for "no releases yet" and for "not visible to you", and a check whose URL is wrong is a check that silently never fires. Live: **200, `tag_name 'v4.5.5'`, parsed in 22 ms.** **B2 stays INCONCLUSIVE rather than claiming a reproduction**: an empty-UA request got 200, not the documented 403, so either the runtime substituted its own header or the rule is no longer enforced — our UA is accepted either way, which is what the app needs; that it is *required* is unproven. **B4's absence arm has a positive control on the same adapter**: `enabled: false` moves the HTTP counter zero times where B3 moved it exactly once, so this is a real absence and not an adapter that cannot dial. **B5/B6 use a real socket because a fake `fetchImpl` chooses when to reject, which is the behaviour under test** — the deadline aborted at **5008 ms** against a 5000 ms budget *with one connection recorded* (null-in-5s is also what a request that never left the process looks like), and `cancelInFlight()` killed a live request at **152 ms**. **What the live answer exercised is the negative branch, and that is stated inside the PASS text rather than left to a reader**: `shouldOfferUpdate("5.0.0-alpha.0", v4.5.5)` is `false`, so **`updateNoticeText` has no live input on this run** and the offered path stays unexercised until a newer release exists. **Bounded**: no arm here proves the notice reaches the screen — the geometry is `test/layout.test.ts`, the glass is `probe:fade`/`probe:pixels`, the wiring is `main.ts`'s `pendingUpdateText`, and **nothing crosses all three** |
@@ -2171,6 +2206,15 @@ measured on this branch at or after that base.
   what remains there is the logout itself. **Linux still needs both**: a host, and then a desktop
   environment honouring `~/.config/autostart`. This is what keeps ISC-29 and ISC-30 at `[~]`, and on
   Windows it is one logoff.
+- **A second physical action joined the list with Phase 6.5, and it is one click: right-click the tray
+  icon, choose Settings, change one setting.** `probe:settings-window` is 37/37 against the real host
+  module, the real `dist/` bundles and the real form under the shipped CSP — but its Electron half
+  **reimplements `main.ts`'s three `ipcMain.on` relays with a recorder in front**, stated at length in its
+  own header. So a channel name typo'd in `main.ts` is outside every arm on this port, and the tray popup
+  is owned by the shell on all three platforms (the wall `garry-desktop` hit, and why the Linux host had to
+  drive its menu through `com.canonical.dbusmenu`) — which is what makes this a click rather than a script.
+  It is the last stand-in in Phase 6.5, and ISC-32 is `[x]` without it because the exit bar names the
+  window's behaviour and not the tray's route to it.
 - **The shipped artefacts are unsigned, and this one is a purchase rather than a task.**
   `Get-AuthenticodeSignature` reads `NotSigned` on both `FuzzyClock Setup 5.0.0-alpha.0.exe` and
   `win-unpacked\FuzzyClock.exe`, while **electron-builder logs `signing with signtool.exe` on the way
@@ -2194,10 +2238,14 @@ measured on this branch at or after that base.
   products, because NSIS does not replace an Inno registration. The mirror image of the Run-key problem,
   which *is* handled — the value name is shared on purpose. Recorded because the install that showed it
   will not be re-run.
-- **`update-check.ts`'s `cancelInFlight()` has no caller, and it waits on ISC-32.** The only route to
-  turning update checks off mid-session is the settings window, so the method is exercised by
-  `probe:update` B6 and by unit tests and by nothing in the app. Third item Phase 6.5 now owes, after
-  `stats-rows.ts`'s auto-collapse rule and the re-clamp a re-shown row needs.
+- ~~**`update-check.ts`'s `cancelInFlight()` has no caller, and it waits on ISC-32.**~~ **PAID by
+  Phase 6.5.** It now has two: `before-quit`, which always did, and the update-checks checkbox
+  (PERS-10) via `onSettingsEdit` — the route this bullet named as missing. All three items this bullet
+  listed are discharged; `stats-rows.ts`'s auto-collapse rule is wired through `applySettingsEdit`, and
+  the re-clamp a re-shown row needs was **measured to need no new code**, because `onResize` already
+  covers it. That last one is worth keeping as a finding rather than a deletion: the debt was written
+  from reading the C#, where a re-shown row and a re-clamp are two steps, and the port's
+  renderer-measures-its-own-content design had already collapsed them into one.
 - **Three Phase 3 arms need Alex's hands and nothing else.** (1) **Drag the widget**, including across
   the monitor seam, and check it lands inside the work area — ISC-20's live half, refused rather than
   synthesised because the only real synthetic drag moves his cursor. (2) **Restart the app** and confirm
@@ -2229,10 +2277,11 @@ measured on this branch at or after that base.
   arm D10 *records* it (`#date y=110 bbox=97.23,110.00 81.47×21.00`) and **nothing checks it**, so a
   systematic vertical offset in the date line would ship green. Carried as debt, not closed.
 - ~~**The stats panel renders all bars at `0` and all values `"--"`, which is correct for Phase 4.**~~
-  **PAID by Phase 6: all 15 cells resolve live on this host**, `probe:display` 61 / 0 / 10 / 0. What is
+  **PAID by Phase 6: all 15 cells resolve live on this host**, `probe:display` 61 / 0 / 10 / 0. ~~What is
   still not wired is the *editing* surface — `stats-rows.ts`'s per-row visibility and its auto-collapse
   rule — because the settings window is their only route in, in the C# too. That is ISC-32, not this
-  bullet.
+  bullet.~~ **The editing surface is PAID by Phase 6.5 (ISC-32 `[x]`): both are wired through
+  `applySettingsEdit` and covered by `test/settings-form.test.ts`.**
 - **The Linux runtime arms are MOSTLY probed as of 2026-08-30 — two hosts now, and plan tasks L1-L5
   are closed.** Closed on the first Ubuntu host: the suite (2428/0), `dist:linux` → a real AppImage
   (ISC-29.7), `LinuxStatsSource` + parsers cross-checked live against `/proc` + `nvidia-smi` (ISC-27,
@@ -2262,9 +2311,20 @@ measured on this branch at or after that base.
     over a **native-fullscreen** window (plan L5's untaken arms — no `xdotool` on the host); a real
     logout honouring `~/.config/autostart` (**plan L6**, ISC-29/30, Alex-only, one logoff); XWayland
     through a Wayland session (**plan L7**, ISC-10); and anything native Wayland (out of scope for 1.0).
-  **Tasks L1-L7 remain in `.planning/research/ELECTRON-PORT-PLAN.md` § "Linux — the open task list"**
-  with L1-L5 marked done and L6/L7 the remaining Alex-only / wrong-session-type items; this list is the
-  source, that file is the derived view. One M1 on one macOS version and two Ubuntu x86_64 boxes is
+  - **NEW 2026-08-30, added by Phase 6.5 and it is now the cheapest open Linux item: `probe:settings-window`
+    has never run on Linux (plan L8, ISC-32).** It needs no new code and no packaged build — the probe
+    bundles `src/main/settings-window.ts` itself — so it is one command. 35 of its 37 arms should behave
+    identically; **H5b and H7 carry the platform question**, because the port passes the overlay as
+    `parent` and on Windows that was *measured* to propagate `WS_EX_TOPMOST`. The X11 equivalent is
+    `WM_TRANSIENT_FOR`, and whether a transient child of an always-on-top window stacks above it is the
+    **window manager's** decision rather than Chromium's — so H5b's Linux expectation is an inference from
+    Win32 behaviour and is labelled as one in the probe's own comment. A red there is a finding about the
+    port's z-order, not a broken probe.
+  **Tasks L1-L8 remain in `.planning/research/ELECTRON-PORT-PLAN.md` § "Linux — the open task list"**
+  with L1-L5 marked done, L6/L7 the Alex-only / wrong-session-type items, and L8 appended rather than
+  sorted into place so the existing numbering stays stable; this list is the source, that file is the
+  derived view. **Note the count went UP after five tasks closed** — L8 is a new claim's Linux half, not
+  an old one's, which is the shape to expect while phases are still landing. One M1 on one macOS version and two Ubuntu x86_64 boxes is
   what "three platforms" rests on today; neither platform is a matrix.
 - **Three macOS arms are blocked on a TCC grant, not on effort.** M4(b) the Cmd-Tab switcher, M5
   layering over a fullscreen window, M6 click-through into another application. All three need a screen
@@ -2411,6 +2471,95 @@ measured on this branch at or after that base.
   would assert the correspondence without having measured it, which is worse than leaving it open.
 
 ## Changelog
+
+- **Phase 6.5 — the settings window. ISC-32 `[ ]`→`[x]` on win32, 2026-08-30, `edc17c2` (authored as
+  `1cdb654`, rebased onto the Linux host's `f14a68d`; both signatures verified `G alex@tabisz.org`). 17
+  files, +4,100/−27.** The plan's component table listed a "second `BrowserWindow`" for settings while no
+  phase's exit criteria mentioned it, and the tray's `open-settings` action had nothing to open — so the
+  gap became a phase rather than a comment. What was missing was the editing surface, not the state:
+  every field it edits was already persisted, validated and round-tripped by Phase 2.
+  - **Gates:** `typecheck` clean, `bun test` **2501 / 0** (280,451 expects, 58 files), `build` exit 0
+    across its six steps. Re-measured on the rebased tree, not carried over from the pre-rebase commit.
+    **+60 tests and +650 expects over the 2441 / 279,801 / 57 that the Linux-defect fixes left** — 59
+    cases in the new `test/settings-form.test.ts` (which is the 58th file, and which carry the 1536
+    combinations between them) plus the one `ghost-fade` arm below.
+  - **The split is the design, and it is what makes the exit bar testable.** `core/settings-form.ts` (935
+    lines) has no Electron on its path, so the entire control surface is driven by `bun test` — **1536
+    combinations** in `test/settings-form.test.ts` across four clock types, covering the gating rules,
+    the labels, and `applySettingsEdit`'s rounding and rejection. `main/settings-window.ts` (232 lines) is
+    window lifetime only: create-or-focus, the handshake, and a `push()` that is a projection of the live
+    settings record rather than a second copy of it. `isStyleSupported` is the port of `PopulateControls`'
+    divergence rule.
+  - **A finding measured after the fact, and it changes how the 1536 should be read: the WPF settings
+    window was never under test.** Across `FuzzyClock.App.Tests/`, the only cases touching it are **4** in
+    `AppSettingsTests.cs`, and all four assert `SettingsSnapshot`'s *record shape*
+    (`AllTenNewFieldsAreInitSettable`, `NewFieldsHaveZeroValueDefaults`, `ModifierFieldsAreInitSettable`,
+    `SoftwareRenderingEnabled_IsInitSettable`). There is no `SettingsWindowTests.cs`, nothing exercises
+    `PopulateControls`' gating rule, and no case checks a label or an applied edit. So Phase 6.5 pays
+    **none** of the 75 App cases the plan lists as "to be replaced" — the 1536 are net-new coverage of a
+    surface the original shipped untested. Two consequences worth stating: a divergence from the C# here
+    would not have shown as a red test on either side, and `isStyleSupported` had to be read out of
+    `PopulateControls` by hand rather than pinned against an existing case.
+  - **Three findings from the wiring, all of them things the next person would otherwise pay for again.**
+    (1) The channel is `settings-ready`, not the overlay's `ready` — `ipcMain.on` is per-channel and NOT
+    per-window, so reusing the name would have given one handler two senders. (2) `preload-settings.cjs`
+    must be CJS *and its absence is silent at every layer*: `loadFile` succeeds, the CSS applies, and
+    `settings.js` dies on the first control because `window.fuzzyclock` was never injected — it is now in
+    `copy-assets.ts`'s `REQUIRED_BUNDLES`, so the build fails instead of the user. (3) The CSP carries no
+    `unsafe-inline`, so every colour is an SVG presentation attribute; **zero inline `style` attributes is
+    a graded arm (R10)**, not an accident.
+  - **`settingsOpen` stops being a literal `false` in the renderer's fade pump, and it has TWO readers.**
+    The middle guard of the fade chain, and the one write that must get through while that chain is
+    suppressing the pump — `SetOpacity`'s unfaded branch (`MainWindow.xaml.cs:1775-1778`), so a user
+    dragging the opacity slider sees the opacity they are choosing rather than that value dimmed by a halo
+    the cursor happens to be inside. Pinned by a new `test/ghost-fade.test.ts` arm that only works mid-fade,
+    because at either end of the fade the two branches agree and the arm would measure nothing.
+  - **`probe:settings-window` is 37/37 on win32 against real Electron under the shipped CSP** — expectations
+    DERIVED from the same form the window receives (census printed per run: 3 tabs, 24 rows, 40 controls, 29
+    with a `#ctl-` id, 2 rows invisible in `DEFAULTS`), so adding a setting cannot leave the probe asserting
+    yesterday's shape. The host half `require`s `src/main/settings-window.ts` bundled by the driver's own
+    `bun build --format cjs --external electron`, because the subject IS that module and a reimplementation
+    would grade a copy.
+  - **It did not go green on its first run — 30/36** (claim 18). One probe bug: the host read
+    `win.webContents` after the close and threw `Object has been destroyed`, taking the four arms after it
+    down; fixed by capturing `webContents.id` before. One **real finding**: H5 was written expecting
+    always-on-top OFF and read `true`. Nothing requests it — the constructor never passes it and
+    `setAlwaysOnTop` is never called — so the owner relationship propagated `WS_EX_TOPMOST`, which is the
+    whole reason the port takes `parent` at all. That upgraded the header's documentation-argued claim to a
+    measured one, split out as **H5b**: `!IS_MAC`, because darwin omits `parent` and the expectation flips.
+    On Linux H5b is an **ungraded prediction** — transient-for z-order is the WM's, not Chromium's, and a
+    red there is a finding about the port, not a broken probe.
+  - **Mutation control: `probe:settings-window:control` drives 35 of 37 arms red** with
+    `preload-settings.cjs` removed from a copied `dist/`, leaving only W1/W2 green — the correct
+    discrimination, since in that scenario the window really is created and only the renderer is broken. The
+    two failures that are silent by construction are the ones this control exercises: R1 grades an EMPTY
+    renderer-console list at warning level and up (where a CSP refusal lands), and R0 grades `#panels`'
+    child count as **0** at the instant of the handshake, which is the claim that the form arrives in reply
+    to `settings-ready` rather than earlier.
+  - **All three exit-bar clauses map to arms.** Editable → R5 (every slider/select/checkbox in the model has
+    its element, in order), R12 (a checkbox `change` reaches main as an edit for its own field), R13 (a
+    slider `input` reaches main). Applies live → R15-R18, on element IDENTITY: a `dataset` tag written from
+    the probe survives the second push, which it could not survive a rebuild, and the same push collapses a
+    row that went invisible and leaves the open tab selected. Closable without taking the overlay down →
+    C1-C3, with `window-all-closed` **recorded and not obeyed** so the arm can read that it did not fire.
+  - **Debt discharged, not deferred:** Phase 6's ISC-27 tail (`stats-rows.ts` per-row visibility and its
+    auto-collapse rule) is now wired through `applySettingsEdit` and is among the 1536 combinations; and
+    `update-check.ts`'s `cancelInFlight()` has a second caller, the update-checks checkbox (PERS-10). The
+    re-clamp a re-shown row needs turned out to need **no new code** — `onResize` already covers it. Worth
+    keeping as a finding rather than a deletion: the debt was written from reading the C#, where a re-shown
+    row and a re-clamp are two steps, and the port's renderer-measures-its-own-content design had already
+    collapsed them into one.
+  - **Bounded: win32 only, and each bound has an observable failure rather than a shrug.** On macOS
+    `app.focus({ steal: true })` (`settings-window.ts:230`) is UNVERIFIED: `app.dock.hide()` makes this an
+    **accessory app**, and an accessory app does not become the active application when one of its windows
+    is shown — so without that call the window can appear in front while keystrokes keep going to whatever
+    was active before it. Reasoned from the activation policy, never watched. Its H5b/H7 twins are the
+    *expected* darwin divergence (no `parent`, so nothing to inherit) rather than a risk. On Linux H5b is
+    ungraded and the equivalent of the owner relationship is `WM_TRANSIENT_FOR`, which the window manager
+    adjudicates. Both are one command on a host — plan tasks § macOS specifics and **L8**. The probe
+    launches Electron with `--user-data-dir` on a fresh temp dir and never opens Alex's live WPF settings
+    file.
+  - Count: ISC-32 `[ ]`→`[x]` takes the passed set 35→36; the 51 total is unchanged, so `progress: 36/51`.
 
 - **Plan tasks L1-L5 run on a second Linux host (Rome — Ubuntu 24.04.4 x86_64 / GNOME / X11),
   2026-08-30. ISC-30.2 `[~]`→`[x]`; ISC-29.7's window-association half and ISC-10/15/16's Linux
