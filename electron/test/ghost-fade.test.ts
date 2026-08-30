@@ -205,6 +205,33 @@ describe("step 3 and step 5: the lerp and the product", () => {
     expect(pump.currentRatio).toBe(first.ratio)
   })
 
+  test("windowOpacity is the unfaded setting, and it diverges from visibleOpacity mid-fade", () => {
+    const pump = new FadePump()
+    pump.setWindowOpacity(0.8)
+    // Unfaded and faded agree at rest, which is why this arm cannot be written at rest alone.
+    expect(pump.windowOpacity).toBe(0.8)
+    expect(pump.visibleOpacity()).toBe(0.8)
+
+    pump.setTarget(0.5)
+    const first = pump.frame(1_000)
+    expect(first.ratio).toBeGreaterThan(0)
+    // `SetOpacity`'s branch (`MainWindow.xaml.cs:1775-1778`): the settings window open means the user is
+    // dragging the opacity slider, and what they must see is the value they are choosing rather than that
+    // value dimmed by a halo the cursor happens to be inside. So this is the number the renderer writes on a
+    // settings push while `settingsOpen`, and it is NOT the one the pump would have written.
+    expect(pump.windowOpacity).toBe(0.8)
+    expect(pump.visibleOpacity()).toBeLessThan(0.8)
+    // Narrowed through a throw for the reason the arm above gives: `number | null` compared against a number
+    // is a question with an answer, and a frame that skipped would answer it green.
+    const written = first.opacity
+    if (written === null) throw new Error(`the first frame wrote nothing (skipped: ${String(first.skipped)})`)
+    expect(pump.visibleOpacity()).toBe(written)
+
+    // A read, not a frame: neither ratio moved.
+    expect(pump.currentRatio).toBe(first.ratio)
+    expect(pump.targetRatio).toBe(0.5)
+  })
+
   test("setWindowOpacity moves the product without touching the journey", () => {
     const pump = new FadePump()
     pump.setTarget(0.5)

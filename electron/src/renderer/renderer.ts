@@ -111,6 +111,8 @@ interface StatsSample {
 interface GhostState {
   readonly ratio?: number
   readonly menuOpen?: boolean
+  /** The settings window's own pin — `OnRenderingTick`'s middle guard. Both edges, never per frame. */
+  readonly settingsOpen?: boolean
   readonly reset?: boolean
 }
 
@@ -293,6 +295,15 @@ function init(): void {
   const fade = new FadePump()
   /** RMB-04's `_menuOpen`, pushed from main on the ghost channel. A pin, not a target. */
   let menuOpen = false
+  /**
+   * `_settingsWindow?.IsVisible == true`, pushed from main on the same channel. The other pin.
+   *
+   * Two readers, and the second one is easy to miss: it guards the fade like `menuOpen` does, and it also
+   * changes what a settings push WRITES — `SetOpacity` writes the opacity unfaded while this window is open
+   * (`MainWindow.xaml.cs:1775-1778`), because a user dragging the opacity slider is asking to see the
+   * opacity, not the opacity times a proximity fade.
+   */
+  let settingsOpen = false
   /**
    * Whether main last said to paint the hover backdrop.
    *
@@ -500,12 +511,12 @@ function init(): void {
    * this at frame rate, which is what WPF does too — its `Rendering` handler is not detached by `_menuOpen`
    * — and it is why the tray's pin carries a 30-second watchdog.
    *
-   * `settingsOpen` is a literal `false`: there is no settings window yet (ISC-32). Passed rather than
-   * omitted so the guard is a wired input with one known caller to change, instead of a hole to rediscover.
+   * All three guards are live inputs now — `settingsOpen` was the literal `false` that ISC-32 was left to
+   * replace, and Phase 6.5 replaced it.
    */
   const pumpFade = (nowMs: number): void => {
     fadeFrame = null
-    const frame = fade.frame(nowMs, { dragging: dragPointerId !== null, settingsOpen: false, menuOpen })
+    const frame = fade.frame(nowMs, { dragging: dragPointerId !== null, settingsOpen, menuOpen })
     if (frame.opacity !== null) writeOpacity(frame.opacity)
     if (frame.skipped !== "converged") fadeFrame = requestAnimationFrame(pumpFade)
   }
@@ -620,8 +631,13 @@ function init(): void {
     // why main stopped calling `setOpacity`. The direct write is REQUIRED and not belt-and-braces: at
     // startup and after any settings change the pump is converged, so it returns a null opacity, and the
     // user's saved opacity would never reach the DOM at all.
+    // The unfaded branch is `SetOpacity`'s own (`MainWindow.xaml.cs:1775-1778`) and it is reachable: the
+    // settings window is centred, the widget can sit anywhere, so the cursor can be inside the fade halo
+    // while the opacity slider is being dragged. Showing a faded widget then answers a question the user did
+    // not ask. Note this is the ONE write the settings pin does not suppress — the guard chain swallows the
+    // pump's writes, and this is the write that has to get through while it does.
     fade.setWindowOpacity(next.opacity)
-    writeOpacity(fade.visibleOpacity())
+    writeOpacity(settingsOpen ? fade.windowOpacity : fade.visibleOpacity())
     writeBackdrop()
 
     dateDirty = true
@@ -690,6 +706,7 @@ function init(): void {
    */
   const applyGhost = (state: GhostState): void => {
     if (state.menuOpen !== undefined) menuOpen = state.menuOpen
+    if (state.settingsOpen !== undefined) settingsOpen = state.settingsOpen
     if (state.reset === true) {
       // Both edges that produce a reset — ghost mode disabled, and the full retreat that fires `Restored` —
       // snap rather than fade back. `SetGhostModeEnabled(false)` writes `Opacity = _windowOpacity` directly,

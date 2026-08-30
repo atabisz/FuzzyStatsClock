@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Same CSP as the overlay's `index.html`, and for the same reasons: one local bundle, no remote
+      origins, no `unsafe-inline`. This window is a plain form rather than an always-on-top overlay, so
+      the stakes are lower, but a second policy would be a second thing to keep in step and the strict
+      one already works.
+
+      `style-src 'self'` is what makes `settings.css` legal and inline `style` attributes not — which is
+      a real constraint here and not a formality, because five of this window's controls ARE colours.
+      The accent swatches are therefore `<svg><rect fill="…">`, using SVG presentation attributes exactly
+      as the overlay's dial does, and the "Custom…" control is an `<input type="color">` whose swatch the
+      browser paints from its own value. Neither needs a style attribute, so neither needs the policy
+      loosened.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+    />
+    <title>FuzzyClock Settings</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <!--
+      ## This file is deliberately almost empty
+
+      `SettingsWindow.xaml` is 521 lines because XAML is where WPF authors controls; here the controls are
+      authored in `core/settings-form.ts` as data and built by `settings.ts`. Duplicating the tab strip or
+      any single control into this file would create a second copy of the form's shape — the exact thing
+      the form model exists to prevent, and the thing that let the original grow two different rules for
+      whether the phrase-style combo is enabled.
+
+      So the only markup here is the frame: a tab strip, a panel host, and the one control the form model
+      does not own.
+
+      ## Why the footer button is here and nothing else is
+
+      Closing the window is not a setting. It writes nothing, it appears in no tab, and it is the one piece
+      of this UI whose behaviour is the window's rather than the form's — so it is authored here, where the
+      window is, and `settings.ts` wires it to `close()` on the bridge. `SettingsWindow.xaml` has the same
+      button for the same reason (`BtnClose`, outside the `TabControl`).
+
+      There is no Reset button, and that is faithful rather than an omission: `ResetToDefaults` is reached
+      only from the tray menu in the C#, and it stays that way here. `main.ts`'s `onResetToDefaults` pushes
+      the new settings down this window's `form` channel like any other change, so a reset performed from
+      the tray while this window is open re-populates it.
+    -->
+    <div id="tabstrip" class="tabstrip" role="tablist"></div>
+    <div id="panels" class="panels"></div>
+    <footer class="footer">
+      <button id="close" type="button" class="button">Close</button>
+    </footer>
+    <script src="settings.js"></script>
+  </body>
+</html>

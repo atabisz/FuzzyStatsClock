@@ -22,6 +22,22 @@ const DIST = join(ROOT, "dist")
 const ASSETS = ["index.html", "index.css"]
 
 /**
+ * The settings window's pair, from `src/renderer/settings/` — FLATTENED into `dist/` rather than mirrored
+ * into `dist/settings/`.
+ *
+ * Flat because `main/settings-window.ts` resolves `join(dir, "settings.html")` against `HERE`, the same way
+ * the overlay resolves `index.html`, and because both files' own internal references are bare names
+ * (`href="settings.css"`, `src="settings.js"`). A mirrored subdirectory would work for the CSS and the
+ * script — they are relative to the document — but the preload is resolved by main against `HERE`, so the
+ * layout would then be split across two conventions for one window.
+ *
+ * The source directory is separate all the same: `settings.ts` and `renderer.ts` are two different bundles
+ * with two different globals, and keeping them in one folder is how the wrong `window.fuzzyclock` gets
+ * imported.
+ */
+const SETTINGS_ASSETS = ["settings.html", "settings.css"]
+
+/**
  * Copied from `assets/` — the tray icon, resolved by `main.ts` as `join(HERE, "icon.png")`.
  *
  * Verified for existence like everything else here, and for the same reason: `nativeImage.createFromPath`
@@ -31,8 +47,15 @@ const ASSETS = ["index.html", "index.css"]
  */
 const ROOT_ASSETS = ["icon.png"]
 
-/** Written by the `build:*` bundle steps that must have run before this one. */
-const REQUIRED_BUNDLES = ["main.js", "preload.cjs", "renderer.js"]
+/**
+ * Written by the `build:*` bundle steps that must have run before this one.
+ *
+ * `preload-settings.cjs` is the one whose absence is hardest to read at runtime, which is why it is checked
+ * here: a missing preload does not fail the `loadFile`, so the window opens, the CSS applies, `settings.js`
+ * runs, and then `required()` throws on the first control because `window.fuzzyclock` was never injected —
+ * a form-shaped error for a build-shaped cause.
+ */
+const REQUIRED_BUNDLES = ["main.js", "preload.cjs", "renderer.js", "preload-settings.cjs", "settings.js"]
 
 mkdirSync(DIST, { recursive: true })
 
@@ -40,6 +63,15 @@ for (const name of ASSETS) {
   const from = join(ROOT, "src", "renderer", name)
   if (!existsSync(from)) {
     console.error(`copy-assets: ${name} missing from src/renderer/`)
+    process.exit(1)
+  }
+  copyFileSync(from, join(DIST, name))
+}
+
+for (const name of SETTINGS_ASSETS) {
+  const from = join(ROOT, "src", "renderer", "settings", name)
+  if (!existsSync(from)) {
+    console.error(`copy-assets: ${name} missing from src/renderer/settings/`)
     process.exit(1)
   }
   copyFileSync(from, join(DIST, name))
@@ -63,4 +95,6 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
-console.log(`copy-assets: ${[...ASSETS, ...ROOT_ASSETS].join(", ")} → dist/, bundles present`)
+console.log(
+  `copy-assets: ${[...ASSETS, ...SETTINGS_ASSETS, ...ROOT_ASSETS].join(", ")} → dist/, bundles present`,
+)

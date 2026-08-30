@@ -81,10 +81,16 @@ contextBridge.exposeInMainWorld("fuzzyclock", {
   /**
    * The ghost sampler's proximity ratio, and the pins that suppress acting on it.
    *
-   * One channel for both because they are consumed by the same frame: `ratio` is
-   * where the fade is heading and `menuOpen` is whether it may be painted, and the
-   * C#'s pump reads them in that order within one tick. Sending them separately
-   * would let a pin arrive between the target and the frame that uses it.
+   * One channel for all of them because they are consumed by the same frame:
+   * `ratio` is where the fade is heading and the two pins are whether it may be
+   * painted, and the C#'s pump reads them in that order within one tick. Sending
+   * them separately would let a pin arrive between the target and the frame that
+   * uses it.
+   *
+   * `settingsOpen` is the second pin — `OnRenderingTick`'s guard chain has three
+   * members, and it is the middle one (`MainWindow.xaml.cs:407`). It arrives on
+   * both edges of the settings window's lifetime rather than per frame, which is
+   * why it is a boolean here and not a reading.
    *
    * Main sends this only when something changed — the sampler runs at 30 Hz and is
    * silent at steady state (D-08), so this channel is quiet whenever the cursor is
@@ -92,9 +98,20 @@ contextBridge.exposeInMainWorld("fuzzyclock", {
    * which is the whole point of PERF-01: a busy main process delays the target,
    * never the animation.
    */
-  onGhost(callback: (state: { ratio?: number; menuOpen?: boolean; reset?: boolean }) => void): void {
-    ipcRenderer.on("ghost", (_event, state: { ratio?: number; menuOpen?: boolean; reset?: boolean }) =>
-      callback(state),
+  onGhost(
+    callback: (state: {
+      ratio?: number
+      menuOpen?: boolean
+      settingsOpen?: boolean
+      reset?: boolean
+    }) => void,
+  ): void {
+    ipcRenderer.on(
+      "ghost",
+      (
+        _event,
+        state: { ratio?: number; menuOpen?: boolean; settingsOpen?: boolean; reset?: boolean },
+      ) => callback(state),
     )
   },
   /** Listeners are registered: main may now push the current settings. See the header. */

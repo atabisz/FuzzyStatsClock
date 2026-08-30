@@ -12,10 +12,13 @@
  *
  * What is NOT here yet, and where it lands:
  *   - Auto-contrast (Phase 8).
- *   - **The settings window, which no phase in the plan owns.** Found while wiring the tray: the plan's
- *     component table lists it ("second `BrowserWindow`") but no phase's exit criteria mention it. The
- *     `open-settings` action therefore logs and does nothing, and the plan has been corrected rather
- *     than this file quietly carrying the gap.
+ *
+ * The settings window is here now, and the way it got here is worth keeping: it was found while wiring the
+ * tray, because the plan's component table listed it ("second `BrowserWindow`") while no phase's exit
+ * criteria mentioned it. That gap became Phase 6.5 rather than a comment in this file. Its window lifetime
+ * lives in `main/settings-window.ts`; the form itself is `core/settings-form.ts`, which has no Electron on
+ * its path, so the whole 1536-combination control surface is driven by `bun test` and this file only hosts
+ * it.
  *
  * Hover is here now — it was the other thing no phase owned, found the same way as the wheel gesture
  * below, by reading the C#'s `Window_MouseEnter`/`MouseLeave`. Both halves are wired: the backdrop travels
@@ -66,6 +69,8 @@ import { WindowPlacer, displayGeometries } from "./window-placement.js"
 import type { CommitReason } from "./window-placement.js"
 import { AppTray } from "./tray.js"
 import { GhostDriver } from "./ghost.js"
+import { SettingsWindowHost } from "./settings-window.js"
+import { applySettingsEdit, buildSettingsForm, isEditableField } from "../core/settings-form.js"
 import { DEFAULTS } from "../core/settings.js"
 import type { AppSettings, ClockType } from "../core/settings.js"
 import { displayKey, primaryDisplay } from "../core/display-key.js"
@@ -162,6 +167,7 @@ let mainWindow: BrowserWindow | null = null
 let ghost: GhostDriver | null = null
 let autoLaunch: AutoLaunch | null = null
 let updateChecker: UpdateChecker | null = null
+let settingsWindow: SettingsWindowHost | null = null
 
 /**
  * The notice text, held until the renderer is listening.
@@ -327,6 +333,12 @@ function applySettings(next: AppSettings, why: string): void {
   // After `applyWindowSettings`, because a cadence change can respawn children on Windows and there is no
   // reason to make the window's own redraw wait behind that.
   applyStatsInterval(why)
+  // `RefreshControls(GetCurrentSettingsSnapshot())` — here rather than at the settings window's own edit
+  // handler, because the tray changes settings too (clock type, ghost mode, stats, auto-contrast,
+  // auto-launch, reset) and the C# refreshes the open window from all of those paths. Routing it through the
+  // single mutation route is what makes "the window can go stale" unrepresentable rather than remembered.
+  // A no-op when no window is open.
+  settingsWindow?.push()
   log("info", `settings: ${why}${saved ? "" : " (NOT SAVED)"}`)
 }
 
@@ -370,7 +382,12 @@ function pushSettings(): void {
  * pin fires twice per menu. The renderer runs the interpolation itself, so this is a low-rate control
  * channel rather than an animation one, which is the whole of PERF-01's architecture.
  */
-function sendGhost(state: { ratio?: number; menuOpen?: boolean; reset?: boolean }): void {
+function sendGhost(state: {
+  ratio?: number
+  menuOpen?: boolean
+  settingsOpen?: boolean
+  reset?: boolean
+}): void {
   if (!rendererReady || mainWindow === null || mainWindow.isDestroyed()) return
   mainWindow.webContents.send("ghost", state)
 }
@@ -688,6 +705,61 @@ function onResetToDefaults(): void {
   commitPlacement("reset")
 }
 
+// ---------------------------------------------------------------------------------------------------
+// The settings window
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * One control changed in the settings window.
+ *
+ * This function is `OpenSettings`' 47 `+=` handlers collapsed into one, and the collapse is only sound
+ * because two things were separated first: `core/settings-form.ts` owns which fields exist and what values
+ * they accept, and {@link applySettings} owns everything that happens after a field changes. What is left
+ * here is the residue — the three edits whose consequence reaches outside this process, which the C# also
+ * writes out longhand for the same reason.
+ *
+ * `applySettingsEdit` returning null is the boundary check. It is not defensive: the payload arrives from a
+ * renderer, and every value on the wire is `unknown` because the DOM hands back strings — so a `"0.85"` that
+ * must become `0.85`, an off-ladder radio, and a field that does not exist all arrive by the same route as a
+ * legitimate change. Rejection re-pushes rather than staying silent, so the control snaps back to the truth.
+ */
+function onSettingsEdit(id: string, value: unknown): void {
+  const result = applySettingsEdit(settings, { id, value })
+  if (result === null) {
+    // The two failures are worth telling apart: an unknown field means the renderer and `EDITABLE_FIELDS`
+    // have diverged (a build problem), a rejected value means the payload was malformed (a wire problem).
+    const why = isEditableField(id) ? "bad value for" : "unknown field"
+    log("warn", `settings window: rejected — ${why} ${id} (${JSON.stringify(value) ?? "undefined"})`)
+    settingsWindow?.push()
+    return
+  }
+
+  applySettings(result.settings, `${id} (settings window)`)
+
+  // Unticking the last visible metric row collapses the whole panel — `SetStatRowVisible`'s own behaviour,
+  // and a surprise worth a line in the log because the master checkbox appears to change on its own. The
+  // window already shows the truth: `applySettings` pushed the rebuilt form above.
+  if (result.collapsed) log("info", "settings: last stats row hidden — panel collapsed")
+
+  // NOT a `commitPlacement()` call, and the C# is explicit about why: `SetStatsVisible:1392-1404` calls
+  // `UpdateLayout()` *before* clamping, because "ActualHeight is stale until layout runs". The port's layout
+  // runs in the renderer, so the fresh height arrives on the `resize` channel — and `onResize` already
+  // re-clamps with exactly this reason. Clamping here would clamp against the pre-growth size, which is the
+  // stale-height defect that C# comment exists to prevent.
+  if (result.reclamp) log("info", "settings: panel grew — re-clamp arrives with the renderer's resize")
+
+  // The two edits with a consequence outside this process. Both mirror their tray counterparts: the setting
+  // is persisted FIRST and the OS is told second, so a failed registry write leaves a tick that disagrees
+  // with the OS rather than an OS that disagrees with nothing visible.
+  if (id === "autoLaunchEnabled") syncAutoLaunch(result.settings.autoLaunchEnabled)
+  // PERS-10, and `cancelInFlight`'s second caller — `before-quit`'s comment named this exact path as
+  // unreachable-rather-than-missing. A check dispatched at startup can still be in flight when the user
+  // unticks the box, and the notice it would deliver is one the user has just said they do not want.
+  if (id === "updateChecksEnabled" && !result.settings.updateChecksEnabled) {
+    updateChecker?.cancelInFlight()
+  }
+}
+
 function handleTrayAction(action: TrayAction): void {
   const clockType = CLOCK_TYPE_ACTIONS[action]
   if (clockType !== undefined) {
@@ -696,9 +768,7 @@ function handleTrayAction(action: TrayAction): void {
   }
   switch (action) {
     case "open-settings":
-      // No settings window exists. See the header: the plan lists the component but assigns it to no
-      // phase. Logged rather than silently ignored, so a click produces evidence.
-      log("warn", "tray: Open Settings — no settings window yet; the plan does not assign one to a phase")
+      settingsWindow?.open()
       return
     case "toggle-ghost-mode":
       applySettings(
@@ -802,6 +872,21 @@ app.whenReady().then(() => {
     if (typeof payload !== "boolean") return
     onHover(payload)
   })
+  // The settings window's three channels. `settings-ready` and not `ready`: `ipcMain.on` is per-channel and
+  // not per-window, so a second window reusing the overlay's handshake name would land in the handler above
+  // and set `rendererReady` about a renderer it is not. `preload-settings.ts` carries the same note.
+  ipcMain.on("settings-ready", (event) => {
+    settingsWindow?.markReady(event.sender)
+  })
+  ipcMain.on("settings-edit", (_event, payload: unknown) => {
+    if (typeof payload !== "object" || payload === null) return
+    const { id, value } = payload as { id?: unknown; value?: unknown }
+    if (typeof id !== "string") return
+    onSettingsEdit(id, value)
+  })
+  ipcMain.on("settings-close", () => {
+    settingsWindow?.close()
+  })
 
   // Settings BEFORE the window: `restore()` runs before `show()`, so the saved position has to be in
   // hand by then, and the displays the import matches positions against are needed here too.
@@ -854,6 +939,27 @@ app.whenReady().then(() => {
   if (loaded.origin === "wpf-import" || restored.clamped || restored.source !== "key") {
     commitPlacement("display-change")
   }
+
+  // Before the tray, because `handleTrayAction`'s `open-settings` reaches for it — the tray builds its menu
+  // at construction and Linux cannot rebuild on open, so an action firing against a null host would be a
+  // dead menu item rather than a deferred one.
+  settingsWindow = new SettingsWindowHost({
+    dir: HERE,
+    log,
+    // `GetCurrentSettingsSnapshot()`. Rebuilt per push rather than held, so there is one copy of the current
+    // state — `settings` — and the form is always a projection of it.
+    //
+    // `app.getLocale()` is the port's `CultureInfo.CurrentUICulture.TwoLetterISOLanguageName`, sliced the
+    // same way `renderer.ts`'s `uiLanguage()` slices `navigator.language`. Two different accessors for one
+    // fact, and they agree because both resolve to Chromium's application locale — but read INSIDE this
+    // closure rather than captured at construction, because `getLocale()` is documented as needing a ready
+    // app and this host is built before the first push either way.
+    buildForm: () => buildSettingsForm(settings, app.getLocale().slice(0, 2).toLowerCase()),
+    // `OnRenderingTick`'s middle guard. Relayed exactly as the tray's menu pin is, and to the same place:
+    // the renderer owns the fade, so main only reports that the window exists.
+    onVisibilityChange: (open) => sendGhost({ settingsOpen: open }),
+    parent: () => mainWindow,
+  })
 
   tray = new AppTray({
     iconPath: join(HERE, "icon.png"),
@@ -999,9 +1105,15 @@ app.on("before-quit", () => {
   // Without this the `typeperf` children outlive the app: they are spawned by this process but nothing
   // reparents or reaps them on exit.
   source?.stop()
-  // `_updateCts.Cancel()` in the C#'s shutdown tier. The one live caller of `cancelInFlight` today: the
-  // other one is the settings window's update-checks checkbox (PERS-10), which no phase has built yet, so
-  // that path is unreachable rather than missing — the tray has no toggle for `updateChecksEnabled`.
+  // `_updateCts.Cancel()` in the C#'s shutdown tier. No longer the ONLY live caller of `cancelInFlight`:
+  // Phase 6.5 built the second one this comment used to describe as unreachable — the settings window's
+  // update-checks checkbox (PERS-10), in `onSettingsEdit`.
   updateChecker?.cancelInFlight()
   tray?.destroy()
+  // `destroy()` and not `close()`, because this handler runs PAST the point a close can be refused: a
+  // `close()` here would fire `close`/`closed` on a window during a quit that is already committed, and on
+  // macOS an accessory app that leaves a second window alive at this point keeps the process up. Its own
+  // `closed` handler is what would have pushed `settingsOpen: false`, and skipping that is deliberate —
+  // there is no renderer left to receive it.
+  settingsWindow?.destroy()
 })

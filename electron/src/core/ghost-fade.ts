@@ -103,7 +103,13 @@ export const RATIO_EPSILON = 1 / 2048
 export interface FadeGuards {
   /** `_isDragging`. The widget must not fade out from under a drag. */
   readonly dragging: boolean
-  /** `_settingsWindow?.IsVisible == true`. Always false until Phase 6.5 exists to set it. */
+  /**
+   * `_settingsWindow?.IsVisible == true` (`MainWindow.xaml.cs:407`). Live since Phase 6.5.
+   *
+   * Pushed from main on the ghost channel on both edges of the settings window's lifetime, so it is a pin
+   * held across a whole window rather than a per-frame reading — the same shape as `menuOpen`, and for the
+   * same reason: the renderer cannot see either thing.
+   */
   readonly settingsOpen: boolean
   /** RMB-04's `_menuOpen`. The widget must not fade out from under its own context menu. */
   readonly menuOpen: boolean
@@ -154,6 +160,19 @@ export class FadePump {
 
   get targetRatio(): number {
     return this.#targetRatio
+  }
+
+  /**
+   * `_windowOpacity` itself -- the user's setting with no fade applied.
+   *
+   * Exposed for exactly one caller and it is not a convenience: `SetOpacity` writes the opacity **unfaded**
+   * while the settings window is visible (`MainWindow.xaml.cs:1775-1778`, whose comment is "settings window
+   * open means user is actively adjusting opacity"), so the settings push has two answers to write depending
+   * on that pin. A getter rather than a second method, because there is no formula here -- {@link
+   * visibleOpacity} stays the only place `windowOpacity * (1 - ratio)` is written.
+   */
+  get windowOpacity(): number {
+    return this.#windowOpacity
   }
 
   /**
