@@ -7,7 +7,7 @@ phase: build
 progress: 37/52
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T21:55:00+10:00
+updated: 2026-08-30T22:02:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -2538,6 +2538,22 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **A shipped comment pointed at arms that do not exist, and fixing it cost no re-run — 2026-08-30.** No
+  claim moved: `settings-window.ts:165` said the deleted `app.focus({ steal: true })` was kept honest by
+  "F5-F9 … F7 is the control", which were the IDs of the *draft* probe. The committed `probe-mac-focus`
+  is F0-F6 with **F2 and F3** as the paired arms (each grades "took key focus" *and* "`app.focus` called
+  zero times") and **F4** as the control. Line corrected, and it now says what the old IDs were so the
+  next reader is not hunting a phantom.
+  - **Rule 17 was discharged by construction rather than by re-running the probes.** The edit is inside
+    `src/`, which normally voids every arm measured on that build — but `bun build` strips comments, so
+    all five bundles are sha256-identical across the two source states (`dist/main.js`
+    `300149d8…`, plus `preload.cjs` / `renderer.js` / `settings.js` / `preload-settings.cjs`). The build
+    the darwin probes ran against **is** this build; there is no new artefact for an arm to disagree with.
+  - **That identical hash had a second explanation, and it is dead.** "The bundles match" is also what a
+    build that silently did not re-emit would print. Mutation control: one real string changed in the same
+    file (`"settings window: closed"` → `"…CLOSED-MUTANT"`) moves `dist/main.js` to `0b49fe94…`, then
+    reverts. So the emitter is reading source, and the comment-only equality is a measurement.
+  - Unchanged figures, not re-earned ones: `typecheck` exit 0, `bun test` **2501 / 0** at 280,451 expects.
 - **The mac package had never been a process, only a file — ISC-29.8 closes that, 2026-08-30.** New claim,
   new permanent instrument, no `src/` edit: `bun run probe:mac-package` **9 / 9** on macOS 26.6.2 arm64.
   Progress 36/51 → **37/52**.

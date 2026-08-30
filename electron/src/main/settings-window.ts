@@ -162,8 +162,12 @@ export class SettingsWindowHost {
     // was also not a working fallback for the case it was written for — with `show()` cut back to ordering-only,
     // it activated the app but handed key focus to the OVERLAY, which has nothing to type into.
     //
-    // The arms that keep this honest are F5-F9 there; F7 is the control that proves they can see a window
-    // which appears and never takes focus. If those go red, this is the comment to come back to.
+    // The arms that keep this honest are F2 and F3 there — each pairs "the window took key focus" with
+    // "`app.focus` was called zero times", so the deleted line cannot come back unmeasured. F4 is the control
+    // that proves they can see a window which appears and never takes focus. If those go red, this is the
+    // comment to come back to. (These IDs were F5-F9 in the run that produced the finding; the probe was
+    // reshaped to F0-F6 before it was committed and this line was not, which is the sort of stale pointer
+    // that sends the next reader looking for an arm that does not exist.)
     win.once("ready-to-show", () => {
       win.show()
     })
