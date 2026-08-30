@@ -7,7 +7,7 @@ phase: build
 progress: 34/51
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T18:11:08+10:00
+updated: 2026-08-30T18:33:56+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -2186,7 +2186,10 @@ measured on this branch at or after that base.
   reading back as the `.AppImage`'s own path — the premise under the fix that replaced the
   `process.execPath` defect (ISC-30.2), which the startup log now prints so the next run costs nothing**,
   `xprop WM_CLASS` for the `desktopName` change (ISC-29.7), and anything Wayland-native (XWayland-via-the-switch was not
-  exercised — this was an X11 session). One M1 on one macOS version and one Ubuntu box on x86_64 is
+  exercised — this was an X11 session). **All seven are now written up as tasks L1-L7 in
+  `.planning/research/ELECTRON-PORT-PLAN.md` § "Linux — the open task list"** — ordered by cost, three
+  needing no new code, each with a pass condition, the ISC it closes, and the false green to avoid. That
+  file is a derived view: this list is the source, so a task that disagrees with a box here is stale. One M1 on one macOS version and one Ubuntu box on x86_64 is
   what "three platforms" rests on today; neither is a matrix.
 - **Three macOS arms are blocked on a TCC grant, not on effort.** M4(b) the Cmd-Tab switcher, M5
   layering over a fullscreen window, M6 click-through into another application. All three need a screen
@@ -2333,6 +2336,28 @@ measured on this branch at or after that base.
   would assert the correspondence without having measured it, which is worse than leaving it open.
 
 ## Changelog
+
+- **The Linux `[DEFERRED-VERIFY]` set written up as a handoff task list, 2026-08-30. No new claims, no
+  code, and no box moved — this is a routing change, not evidence.** The seven open Linux items were
+  spread across a status table, a "does NOT close" paragraph, a manual list and this ISA's own outstanding
+  section; another agent picking up a host would have had to reconstruct them. They are now tasks L1-L7 in
+  `.planning/research/ELECTRON-PORT-PLAN.md`, ordered by cost, three of them needing no new code.
+  - **Each task carries its pass condition, its ISC, and the false green to avoid** — because the two
+    cheapest are exactly the ones an agent can appear to satisfy without measuring anything. L1's is
+    `echo $APPIMAGE` from a shell, which proves the launcher sets the variable and not that our process
+    sees it; L5's is `Xvfb`, where a headless X server with no compositor cannot fail the transparency arm
+    the way a real desktop can, so a green there is worth less than no run at all.
+  - **The precedence is stated in both directions rather than assumed.** The plan's section says the ISA
+    wins; this ISA's outstanding list now says the plan is a derived view and a task disagreeing with a
+    box here is stale. Without both halves the handoff has two sources of truth and no rule.
+  - **Three host rules are written into the task list rather than left to judgment**, each with the harm
+    behind it: `--user-data-dir` at a `mktemp -d` on every launch (the Linux `userData` path has never
+    been measured here, which is a reason to avoid it rather than to go looking); a `sha256sum` census of
+    `~/.config/autostart/` with restore; and claim 17, spelled out — these tasks read a *build*, so a fix
+    prompted by a finding voids the arms already earned on it, Windows included where the file is shared.
+  - Also folded in: **L2 before L6.** Doing the logout from an AppImage at `~/My Apps/` makes one physical
+    action close both the login claim and the `desktopExec()` quoting fix, which is strictly stronger than
+    running L6 from a path with no space in it.
 
 - **Both Linux defects fixed, 2026-08-30 (same day they were found). One new claim, ISC-30.2 `[~]`,
   and the sequence is worth keeping because every step was a correction of the step before it.** The
