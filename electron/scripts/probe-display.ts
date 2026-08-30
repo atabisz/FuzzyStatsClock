@@ -69,7 +69,7 @@
  */
 
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { tmpdir, uptime as osUptime } from "node:os"
 import { join } from "node:path"
 import {
   DIAL_CENTER_X,
@@ -99,7 +99,8 @@ import { NIXIE_COLON_GRADIENT_ID, NIXIE_GLYPH_IDS } from "../src/renderer/faces/
 import { PHRASE_LINE_CLASS } from "../src/renderer/faces/phrase-face.js"
 import { SETTINGS_FILENAME } from "../src/main/settings-store.js"
 import { THEME_TARGETS, paintPropertyFor } from "../src/renderer/theme.js"
-import { fontStackFor } from "../src/core/text-metrics.js"
+import { deriveFontSizes, fontStackFor } from "../src/core/text-metrics.js"
+import { formatUptime } from "../src/core/uptime.js"
 import { spawnElectron } from "./lib/electron-launch.js"
 
 const HERE = import.meta.dirname
@@ -220,6 +221,19 @@ interface Sample {
   glow: string
   lcdDots: string
   root: string
+  /**
+   * `#uptime`'s text, per sample rather than once in `statics`, and the reason is a race.
+   *
+   * The statics block is read 1.2s after `PROBE-READY`, and main's repaint timer starts within a few
+   * milliseconds of the same event with its first tick a full second later. So a statics-time read of the
+   * uptime line lands within ~200ms of the first tick either side, and an arm built on it would flip
+   * between the composed line and `index.html`'s initial `up —` for no reason a reader could see. Sampled
+   * here, the last entry is three seconds further on and several ticks deep.
+   *
+   * D11b asserts {@link Launch.fed} instead, which waits for a CPU reading -- this series is its fallback
+   * if that second read cannot be taken, and the record of what the line said while still warming up.
+   */
+  uptime: string | null
 }
 
 interface AttrMap {
@@ -233,6 +247,7 @@ interface Harvest {
   inner: { width: number; height: number; dpr: number }
   paints: Record<string, string | null>
   fonts: Record<string, string | null>
+  sizes: Record<string, string | null>
   texts: Record<string, string | null>
   decorations: Record<string, string | null>
   hands: Record<string, (AttrMap & { inline: string | null }) | null>
@@ -314,6 +329,7 @@ function harvestExpression(activeId: string, themed: { id: string; prop: string 
     glow: all(".nixieGlow").map((e) => e.getAttribute("opacity")).join(","),
     lcdDots: all(".lcdDot").map((e) => e.getAttribute("fill")).join(","),
     root: String(attrOf("root", "width")) + "x" + String(attrOf("root", "height")),
+    uptime: textOf("uptime"),
   })
 
   const statics = {
@@ -328,6 +344,17 @@ function harvestExpression(activeId: string, themed: { id: string; prop: string 
       emphasis: styleOf("emphasis", "font-family"),
       date: styleOf("date", "font-family"),
       root: styleOf("root", "font-family"),
+    },
+    // Computed sizes, gathered because the family alone hid half of the date's defect: an unwritten
+    // font-size resolves to the SVG default 16px, and windowLayout reserves a row height computed from
+    // trunc(fontSize * 0.8) instead, so the glyphs and the space held for them disagreed.
+    // NOTE, and it cost a syntax error to learn: this whole block is a template literal injected into the
+    // page, so a backtick in a comment here CLOSES it. Plain prose only.
+    sizes: {
+      phrase: styleOf("phrase", "font-size"),
+      qualifier: styleOf("qualifier", "font-size"),
+      emphasis: styleOf("emphasis", "font-size"),
+      date: styleOf("date", "font-size"),
     },
     texts: {
       phrase: textOf("phrase"),
@@ -492,6 +519,76 @@ interface Launch {
   error: string | null
   /** The wall clock immediately before the harvest returned -- what `dialPlan` is compared against. */
   harvestedAt: Date
+  /**
+   * `os.uptime()` read HERE, at the same instant as `harvestedAt`, for D11b to compare the rendered line
+   * against.
+   *
+   * The probe and the app run on the same machine, so this is an independently computed value for the
+   * uptime field rather than a restatement of it -- which is what makes D11b able to catch
+   * `process.uptime()` in place of `os.uptime()`, a defect this port actually shipped and fixed. Read in
+   * `launch` rather than in the arm because the arms run after `proc.kill()` and a cleanup retry loop that
+   * can take three seconds.
+   */
+  hostUptimeSec: number
+  /**
+   * The stats panel read again once a CPU reading has actually landed, with how long that took.
+   *
+   * `null` only if the second read could not be taken at all. See {@link waitForReading} for why the
+   * harvest's own window cannot answer this.
+   */
+  fed: { uptime: string | null; cpu: string | null; waitedMs: number } | null
+}
+
+/** How long to wait for the first live CPU reading before giving up and letting D11b fail on it. */
+const FED_TIMEOUT_MS = 20_000
+const FED_POLL_MS = 400
+/**
+ * One repaint tick plus margin.
+ *
+ * `#cpuText` going live and the uptime line's averages moving are two different clocks: the row is written
+ * from the sample that just arrived, while `latest.uptimeText` is recomposed on main's own `REPAINT_MS`
+ * timer. So the first read where the row is live is up to a second before the line that includes it.
+ */
+const FED_SETTLE_MS = 1_400
+
+/**
+ * Read the panel again, after a CPU sample has provably arrived.
+ *
+ * **The harvest's window cannot answer this, measured rather than assumed.** `typeperf`'s first scalar
+ * sample lands ~3.1s after `start()` at a 1s cadence and ~4.1s at the default `statsIntervalSeconds` of
+ * 2.0 -- a ~2.1s header handshake plus one whole interval -- and the harvest's last sample is taken at
+ * about `PROBE-READY` + 4.5s. The two coincide, so the averages read out of the harvest are `0.00 0.00
+ * 0.00` on some runs and live on others.
+ *
+ * That boundary is not merely flaky, it is *undiscriminating*: `0.00  0.00  0.00` is exactly what an
+ * unfed queue reads, so an arm built on the harvest could not tell "still warming up" from "the push in
+ * `source.start` was never wired". Which is the failure mode this whole line has already had once --
+ * `core/load-average.ts` had passing tests and no importer at all.
+ *
+ * So: poll `#cpuText` until it carries a percentage rather than `N/A`, wait one more repaint tick, and
+ * hand back the line that is now known to have had data behind it.
+ */
+async function waitForReading(wsUrl: string): Promise<Launch["fed"]> {
+  // No template literal and no backtick: this string is small enough to read, and the harvest above already
+  // paid for that lesson once.
+  const READ =
+    '(() => { const t = (id) => { const e = document.getElementById(id); return e === null ? null : e.textContent }; ' +
+    'return { uptime: t("uptime"), cpu: t("cpuText") } })()'
+  const started = Date.now()
+  let last: { uptime: string | null; cpu: string | null } = { uptime: null, cpu: null }
+  while (Date.now() - started < FED_TIMEOUT_MS) {
+    const outcome = await evaluate(wsUrl, READ)
+    if (outcome.error !== undefined) return null
+    last = outcome.value as { uptime: string | null; cpu: string | null }
+    if (last.cpu !== null && last.cpu !== "N/A") {
+      await new Promise((r) => setTimeout(r, FED_SETTLE_MS))
+      const settled = await evaluate(wsUrl, READ)
+      if (settled.error === undefined) last = settled.value as { uptime: string | null; cpu: string | null }
+      return { ...last, waitedMs: Date.now() - started }
+    }
+    await new Promise((r) => setTimeout(r, FED_POLL_MS))
+  }
+  return { ...last, waitedMs: Date.now() - started }
 }
 
 async function launch(probeCase: ProbeCase, port: number): Promise<Launch> {
@@ -515,6 +612,8 @@ async function launch(probeCase: ProbeCase, port: number): Promise<Launch> {
     harvest: null,
     error: null,
     harvestedAt: new Date(),
+    hostUptimeSec: osUptime(),
+    fed: null,
   }
   proc.stdout.on("data", (c: Buffer) => {
     out.stdout += c.toString()
@@ -551,8 +650,15 @@ async function launch(probeCase: ProbeCase, port: number): Promise<Launch> {
       const themed = THEME_TARGETS.map((t) => ({ id: t.id, prop: paintPropertyFor(t.id) }))
       const outcome = await evaluate(target.webSocketDebuggerUrl as string, harvestExpression(FACE_CONTAINER_IDS[probeCase.face], themed))
       out.harvestedAt = new Date()
+      out.hostUptimeSec = osUptime()
       if (outcome.error !== undefined) out.error = outcome.error
       else out.harvest = outcome.value as Harvest
+      // After the harvest, so nothing above it changes timing: every arm but D11b reads a document 1.2s
+      // after `PROBE-READY` exactly as before.
+      out.fed = await waitForReading(target.webSocketDebuggerUrl as string)
+      // Re-read, so the number D11b compares against is the one contemporaneous with the text it asserts.
+      // The fed wait can be twenty seconds, which is a third of the minute of slack the arm allows.
+      out.hostUptimeSec = osUptime()
     }
   }
 
@@ -819,30 +925,69 @@ for (const [index, probeCase] of CASES.entries()) {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // D6 — the font stack reached the DOM, written on #phrase and INHERITED by #date.
+  // D6 — the font stack reached the DOM, written on BOTH #phrase and #date.
   // ─────────────────────────────────────────────────────────────────────────────
   {
     const style = probeCase.overrides.textStyle ?? DEFAULTS.textStyle
     const stack = fontStackFor(style)
     const written = sameFontStack(h.fonts["phrase"] ?? null, stack)
-    // `#date` takes no font-family of its own -- it inherits #root's. On a Literary or Mono case that
-    // makes the two DIFFER legitimately, and asserting equality would be asserting a bug.
-    const inherited = sameFontStack(h.fonts["date"] ?? null, h.fonts["root"] ?? null)
-    if (!written || !inherited) {
+    // `#date` carries its OWN font-family, and this arm used to assert the opposite -- that it took none and
+    // inherited #root's. That was the defect stated as the expectation, and it is why the arm passed through
+    // Phases 4 and 5 while the date rendered in the wrong family: `SetTextStyle`:1886 writes
+    // `DateText.FontFamily = family` from the same `family` it gives the phrase, so on a Literary or Mono
+    // setting WPF draws the date in Palatino or Consolas and this port drew it in #root's Segoe UI Light.
+    // Reachable on the `lcd` case below, which is the Literary one, and invisible to every other check --
+    // no test asserted the date's font and nothing on screen says which family a date is in.
+    const dated = sameFontStack(h.fonts["date"] ?? null, stack)
+    if (!written || !dated) {
       record(
         `D6 ${probeCase.name} font stack`,
         "FAIL",
-        `#phrase computes ${JSON.stringify(h.fonts["phrase"])} (want fontStackFor("${style}") = ` +
-          `${JSON.stringify(stack)}); #date computes ${JSON.stringify(h.fonts["date"])} and #root ` +
-          `${JSON.stringify(h.fonts["root"])}, which must match because #date inherits`,
+        `#phrase computes ${JSON.stringify(h.fonts["phrase"])} and #date ` +
+          `${JSON.stringify(h.fonts["date"])}; both want fontStackFor("${style}") = ` +
+          `${JSON.stringify(stack)}. #root is ${JSON.stringify(h.fonts["root"])}, which #date must NOT be ` +
+          `taking on a non-Classic style`,
         true,
       )
     } else {
       record(
         `D6 ${probeCase.name} font stack`,
         "PASS",
-        `#phrase computes fontStackFor("${style}") even though ${expectedFace} is the visible face -- ` +
-          `the all-five-rebuild path measured; #date inherits #root's stack as authored`,
+        `#phrase and #date both compute fontStackFor("${style}") even though ${expectedFace} is the visible ` +
+          `face -- the all-five-rebuild path measured, and the date's own family written rather than inherited`,
+        true,
+      )
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // D6b — all four derived font sizes reached the DOM, the date's included.
+  // ─────────────────────────────────────────────────────────────────────────────
+  {
+    // Added with D6's correction above, and for the same reason: nothing measured the date's size either, so
+    // an unwritten `font-size` fell back to the SVG default 16px. That is not merely wrong glyphs -- the
+    // window's own width comes from a MEASURED date row (`dateWidth` in the renderer), so a wrong size there
+    // silently resized the whole widget. `ApplyFontSize`:1555-1561 is the source of all four numbers.
+    const size = probeCase.overrides.fontSize ?? DEFAULTS.fontSize
+    const want = deriveFontSizes(size)
+    const px = (value: number): string => `${String(value)}px`
+    const wrong = Object.entries(want).filter(([key, value]) => h.sizes[key] !== px(value))
+    const report = Object.keys(want)
+      .map((key) => `${key} ${JSON.stringify(h.sizes[key])}`)
+      .join(", ")
+    if (wrong.length > 0) {
+      record(
+        `D6b ${probeCase.name} font sizes`,
+        "FAIL",
+        `at fontSize ${String(size)} want ${JSON.stringify(want)} as px; computed ${report} -- ` +
+          `${wrong.map(([key]) => key).join(", ")} disagree`,
+        true,
+      )
+    } else {
+      record(
+        `D6b ${probeCase.name} font sizes`,
+        "PASS",
+        `at fontSize ${String(size)} all four computed sizes are trunc-derived as WPF derives them: ${report}`,
         true,
       )
     }
@@ -1065,6 +1210,92 @@ for (const [index, probeCase] of CASES.entries()) {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // D11b — the uptime line has ALL of its fields, read off the live DOM.
+  //
+  // The arm that would have caught the port's longest-lived invisible divergence. `UpdateUptimeDisplay`
+  // (`MainWindow.xaml.cs:1271`) interpolates FIVE fields -- the uptime, three rolling CPU averages and a
+  // process count -- and the renderer wrote `formatUptime(sample.uptimeSec)`, which is exactly the first
+  // one. Every gate stayed green: `core/uptime.ts` was correct and tested, `core/load-average.ts` was
+  // correct and tested with no importer at all, and D10b below reads this same node DIAGNOSTICALLY, so it
+  // printed the one-field line for two phases without asserting anything about it.
+  //
+  // THREE independent halves, which is what makes it more than "the node has text in it":
+  //   - SHAPE: the C#'s field count and its 3-then-2 spacing, off the live DOM. A renderer that dropped
+  //     the averages again, or a tidy-up that normalised the two gap widths to one, fails here.
+  //   - VALUE: the uptime field against `os.uptime()` read in this process at the same instant. That is an
+  //     independently computed number rather than a restatement, so it catches the `process.uptime()`
+  //     regression this port shipped once -- a line reading "up 2m" on a machine that has been up for days.
+  //   - FED: at least one average above zero, read after a CPU sample has provably arrived. Shape alone
+  //     cannot see an empty queue, because `0.00  0.00  0.00` is a perfectly well-formed line -- and an
+  //     unwired push is exactly the defect this feature already had. `waitForReading` is why the read is
+  //     taken separately from the harvest.
+  // ─────────────────────────────────────────────────────────────────────────────
+  {
+    // The fed read when there is one, the last harvest sample when there is not, and the arm says which.
+    const text = (r.fed?.uptime ?? h.samples[h.samples.length - 1]?.uptime ?? "").trim()
+    // The `Np` field is OPTIONAL, and that is the shipped Phase 6 state rather than laxness: main passes
+    // `procCount: null` because the count needs per-process cumulative CPU time and Node exposes none
+    // (§ Phase 6 of the port plan rules out both Windows mechanisms on this tree's own measurements). The
+    // arm reports which side it saw, so paying that remainder shows up here as a changed detail line
+    // instead of as a failure.
+    const SHAPE = /^up (?:\d+d )?(?:\d+h )?\d+m {3}\d+\.\d{2} {2}\d+\.\d{2} {2}\d+\.\d{2}( {2}\d+p)?$/
+    const shape = SHAPE.exec(text)
+    const uptimeField = text.split(/ {3}/)[0] ?? ""
+    const whole = Math.floor(r.hostUptimeSec)
+    // A minute of slack in both directions. The app's tick and this read are up to ~1s apart and either
+    // side can be the one that crosses a minute boundary, so the minutes digit legitimately disagrees by
+    // one. Anything past that is a different counter rather than a rounding.
+    const acceptable = [formatUptime(whole - 60), formatUptime(whole), formatUptime(whole + 60)]
+    const valueOk = acceptable.includes(uptimeField)
+    // The three ratios, parsed back out of the line. Any one above zero means the queue behind them holds a
+    // real reading; all three at zero after a live `#cpuText` means the push never happened.
+    const ratios = shape === null ? [] : [...text.matchAll(/\d+\.\d{2}/g)].map((m) => Number(m[0]))
+    const fedOk = ratios.some((value) => value > 0)
+    const readFrom =
+      r.fed === null
+        ? "the harvest's last sample (the fed read failed)"
+        : `the fed read at +${String(r.fed.waitedMs)}ms`
+    if (shape === null || !valueOk || !fedOk) {
+      record(
+        `D11b ${probeCase.name} uptime line`,
+        "FAIL",
+        [
+          shape === null
+            ? `#uptime reads ${JSON.stringify(text)}, which is not the C#'s ` +
+              `"up <time>   0.00  0.00  0.00[  Np]" -- three spaces after the uptime, two between the ` +
+              `rest. A one-field line here is the divergence this arm exists for`
+            : "",
+          valueOk
+            ? ""
+            : `the uptime field is ${JSON.stringify(uptimeField)} and os.uptime() in this process says ` +
+              `${String(whole)}s = ${JSON.stringify(formatUptime(whole))}. Off by more than a minute ` +
+              `boundary means a different counter -- process.uptime() rather than os.uptime() is the one ` +
+              `that has been wrong here before`,
+          fedOk || shape === null
+            ? ""
+            : `all three averages are 0.00 with #cpuText reading ${JSON.stringify(r.fed?.cpu ?? "(unread)")} ` +
+              `after ${String(r.fed?.waitedMs ?? 0)}ms. A well-formed line over an EMPTY queue: either no ` +
+              `CPU sample arrived at all, or main's push in source.start is not reaching cpuSamples`,
+        ]
+          .filter((s) => s !== "")
+          .join("; "),
+        true,
+      )
+    } else {
+      record(
+        `D11b ${probeCase.name} uptime line`,
+        "PASS",
+        `#uptime = ${JSON.stringify(text)} from ${readFrom} -- ${String(text.split(/ {2,}/).length)} fields ` +
+          `with the C#'s 3-then-2 spacing, the uptime field matches os.uptime() read here ` +
+          `(${String(whole)}s), and the averages are non-zero over a live #cpuText of ` +
+          `${JSON.stringify(r.fed?.cpu ?? "(unread)")}, so the sample queue behind them is fed. ` +
+          `${shape[1] === undefined ? "No Np field, which is main passing procCount: null" : `Np field present: ${shape[1].trim()}`}`,
+        true,
+      )
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // D10 — recorded, not asserted: the baseline residual and the stats panel's state.
   // ─────────────────────────────────────────────────────────────────────────────
   {
@@ -1086,9 +1317,14 @@ for (const [index, probeCase] of CASES.entries()) {
         .map(([k, v]) => `${k}:${String(v)}`)
         .join(" ")}], cpu=${JSON.stringify(h.texts["cpuText"])} batt=${JSON.stringify(
         h.texts["battText"],
-      )} uptime=${JSON.stringify(h.texts["uptime"])}. Diagnostic by design: Phase 6 owns the sources, so ` +
-        `on this platform the rows carry whatever the shipped sampler produces -- a panel of "--" is the ` +
-        `correct Phase 4 state, not a failure`,
+      )} uptime=${JSON.stringify(h.texts["uptime"])}. Diagnostic by design, and it stays that way now that ` +
+        `Phase 6 has landed: what a row shows depends on the HOST, so a cell reading "N/A" is a platform ` +
+        `with no source rather than a defect. The placeholder is "N/A" -- the literal string ` +
+        `UpdateStatsDisplay writes on all three of its negative branches -- and not the "--" this line ` +
+        `used to claim. The uptime field here is the statics-time read, taken within ~200ms of main's ` +
+        `first repaint tick, so it may legitimately still be index.html's initial "up (dash)" text -- and its ` +
+        `averages read 0.00 because no CPU sample has arrived yet at this point in the launch. D11b takes ` +
+        `its own read once one has`,
     )
     log(
       `    face texts: phrase=${JSON.stringify(h.texts["phrase"])} qualifier=${JSON.stringify(

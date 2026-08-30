@@ -29,6 +29,7 @@
  */
 import { describe, expect, test } from "bun:test"
 import {
+  ALL_STATS_VISIBLE,
   BAR_HEIGHT,
   CORNER_RADIUS,
   DIAL_CANVAS_SIZE,
@@ -37,6 +38,7 @@ import {
   STATS_FONT_SIZE,
   STATS_LABEL_WIDTH,
   STATS_ROW_COUNT,
+  STATS_ROW_KEYS,
   STATS_TRACK_WIDTH,
   STATS_VALUE_WIDTH,
   UPTIME_FONT_SIZE,
@@ -46,9 +48,11 @@ import {
   nixieViewSize,
   statsLayout,
   statsPanelHeight,
+  statsVisibility,
   windowLayout,
   windowPixelSize,
   windowPlacement,
+  type StatsVisibility,
 } from "../src/core/layout.js"
 import { buildNixieDigit, colonDotSize } from "../src/core/nixie-geometry.js"
 import { toDigitHeight, type LcdSize } from "../src/core/digit-size.js"
@@ -328,6 +332,210 @@ describe("the stats panel height", () => {
     expect(lastRow).toBeDefined()
     if (lastRow === undefined) return
     expect(lastRow.top + lastRow.height + STATS_CHILD_GAP).toBe(panel.uptimeTop)
+  })
+})
+
+describe("per-row visibility, which the panel height used to ignore", () => {
+  // `statsLayout` took no argument until Phase 6: the panel was always five rows and an uptime line, so a
+  // profile with `cpuVisible: false` got a window 17.96 too tall with a gap in it. The six flags were
+  // imported, validated and persisted, and nothing measured them.
+  //
+  // Every height below is arithmetic over `STATS_CHILD_GAP` and the two measured line heights, which the
+  // block above pins against `lay-arrange`. **What no fixture holds is a HIDDEN row**: `wpf-layout.tsv` was
+  // captured with all five visible, so the `Collapsed` rule -- box and margin both gone -- is applied here
+  // consistently with the date row rather than measured. The all-visible case is what pins its zero point,
+  // and it is asserted in both directions: hiding then re-showing returns the exact same layout.
+
+  const ROW_COST = STATS_CHILD_GAP + lineHeight("Segoe UI Light", STATS_FONT_SIZE)
+  const UPTIME_COST = STATS_CHILD_GAP + lineHeight("Segoe UI Light", UPTIME_FONT_SIZE)
+
+  /** All 64 combinations of the six flags, so a rule is checked rather than a handful of points. */
+  const ALL_COMBINATIONS: StatsVisibility[] = Array.from({ length: 64 }, (_, mask) => ({
+    cpu: (mask & 1) !== 0,
+    gpu: (mask & 2) !== 0,
+    mem: (mask & 4) !== 0,
+    pag: (mask & 8) !== 0,
+    batt: (mask & 16) !== 0,
+    uptime: (mask & 32) !== 0,
+  }))
+
+  const hide = (...keys: string[]): StatsVisibility => ({
+    cpu: !keys.includes("cpu"),
+    gpu: !keys.includes("gpu"),
+    mem: !keys.includes("mem"),
+    pag: !keys.includes("pag"),
+    batt: !keys.includes("batt"),
+    uptime: !keys.includes("uptime"),
+  })
+
+  const asSettings = (visible: StatsVisibility): Partial<AppSettings> => ({
+    cpuVisible: visible.cpu,
+    gpuVisible: visible.gpu,
+    memVisible: visible.mem,
+    pagVisible: visible.pag,
+    batteryVisible: visible.batt,
+    uptimeVisible: visible.uptime,
+  })
+
+  test("the default profile shows all six, so the 106.43 above is the default and not the maximum", () => {
+    // Both halves matter: the six defaults are `true` (`settings.ts:179-184`), and the no-argument call
+    // means that. A default of anything else would have made every existing height arm in this file a
+    // measurement of a non-default install.
+    expect(statsVisibility(DEFAULTS)).toEqual(ALL_STATS_VISIBLE)
+    expect(statsLayout(ALL_STATS_VISIBLE)).toEqual(statsLayout())
+    expect(statsPanelHeight(ALL_STATS_VISIBLE)).toBe(106.43)
+  })
+
+  test("a hidden row costs 17.96 and not 15.96, because Collapsed takes the margin with it", () => {
+    // The single number this whole feature turns on. `Hidden` would have left the 2px gap behind and the
+    // panel would keep a sliver of space per hidden row -- five of them is 10px of window, which reads as
+    // a misaligned widget rather than as a bug.
+    expect(ROW_COST).toBeCloseTo(17.96, 9)
+    expect(statsPanelHeight(hide("cpu"))).toBeCloseTo(106.43 - 17.96, 9)
+    expect(statsPanelHeight() - statsPanelHeight(hide("cpu"))).toBeCloseTo(ROW_COST, 9)
+    // Not 15.96, stated as a discriminator rather than left implicit in the arithmetic above.
+    expect(statsPanelHeight() - statsPanelHeight(hide("cpu"))).not.toBeCloseTo(
+      lineHeight("Segoe UI Light", STATS_FONT_SIZE),
+      9,
+    )
+  })
+
+  test("hiding a row moves every row BELOW it up by one row cost and leaves the ones above alone", () => {
+    // The property the renderer depends on, and the one a naive filter gets wrong in the invisible
+    // direction: it is not enough that the height shrinks, the surviving rows have to land where they would
+    // have if the hidden one had never been in the markup.
+    const all = statsLayout()
+    const withoutMem = statsLayout(hide("mem")) // index 2 of cpu/gpu/mem/pag/batt
+    for (const index of [0, 1]) {
+      expect(withoutMem.rows[index]).toEqual(all.rows[index])
+    }
+    for (const index of [3, 4]) {
+      const before = all.rows[index]
+      const after = withoutMem.rows[index]
+      expect(before).toBeDefined()
+      expect(after).toBeDefined()
+      if (before === undefined || after === undefined) continue
+      expect(after.top).toBeCloseTo(before.top - ROW_COST, 9)
+      expect(after.barY).toBeCloseTo(before.barY - ROW_COST, 9)
+      expect(after.height).toBe(before.height)
+    }
+    expect(withoutMem.uptimeTop).toBeCloseTo(all.uptimeTop - ROW_COST, 9)
+  })
+
+  test("a hidden row keeps its ENTRY, zero-height at the cursor, so positions never shift", () => {
+    // Deliberate, and the reason is the renderer rather than this module: `applyStats` walks
+    // `STAT_KEYS` by index to reach five fixed element ids. A compacted array would put Batt's geometry on
+    // Pag's elements the moment any row above it was hidden -- a wrong-row bug that still renders cleanly.
+    for (const visible of ALL_COMBINATIONS) {
+      const panel = statsLayout(visible)
+      expect(panel.rows).toHaveLength(STATS_ROW_COUNT)
+      for (const [index, key] of STATS_ROW_KEYS.entries()) {
+        const row = panel.rows[index]
+        expect(row).toBeDefined()
+        if (row === undefined) continue
+        expect(row.visible).toBe(visible[key])
+        if (!row.visible) {
+          expect(row.height).toBe(0)
+          expect(row.barY).toBe(row.top)
+        }
+      }
+    }
+  })
+
+  test("the height is the visible-child sum, over all 64 combinations", () => {
+    // The rule, not fifteen points of it. Written as an independent sum rather than by calling the module's
+    // own arithmetic back at it, which is the only way this arm can disagree with the implementation.
+    for (const visible of ALL_COMBINATIONS) {
+      const rowCount = STATS_ROW_KEYS.filter((key) => visible[key]).length
+      const expected = rowCount * ROW_COST + (visible.uptime ? UPTIME_COST : 0)
+      expect(statsPanelHeight(visible)).toBeCloseTo(expected, 9)
+      expect(statsLayout(visible).height).toBe(statsPanelHeight(visible))
+    }
+  })
+
+  test("the last VISIBLE child's bottom is the height, whichever child that is", () => {
+    // The delegated-sum property from the block above, generalised. With the uptime line hidden the panel's
+    // bottom is a stat row's bottom, and with everything hidden there is no last child at all -- three
+    // different shapes, one invariant.
+    for (const visible of ALL_COMBINATIONS) {
+      const panel = statsLayout(visible)
+      if (visible.uptime) {
+        expect(panel.uptimeTop + panel.uptimeHeight).toBe(panel.height)
+        continue
+      }
+      expect(panel.uptimeHeight).toBe(0)
+      expect(panel.uptimeTop).toBe(panel.height)
+      const lastVisible = [...panel.rows].reverse().find((row) => row.visible)
+      if (lastVisible === undefined) {
+        expect(panel.height).toBe(0)
+        continue
+      }
+      expect(lastVisible.top + lastVisible.height).toBe(panel.height)
+    }
+  })
+
+  test("all six hidden is height 0, and that state is REACHABLE rather than defensive", () => {
+    // `SetStatRowVisible`'s auto-collapse is one-way (`stats-rows.ts`): hiding the fifth row collapses the
+    // panel, and re-ticking Stats in the tray brings it back with all five still hidden. So an empty panel
+    // is a state a user can sit in, and 0 is its correct height -- not a case that needs a guard.
+    const empty = statsLayout(hide("cpu", "gpu", "mem", "pag", "batt", "uptime"))
+    expect(empty.height).toBe(0)
+    expect(empty.uptimeTop).toBe(0)
+    expect(empty.rows.every((row) => row.top === 0 && row.height === 0)).toBe(true)
+    // The uptime line alone is the other degenerate shape, and it is NOT zero: it keeps its own 2px gap.
+    expect(statsPanelHeight(hide("cpu", "gpu", "mem", "pag", "batt"))).toBeCloseTo(UPTIME_COST, 9)
+  })
+
+  test("hiding is reversible: the round trip is byte-identical, not merely the same height", () => {
+    // The zero point of the unmeasured `Collapsed` rule. If hiding shifted the cursor by anything at all,
+    // re-showing would land the rows a fraction off the all-visible fixture -- which IS measured.
+    for (const key of STATS_ROW_KEYS) {
+      const hidden = hide(key)
+      const restored: StatsVisibility = { ...hidden, [key]: true }
+      expect(statsLayout(restored)).toEqual(statsLayout())
+    }
+  })
+
+  test("windowLayout honours the flags, and an empty visible panel still costs its 8px gap", () => {
+    // The composition arm. `ROW_GAP + 0` is not a rounding artefact: the panel is a Grid row with a margin,
+    // and `Collapsed` is applied to the ROWS here, not to the panel -- `statsVisible` is what collapses the
+    // panel itself, and it is still true in this state.
+    const base = { clockType: "dial" as const, showDate: false, statsVisible: true }
+    const all = windowLayout(settings(base), 0)
+    expect(all.statsBlock).toBe(ROW_GAP + statsPanelHeight())
+
+    const oneHidden = windowLayout(settings({ ...base, ...asSettings(hide("gpu")) }), 0)
+    expect(all.height - oneHidden.height).toBeCloseTo(ROW_COST, 9)
+
+    const emptyPanel = windowLayout(
+      settings({ ...base, ...asSettings(hide("cpu", "gpu", "mem", "pag", "batt", "uptime")) }),
+      0,
+    )
+    expect(emptyPanel.statsBlock).toBe(ROW_GAP)
+
+    // And `statsVisible: false` still beats all six flags being true -- the two mechanisms are independent.
+    const collapsed = windowLayout(settings({ ...base, statsVisible: false }), 0)
+    expect(collapsed.statsBlock).toBe(0)
+  })
+
+  test("visibility changes the height and never the width", () => {
+    // The negative control. The 184 floor exists to stop the window resizing as the phrase changes; a width
+    // that moved when a row was hidden would reintroduce exactly the jitter it was built to prevent.
+    for (const visible of ALL_COMBINATIONS) {
+      const layout = windowLayout(settings({ statsVisible: true, ...asSettings(visible) }), 0)
+      expect(layout.width).toBe(208)
+      expect(layout.innerWidth).toBe(STATS_PANEL_WIDTH)
+    }
+  })
+
+  test("statsVisibility reads the six fields and nothing else", () => {
+    // A mapping test, which sounds redundant until you note the field names do not match the keys: `batt`
+    // reads `batteryVisible`. One transposed pair here silently swaps two rows' visibility.
+    for (const visible of ALL_COMBINATIONS) {
+      expect(statsVisibility(settings(asSettings(visible)))).toEqual(visible)
+    }
+    // Independence from the panel-level flag, in both directions.
+    expect(statsVisibility(settings({ statsVisible: false }))).toEqual(ALL_STATS_VISIBLE)
   })
 })
 

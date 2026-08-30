@@ -116,6 +116,32 @@
       -->
       <rect id="windowBackground" x="0" y="0" rx="5" fill="black" />
 
+      <!--
+        `BackdropBorder` (MainWindow.xaml:31-37). Covers the whole window like the rect
+        above it, authored transparent, painted `#000000aa`-ish on hover by
+        `core/backdrop.ts`. Its ORDER matters and is why it is authored here rather than
+        appended: the C# puts it above the permanent black Border and below the padded
+        content, and `test/renderer-ids.test.ts` pins that position.
+
+        TWO REASONS IT CANNOT CHANGE A PIXEL, both measured rather than assumed:
+
+          1. The element under it is opaque black over the whole window, and the window's
+             own opacity is group opacity applied above both. Compositing black at alpha
+             `a` over opaque black is identically opaque black -- `out_a = a + 1(1-a) = 1`,
+             `out_rgb = 0` -- so the WPF original has the same dead layer, for the same
+             reason. The port reproduces it rather than diverging.
+          2. `BackdropAlwaysVisible` and `BackdropOpacityPercent` are declared in
+             `AppSettings.cs:46-47` and referenced NOWHERE else in `FuzzyClock.App`:
+             `LoadSettings` never reads them, `SaveSettings` never writes them, and
+             `ResetToDefaults` is the only caller of `ApplyBackdropState`. The original
+             runs at a hardcoded `false`/`35`.
+
+        It ships because the phase's exit bar names it and because `core/hover.ts` decides
+        it, so leaving the element out would make that decision unreachable. What must not
+        be claimed is that anything visible follows from painting it.
+      -->
+      <rect id="backdrop" x="0" y="0" rx="5" fill="transparent" />
+
       <!-- `ContentBorder` (row 0). Transparent and invisible; the id exists because
            Phase 8's auto-contrast is the thing that will paint it. -->
       <rect id="contentBackground" fill="transparent" />

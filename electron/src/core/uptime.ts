@@ -6,8 +6,11 @@
  * when zero -- "up 1d 0h 0m" -- so the string never loses a field it has already earned.
  *
  * The C# takes a `TimeSpan` and reads `.Days`, `.Hours`, `.Minutes`, which are the *components* of the
- * span rather than totals. There is no TimeSpan here, and the value the app actually has is
- * `process.uptime()` in seconds, so the components are computed instead. That arithmetic is the only
+ * span rather than totals. There is no TimeSpan here, and the value the app actually has is a count of
+ * seconds, so the components are computed instead. (`os.uptime()`, from main's repaint tick —
+ * `process.uptime()`, which this line named until Phase 6, is the app's own age and reads "up 2m" on a
+ * machine that has been up for days. `MainWindow.xaml.cs:1221` reads `Environment.TickCount64`, which is
+ * milliseconds since BOOT.) That arithmetic is the only
  * part that had to be written rather than translated, hence `Math.trunc`: `TimeSpan`'s components
  * truncate toward zero, and .NET reads -330s as `Minutes = -5`, not -6.
  *

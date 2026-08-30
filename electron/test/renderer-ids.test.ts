@@ -130,11 +130,12 @@ describe("the regex parser's own assumptions", () => {
   })
 })
 
-describe("the id set is a closed 46-member contract", () => {
+describe("the id set is a closed 47-member contract", () => {
   /**
    * The seven sources. Five live in `display-colors.ts` because the theme is what needs them as data; two
-   * live in `nixie-face.ts` because it is their only consumer, and the gradient carries a colour of its
-   * own so `STRUCTURAL_IDS` -- "ids that carry no colour" -- would misdescribe it.
+   * live in `nixie-face.ts` because it is their only consumer, and a gradient the theme never walks would
+   * sit in `STRUCTURAL_IDS` on that test alone, next to the two rects and the five face containers, which
+   * tells a reader nothing about what it is.
    */
   const SOURCES: readonly { readonly name: string; readonly ids: readonly string[] }[] = [
     { name: "ACCENT_TARGET_IDS", ids: ACCENT_TARGET_IDS },
@@ -153,7 +154,7 @@ describe("the id set is a closed 46-member contract", () => {
     expect(DIM_TARGET_IDS).toHaveLength(2)
     expect(NEVER_THEMED_IDS).toHaveLength(6)
     expect(PHASE_7_ACCENT_TARGET_IDS).toHaveLength(1)
-    expect(STRUCTURAL_IDS).toHaveLength(9)
+    expect(STRUCTURAL_IDS).toHaveLength(10)
     expect(NIXIE_GLYPH_IDS).toHaveLength(4)
   })
 
@@ -169,7 +170,7 @@ describe("the id set is a closed 46-member contract", () => {
 
   test("their union is exactly the ids in index.html", () => {
     const declared = new Set(SOURCES.flatMap((source) => source.ids))
-    expect(declared.size).toBe(46)
+    expect(declared.size).toBe(47)
 
     const authored = new Set(HTML_IDS)
     // Both directions named separately: "declared but not authored" is a startup crash or a dead `<use>`,
@@ -294,6 +295,26 @@ describe("the four authored geometry constants", () => {
     expect(numAttr("windowBackground", "x")).toBe(0)
     expect(numAttr("windowBackground", "y")).toBe(0)
   })
+
+  test("the backdrop covers the same window rect and ships transparent", () => {
+    // `BackdropBorder` (MainWindow.xaml:31-37) is a full-widget Border with the same CornerRadius as the
+    // black one beneath it, and `Background="Transparent"` as authored. `core/backdrop.ts` is what paints it.
+    expect(numAttr("backdrop", "rx")).toBe(CORNER_RADIUS)
+    expect(numAttr("backdrop", "x")).toBe(0)
+    expect(numAttr("backdrop", "y")).toBe(0)
+    expect(attr(tagFor("backdrop"), "fill")).toBe("transparent")
+  })
+
+  test("the backdrop is authored BETWEEN the two other full-window rects", () => {
+    // Order is the whole argument for this element being inert, so it is pinned rather than left to the
+    // reader: the C# stacks black → backdrop → padded content, and SVG paints in document order. Authored
+    // after `contentBackground` the backdrop would tint the content border; authored before
+    // `windowBackground` it would be occluded by opaque black instead of merely composited into it.
+    const order = (id: string): number => HTML_IDS.indexOf(id)
+    expect(order("windowBackground")).toBeGreaterThanOrEqual(0)
+    expect(order("backdrop")).toBeGreaterThan(order("windowBackground"))
+    expect(order("contentBackground")).toBeGreaterThan(order("backdrop"))
+  })
 })
 
 describe("#root's two inherited defaults", () => {
@@ -335,7 +356,7 @@ describe("visibility and baselines, as authored", () => {
   })
 
   test("every face container is a structural id", () => {
-    // `includes` on a widened copy rather than `toContain`: the tuple's element type is the nine literals,
+    // `includes` on a widened copy rather than `toContain`: the tuple's element type is the ten literals,
     // so `toContain` would reject anything not already known to be one of them -- which is the check.
     const structural: readonly string[] = STRUCTURAL_IDS
     for (const face of FACES) {

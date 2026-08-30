@@ -91,6 +91,8 @@ import {
   type CounterLayout,
   type ReducedSample,
 } from "./parse/typeperf.js"
+import { parseBatteryLine } from "./parse/powershell.js"
+import { pluggedInReading } from "../../core/battery.js"
 
 /**
  * Counter paths, in the English locale's names.
@@ -154,19 +156,61 @@ export interface Win32SourceOptions {
    * sources that have no equivalent.
    */
   onReduced?: (reduced: ReducedSample) => void
+  /**
+   * Seconds between battery reads. 60 by default.
+   *
+   * **This is a deliberate divergence from the WPF app, and the reason is a cost the C# does not pay.** It
+   * polls battery on its ordinary stats timer — every 2s — because `SystemInformation.PowerStatus` is a
+   * `GetSystemPowerStatus` struct read measured at **0.0 ms** on this host. The cheapest route to a
+   * *percentage* from Node is `Get-CimInstance Win32_Battery` at **23.7 ms**, and paying that 30x a minute
+   * for a number that moves on a scale of minutes buys nothing. `pluggedIn` is not on this cadence — see
+   * {@link Win32SourceOptions.readAcLine}, which is free and therefore stays per-tick.
+   */
+  batteryIntervalSec?: number
+  /**
+   * Read the AC line directly. Injected, and when supplied it **overrides** the battery child's inference.
+   *
+   * This is the parity source: Electron's `powerMonitor.isOnBatteryPower()` and the WPF app's
+   * `PowerStatus.PowerLineStatus` are both `GetSystemPowerStatus`'s `ACLineStatus` byte, so the port reads
+   * exactly what the original reads, for nothing. The fallback — inferring from `Win32_Battery.BatteryStatus`
+   * — is a different field with mushy semantics (`parse/powershell.ts` documents which codes are guesses).
+   *
+   * Injected rather than imported so this module keeps working under plain `bun`. Importing `electron` here
+   * would drag the whole runtime into every unit test and probe that loads the file, and the seam costs one
+   * line at the construction site in `main.ts`.
+   */
+  readAcLine?: () => boolean
 }
 
 export class Win32StatsSource implements StatsSource {
-  private readonly intervalSec: number
+  /**
+   * The interval the children are ACTUALLY running at: a whole number of seconds, at least 1.
+   *
+   * Not readonly, but only {@link Win32StatsSource.setIntervalSec} writes it, and only for a request it can
+   * honour exactly. Normalised in the constructor as well, because the setting it comes from is validated to
+   * `[0.5, 10.0]` at one decimal place — so `2.5` is a legal user setting and `typeperf -si 2.5` is not a
+   * legal command line.
+   */
+  private intervalSec: number
   private readonly recycleMs: number
   private readonly log: (level: "info" | "warn" | "error", message: string) => void
   private readonly onReduced: ((reduced: ReducedSample) => void) | undefined
+  private readonly batteryIntervalSec: number
+  private readonly readAcLine: (() => boolean) | undefined
 
   private scalar: Child | null = null
   private scalarAttempts = 0
   private gpu: Child | null = null
   private gpuReplacement: Child | null = null
   private gpuAttempts = 0
+
+  /**
+   * The battery poller. A plain child rather than a {@link Child} — it has no header, no column layout and
+   * no width to validate, so none of that machinery applies to it.
+   */
+  private battery: ChildProcessWithoutNullStreams | null = null
+  private batteryBuffer = ""
+  private batteryRestarts = 0
 
   private recycleTimer: ReturnType<typeof setInterval> | null = null
   private onSample: ((sample: Partial<StatsSample>) => void) | null = null
@@ -183,17 +227,72 @@ export class Win32StatsSource implements StatsSource {
   public headerRetries = 0
 
   constructor(options: Win32SourceOptions = {}) {
-    this.intervalSec = options.intervalSec ?? 1
+    const asked = options.intervalSec ?? 1
+    this.intervalSec = wholeSeconds(asked)
     this.recycleMs = options.recycleMs ?? 30_000
     this.log = options.log ?? (() => {})
     this.onReduced = options.onReduced
+    this.batteryIntervalSec = Math.max(1, Math.round(options.batteryIntervalSec ?? 60))
+    this.readAcLine = options.readAcLine
+    if (this.intervalSec !== asked) {
+      // Said out loud, because the widget is now sampling at a cadence the user did not choose. The
+      // constructor rounds where `setIntervalSec` declines, and the asymmetry has a reason: there is no
+      // working cadence yet to fall back to, so some whole second has to be picked.
+      this.log(
+        "warn",
+        `typeperf: interval ${String(asked)}s is not expressible — \`-si\` takes whole seconds ` +
+          `(\`[[hh:]mm:]ss\`), so sampling at ${String(this.intervalSec)}s`,
+      )
+    }
   }
 
   describe(): string {
     return (
-      `typeperf, two children at ${this.intervalSec}s: scalar(cpu,mem,pag) never recycled, ` +
-      `gpu(*engtype_3D) recycled every ${this.recycleMs}ms`
+      `typeperf, two children at ${String(this.intervalSec)}s: scalar(cpu,mem,pag) never recycled, ` +
+      `gpu(*engtype_3D) recycled every ${String(this.recycleMs)}ms; ` +
+      `Win32_Battery via one PowerShell child every ${String(this.batteryIntervalSec)}s ` +
+      `(ac line: ${this.readAcLine ? "powerMonitor" : "inferred from BatteryStatus"})`
     )
+  }
+
+  /**
+   * Adopt a new cadence **only if `typeperf` can express it exactly**, and report what is actually running.
+   *
+   * Two measured facts drive every branch here, and neither is a guess:
+   *
+   *   1. **`-si` takes whole seconds.** `typeperf … -si 0.5` prints `Invalid syntax: -si <[[hh:]mm:]ss>`
+   *      and exits immediately — not a slow path, an unavailable one. So the 0.5s hover fast-refresh cannot
+   *      be served here at all, and neither can a user's legal `1.5`.
+   *   2. **A respawn costs ~2.81s to first sample**, which is the measurement `win32.ts` exists because of.
+   *
+   * Put together: rounding a 0.5s request up to 1s would stall the three scalar rows for ~2.8s to buy a
+   * cadence nobody asked for — so a hover shorter than three seconds, which is most of them, would leave the
+   * numbers **staler** than not acting at all. That is why an inexact request is declined outright rather
+   * than approximated. An exact request is honoured, because a user changing their interval setting is rare
+   * and expects it to take effect.
+   */
+  setIntervalSec(sec: number): number {
+    const whole = wholeSeconds(sec)
+    if (whole === this.intervalSec) return this.intervalSec
+    if (whole !== sec) {
+      this.log(
+        "info",
+        `typeperf: declining a ${String(sec)}s cadence — \`-si\` takes whole seconds, and rounding to ` +
+          `${String(whole)}s would cost a ~2.8s respawn stall to reach a cadence that was not asked for. ` +
+          `Still sampling at ${String(this.intervalSec)}s`,
+      )
+      return this.intervalSec
+    }
+    this.log("info", `typeperf: cadence ${String(this.intervalSec)}s → ${String(whole)}s, respawning children`)
+    this.intervalSec = whole
+    if (this.stopped) return this.intervalSec
+    // Both children, and in the same order `start()` uses. The scalar rows hold their previous values across
+    // the gap rather than blanking (`latestGpu` does the same for GPU), so this is stale-then-correct.
+    for (const child of [this.scalar, this.gpu, this.gpuReplacement]) this.kill(child)
+    this.gpuReplacement = null
+    this.scalar = this.spawnChild("scalar", [...SCALAR_PATHS])
+    this.gpu = this.spawnChild("gpu", [GPU_PATH])
+    return this.intervalSec
   }
 
   /**
@@ -217,6 +316,7 @@ export class Win32StatsSource implements StatsSource {
     this.stopped = false
     this.scalar = this.spawnChild("scalar", [...SCALAR_PATHS])
     this.gpu = this.spawnChild("gpu", [GPU_PATH])
+    this.battery = this.spawnBatteryChild()
     if (this.recycleMs > 0) {
       this.recycleTimer = setInterval(() => this.recycle(), this.recycleMs)
     }
@@ -232,6 +332,13 @@ export class Win32StatsSource implements StatsSource {
     this.scalar = null
     this.gpu = null
     this.gpuReplacement = null
+    // The battery child spends nearly all its life inside `Start-Sleep`, and it does not need to wake up to
+    // die: Node's `kill()` on Windows is `TerminateProcess` for every signal, so a sleeping PowerShell goes
+    // down as promptly as a busy one.
+    if (this.battery) {
+      this.killProc(this.battery)
+      this.battery = null
+    }
   }
 
   /**
@@ -245,6 +352,91 @@ export class Win32StatsSource implements StatsSource {
     if (this.stopped || this.gpuReplacement) return
     this.log("info", "typeperf: recycling GPU child to re-enumerate engine instances")
     this.gpuReplacement = this.spawnChild("gpu", [GPU_PATH], "replacement")
+  }
+
+  /**
+   * Maximum battery-child restarts before the row is left at `N/A` for good.
+   *
+   * Bounded for the reason `MAX_HEADER_ATTEMPTS` is: `powershell.exe` can be absent, blocked by policy, or
+   * killed by an endpoint agent, and an unbounded restart would spawn a 1.3-second process forever on a
+   * machine that is never going to answer. Three is enough to ride out a transient failure and few enough
+   * that a permanent one costs four seconds total and then stops.
+   */
+  private static readonly MAX_BATTERY_RESTARTS = 3
+
+  /**
+   * Spawn the one long-lived PowerShell that reports the battery.
+   *
+   * The loop lives in the child rather than in a Node timer that spawns per read, and that is the whole point:
+   * a cold `powershell -Command` costs **1,326 ms** measured on this host against **23.7 ms** for the query it
+   * wraps — 56x. One startup at launch, then a cheap query every interval, forever.
+   *
+   * `Start-Sleep` inside the child rather than `-si`-style flag: unlike `typeperf` there is no cadence
+   * argument to get wrong, and unlike the scalar children this one never needs to change rate — battery is
+   * exempt from the hover fast-refresh, because hovering does not make a battery move. So
+   * {@link Win32StatsSource.setIntervalSec} leaves it entirely alone, which is why it is not in the list of
+   * children that respawn there.
+   */
+  private spawnBatteryChild(): ChildProcessWithoutNullStreams {
+    this.spawnCount++
+    const proc = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", batteryScript(this.batteryIntervalSec)], {
+      windowsHide: true,
+    }) as ChildProcessWithoutNullStreams
+
+    proc.stdout.setEncoding("utf8")
+    proc.stdout.on("data", (chunk: string) => this.ingestBattery(chunk))
+    proc.on("error", (err) => {
+      // Distinct from the exit handler: this is "could not start", which on this platform means PowerShell is
+      // missing or blocked, and no number of restarts fixes it.
+      // `N/A`, not `--`. The row's placeholder is the literal the C# writes (`MainWindow.xaml.cs:1149`), and
+      // this message said `--` while the screen said `N/A` — the same wrong string the renderer itself
+      // carried through Phases 4 and 5.
+      this.log("error", `battery: powershell spawn failed: ${String(err)} — battery row stays N/A`)
+      this.batteryRestarts = Win32StatsSource.MAX_BATTERY_RESTARTS
+    })
+    proc.on("exit", (code) => {
+      if (this.stopped || proc !== this.battery) return
+      this.battery = null
+      if (++this.batteryRestarts > Win32StatsSource.MAX_BATTERY_RESTARTS) {
+        this.log("error", `battery: child exited code=${String(code)} — giving up after ${String(this.batteryRestarts - 1)} restarts, battery row stays N/A`)
+        // Said once and made true: the last reading would otherwise sit on screen indefinitely, which is a
+        // stale number rather than a missing one. `N/A` is the honest end state.
+        this.onSample?.({ battery: UNAVAILABLE, pluggedIn: false })
+        return
+      }
+      this.log("warn", `battery: child exited code=${String(code)} — restarting (${String(this.batteryRestarts)}/${String(Win32StatsSource.MAX_BATTERY_RESTARTS)})`)
+      this.battery = this.spawnBatteryChild()
+    })
+
+    return proc
+  }
+
+  /** Line-reassemble the battery child's stdout. Same CRLF split as {@link Win32StatsSource.ingest}. */
+  private ingestBattery(chunk: string): void {
+    this.batteryBuffer += chunk
+    const lines = this.batteryBuffer.split(/\r?\n/)
+    this.batteryBuffer = lines.pop() ?? ""
+    for (const line of lines) this.handleBatteryLine(line)
+  }
+
+  /**
+   * Act on one battery line.
+   *
+   * Public so a test can drive the whole reading path — the sentinel coupling below especially — without a
+   * PowerShell on the other end. Same reason {@link Win32StatsSource.recycle} is public.
+   */
+  handleBatteryLine(line: string): void {
+    const reading = parseBatteryLine(line)
+    if (reading === null) return
+
+    // The direct AC-line read wins whenever it is available, because it is the same `ACLineStatus` byte the
+    // WPF app reads. `acFromStatus` is an inference from a different CIM field and only one of its codes is
+    // measured, so it is the fallback for a source loaded without Electron.
+    const onAc = this.readAcLine?.() ?? reading.acFromStatus
+
+    // The C#'s coupling of the plug flag to the percentage's readability. Shared with the other two platforms
+    // rather than restated here — `core/battery.ts` carries the argument for why it is parity and not a bug.
+    this.onSample?.({ battery: reading.percent, pluggedIn: pluggedInReading(reading.percent, onAc) })
   }
 
   /**
@@ -394,7 +586,7 @@ export class Win32StatsSource implements StatsSource {
    * unbounded retry would spawn `typeperf` every few seconds for the life of the app.
    * The degraded case is logged at `error`, not `warn`: on a width mismatch the numbers
    * that do render are wrong rather than missing, which is worth a louder signal than a
-   * metric that reads `--`.
+   * metric that reads `N/A`.
    */
   private rejectChild(child: Child, reason: string): boolean {
     const attempts = child.role === "scalar" ? ++this.scalarAttempts : ++this.gpuAttempts
@@ -469,7 +661,81 @@ export class Win32StatsSource implements StatsSource {
 
   private kill(child: Child | null): void {
     if (!child) return
-    child.proc.stdout.removeAllListeners("data")
-    child.proc.kill()
+    this.killProc(child.proc)
   }
+
+  /**
+   * Kill a raw child, listeners first.
+   *
+   * Split out of {@link Win32StatsSource.kill} so the battery poller — which is a bare process with no header
+   * or column layout, and therefore not a {@link Child} — is torn down by exactly the same code. Dropping the
+   * `data` listeners before the kill is the load-bearing half: a child can have buffered output still in
+   * flight, and a discarded child's remaining lines are precisely the ones not to act on.
+   */
+  private killProc(proc: ChildProcessWithoutNullStreams): void {
+    proc.stdout.removeAllListeners("data")
+    proc.kill()
+  }
+}
+
+/**
+ * The nearest cadence `typeperf -si` will accept: a whole number of seconds, at least 1.
+ *
+ * `-si` takes `[[hh:]mm:]ss`, so a fractional argument is rejected at parse time rather than rounded by the
+ * tool — the child prints `Invalid syntax: -si <[[hh:]mm:]ss>` and exits with an empty stdout. The floor of
+ * 1 is what stops a `0.4` request from becoming `-si 0` (which `typeperf` also rejects) and a negative or
+ * non-finite one from becoming a command line at all.
+ *
+ * Exported for the tests, which is the only reason it is not a method.
+ */
+/**
+ * The PowerShell the battery child runs.
+ *
+ * Exported so a test can assert the shape of the command line rather than trusting it, and so the string is
+ * greppable when it turns up in Process Explorer on someone's machine.
+ *
+ * Three details are deliberate:
+ *
+ *   - **`-Property` is narrowed to the two fields used.** `Get-CimInstance` without it materialises every
+ *     property of the class. Measured, it made no difference here (23.5 ms against 23.7 ms, inside the
+ *     noise), so this is tidiness rather than a win — recorded as measured-and-negligible so nobody
+ *     re-measures it hoping for one.
+ *   - **`-1` and `0` stand in for NULL properties.** `EstimatedChargeRemaining` can genuinely be NULL, and
+ *     `'batt ' + $null + ' ' + 2` emits `batt  2`, whose middle field has *vanished* rather than gone empty.
+ *     That is the `typeperf` dropped-header defect in a different costume: every field after the gap reads
+ *     its neighbour's value, and the wrong answer here is a believable "2%" that also drags a low-battery
+ *     alert on. `parse/powershell.ts` has the arm that pins it.
+ *   - **`[Console]::Out.Flush()` every iteration.** PowerShell's stdout is not line-buffered when it is a
+ *     pipe rather than a console, and a reading that arrives in a 60-second-late batch is worse than useless.
+ *
+ * Statements are joined with a space and separated by explicit `;` so the whole thing is one uncomplicated
+ * argv element. No `shell: true` anywhere near it, so nothing re-parses the `$` signs.
+ *
+ * **Every statement needs its own `;`, and two of them were missing on the first attempt** — the array is
+ * space-joined, so a newline is not there to act as the separator the way it would be in a script file. The
+ * result was `$ErrorActionPreference='SilentlyContinue' while (...)` and `Select-Object -First 1 if (...)`,
+ * both parse errors, and the child exited code 1 four times before giving up. `probe-battery.ts` caught it;
+ * no unit test could have. The one place a `;` must NOT go is before `else`, which has to stay attached to its
+ * `if`'s closing brace.
+ */
+export function batteryScript(intervalSec: number): string {
+  return [
+    "$ErrorActionPreference='SilentlyContinue';",
+    "while ($true) {",
+    "$b = Get-CimInstance -ClassName Win32_Battery -Property EstimatedChargeRemaining,BatteryStatus | Select-Object -First 1;",
+    "if ($null -eq $b) { Write-Output 'batt none' }",
+    "else {",
+    "$p = if ($null -eq $b.EstimatedChargeRemaining) { -1 } else { $b.EstimatedChargeRemaining };",
+    "$s = if ($null -eq $b.BatteryStatus) { 0 } else { $b.BatteryStatus };",
+    "Write-Output ('batt ' + $p + ' ' + $s)",
+    "};",
+    "[Console]::Out.Flush();",
+    `Start-Sleep -Seconds ${String(Math.max(1, Math.round(intervalSec)))}`,
+    "}",
+  ].join(" ")
+}
+
+export function wholeSeconds(sec: number): number {
+  if (!Number.isFinite(sec)) return 1
+  return Math.max(1, Math.round(sec))
 }

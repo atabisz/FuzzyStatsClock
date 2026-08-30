@@ -171,7 +171,7 @@ describe("the dropped-header defect, from a live capture", () => {
 
   test("the dropped counter's data is still in the rows", () => {
     // Which is why the failure is misalignment and not absence. If typeperf omitted the
-    // *values* too, path-matching would degrade safely to `--`.
+    // *values* too, path-matching would degrade safely to `N/A`.
     expect(parseSampleValues(droppedSample ?? "")).toEqual([39.317162, 92.581233, 4.385855])
   })
 

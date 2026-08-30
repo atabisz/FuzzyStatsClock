@@ -241,13 +241,24 @@ export const NEVER_THEMED_IDS = [
 export const PHASE_7_ACCENT_TARGET_IDS = ["update"] as const
 
 /**
- * Ids that carry no colour of their own: the SVG root, the shared drop-shadow filter, and the
- * containers the four faces are swapped in and out of.
+ * Ids `ApplyTheme` and `ApplyDisplayColor` never touch, and not for one reason: the SVG root, the shared
+ * drop-shadow filter, the containers the five faces are swapped in and out of, and the two full-window
+ * rects whose fills are decided somewhere other than the theme.
+ *
+ * "Carries no colour of its own" is what this used to say, and `windowBackground` -- authored
+ * `fill="black"` -- always contradicted it. `backdrop` makes the looseness worse rather than introducing
+ * it: `core/backdrop.ts` computes its fill from `backdropAlwaysVisible`, the hover state and an opacity
+ * percentage, which is a colour, just not a themed one.
+ *
+ * The distinction against {@link NEVER_THEMED_IDS} is provenance, not behaviour: that set is a verbatim
+ * transcription of `ApplyTheme`'s own closing exclusion comment and stays exactly as long as that comment
+ * is. This one is everything else the theme walk has no business in.
  */
 export const STRUCTURAL_IDS = [
   "root",
   "textShadow",
   "windowBackground",
+  "backdrop",
   "phraseFace",
   "splitFace",
   "dialFace",

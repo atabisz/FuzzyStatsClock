@@ -19,6 +19,14 @@
  * `altTabTotal` (the positive control -- there must be real Alt-Tab windows, or the probe is blind) and
  * `altTabOurs`, which must be 0.
  *
+ * ## The one expectation this probe got wrong, and how it was settled
+ *
+ * S2 asserted `WS_EX_LAYERED` and called it a consequence of `transparent: true`. It was a consequence of
+ * something calling `setOpacity`, and when Phase 5 removed that call the arm went red for two phases while
+ * the window was in fact still translucent. No arm here could tell those apart: every one of them reads a
+ * *decision* rather than an appearance. `probe-pixels.ts` was written for exactly that gap and measured the
+ * pixels; the expectation is now `false` with its provenance on the line itself.
+ *
  * ## An isolated profile, and one file that is never written
  *
  * The app is launched with `--user-data-dir` pointing at a fresh temp directory, so the probe neither
@@ -273,10 +281,19 @@ if (!IS_WIN) {
       `${String(w.width)}x${String(w.height)}`,
   )
   // Each expectation names the option that should have produced it, so a red says WHICH line to look at.
+  //
+  // `layered` wants FALSE, and that is a correction rather than a relaxation. It read `true` for two phases
+  // and was attributed to `transparent: true`; Phase 5 removed main's `setOpacity()` call and the bit went
+  // away with it, which is the real cause. `probe-pixels.ts` then measured the consequence directly -- X3,
+  // 64/64 cells of the magenta backdrop still visible through the widget window at 0.0 channel error -- so
+  // this build composites translucent windows through DirectComposition and `WS_EX_LAYERED` is not what
+  // makes the widget see-through. The arm is kept rather than deleted because it still discriminates in the
+  // other direction: on the measured table in `probe-pixels.ts`'s header, `setOpacity` is what sets this
+  // bit, so a `true` here means something started calling it again.
   const expected: { flag: keyof WindowFlags; want: boolean; from: string }[] = [
     { flag: "toolwindow", want: true, from: 'type: "toolbar" + skipTaskbar: true' },
     { flag: "topmost", want: true, from: 'setAlwaysOnTop(true, "screen-saver")' },
-    { flag: "layered", want: true, from: "transparent: true" },
+    { flag: "layered", want: false, from: "no setOpacity call -- probe-pixels X3 has the pixels" },
     { flag: "has_caption", want: false, from: "frame: false" },
     { flag: "has_thickframe", want: false, from: "frame: false + resizable: false" },
     { flag: "appwindow", want: false, from: "nothing sets it -- it would force us INTO Alt-Tab" },
@@ -297,8 +314,8 @@ if (!IS_WIN) {
     record(
       "S2 window flags",
       "PASS",
-      `all ${String(expected.length)} style bits read off the live window as required: toolwindow, ` +
-        `topmost and layered set; caption, thickframe and appwindow clear`,
+      `all ${String(expected.length)} style bits read off the live window as required: toolwindow and ` +
+        `topmost set; layered, caption, thickframe and appwindow clear`,
       true,
     )
   }

@@ -11,18 +11,21 @@
  * every one of those greens is void the moment this file changes — which it just did.
  *
  * What is NOT here yet, and where it lands:
- *   - The mac/linux telemetry sources, and per-row stat visibility (Phase 6).
+ *   - Per-row stat visibility (Phase 6).
  *   - Auto-launch registration (Phase 7) and auto-contrast (Phase 8).
  *   - **The settings window, which no phase in the plan owns.** Found while wiring the tray: the plan's
  *     component table lists it ("second `BrowserWindow`") but no phase's exit criteria mention it. The
  *     `open-settings` action therefore logs and does nothing, and the plan has been corrected rather
  *     than this file quietly carrying the gap.
- *   - **The hover backdrop and hover fast-refresh, which no phase owned either.** Found the same way as
- *     the wheel gesture below, by reading the C#'s `Window_MouseEnter`/`MouseLeave`: hovering the widget
- *     paints a semi-transparent backdrop behind it and drops the stats interval to 0.5s, and neither the
- *     element nor the interval change exists here. `backdropAlwaysVisible` and `backdropOpacityPercent`
- *     are in `AppSettings` with no reader anywhere. Assigned to Phase 6 in the plan, since the interval
- *     half belongs with that phase's stats work.
+ *
+ * Hover is here now — it was the other thing no phase owned, found the same way as the wheel gesture
+ * below, by reading the C#'s `Window_MouseEnter`/`MouseLeave`. Both halves are wired: the backdrop travels
+ * down the `backdrop` channel and the fast refresh is {@link applyStatsInterval}'s. **One divergence
+ * remains and it is deliberate:** the C# `Stop()`s its stats timer when the panel is collapsed
+ * (`SetStatsVisible`:1408), so `_statsTimer.IsEnabled` and "the panel is visible" are the same fact there.
+ * The port's source runs regardless, so {@link statsRunning} answers the question the C# asks — which keeps
+ * hover's behaviour identical — while the port still pays to sample a panel nobody can see. That cost is a
+ * plan item, not a hover one.
  *
  * Ghost mode (Phase 5) is here now: the 33 ms cursor poll and the click-through toggle live in
  * `main/ghost.ts`, the fade itself runs in the renderer (PERF-01), and this process owns only the target.
@@ -31,12 +34,18 @@
  * the state is real and saved, only the visible effect is pending.
  */
 
-import { BrowserWindow, app, ipcMain, screen } from "electron"
+import { BrowserWindow, app, ipcMain, powerMonitor, screen } from "electron"
 import { join } from "node:path"
 import { uptime as osUptime } from "node:os"
 import { Win32StatsSource } from "./telemetry/win32.js"
+import { DarwinStatsSource } from "./telemetry/darwin.js"
+import { LinuxStatsSource } from "./telemetry/linux.js"
+import { HOVER_INTERVAL_SEC, hoverEnter, hoverLeave, type GhostHoverState } from "../core/hover.js"
+import { isHoverFastRefresh, pushCpuSample, uptimeLine } from "../core/load-average.js"
+import { formatUptime } from "../core/uptime.js"
 import { UNAVAILABLE, type StatsSample, type StatsSource } from "../shared.js"
 import {
+  IS_MAC,
   IS_WIN,
   applyPlatformWindowTraits,
   forceX11OnLinux,
@@ -95,6 +104,46 @@ forceX11OnLinux(app.commandLine, log)
 let source: StatsSource | null = null
 let repaintTimer: ReturnType<typeof setInterval> | null = null
 
+/**
+ * The interval the source is ACTUALLY sampling at, as it reported.
+ *
+ * Not `settings.statsIntervalSeconds`, and the difference is load-bearing rather than pedantic: on Windows
+ * `typeperf -si` takes whole seconds, so a legal fractional setting and the entire 0.5s hover fast-refresh
+ * are declined outright. This value is what `core/load-average.ts` must count its 1/5/15-minute windows
+ * against, because those windows are measured in SAMPLES.
+ */
+let adoptedIntervalSec = DEFAULTS.statsIntervalSeconds
+
+/**
+ * What the source adopted for the CONFIGURED interval, with no hover in play.
+ *
+ * The baseline the hover fast-refresh is judged against, and it is not `settings.statsIntervalSeconds`
+ * for the reason {@link isHoverFastRefresh} gives at length: on Windows a fractional setting is declined
+ * outright, so the setting and the cadence differ with no cursor anywhere near the widget.
+ */
+let baselineIntervalSec = DEFAULTS.statsIntervalSeconds
+
+/**
+ * The rolling CPU queue behind the uptime line's three averages, capped at 15 minutes of samples.
+ *
+ * In main rather than in the renderer because the cap and the window widths are counted in SAMPLES against
+ * {@link adoptedIntervalSec} — a number only main knows, since only main gets `setIntervalSec`'s return
+ * value. Pushed from `source.start`'s callback rather than from the repaint timer, because those are
+ * different clocks: the repaint runs at `REPAINT_MS` regardless of what the source is doing, and averaging
+ * a repaint schedule would describe the window rather than the machine.
+ */
+let cpuSamples: readonly number[] = []
+
+/**
+ * Whether the cursor is over the widget, as far as the stats cadence is concerned.
+ *
+ * Distinct from the ghost driver's own cursor tracking: this one is set from the renderer's pointer events
+ * and only when `core/hover.ts` returned an interval to move to — so it is "a hover the app acted on the
+ * cadence for" rather than "the cursor is nearby". Both gates matter: ghost mode without the modifier makes
+ * an enter a no-op entirely, and a collapsed stats panel makes it a backdrop-only one.
+ */
+let hovering = false
+
 /** The single live copy of settings. Every mutation goes through `applySettings`. */
 let settings: AppSettings = DEFAULTS
 let store: SettingsStore | null = null
@@ -126,7 +175,9 @@ const latest: StatsSample = {
   pag: UNAVAILABLE,
   battery: UNAVAILABLE,
   pluggedIn: false,
-  uptimeSec: 0,
+  // Overwritten on the first repaint tick, before any send. `index.html` ships "up —" as the node's own
+  // initial text, so this value never reaches the glass — but it must not be a plausible-looking line.
+  uptimeText: "",
 }
 
 /** Paints the renderer has actually completed. Reported so a silent renderer
@@ -184,6 +235,63 @@ function trayState(s: AppSettings): TrayMenuState {
 }
 
 /**
+ * Build the telemetry source for this platform.
+ *
+ * All three exist now, so there is no "no source implemented" branch left and the `N/A` fallback is a
+ * *per-metric* property rather than a per-platform one: every source emits {@link UNAVAILABLE} for a metric
+ * its host cannot answer, and the renderer's existing `-1` path draws it.
+ *
+ * The interval is deliberately NOT passed to the constructors. Every source is constructed at its own default
+ * and then asked, once, through {@link StatsSource.setIntervalSec} — because that is the call whose *return
+ * value* says what was actually adopted, and a constructor cannot report a decline. The bug this replaces is
+ * worth naming: this seam used to read `new Win32StatsSource({ intervalSec: 1, ... })` against a
+ * `DEFAULTS.statsIntervalSeconds` of `2.0`, so the port sampled at twice the original's rate and the interval
+ * setting had **no reader anywhere in the app**. `test/hover.test.ts` found it, by asserting the default.
+ */
+function createStatsSource(): StatsSource {
+  if (IS_WIN) {
+    return new Win32StatsSource({
+      recycleMs: 30_000,
+      log,
+      // The parity read for the plug flag, and it is free. `PowerStatus.PowerLineStatus` in the C# and
+      // `isOnBatteryPower()` here are both `GetSystemPowerStatus`'s `ACLineStatus` byte. Injected rather than
+      // imported inside the telemetry module so that module still loads under plain `bun` — `probe-battery.ts`
+      // depends on that, and running it without this reader is also how the CIM fallback gets exercised.
+      readAcLine: () => !powerMonitor.isOnBatteryPower(),
+    })
+  }
+  if (IS_MAC) return new DarwinStatsSource({ log })
+  return new LinuxStatsSource({ log })
+}
+
+/**
+ * Push the configured cadence at the source, and remember what it agreed to.
+ *
+ * Called on startup and from {@link applySettings}, and it takes the hover state into account rather than
+ * blindly writing the configured value: a settings change while the cursor rests on the widget would
+ * otherwise cancel the hover fast-refresh and leave nothing to restore it, because
+ * {@link hoverLeave} is what puts the configured interval back and it will not fire again until the cursor
+ * leaves and re-enters.
+ *
+ * The C# does clobber it — `ApplySettings` writes `_statsTimer.Interval` unconditionally — so this is a
+ * divergence, and a deliberate one: it is invisible except in the case the original gets wrong.
+ */
+function applyStatsInterval(why: string): void {
+  if (source === null) return
+  const wanted = hovering ? HOVER_INTERVAL_SEC : settings.statsIntervalSeconds
+  const adopted = source.setIntervalSec(wanted)
+  // Before the early return, and only on the non-hover path: this is the value the load averages judge a
+  // fast-refresh against, so it has to track a settings change that the source happens to adopt at the
+  // cadence already running. A settings change made DURING a hover leaves it briefly stale, which is
+  // harmless — the answer it gives while hovering is "yes, fast-refreshing", which is true either way, and
+  // `hoverLeave` refreshes it on the way out.
+  if (!hovering) baselineIntervalSec = adopted
+  if (adopted === adoptedIntervalSec) return
+  adoptedIntervalSec = adopted
+  log("info", `telemetry: cadence now ${String(adopted)}s (asked ${String(wanted)}s, ${why})`)
+}
+
+/**
  * The one route by which settings change: replace, persist, re-tick the menu.
  *
  * Re-ticking on every mutation is not belt-and-braces on Linux — it is the only thing that keeps the
@@ -195,6 +303,9 @@ function applySettings(next: AppSettings, why: string): void {
   const saved = store?.save(settings) ?? false
   tray?.setStateAndRefresh(trayState(settings))
   applyWindowSettings()
+  // After `applyWindowSettings`, because a cadence change can respawn children on Windows and there is no
+  // reason to make the window's own redraw wait behind that.
+  applyStatsInterval(why)
   log("info", `settings: ${why}${saved ? "" : " (NOT SAVED)"}`)
 }
 
@@ -241,6 +352,72 @@ function pushSettings(): void {
 function sendGhost(state: { ratio?: number; menuOpen?: boolean; reset?: boolean }): void {
   if (!rendererReady || mainWindow === null || mainWindow.isDestroyed()) return
   mainWindow.webContents.send("ghost", state)
+}
+
+/**
+ * Paint or clear the hover backdrop. A boolean, not a colour — `src/preload.ts` has that argument.
+ *
+ * No gate on `backdropAlwaysVisible` here: `core/hover.ts` already returns `null` for the leave that must
+ * not clear, and the renderer's own fill function reads the setting too. Two readers of one setting, and
+ * that is on purpose — this one decides *whether a message is sent* and that one decides *what a painted
+ * backdrop looks like*. Folding them would make the always-visible case depend on a message arriving.
+ */
+function sendBackdrop(painted: boolean): void {
+  if (!rendererReady || mainWindow === null || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send("backdrop", painted)
+}
+
+/** The three `GhostDriver` getters `core/hover.ts`'s rules read. No driver yet reads as "not enabled". */
+function ghostHoverState(): GhostHoverState {
+  return {
+    enabled: settings.ghostModeEnabled,
+    modifierHeld: ghost?.isModifierHeld ?? false,
+    active: ghost?.isActive ?? false,
+  }
+}
+
+/**
+ * `_statsTimer != null && _statsTimer.IsEnabled`, which in the C# is the same fact as the panel being
+ * visible — `SetStatsVisible` starts and stops the timer with it (:1389/:1408).
+ *
+ * So this reads `statsVisible` rather than `source !== null` alone, even though the port's source keeps
+ * running while the panel is collapsed. Reading only the source would give a collapsed panel a hover
+ * fast-refresh the original does not have, and the fast refresh exists to make *visible* numbers move.
+ */
+function statsRunning(): boolean {
+  return source !== null && settings.statsVisible
+}
+
+/**
+ * `Window_MouseEnter` / `Window_MouseLeave`, from the renderer's `pointerenter`/`pointerleave`.
+ *
+ * The rules and every asymmetry between the two edges live in `core/hover.ts`; this function is the wiring
+ * and holds no policy. Three things about it are worth knowing:
+ *
+ *   - **`hovering = inside`, not `effect.intervalSec === HOVER_INTERVAL_SEC`.** Deriving the flag from the
+ *     number looks tidier and is wrong: `statsIntervalSeconds` may legitimately BE 0.5, and a leave would
+ *     then set `hovering` true. The effect's interval is read as a *whether*, and {@link applyStatsInterval}
+ *     stays the single writer of the cadence — it is also what `applySettings` calls.
+ *   - **`effect.fastRefreshFlag` is deliberately ignored.** The port derives that fact from what the source
+ *     *accepted* rather than from the cursor, because on Windows `typeperf -si` declines 0.5s outright.
+ *     `core/hover.ts`'s header carries the whole argument, and the C#'s own flag is asymmetric anyway.
+ *   - A gated-out enter (ghost mode on, no modifier) reaches here and does nothing at all. That is the
+ *     original's behaviour, not a dropped message.
+ */
+function onHover(inside: boolean): void {
+  const effect = inside
+    ? hoverEnter(ghostHoverState(), statsRunning())
+    : hoverLeave(
+        ghostHoverState(),
+        statsRunning(),
+        settings.backdropAlwaysVisible,
+        settings.statsIntervalSeconds,
+      )
+  if (effect.backdrop !== null) sendBackdrop(effect.backdrop === "paint")
+  if (effect.intervalSec !== null) {
+    hovering = inside
+    applyStatsInterval(inside ? "hover enter" : "hover leave")
+  }
 }
 
 /**
@@ -416,7 +593,7 @@ function handleTrayAction(action: TrayAction): void {
       applySettings(
         { ...settings, statsVisible: !settings.statsVisible },
         // The panel obeys this now. What Phase 6 adds is per-ROW visibility and the platform sources
-        // behind the numbers — so a toggle today shows a panel of `--`s on macOS and Linux.
+        // behind the numbers — so a toggle today shows a panel of `N/A`s on macOS and Linux.
         `statsVisible = ${String(!settings.statsVisible)}`,
       )
       return
@@ -497,6 +674,12 @@ app.whenReady().then(() => {
     if (next === settings.opacity) return
     applySettings({ ...settings, opacity: next }, `opacity = ${next.toFixed(2)} (wheel)`)
   })
+  // Validated at the boundary like the two above. A non-boolean here would be read as truthy or falsy by
+  // `onHover`, so a malformed payload would land as a real enter or a real leave rather than be dropped.
+  ipcMain.on("hover", (_event, payload: unknown) => {
+    if (typeof payload !== "boolean") return
+    onHover(payload)
+  })
 
   // Settings BEFORE the window: `restore()` runs before `show()`, so the saved position has to be in
   // hand by then, and the displays the import matches positions against are needed here too.
@@ -527,7 +710,15 @@ app.whenReady().then(() => {
     // Target only. The renderer owns the interpolation — PERF-01, and the reason a busy main process
     // delays where the fade is going rather than how smoothly it gets there.
     onRatio: (ratio) => sendGhost({ ratio }),
-    onRestored: () => sendGhost({ reset: true }),
+    // Two consequences, both from the C#'s own `Restored` handler (`MainWindow.xaml.cs:245-251`): the
+    // opacity snaps back, and the backdrop is cleared **unless** `backdropAlwaysVisible`. That second one
+    // is the only path that clears it after a hover-then-ghost sequence — `Window_MouseLeave` returns early
+    // while click-through is applied and leaves it painted, so without this the backdrop would be stuck on
+    // until the next ordinary leave.
+    onRestored: () => {
+      sendGhost({ reset: true })
+      if (!settings.backdropAlwaysVisible) sendBackdrop(false)
+    },
     log,
   })
   ghost.start()
@@ -568,15 +759,37 @@ app.whenReady().then(() => {
     process.stdout.write(`PROBE-READY pid=${String(process.pid)}\n`)
   })
 
-  if (IS_WIN) {
-    const win32 = new Win32StatsSource({ intervalSec: 1, recycleMs: 30_000, log })
-    source = win32
-    log("info", `telemetry: ${win32.describe()}`)
-    win32.start((sample) => Object.assign(latest, sample))
-  } else {
-    // macOS and Linux sources are Phase 6. Stated rather than silently skipped: an ISC-6 figure
-    // measured with no telemetry attached is not the workload.
-    log("warn", `telemetry: no source implemented for ${process.platform} — stats will read as --`)
+  source = createStatsSource()
+  log("info", `telemetry: ${source.describe()}`)
+  source.start((sample) => {
+    Object.assign(latest, sample)
+    // `sample.cpu !== undefined`, NOT `latest.cpu`. Every source emits PARTIALS, and on Windows two
+    // `typeperf` children emit separately — the scalar one carries cpu, the GPU one does not — so a push
+    // keyed on the merged copy would enqueue the same CPU reading twice per interval and halve every
+    // window's real span. `undefined` is the right test rather than a truthiness one: `0` is a legitimate
+    // reading and `-1` is the sentinel, and `pushCpuSample` is the thing that drops the sentinel.
+    if (sample.cpu === undefined) return
+    cpuSamples = pushCpuSample(cpuSamples, sample.cpu, {
+      intervalSeconds: adoptedIntervalSec,
+      hoverFastRefresh: isHoverFastRefresh(adoptedIntervalSec, baselineIntervalSec),
+      // The C#'s `StatsService.IsReady` gate, expressed better than the original could. It needed a
+      // ~6-second timer flag because its counter reports `0f` while initialising, which is
+      // indistinguishable by value from an idle machine; the port's sentinel says "no reading" outright,
+      // so readiness IS "the reading is not the sentinel" and there is no window to guess at.
+      ready: sample.cpu !== UNAVAILABLE,
+    })
+  })
+  // The adopted interval, not the requested one. On Windows they differ whenever the user's setting is
+  // fractional — `typeperf -si` takes whole seconds — and this is the value the load averages must be
+  // counted against. See `core/hover.ts`.
+  adoptedIntervalSec = source.setIntervalSec(settings.statsIntervalSeconds)
+  baselineIntervalSec = adoptedIntervalSec
+  if (adoptedIntervalSec !== settings.statsIntervalSeconds) {
+    log(
+      "warn",
+      `telemetry: asked for ${String(settings.statsIntervalSeconds)}s, sampling at ` +
+        `${String(adoptedIntervalSec)}s — the source declined`,
+    )
   }
 
   repaintTimer = setInterval(() => {
@@ -585,7 +798,17 @@ app.whenReady().then(() => {
     // `Environment.TickCount64`, milliseconds since BOOT. `os.uptime()` is that same counter
     // (`GetTickCount64` on Windows), in seconds. One of Phase 6's 15 cells, paid early because it is a
     // wrong number on screen rather than a missing one.
-    latest.uptimeSec = Math.floor(osUptime())
+    //
+    // Composed here rather than in the renderer, and `procCount` is `null` rather than a number: the `Np`
+    // field needs per-process cumulative CPU time, which Node does not expose and which neither of the two
+    // Windows mechanisms this tree has already measured can deliver (§ Phase 6 of the port plan). `null`
+    // drops the field; a `0` would be a count.
+    latest.uptimeText = uptimeLine(
+      formatUptime(Math.floor(osUptime())),
+      cpuSamples,
+      adoptedIntervalSec,
+      null,
+    )
     if (!win.isDestroyed()) win.webContents.send("stats", latest)
   }, REPAINT_MS)
 

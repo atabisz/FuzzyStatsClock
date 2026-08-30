@@ -51,6 +51,21 @@ contextBridge.exposeInMainWorld("fuzzyclock", {
     ipcRenderer.on("stats", (_event, sample: StatsSample) => callback(sample))
   },
   /**
+   * Whether the hover backdrop should be painted right now.
+   *
+   * A boolean rather than a colour: the alpha comes from `backdropOpacityPercent`, which the renderer
+   * already holds from the settings push, and sending a computed fill would put the same number on the
+   * wire twice with no way to tell which copy is stale. `core/backdrop.ts` turns this plus the settings
+   * into the fill.
+   *
+   * Main decides it rather than the renderer, because the decision reads `ghostModeEnabled`, the modifier
+   * key and whether ghost mode is mid-fade — three pieces of state that only exist up there
+   * (`core/hover.ts`). This channel is also how the ghost `Restored` edge clears the paint.
+   */
+  onBackdrop(callback: (painted: boolean) => void): void {
+    ipcRenderer.on("backdrop", (_event, painted: boolean) => callback(painted))
+  },
+  /**
    * The ghost sampler's proximity ratio, and the pins that suppress acting on it.
    *
    * One channel for both because they are consumed by the same frame: `ratio` is
@@ -112,5 +127,15 @@ contextBridge.exposeInMainWorld("fuzzyclock", {
    */
   adjustOpacity(direction: number): void {
     ipcRenderer.send("adjust-opacity", direction)
+  },
+  /**
+   * The cursor entered or left the widget. One channel carrying a sign, like `adjustOpacity`.
+   *
+   * Two things hang off it in the C# (`Window_MouseEnter`/`Window_MouseLeave`, MainWindow.xaml.cs:1456-1496):
+   * the backdrop paint, which comes back down through `onBackdrop`, and the stats fast-refresh, which is
+   * main's own timer to move. Neither is decidable here.
+   */
+  hover(inside: boolean): void {
+    ipcRenderer.send("hover", inside)
   },
 })

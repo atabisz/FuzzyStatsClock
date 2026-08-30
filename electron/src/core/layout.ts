@@ -199,6 +199,8 @@ export interface StatsRowLayout {
   readonly height: number
   /** Panel-local top of the track and bar. `VerticalAlignment="Center"` inside the row. */
   readonly barY: number
+  /** False when this row is `Collapsed`: zero height, no margin, and nothing to paint. */
+  readonly visible: boolean
 }
 
 export interface StatsLayout {
@@ -206,8 +208,39 @@ export interface StatsLayout {
   readonly rows: readonly StatsRowLayout[]
   readonly uptimeTop: number
   readonly uptimeHeight: number
-  /** The panel's own height -- `uptimeTop + uptimeHeight`, by construction. */
+  /** The panel's own height -- the last VISIBLE child's bottom, by construction. */
   readonly height: number
+}
+
+/**
+ * Which of the panel's six children are shown. `SetStatRowVisible` / `SetUptimeRowVisible`'s inputs.
+ *
+ * A record rather than five booleans so `statsLayout` cannot be called with two of them transposed --
+ * `cpuVisible` and `gpuVisible` are the same type and adjacent in `AppSettings`, and a swap there is a
+ * bug that produces a correctly-sized panel with the wrong rows in it.
+ */
+export interface StatsVisibility {
+  readonly cpu: boolean
+  readonly gpu: boolean
+  readonly mem: boolean
+  readonly pag: boolean
+  readonly batt: boolean
+  readonly uptime: boolean
+}
+
+/** The five rows in `StatsPanel`'s child order, which is the order `StatsLayout.rows` is in. */
+export const STATS_ROW_KEYS = ["cpu", "gpu", "mem", "pag", "batt"] as const
+
+export type StatsRowKey = (typeof STATS_ROW_KEYS)[number]
+
+/** Every child shown -- the shipped default, and what `statsLayout()` assumes when asked for nothing. */
+export const ALL_STATS_VISIBLE: StatsVisibility = {
+  cpu: true,
+  gpu: true,
+  mem: true,
+  pag: true,
+  batt: true,
+  uptime: true,
 }
 
 /**
@@ -217,33 +250,71 @@ export interface StatsLayout {
  * A row's height is `Math.max(lineHeight(12), BAR_HEIGHT)` and not just the line height: the row is a
  * `Grid` whose tallest child decides, and the 8px track would win if the label were ever smaller than
  * it. At font size 12 the text is 15.96 and the max is a no-op -- which is exactly why it is written
- * rather than assumed, since the number that makes it matter is a per-row font size Phase 6 could add.
+ * rather than assumed, since the number that makes it matter is a per-row font size.
  *
  * Measured against `lay-arrange`: row tops step by 17.96, and each bar track sits 3.98 below its row's
  * top -- `(15.96 - 8) / 2`.
+ *
+ * ## What a hidden child does, and why the fixture cannot say
+ *
+ * `SetStatRowVisible` writes `Collapsed`, which per this module's header removes the margin along with
+ * the box -- so a hidden row costs **zero, not two**, and the row below it moves up by the full 17.96
+ * rather than by 15.96. **`wpf-layout.tsv` has no arrange data for a hidden row**: every `lay-arrange`
+ * config was captured with all five shown, so this is the `Collapsed` rule applied consistently with
+ * the date row rather than a measurement, and it is the one part of this function a fixture does not
+ * hold. The all-visible case IS measured, and that is what pins the rule's zero point.
+ *
+ * A hidden row still gets an entry, with `visible: false` and `height: 0`, rather than being filtered
+ * out. The renderer indexes rows by position to reach five fixed element ids, and a compacted array
+ * would silently shift `batt`'s geometry onto `pag`'s elements the moment one row was hidden.
  */
-export function statsLayout(): StatsLayout {
+export function statsLayout(visible: StatsVisibility = ALL_STATS_VISIBLE): StatsLayout {
   const rowHeight = Math.max(lineHeight("Segoe UI Light", STATS_FONT_SIZE), BAR_HEIGHT)
-  const uptimeHeight = lineHeight("Segoe UI Light", UPTIME_FONT_SIZE)
   const rows: StatsRowLayout[] = []
   let top = 0
-  for (let index = 0; index < STATS_ROW_COUNT; index++) {
+  for (const key of STATS_ROW_KEYS) {
+    if (!visible[key]) {
+      // Zero-height at the current cursor. `barY` is `top` rather than a centred offset because there is
+      // no box to centre in; nothing reads it while `visible` is false, and a NaN or a negative would be
+      // worse than a coordinate that is merely unused.
+      rows.push({ top, height: 0, barY: top, visible: false })
+      continue
+    }
     top += STATS_CHILD_GAP
-    rows.push({ top, height: rowHeight, barY: top + (rowHeight - BAR_HEIGHT) / 2 })
+    rows.push({ top, height: rowHeight, barY: top + (rowHeight - BAR_HEIGHT) / 2, visible: true })
     top += rowHeight
   }
-  const uptimeTop = top + STATS_CHILD_GAP
+  const uptimeHeight = visible.uptime ? lineHeight("Segoe UI Light", UPTIME_FONT_SIZE) : 0
+  const uptimeTop = visible.uptime ? top + STATS_CHILD_GAP : top
   return { rows, uptimeTop, uptimeHeight, height: uptimeTop + uptimeHeight }
 }
 
 /**
- * The stats panel's height: five rows and the uptime line, each with its 2px top margin.
+ * The stats panel's height: its visible children, each with its 2px top margin.
  *
  * Delegates rather than computing its own sum, so the height and the row tops cannot drift -- the whole
  * point of `statsLayout` is that the last child's bottom IS the height.
+ *
+ * **Zero is reachable**, and it is a real state rather than a guard to add: `SetStatRowVisible`'s
+ * auto-collapse is one-way, so hiding all five rows collapses the panel but re-showing it from the tray
+ * leaves every child hidden. WPF gives that panel height 0 and still applies its `Margin="0,8,0,0"`, so
+ * `windowLayout` below adds `ROW_GAP` to nothing -- the widget keeps an 8px gap under the date and shows
+ * an empty panel, which is what the original does.
  */
-export function statsPanelHeight(): number {
-  return statsLayout().height
+export function statsPanelHeight(visible: StatsVisibility = ALL_STATS_VISIBLE): number {
+  return statsLayout(visible).height
+}
+
+/** `AppSettings`' six flags in the shape `statsLayout` takes. */
+export function statsVisibility(settings: AppSettings): StatsVisibility {
+  return {
+    cpu: settings.cpuVisible,
+    gpu: settings.gpuVisible,
+    mem: settings.memVisible,
+    pag: settings.pagVisible,
+    batt: settings.batteryVisible,
+    uptime: settings.uptimeVisible,
+  }
 }
 
 /**
@@ -342,7 +413,10 @@ export function windowLayout(
   const font = fontNameFor(settings.textStyle)
 
   const dateBlock = settings.showDate ? ROW_GAP + lineHeight(font, sizes.date) : 0
-  const statsBlock = settings.statsVisible ? ROW_GAP + statsPanelHeight() : 0
+  // Per-row visibility reaches the WINDOW size, not just the panel's internals: hiding GPU and PAG makes
+  // the widget 35.92 shorter, and a window sized for six children with four in it leaves a dead strip
+  // below the panel that still catches clicks.
+  const statsBlock = settings.statsVisible ? ROW_GAP + statsPanelHeight(statsVisibility(settings)) : 0
 
   const innerWidth = Math.max(
     content.width,

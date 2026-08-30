@@ -28,7 +28,19 @@ export interface StatsSample {
   pag: number
   battery: number
   pluggedIn: boolean
-  uptimeSec: number
+  /**
+   * The whole uptime line, composed in main — `"up 8d 12h 30m   0.52  0.48  0.51"` — not a seconds count.
+   *
+   * A string on the wire rather than `uptimeSec`, because the line carries four fields the renderer cannot
+   * compute: the three rolling averages need a 900-entry sample queue and the interval the source actually
+   * adopted, both of which live in main. The renderer held `formatUptime(uptimeSec)` through Phases 4 and 5
+   * and so rendered exactly the first field of five (`core/load-average.ts` has the finding). Sending both
+   * would put the same value on the wire twice and let a renderer pick the shorter one silently.
+   *
+   * No source writes this — main does, on its own repaint tick. It is on `StatsSample` because that type is
+   * what main pushes to the renderer, which `uptimeSec` was too.
+   */
+  uptimeText: string
 }
 
 /**
@@ -45,4 +57,19 @@ export interface StatsSource {
   stop(): void
   /** Human-readable description of what this source actually reads, for the log. */
   describe(): string
+  /**
+   * Ask for a new sampling cadence, and **return the one actually adopted**.
+   *
+   * The return value is the whole point of the signature. A source is allowed to decline, and the Windows
+   * one has to: `typeperf -si` takes `[[hh:]mm:]ss` and rejects a fractional argument outright — measured,
+   * the child prints `Invalid syntax: -si <[[hh:]mm:]ss>` and exits immediately — so the 0.5s hover
+   * fast-refresh, and any fractional user setting, are not expressible there at all.
+   *
+   * Returning the adopted interval rather than a boolean is what keeps the caller honest downstream:
+   * `core/load-average.ts` drops samples while the cadence is faster than configured, because its windows
+   * are counted in samples. Deriving that flag from what was *asked for* would drop samples on Windows to
+   * pay for a speed-up that never happened, freezing the 1/5/15-minute averages for as long as the cursor
+   * rested on the widget. `core/hover.ts`'s header carries the full argument.
+   */
+  setIntervalSec(sec: number): number
 }
