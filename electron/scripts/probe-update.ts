@@ -17,16 +17,24 @@
  * the notice reaches the user's screen.** `probe:fade`/`probe:pixels` own the renderer, `test/layout.test.ts`
  * owns the notice's geometry, and the wiring between them is `main.ts`'s `pendingUpdateText`.
  *
- * ## The two local arms use a real server, not a fake
+ * ## The four local arms use a real server, not a fake
  *
  * B5 and B6 stand up a `Bun.serve` that accepts the connection and never answers. That is a real TCP socket,
  * a real DNS-free connect and a real abort — the one shape a `fetchImpl` fake cannot produce, because a fake
  * chooses when to reject and the code under test is what decides that here.
  *
+ * B7 and B8 are the same argument applied to the *body*. The live API answers 200 with a tag OLDER than this
+ * port's version, so the branch the network exercises is `not offered` and `updateNoticeText` was never
+ * reached — a green taken entirely from the negative branch. B7 serves a GitHub-shaped 200 with a newer tag
+ * over a real socket, which puts a real `Response` and the platform's own `json()` in front of the parse
+ * instead of a fake's `json: () => value`. **B8 is what makes B7 mean anything**: three more payloads down the
+ * same code path, one of them the tag the live API actually serves, all of which must decline. The bytes on
+ * the wire are the only variable between them.
+ *
  * ## What it costs to run
  *
  * Three real requests to api.github.com (unauthenticated, well inside the 60/hour limit) and about six
- * seconds of waiting for B5's deadline.
+ * seconds of waiting for B5's deadline. B7/B8's four requests are loopback and cost nothing.
  *
  *     bun run probe:update
  */
@@ -352,6 +360,110 @@ console.log("=== B5/B6: a real connection that never answers ===")
   }
 }
 
+// ───────────────────────────────────────────────────────────────────────────────
+// B7 + B8 — the OFFERED branch, over a real socket, with the payload as the control.
+// ───────────────────────────────────────────────────────────────────────────────
+console.log("=== B7/B8: the offered branch, and the payload as its control ===")
+{
+  /** Swapped between runs. The server is otherwise identical, so the payload is the only variable. */
+  let payload: Record<string, unknown> = {}
+  let seenUserAgent: string | null = null
+  let seenAccept: string | null = null
+  const server = Bun.serve({
+    port: 0,
+    fetch: (req) => {
+      seenUserAgent = req.headers.get("user-agent")
+      seenAccept = req.headers.get("accept")
+      // `Response.json` rather than a hand-built body: this gives the checker a real `Response` with a real
+      // `content-type`, so `await response.json()` is the platform's parse and not a fake's `() => value`.
+      return Response.json(payload)
+    },
+  })
+  const localUrl = `http://127.0.0.1:${String(server.port)}/releases/latest`
+  /** What the checker asked for, before the substitution. Asserted, so the swap cannot hide a wrong URL. */
+  let requestedUrl: string | null = null
+  const toLocal: FetchLike = (url, init) => {
+    requestedUrl = String(url)
+    return fetch(localUrl, init)
+  }
+
+  /** One full trip through the production path per payload. A fresh checker each time — UPD-01 is per-launch. */
+  const run = async (
+    body: Record<string, unknown>,
+  ): Promise<{ tag: string | null; offered: boolean; notice: string | null }> => {
+    payload = body
+    const checker = new UpdateChecker({ version: RUNNING, enabled: true, fetchImpl: toLocal })
+    const latest = await checker.check()
+    if (latest === null) return { tag: null, offered: false, notice: null }
+    const offered = shouldOfferUpdate(RUNNING, latest)
+    return { tag: updateNoticeText(latest), offered, notice: offered ? updateNoticeText(latest) : null }
+  }
+
+  try {
+    console.log(`    local server on 127.0.0.1:${String(server.port)}, answering GitHub-shaped JSON`)
+
+    const offer = await run({ tag_name: "v5.0.1", draft: false, prerelease: false })
+    console.log(
+      `    B7 tag v5.0.1 vs running ${RUNNING} → offered=${String(offer.offered)}, notice=` +
+        `${JSON.stringify(offer.notice)}, url asked for=${JSON.stringify(requestedUrl)}, ` +
+        `UA on the wire=${JSON.stringify(seenUserAgent)}`,
+    )
+    const urlRight = requestedUrl === RELEASES_URL
+    const uaOnWire = seenUserAgent === userAgent(RUNNING)
+    const acceptOnWire = seenAccept === "application/vnd.github+json"
+    const offerOk = offer.offered && offer.notice === "v5.0.1 available" && urlRight && uaOnWire && acceptOnWire
+    record(
+      "B7 the offered branch runs end to end on a real response",
+      offerOk ? "PASS" : "FAIL",
+      offerOk
+        ? `a real 200 with a real content-type went through the production adapter, the platform's own ` +
+            `\`Response.json()\`, the draft/prerelease gate, \`parseTag\` and \`shouldOfferUpdate\` and came ` +
+            `out as "${String(offer.notice)}" — the first time \`updateNoticeText\` has run on bytes off a ` +
+            `socket rather than on a fake's return value. The checker asked for RELEASES_URL (only the dial ` +
+            `was redirected) and both headers arrived on the wire, which is the half of UPD-03 that B2 ` +
+            `cannot settle: what GitHub *requires* is unproven, what we *send* is now measured at the socket`
+        : `offered=${String(offer.offered)}, notice=${JSON.stringify(offer.notice)}, ` +
+            `url=${String(urlRight)}, ua=${String(uaOnWire)}, accept=${String(acceptOnWire)}`,
+    )
+
+    // The control. Same server, same code, same adapter — three payloads that must all decline, including the
+    // repo's actual current tag, which is the live case B3 took and the reason B7 could not exist until now.
+    const live = await run({ tag_name: "v4.5.5", draft: false, prerelease: false })
+    const pre = await run({ tag_name: "v5.0.1", draft: false, prerelease: true })
+    const draft = await run({ tag_name: "v5.0.1", draft: true, prerelease: false })
+    // The fourth is not a decline, and it is here for a failure the three above cannot see: three payloads that
+    // all say "no" leave "the notice string is a constant" perfectly alive, since B7 is then the only arm that
+    // ever produced one. A second, different, newer tag is what forces the digits to come off the wire.
+    const other = await run({ tag_name: "v6.2.3", draft: false, prerelease: false })
+    console.log(
+      `    B8 v4.5.5 → offered=${String(live.offered)}; v5.0.1 prerelease → tag=${JSON.stringify(pre.tag)}; ` +
+        `v5.0.1 draft → tag=${JSON.stringify(draft.tag)}; v6.2.3 → notice=${JSON.stringify(other.notice)}`,
+    )
+    const controlOk =
+      !live.offered &&
+      live.notice === null &&
+      pre.tag === null &&
+      draft.tag === null &&
+      other.notice === "v6.2.3 available"
+    record(
+      "B8 control: the payload is what decides, not the code path",
+      controlOk ? "PASS" : "FAIL",
+      controlOk
+        ? `the only thing that changed between B7 and these four is the bytes on the wire. v4.5.5 — the ` +
+            `tag the live API actually serves — is declined, so B7's green is the payload rather than a code ` +
+            `path that always offers; the draft/prerelease gate is now shown firing on a tag that IS newer, ` +
+            `where before it was only ever exercised against one that was not; and v6.2.3 comes back as ` +
+            `"${String(other.notice)}", so the digits in the notice are read off the response rather than ` +
+            `being a constant that happens to match B7`
+        : `live offered=${String(live.offered)}/notice=${JSON.stringify(live.notice)}, ` +
+            `prerelease tag=${JSON.stringify(pre.tag)}, draft tag=${JSON.stringify(draft.tag)}, ` +
+            `other notice=${JSON.stringify(other.notice)}`,
+    )
+  } finally {
+    server.stop(true)
+  }
+}
+
 console.log("=== summary ===")
 for (const r of results) console.log(`${r.verdict.padEnd(13)} ${r.name}`)
 const passed = results.filter((r) => r.verdict === "PASS").length
@@ -360,10 +472,12 @@ const inconclusive = results.filter((r) => r.verdict === "INCONCLUSIVE").length
 console.log(`\n${String(passed)} passed / ${String(failed)} failed / ${String(inconclusive)} inconclusive`)
 console.log(
   "\nStill unproven by anything in this file:\n" +
-    "  - the OFFERED branch end to end. The live API answers 200 with a real tag, so fetch/parse/decide are\n" +
-    "    all covered — but the repo's latest release is behind this port's version, so the decision comes\n" +
-    "    back `false` and `updateNoticeText` never runs on live input. B3 says which branch was taken, and\n" +
-    "    this closes itself the first time a release newer than the running version is published.\n" +
+    "  - that GITHUB serves a newer release in the shape B7 assumes. B7 closed the offered branch over a\n" +
+    "    real socket, so fetch → real `Response.json()` → gate → parse → decide → notice text is covered on\n" +
+    "    bytes off the wire; what is still local is the wire itself. The repo's latest release is behind\n" +
+    "    this port's version, so the LIVE decision is `false` (B3) and no live 200 has ever carried a newer\n" +
+    "    tag. Closes itself the first time one is published — and if GitHub's real payload disagrees with\n" +
+    "    B7's fixture, B1 is the arm that would notice, because it prints the live body's `tag_name`.\n" +
     "  - that the notice reaches the screen. `main.ts` holds the text until the renderer says ready, and\n" +
     "    the pixel arms are `probe:fade` and `probe:pixels`.",
 )
