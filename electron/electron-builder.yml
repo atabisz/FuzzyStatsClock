@@ -154,6 +154,39 @@ linux:
   target: AppImage
   category: Utility
   icon: build/icon.png
+  # Window association. The Ubuntu build logged `desktopName is not set in package.json` — a warning about
+  # a real gap: Electron derives its `app_id` (and Chromium its WM_CLASS) from `desktopName`, while
+  # electron-builder was writing `StartupWMClass` from `productName`, so the two could name the app
+  # differently and a desktop environment matching one against the other would fail to link the running
+  # window to its launcher entry.
+  #
+  # `desktopName` itself lives in `package.json`, not here — `LinuxTargetHelper.js:252` reads
+  # `packager.info.metadata.desktopName`, and this key only controls whether the installed *filename* is
+  # derived from it. Two things were measured before writing either half, because both could have been
+  # no-ops:
+  #   1. **The value chosen changes nothing at runtime.** Electron 33.4.11's own bundled init reads
+  #      `desktopName ?? `${app.name}.desktop`` (found in `electron.exe`'s JS blob), and `app.name` is
+  #      `productName ?? name` from the SHIPPED package.json. electron-builder does not inject
+  #      `productName` there — extracted `resources/app.asar`'s copy and read it: seven fields, no
+  #      `productName` — so `app.name` is the `name` field, `fuzzyclock`, and the default already WAS
+  #      `fuzzyclock.desktop`. Setting it explicitly is what stops that being a coincidence.
+  #   2. **The key survives packaging** — and this half is now read off a built artefact rather than out of
+  #      the builder's source. `fileTransformer.js:59-77` prunes the shipped package.json by DENYLIST
+  #      (`scripts`, `devDependencies`, `_*`, ten others), so an unknown key is kept rather than dropped;
+  #      had it been an allowlist, `desktopName` would have reached the builder's warning check and never
+  #      reached Electron. The `dist:win` run after this change confirms it: `app.asar`'s package.json is
+  #      the same seven fields it always was, plus `desktopName`, eight in total.
+  #
+  #      **Extract that file to a temp directory, never to the repo.** `asar extract-file <archive>
+  #      package.json` writes to the BASENAME in the current directory and does not ask — run from
+  #      `electron/` it silently replaced the dev package.json with the eight-field packaged one, taking
+  #      every script and devDependency with it. It exits 0 and prints nothing, so the only symptom is a
+  #      later command failing with `Script not found`. `git checkout` was the recovery, which only worked
+  #      because the file was committed.
+  #
+  # What this does NOT buy: that any particular desktop environment now associates the window. That needs
+  # `xprop WM_CLASS` against a running AppImage on a Linux host, and it is recorded as unprobed.
+  syncDesktopName: true
   # No `desktop:` override. electron-builder derives the launcher entry's `Name` from
   # `productName`, which is the same literal `main/auto-launch.ts` writes into its XDG
   # autostart file — so the two agree without a third place to keep in step. The override

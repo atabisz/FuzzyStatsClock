@@ -63,7 +63,7 @@ export type AutoLaunchPlatform = "win32" | "darwin" | "linux"
 
 export interface AutoLaunchOptions {
   readonly platform: AutoLaunchPlatform
-  /** The executable to launch. `process.execPath` in production. */
+  /** The executable to launch. {@link autoLaunchExePath}'s answer in production, never `process.execPath` raw. */
   readonly exePath: string
   /** The user's home directory. Only the mac and linux sinks read it. */
   readonly homeDir: string
@@ -92,6 +92,66 @@ export const DARWIN_LABEL = "org.tabisz.fuzzyclock"
 
 /** The XDG autostart entry's filename. Lower-case by convention on that platform. */
 export const LINUX_DESKTOP_FILE = "fuzzyclock.desktop"
+
+/**
+ * Which path to REGISTER, which is not always the path we are running from.
+ *
+ * `process.execPath` is right on Windows and macOS: in a packaged app it is `FuzzyClock.exe` or the binary
+ * inside the `.app`, the same shape `Environment.ProcessPath` gives the C#, and it is stable across reboots.
+ *
+ * **Inside a running AppImage it is neither.** The AppImage runtime mounts a squashfs at a fresh
+ * `/tmp/.mount_XXXXXX` per launch and execs the binary from inside it, so `process.execPath` is
+ * `/tmp/.mount_FuzzyCOMM83Q/fuzzyclock` -- measured on the Ubuntu host, 2026-08-30. That path is gone the
+ * moment the app exits and is a different one next time, so an autostart entry holding it launches nothing
+ * at the next login. The entry EXISTS, `isEnabled()` reports `true`, the tray shows a tick, and the overlay
+ * never appears: the worst shape a bug can have, because every surface says it worked.
+ *
+ * The AppImage runtime exports `APPIMAGE` as the absolute path of the `.AppImage` FILE, which is the one
+ * thing that survives -- documented behaviour of the type-2 runtime, and the startup log now prints both
+ * values so the next Linux run reads it back rather than this comment asserting it.
+ *
+ * Three guards, each for a way this could write something worse than what it replaces:
+ *   - **Linux only.** A stray `APPIMAGE` in the environment must not be able to redirect the Windows Run
+ *     entry or the mac plist; those two platforms have no AppImage and no reason to consult it.
+ *   - **Non-empty after trimming.** `??` alone does not catch `APPIMAGE=""`, which is what an inherited-but-
+ *     unset variable looks like, and an empty `Exec=` is a `.desktop` file the spec calls invalid.
+ *   - **Absolute.** A relative `Exec=` is resolved against `$PATH` by the launcher, so a relative value does
+ *     not fail loudly -- it launches whatever else answers to that name, or nothing.
+ */
+export function autoLaunchExePath(
+  platform: AutoLaunchPlatform,
+  execPath: string,
+  appImagePath: string | undefined,
+): string {
+  if (platform !== "linux") return execPath
+  const candidate = appImagePath?.trim() ?? ""
+  if (candidate.length === 0 || !candidate.startsWith("/")) return execPath
+  return candidate
+}
+
+/**
+ * One `Exec=` value, quoted if the path needs it.
+ *
+ * `Exec` is not a plain string: the launcher word-splits it, so a path containing a space is read as a
+ * program plus an argument. An AppImage makes that likely rather than theoretical -- the user chooses where
+ * the file lives, and `~/Applications` or `~/My Apps` are both ordinary answers.
+ *
+ * The safe-set test is deliberately the same one `app-builder-lib` applies to the `Exec` line it generates
+ * for the bundled launcher entry (`out/targets/LinuxTargetHelper.js`, `/^[/0-9A-Za-z._-]+$/`), so our
+ * hand-written autostart entry and electron-builder's packaged one quote the same paths the same way.
+ *
+ * The escaping is two-level, and that is the Desktop Entry Specification's own rule rather than paranoia:
+ * the *string* escape (`\\` for a backslash) is applied before the *quoting* escape, which is why the spec
+ * says a literal backslash inside a quoted argument needs four of them. So `"`, backtick, `$` and `\` are
+ * first escaped for the Exec reader, and then every resulting backslash is doubled for the value reader.
+ * `app-builder-lib`'s own version omits the inner escaping and would emit an unbalanced quote for a path
+ * containing one; ours is the spec's answer, and the test pins the bytes for all four characters.
+ */
+export function desktopExec(exePath: string): string {
+  if (/^[/0-9A-Za-z._-]+$/.test(exePath)) return exePath
+  const forExecReader = exePath.replace(/[\\"`$]/g, (character) => `\\${character}`)
+  return `"${forExecReader.replace(/\\/g, "\\\\")}"`
+}
 
 /** What the mac and linux sinks write, and where. Exported for the tests and the probe. */
 export function darwinPlistPath(homeDir: string): string {
@@ -136,13 +196,16 @@ export function darwinPlist(exePath: string): string {
  * "Startup Applications" UI can show the entry as disabled even though the file is present. `Terminal`
  * and `NoDisplay` are both false so the entry is visible to the user in that UI -- a hidden autostart
  * entry the user cannot find is worse than none.
+ *
+ * `Exec` goes through {@link desktopExec} rather than being interpolated raw, so a path with a space in it
+ * is one program and not a program plus an argument.
  */
 export function linuxDesktopEntry(exePath: string): string {
   return `[Desktop Entry]
 Type=Application
 Name=FuzzyClock
 Comment=Fuzzy-time desktop overlay with a live stats panel
-Exec=${exePath}
+Exec=${desktopExec(exePath)}
 Terminal=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true

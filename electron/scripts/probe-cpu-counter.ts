@@ -9,7 +9,8 @@
  * **backwards** guard, firing for a reason its docblock had not listed: on Windows a per-core `idle` counter
  * regresses between two ordinary reads, by as much as -312ms, on an idle desktop with no sleep and no core
  * going offline. **The rate is run-to-run variable, so this file reports it and no document should quote a
- * fixed figure for it** — three runs here read 6.3%, 11.2% and 16.4%.
+ * fixed figure for it** — four runs here read 6.3%, 11.2%, 16.4% and 4.5%, the last of them AFTER the band
+ * had been written down as "6-16%", which is the whole argument for reporting rather than asserting.
  *
  * ## Why this is a script and not three numbers in a document
  *
@@ -23,11 +24,13 @@
  * The second: **`cpu-delta.ts` never runs on Windows.** It is the macOS/Linux CPU source — Windows takes CPU
  * from `\Processor(_Total)\% Processor Time` off the `typeperf` child that is already running for memory. So
  * the host where the regression was found is the one host where it cannot reach a user, and the hosts where
- * it *would* reach a user are the two this port has least access to. macOS arm64 has since been measured at
- * **0 of 600 under both runtimes**. Linux has not been measured at all, and when a Linux host appears this is
- * a one-command answer instead of a rewrite.
+ * it *would* reach a user are the two this port has least access to. **Both have since answered, and this
+ * file is why it took one command each rather than a rewrite**: macOS arm64 at 0 of 600 under both runtimes,
+ * and Ubuntu 24.04 x86_64 at 0 of 600 on 2026-08-30. The line above this one used to say Linux "has not been
+ * measured at all"; it is retracted rather than deleted, because a permanent probe justified by a gap should
+ * show what happened when the gap closed.
  *
- * A 6-16% per-sample `UNAVAILABLE` rate on a platform that uses this module is not cosmetic: `stats-rows.ts`
+ * A 4-16% per-sample `UNAVAILABLE` rate on a platform that uses this module is not cosmetic: `stats-rows.ts`
  * renders `UNAVAILABLE` as `N/A`, and the sampler runs about once a second, so the CPU row would blink to
  * `N/A` several times a minute — and because the regressions cluster (see A4), in visible bursts rather
  * than as isolated frames.
@@ -253,10 +256,13 @@ console.log(
     "separated -- A1 rules out tick granularity, so whatever A2 reports is the backwards guard firing.\n" +
     "\n" +
     "Measured so far: Windows x64 regresses in the idle bucket only, worst -312ms, AT A RATE THAT VARIES\n" +
-    "RUN TO RUN -- 6.3%, 11.2% and 16.4% across three runs. Real node v24.20.0 shows it too, and THAT is\n" +
-    "the discriminator (kernel, not runtime); the gap between any two individual figures is not evidence\n" +
-    "of anything. macOS arm64, 0 of 600 under both runtimes. Linux: NEVER RUN -- and Linux is one of the\n" +
-    "two platforms that actually uses this module, so that gap is the reason this file is permanent.\n" +
+    "RUN TO RUN -- 6.3%, 11.2%, 16.4% and 4.5% across four runs. Real node v24.20.0 shows it too, and THAT\n" +
+    "is the discriminator (kernel, not runtime); the gap between any two individual figures is not evidence\n" +
+    "of anything. macOS arm64, 0 of 600 under both runtimes. Ubuntu 24.04 x86_64, 0 of 600 (2026-08-30).\n" +
+    "So BOTH platforms that actually use this module read clean, and the defect is confined to the one\n" +
+    "host where the module never runs. This file stays permanent anyway: the fourth run came in at 4.5%,\n" +
+    "UNDER a floor three runs had already established, so the band itself is not a property any document\n" +
+    "can hold on another host's behalf -- or on this one's.\n" +
     "\n" +
     "What it does NOT buy: that a user sees N/A. This samples as fast as it can; the app samples about\n" +
     "once a second, and whether a 1s gap regresses at the same rate as a 60ms one is not measured here.",

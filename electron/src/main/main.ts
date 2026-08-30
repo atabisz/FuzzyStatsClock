@@ -57,7 +57,7 @@ import {
   platformWindowOptions,
 } from "../platform.js"
 import { SettingsStore } from "./settings-store.js"
-import { AutoLaunch, type AutoLaunchPlatform } from "./auto-launch.js"
+import { AutoLaunch, autoLaunchExePath, type AutoLaunchPlatform } from "./auto-launch.js"
 // `processRunner`/`fileSeam` live in their own module so `scripts/probe-autolaunch.ts` can drive the SAME
 // adapters this app uses. See `main/seams.ts`.
 import { fileSeam, processRunner } from "./seams.js"
@@ -878,15 +878,21 @@ app.whenReady().then(() => {
   // Both constructed unconditionally, and neither reads a setting at construction time. That is the C#'s
   // shape (`MainWindow.xaml.cs:202-211`): the service exists whether or not the feature is on, so every
   // later call site can be a plain method call rather than a null check plus a decision.
+  const registeredExePath = autoLaunchExePath(autoLaunchPlatform(), process.execPath, process.env.APPIMAGE)
   autoLaunch = new AutoLaunch({
     platform: autoLaunchPlatform(),
-    // `process.execPath`, which in a packaged app IS `FuzzyClock.exe` — the same shape
+    // `process.execPath` on Windows and macOS, which in a packaged app IS `FuzzyClock.exe` — the same shape
     // `Environment.ProcessPath` gives the C#. In a DEV run it is `node_modules/electron/dist/electron.exe`,
     // which would be a Run entry that launches a bare Electron with no app: `probe-autolaunch.ts` is what
     // exercises this path, under its own value name, and a dev toggle writing a useless entry is a real
     // (small) divergence recorded in the plan rather than papered over with an `isPackaged` guard that would
     // then make the tray toggle silently do nothing in development.
-    exePath: process.execPath,
+    //
+    // On Linux it is `$APPIMAGE` when there is one, because inside a running AppImage `process.execPath` is
+    // an ephemeral `/tmp/.mount_*` path — see `autoLaunchExePath`, which owns that decision and is where the
+    // reasoning and the three guards live. The env read is here rather than in that module for the same
+    // reason every other environment read is: the module stays drivable from `bun test`.
+    exePath: registeredExePath,
     homeDir: homedir(),
     runner: processRunner,
     fs: fileSeam,
@@ -901,9 +907,15 @@ app.whenReady().then(() => {
     fetchImpl: (url, init) => fetch(url, init),
     log,
   })
+  // Both paths in the log, not just the resolved one. The AppImage fix rests on `$APPIMAGE` holding the
+  // `.AppImage` file's own path, which is documented rather than measured here — printing the raw value next
+  // to what was chosen means the next Linux run reads it back off an ordinary startup log instead of needing
+  // a new instrument. `(unset)` on the two platforms that never consult it, which is also the reading.
   log(
     "info",
-    `auto-launch: ${autoLaunch.describe()} — setting is ${String(settings.autoLaunchEnabled)}`,
+    `auto-launch: ${autoLaunch.describe()} — setting is ${String(settings.autoLaunchEnabled)}, ` +
+      `registers ${registeredExePath} (execPath=${process.execPath}, ` +
+      `APPIMAGE=${process.env.APPIMAGE ?? "(unset)"})`,
   )
 
   win.once("ready-to-show", () => {

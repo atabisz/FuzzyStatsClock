@@ -513,7 +513,18 @@ console.log("=== A9: the darwin and linux sinks against a real temp HOME ===")
         platform: "linux" as const,
         path: linuxDesktopPath(home),
         expected: linuxDesktopEntry(PROBE_EXE),
-        must: ["Type=Application", `Exec=${PROBE_EXE}`, "X-GNOME-Autostart-enabled=true"],
+        // `Exec` is QUOTED AND DOUBLE-ESCAPED, and this arm used to read `Exec=${PROBE_EXE}` — it failed the
+        // moment `desktopExec()` landed, which is the arm doing its job rather than a regression. `PROBE_EXE`
+        // has a space in it, so an unquoted `Exec=` would word-split into `C:\Program` plus an argument, and
+        // the Desktop Entry spec's escaping is two-level: the string escape (`\\` for a literal backslash) is
+        // applied on top of the quoting escape (`\"`, `` \` ``, `\$`, `\\`). Written with `String.raw` so what
+        // is in this source is what is in the file, byte for byte — the alternative needed eight backslashes
+        // per separator and nobody can proofread that.
+        must: [
+          "Type=Application",
+          String.raw`Exec="C:\\\\Program Files\\\\FuzzyClock\\\\FuzzyClock.exe"`,
+          "X-GNOME-Autostart-enabled=true",
+        ],
         mustNot: ["NoDisplay=true"],
       },
     ]
@@ -550,14 +561,37 @@ console.log("=== A9: the darwin and linux sinks against a real temp HOME ===")
       if (afterDisable) problems.push(`${c.platform}: isEnabled() true after disable()`)
       if (!secondDisable) problems.push(`${c.platform}: a second disable() reported failure`)
     }
+
+    // The `must` literal above says the escaping is PRESENT. This says it is CORRECT, which is a different
+    // claim and the one that matters: a launcher does not compare strings, it unescapes and execs. So the
+    // spec's reader is implemented here — independently of `desktopExec()`, from the spec's own two levels —
+    // and the round trip has to land back on the exact path. An escaping one level off in either direction
+    // survives the substring check and fails this: too little and the reader hands `exec` a path with the
+    // separators eaten, too much and it hands over doubled backslashes.
+    const execLine = /^Exec=(.*)$/m.exec(linuxDesktopEntry(PROBE_EXE))?.[1]
+    if (execLine === undefined) {
+      problems.push("linux: no Exec= line to unescape")
+    } else {
+      // Level 1, the string escape every value in the file is subject to. Level 2, the quoting rules, which
+      // apply only inside a quoted argument.
+      let decoded = execLine.replace(/\\\\/g, "\\")
+      if (decoded.startsWith('"') && decoded.endsWith('"')) {
+        decoded = decoded.slice(1, -1).replace(/\\(["`$\\])/g, "$1")
+      }
+      if (decoded !== PROBE_EXE) {
+        problems.push(`linux: Exec unescapes to [${decoded}], not [${PROBE_EXE}]`)
+      }
+    }
+
     record(
       "A9 darwin + linux sinks",
       problems.length === 0 ? "PASS" : "FAIL",
       problems.length === 0
         ? `both sinks write, read back and remove through the production fileSeam on a real filesystem, ` +
             `creating a parent directory that did not exist, with RunAtLoad present, KeepAlive absent, and ` +
-            `NOT ONE process spawned. What this cannot show: whether launchd and GNOME honour the files — ` +
-            `that needs a real host and stays open`
+            `NOT ONE process spawned. The linux Exec= is quoted and its escaping round-trips through the ` +
+            `spec's own reader back to a path with a space in it. What this cannot show: whether launchd and ` +
+            `GNOME honour the files — that needs a real host and stays open`
         : problems.join("; "),
     )
   } finally {

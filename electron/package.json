@@ -6,6 +6,7 @@
   "author": "Alex Tabisz <alex@tabisz.org>",
   "type": "module",
   "main": "dist/main.js",
+  "desktopName": "fuzzyclock.desktop",
   "scripts": {
     "build": "bun run build:main && bun run build:preload && bun run build:renderer && bun run build:assets",
     "build:main": "bun build src/main/main.ts --outfile dist/main.js --target node --external electron",

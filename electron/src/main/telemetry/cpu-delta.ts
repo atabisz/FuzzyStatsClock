@@ -27,14 +27,20 @@
  * offline and coming back resets its ticks; macOS renumbers cores across a sleep/wake; and **Windows simply
  * reports a per-core `idle` that regresses between two ordinary reads** — by up to -312ms, on an idle desktop
  * with no sleep and no core offlining. Real node v24.20.0 reproduces it, which makes it the kernel's counter
- * rather than a runtime artefact. The rate varies run to run (6.3% to 16.4% of 60ms sample pairs across four
- * runs on one host), so `bun run probe:cpu-counter` measures it rather than this comment asserting a figure,
- * and the regressions come in **clusters** of up to 7 consecutive pairs rather than independently.
+ * rather than a runtime artefact. The rate varies run to run (4.5% to 16.4% of 60ms sample pairs across five
+ * runs on one host — and the floor moved DOWN on the fifth, which is why no figure here is load-bearing), so
+ * `bun run probe:cpu-counter` measures it rather than this comment asserting a figure, and the regressions
+ * come in **clusters** of up to 7 consecutive pairs rather than independently.
  *
- * The same probe on macOS arm64 was 0 of 600 under both runtimes, which is why this costs the product
- * nothing: Windows takes its CPU from `typeperf`, and of the two platforms that DO use this function, macOS
- * has not been seen to regress and Linux has never been measured. It cost a flaky test instead, and
+ * The same probe reads **0 of 600 on macOS arm64** (both runtimes) and **0 of 600 on Ubuntu 24.04 x86_64**,
+ * which is why this costs the product nothing: Windows takes its CPU from `typeperf`, and neither of the two
+ * platforms that DO use this function has been seen to regress. It cost a flaky test instead, and
  * `test/cpu-delta.test.ts` carries the reasoning behind its retry bound.
+ *
+ * The Linux figure landed on 2026-08-30 and **retracts a claim this comment made until then** — that Linux
+ * "has never been measured", which was true when written and stale within the day. Kept as a note rather
+ * than silently overwritten, because the two platforms reading clean is what downgrades this from a product
+ * risk to a Windows-only test problem, and that conclusion should carry its own date.
  *
  * Any of the three produces a negative delta on some core while others are positive, so the guard is on the
  * *summed* total being positive AND no bucket having gone backwards — a sum can stay positive while one

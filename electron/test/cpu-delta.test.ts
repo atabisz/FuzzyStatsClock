@@ -7,7 +7,7 @@
  *     the interesting cases — a counter going backwards, a core count changing, two reads inside one tick —
  *     cannot be produced *on demand* from a real machine. One of them turns out to happen on its own,
  *     often: see the retry note on the live arm, where a Windows per-core `idle` counter regressing in
- *     6-12% of 60ms sample pairs is measured, and shown to be the kernel's rather than Bun's.
+ *     4-16% of 60ms sample pairs is measured, and shown to be the kernel's rather than Bun's.
  *   - **The real `os.cpus()`**, twice, with work in between. That runs on this Windows host and is the arm
  *     that says the field names and units this module assumes are the ones Node actually reports. It is
  *     *not* parity evidence for macOS or Linux — the function is the same on all three, but only one of them
@@ -187,11 +187,13 @@ describe("against the real os.cpus() on this host", () => {
     // desktop with no sleep and no core going offline. `total` regressed by exactly the same amount every
     // time, so `idle` is the only bucket involved. **Real node v24.20.0 reproduces it, which is the whole
     // discriminator** — this is the Windows kernel's per-processor counter and not a Bun artefact. The rate
-    // is run-to-run variable and NOT a fixed property: 6.3%, 11.2% and 16.4% across three runs of 600, 600
-    // and 2000 pairs. Do not quote a single figure for it; `bun run probe:cpu-counter` measures the host.
+    // is run-to-run variable and NOT a fixed property: 6.3%, 11.2%, 16.4% and 4.5% across four runs of 600,
+    // 600, 2000 and 200 pairs. Do not quote a single figure for it, and do not trust a band either — the 4.5%
+    // came in under a floor the first three had established. `bun run probe:cpu-counter` measures the host.
     //
-    // The same probe on the macOS arm64 host — the platform this module actually ships to — was **0 of 600
-    // under both runtimes**, which is why the product is not affected and only this arm needed changing.
+    // The same probe on **both** platforms this module actually ships to reads clean: macOS arm64 at 0 of 600
+    // under both runtimes, and Ubuntu 24.04 x86_64 at 0 of 600 (2026-08-30). That is why the product is not
+    // affected and only this arm needed changing.
     //
     // So UNAVAILABLE is a legitimate outcome of any one sample here, and the fix is to sample until one is
     // available rather than to weaken what is asserted about it. `busy === UNAVAILABLE || in range` would

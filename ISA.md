@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 34/50
+progress: 34/51
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T22:40:00+10:00
+updated: 2026-08-30T18:11:08+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -1384,10 +1384,23 @@ misses it, because every feature either ported or was consciously retired with t
   - `usr/share/icons/hicolor/1024x1024/apps/fuzzyclock.png` — **PNG 1024×1024 RGBA**, the first time
     `make-icon.ts`'s redrawn output has been inside a Linux package. The `set` conversion returns the
     1024px PNG as-is, no size ladder — as `electron-builder.yml`'s comment already predicted.
-  - **One non-fatal build warning carried forward:** `desktopName is not set in package.json` →
-    "desktop environments may not link running windows to this .desktop entry" (WM_CLASS ↔ launcher).
-    The bundled entry does carry `StartupWMClass=FuzzyClock`; whether Electron's runtime WM_CLASS
-    matches was not checked. Fix: `desktopName` + `linux.syncDesktopName: true`.
+  - **One non-fatal build warning, now ADDRESSED 2026-08-30 — and the fix is a no-op at runtime by
+    measurement, which is the interesting part.** The warning was `desktopName is not set in
+    package.json` → "desktop environments may not link running windows to this .desktop entry"
+    (WM_CLASS ↔ launcher). `desktopName: "fuzzyclock.desktop"` is now in `package.json` (not in
+    `electron-builder.yml` — `LinuxTargetHelper.js:252` reads it off the metadata) with
+    `linux.syncDesktopName: true` beside it. Both halves were checked against something before being
+    written: **(1)** Electron 33.4.11's bundled init already reads ``desktopName ?? `${app.name}.desktop` ``
+    — extracted from `electron.exe`'s JS blob — and `app.name` is `productName ?? name` off the SHIPPED
+    package.json, which electron-builder does not give a `productName`, so the default already *was*
+    `fuzzyclock.desktop`. Setting it explicitly is what stops that being a coincidence, and
+    `test/auto-launch.test.ts` now pins `productName === undefined` so the day someone adds one is the
+    day an arm goes red rather than the day window association quietly changes. **(2)** The key survives
+    packaging: `fileTransformer.js:59-77` prunes by denylist, and the `dist:win` run after the change
+    confirms it off the artefact — `app.asar`'s package.json is the same seven fields plus
+    `desktopName`, eight. Had it been an allowlist the key would have silenced the warning and never
+    reached Electron. **Still not bought, and named: that any desktop environment now associates the
+    window.** That needs `xprop WM_CLASS` against a running AppImage on a Linux host.
   - **The packaged AppImage was run** (~9 s, X11): it mounts at `/tmp/.mount_Fuzzy*`, comes up as a
     4-process tree (main + zygotes + `--type=gpu-process --ozone-platform=x11` + network utility),
     maps a real `FuzzyClock` window, `PROBE-PAINTS 10`, and did a live GitHub update check
@@ -1407,14 +1420,13 @@ misses it, because every feature either ported or was consciously retired with t
     real `~/.config/autostart` was verified untouched** (task AC-1). The live overlay run also
     exercised the read-only path: `auto-launch: /home/alex/.config/autostart/fuzzyclock.desktop —
     setting is false`, nothing written.
-  - **Linux-only defect (not yet a fix): `main.ts:889` passes `exePath: process.execPath`.** Confirmed
-    live inside the running AppImage — `process.execPath` is `/tmp/.mount_FuzzyCOMM83Q/fuzzyclock`, an
-    ephemeral FUSE mount, gone on exit, different every run. Toggling auto-launch from the tray while
-    running as an AppImage writes a dead `Exec=` line. Fix: `process.env.APPIMAGE ?? process.execPath`
-    on Linux; Windows and macOS unaffected. Follow-up task, does not block `[~]` → the box stays open
-    on the logout arm regardless.
-  - **Still owed on Linux:** a real logout/login with the entry present, the desktop environment
-    honouring `~/.config/autostart`, and the `process.execPath` fix above.
+  - **Linux-only defect — FOUND on the Ubuntu run, FIXED 2026-08-30, and it is now ISC-30.2.**
+    `main.ts` passed `exePath: process.execPath`, which inside a running AppImage is
+    `/tmp/.mount_FuzzyCOMM83Q/fuzzyclock` — an ephemeral FUSE mount, gone on exit, different every run.
+    Toggling auto-launch from the tray wrote a dead `Exec=` line. The fix and its two negative controls
+    are ISC-30.2; the second defect it surfaced (an unquoted `Exec=`) is there too.
+  - **Still owed on Linux:** a real logout/login with the entry present, and the desktop environment
+    honouring `~/.config/autostart`. The `process.execPath` defect is no longer on this list.
   - **One contract over three sinks.** `main/auto-launch.ts` (279 LOC) exposes `enable()` / `disable()` /
     `isEnabled()` over a `Runner` and an `Fs` seam and dispatches on platform: `reg.exe` against
     `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` on win32, a LaunchAgent plist on darwin, an XDG
@@ -1500,6 +1512,50 @@ misses it, because every feature either ported or was consciously retired with t
     claim bought is "launchd accepts our plist and honours `RunAtLoad` when it loads the job", not "the
     overlay appears after a reboot". **And the linux sink remains untested against any desktop
     environment** — ISC-30 stays `[~]` for exactly that reason, and it is a hosts gap.
+- [~] **ISC-30.2. The path Linux auto-launch REGISTERS survives the process that registered it, and the
+  `Exec=` value survives a shell. Both defects found by the Ubuntu run are fixed, with negative
+  controls; `[~]` because the premise underneath the first fix — that `$APPIMAGE` holds the
+  `.AppImage`'s own absolute path — is documented rather than measured on a host.** 2026-08-30.
+  - **Defect 1, and its shape is the worst kind: every surface said it worked.** `exePath:
+    process.execPath` inside a running AppImage is `/tmp/.mount_FuzzyCOMM83Q/fuzzyclock` — measured live,
+    not reasoned. `enable()` returns true, `isEnabled()` returns true, `desktop-file-validate` exits 0,
+    the file is byte-identical to its generator, and the entry is dead at the next login because the
+    mount is gone. Nothing in the writing path can see it; only the *next boot* can, which is why no arm
+    of ISC-30 caught it and a nine-second run on a real host did.
+  - **The fix is a pure function with three guards, and each guard is an arm.** `autoLaunchExePath(
+    platform, execPath, appImagePath)` in `src/main/auto-launch.ts`: **linux-only**, so a stray
+    `APPIMAGE` in the environment cannot redirect Alex's Windows Run entry or the mac plist;
+    **non-empty-after-trim**, because `??` does not catch `APPIMAGE=""` and the naive
+    `process.env.APPIMAGE ?? process.execPath` this ISA proposed a day earlier would have written an
+    empty `Exec=`; and **absolute**, because a relative `Exec=` is `$PATH`-resolved and fails silently.
+    Six tests, of which three are the guards and one asserts the resolved path
+    `.not.toContain("/tmp/.mount_")` — a positive assertion on the AppImage path alone would pass on a
+    function that returned both.
+  - **Defect 2, found because the first fix makes it reachable: `Exec=` was interpolated unquoted.** An
+    AppImage's location is user-chosen, so `~/My Apps/FuzzyClock.AppImage` word-splits into `~/My` plus
+    an argument. `desktopExec()` implements the Desktop Entry spec's **two-level** escaping — the string
+    escape (`\\`) applied on top of the quoting escape (`\"`, ``\` ``, `\$`, `\\`) — and leaves paths in
+    `app-builder-lib`'s own safe set (`/^[/0-9A-Za-z._-]+$/`) byte-identical, so nothing that worked
+    before now looks different. Worth noting that `app-builder-lib`'s generator quotes but does **not**
+    escape inside the quotes; ours does.
+  - **The probe arm is a round trip, not a substring match, and that distinction is the evidence.**
+    `probe:autolaunch` A9 previously asserted `Exec=${PROBE_EXE}` and went red the moment the quoting
+    landed — correctly, since the bytes changed. The replacement asserts the literal quoted form **and**
+    implements the spec's *reader* independently in the probe, requiring the unescape to land back on
+    `C:\Program Files\FuzzyClock\FuzzyClock.exe` exactly. An escaping one level off in either direction
+    passes a substring check and fails this: too little and the launcher gets a path with the separators
+    eaten, too much and it gets doubled backslashes. **9/9 on 2026-08-30**, and A8 confirms Alex's live
+    Run entry byte-identical across the run.
+  - **What is owed, and the instrument for it already shipped.** That `$APPIMAGE` is the `.AppImage`'s
+    own path is AppImage documentation, not a measurement — no host here has an AppImage. So the startup
+    log now prints `registers <path> (execPath=…, APPIMAGE=…)`, which means the next Linux run reads the
+    premise back off an ordinary log with no new instrument and no second trip. Also owed: `xprop
+    WM_CLASS` for the `desktopName` half (ISC-29.7), and a real logout honouring the file (ISC-30).
+  - **Recorded debt, deliberately not fixed in the same change:** `darwinPlist()` does not XML-escape
+    `exePath`, so a home directory containing `&` or `<` produces a plist `plutil -lint` would reject.
+    It is not a defect anyone has surfaced, there is no mac host in this session to verify a fix on, and
+    the change here does not touch that function — three reasons that all point the same way. Named here
+    so it is a known gap rather than a discovery.
 
 ### Phase 8-9 — Auto-contrast, then retirement
 
@@ -2037,6 +2093,7 @@ measured on this branch at or after that base.
 | ISC-29.6 (the suite is flake-free) | `bun test` from `electron/` — **2428 / 0 on six consecutive runs** at 279,775 expects, plus **three separate 120-run tallies of `test/cpu-delta.test.ts`** as the repair-path instrument, plus `bun run probe:cpu-counter` — the throwaway promoted to a permanent 4-arm probe (600, 1200 and 2000 pairs) — with the original throwaways run under **both** bun and real node v24.20.0 on Windows x64 **and** on macOS arm64 | **A red gate on an unrelated edit is the only reason this was seen**: the edits in flight were prose, and `bun test` returned 2427 / 1 at `cpu-delta.test.ts:185`. Five runs of that file alone were green, so the honest first word was "intermittent". **The test's own stated premise was the false thing, and the obvious explanation was ruled out by measurement rather than by inspection**: it asserted `not.toBe(UNAVAILABLE)` on the reasoning that "60ms is several ticks, so the counters must have moved", and the ticks *do* move — 400 trials, **zero** zero-deltas, min 1262ms. **The cause is the module's backwards guard firing for a reason its docblock did not list**: a per-core `idle` counter regresses between two ordinary reads, by up to **−312ms**, on an idle desktop with no sleep and no core offlining — `total` moving by exactly the same amount each time, so `idle` is the sole bucket. **The rate is run-to-run variable and an earlier version of this row stated it too precisely — a self-caught repeat of the retracted Linux claim's defect.** It said "38 of 600 pairs under bun (6.3%) and 69 of 600 under real node (11.5%)" and read that gap as a runtime difference; five runs now read **6.0%, 6.3%, 11.2%, 13.7%, 16.4%**, with bun landing above node's figure and the lowest of the five coming from the most heavily loaded run, so the gap was noise and the variation is not even monotonic in load. **Real node reproducing it AT ALL is the discriminator, and the size of any gap is not**: bun-only would have made it a runtime bug worth working around, and both runtimes showing it makes it the Windows per-processor counter, which this port cannot fix. **The platform that actually ships this module was measured and is clean — 0 of 600 under both runtimes on macOS arm64** — which is the load-bearing half for the product, since Windows takes CPU from `typeperf` and a 6-16% per-sample `N/A` would have flickered the CPU row several times a minute — in bursts, since the regressions cluster — on the two platforms that use it. Linux stays unmeasured and is said so rather than inferred. **The fix retries, and the loosened version is the one deliberately not written**: `busy === UNAVAILABLE \|\| in range` would pass against a function that returns nothing else, so the arm samples until a reading is available, still demands `[0, 100]`, and reports the count on exhaustion instead of `-1 !== -1`. **The bound is 40 because the probe falsified the arithmetic that first set it to 10.** That 10 came from a per-sample rate raised to the tenth power — **3.2e-10, assuming independent samples**. A4's run-length histogram over 2000 pairs reads `1x139 2x49 3x17 4x6 5x2 7x1`: **a run of 7 consecutive UNAVAILABLEs where independence predicts 4.6e-3 of them**, with a second run of 7 inside a later 600-pair run, so they cluster and the tail decays slower than geometric. 10-against-7 is 1.4× of headroom; 40 is 5.7× and costs nothing when the first sample succeeds. **A4 cannot drift from the bound because it reads the constant out of the test file** and demands 2× rather than "larger" — the criterion that fails the original 10. **Mutation control:** patched to `4`, A4 read *"bound of 4 (read from the file) … margin 1.3x, need 2x"* and FAILed; restored, `sha256sum -c` OK. **The repair path is exercised, not merely present, and the `expect()` count is the instrument**: one expect per attempt makes a retry read 384 instead of 383, and the tally on the file as it now stands is **119 at 383, 1 at 384, 0 failures**. **A third tally is the most useful of the three: 120 of 120 at 383, the path never taken**, minutes after the probe read 13.7% on the same host — because the probe loops back-to-back in one long-lived process while the test takes one sample in a fresh one, so **the probe's rate is an upper bound on what the suite sees, not a prediction of it**, and the 1-in-120 above needed the probe running alongside to provoke it. **Rule 17 checked rather than argued**: the shipped module's edit is comment-only and `dist/main.js` contains no comment text at all (zero JSDoc continuation lines, no docblock phrase from any source file), so bun strips them and no probe green is voided; `bun run build` exit 0 |
 | ISC-30 (auto-launch, all three sinks) | `bun run probe:autolaunch` from `electron/` — arms A1..A9, **9 / 0**, driving `main/auto-launch.ts` through the **production** `processRunner` and `fileSeam` from `src/main/seams.ts` against a live `HKCU` Run key and a real filesystem; plus `bun test` (`test/auto-launch.test.ts`, 303 LOC) for the value name | **The interlock is asserted before anything is written, and it is the first arm on purpose**: A1 puts five unsafe shapes through the guard against a runner that **throws if reached** — not `reg`, not the Run key, **no `/v` at all** (which names the *whole key*, where a `reg delete` would take every startup entry on the machine), more than one hit for the real value name, and any rewrite the real name survives — and the probe `process.exit(1)`s before touching the registry if the guard misbehaves. **A guard nobody tested is the likeliest thing here to be wrong, so it gets a positive control too**: a real `enable()` must pass *through* it with the name rewritten and the path untouched, or the five refusals would pass against a guard that simply refuses everything. **Two independent readers, and the second one is the parity claim**: A4 reads the value back through `reg query` (kind, exact data, **no `"` character at all** — quoting writes the quotes *into* the value and produces a Run entry Windows silently cannot launch) and through `[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(...)`'s `GetValue()` *and* `GetValueKind()`, which is the same .NET API `AutoLaunchService.cs` reads with. **A2 is the one arm proving the reader works against a value the module did not write** — Alex's own C#-written entry, read-only, where `RegistryValueKind.String` and `REG_SZ` are the same kind. **A8 is the arm that must never fail**: a before/after census of every value name under the key plus his entry byte-identical. **The seams were extracted so the probe drives the app's adapters and not a copy** — a green certifying an adapter the app does not use is worse than no probe, because it reads as coverage. **A9's absence arm is a dead runner**: the darwin and linux sinks write through the production `fileSeam` into a `mkdtemp` HOME with **zero processes spawned**, because a `launchctl load` would start a second copy the moment the box is ticked. **Two things this file deliberately does NOT prove, named in its own closing lines**: that the value name is `FuzzyClock` (it writes `FuzzyClockProbe-<pid>` by design, so the constant is the unit test's arm and the source's), and that anything starts at login — the darwin side of that second one is now ISC-30.1's, measured against real `launchd` |
 | ISC-30.1 (darwin: launchd honours the plist) | `bun run probe:launchd` from `electron/` on `alex@10.127.60.135` (macOS 26.6.2 arm64, real GUI login session) — arms A1..A9, **9 / 0**, driving `main/auto-launch.ts` through the **production** `fileSeam` and `processRunner`; `plutil -lint`, `plutil -p`, `launchctl bootstrap`/`print`/`bootout` as the readers | **The interlock is first and it guards six of Alex's real agents**: A1 requires our label ABSENT, censuses `com.google.GoogleUpdater.wake`, `com.google.keystone.agent`, `com.google.keystone.xpcservice`, `com.interceptor.daemon`, `com.pai.pulse` and `com.pai.voice-server` with sha256s, confirms `launchctl print gui/501/org.tabisz.fuzzyclock` is non-zero, and `process.exit(1)`s before writing if the label is in use. **A9 is the arm that must never fail** — same census after teardown, `missing=[]` / `changed=[]` / `added=[]` and our plist gone, with teardown in a `finally` so a mid-run assertion failure still deregisters. **The chain is valid → registered → spawns, and each link has its own reader**: `plutil -lint` exit 0 (a real parser, not a regex), `plutil -p` for `Label` / `RunAtLoad=true` / `ProcessType=Interactive` / `ProgramArguments[0]` **and `KeepAlive` absent** — the absence load-bearing, since `KeepAlive` would respawn the job forever and quitting would not stick — `launchctl bootstrap gui/501` exit 0 with `print` finding the agent, then a marker file **polled 40×100ms rather than slept for**. **A7 is A6's control and the reason A6 means anything**: a byte-identical plist minus `RunAtLoad` registers fine and writes no marker, so A6 cannot be explained by `bootstrap` starting the job as a side effect. **One substitution, declared in the header**: `ProgramArguments` runs a marker-writing script in a `mkdtemp` dir, not FuzzyClock's binary — same shape as `probe-update.ts` substituting its URL. **One informational field is labelled as such after being wrong**: `launchctl print` lists the flag as a bare token in a pipe-delimited `properties = …` line, so an earlier `=`-matching regex printed `false` while A6 was green — an informational field contradicting a load-bearing one is worse than no field. **Bounded, and this is the interesting half**: nothing here is a *login*. The agent was bootstrapped into the running session by hand, so the claim is "launchd accepts our plist and honours `RunAtLoad` when it loads the job", never "the overlay appears after a reboot" |
+| ISC-30.2 (Linux registers a path that outlives the process; `Exec=` survives a shell) | `bun run probe:autolaunch` — A9, **9 / 0**, now round-tripping the `Exec=` value through an independently implemented Desktop Entry reader; plus `bun test` (`test/auto-launch.test.ts`, +13 arms) | **The bug could not be caught by any arm on the writing side, and that is the finding**: `enable()` returned true, `isEnabled()` returned true, `desktop-file-validate` exited 0 and the file matched its generator byte for byte — the entry was dead only at the *next login*, because `process.execPath` inside an AppImage is an ephemeral `/tmp/.mount_*`. Measured live on the Ubuntu host, not reasoned. **The negative control is what makes the fix checkable**: the resolved path is asserted `.not.toContain("/tmp/.mount_")`, because a positive assertion on the AppImage path alone passes on a function that returns both. **Each guard is its own arm, and one of them refutes this ISA's own earlier prescription**: the fix written here a day earlier was `process.env.APPIMAGE ?? process.execPath`, and `??` does not catch `APPIMAGE=""` — an arm for the empty string, one for a relative path, and one per non-linux platform (so a stray env var cannot redirect Alex's Run entry or the mac plist). **A9 asserts the escaping is CORRECT and not merely PRESENT**: the probe implements the spec's two-level reader itself and requires the unescape to land back on `C:\Program Files\FuzzyClock\FuzzyClock.exe` exactly, so an escaping one level off in either direction — separators eaten, or backslashes doubled — fails where a substring check passes. That arm went RED first, on its own stale expectation, which is a probe doing its job. **`desktopName` gets an arm that fails on the right day**: `productName === undefined` is pinned off the real `package.json`, because that is the field whose appearance would silently change `app.name` and with it the WM_CLASS default. **Bounded, and the bound is the premise**: that `$APPIMAGE` holds the `.AppImage`'s own absolute path is documentation, not a measurement — so the startup log now prints `execPath` and `APPIMAGE` side by side and the next Linux run reads the premise back with no new instrument |
 
 ### Still outstanding
 
@@ -2125,8 +2182,10 @@ measured on this branch at or after that base.
   the overlay opening an X11 window with `ozone-platform=x11` forced and the tray attaching (ISC-10,
   ISC-17). **Still `[DEFERRED-VERIFY]` on Linux:** the pixel arms of ISC-10/15/16 (transparency,
   click-through, always-on-top over a fullscreen window), Alt-Tab exclusion with a positive control
-  like `winflags.ps1`'s, a real logout honouring `~/.config/autostart` (ISC-29/30), the AppImage
-  `process.execPath` fix (ISC-30), and anything Wayland-native (XWayland-via-the-switch was not
+  like `winflags.ps1`'s, a real logout honouring `~/.config/autostart` (ISC-29/30), **`$APPIMAGE`
+  reading back as the `.AppImage`'s own path — the premise under the fix that replaced the
+  `process.execPath` defect (ISC-30.2), which the startup log now prints so the next run costs nothing**,
+  `xprop WM_CLASS` for the `desktopName` change (ISC-29.7), and anything Wayland-native (XWayland-via-the-switch was not
   exercised — this was an X11 session). One M1 on one macOS version and one Ubuntu box on x86_64 is
   what "three platforms" rests on today; neither is a matrix.
 - **Three macOS arms are blocked on a TCC grant, not on effort.** M4(b) the Cmd-Tab switcher, M5
@@ -2275,6 +2334,48 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **Both Linux defects fixed, 2026-08-30 (same day they were found). One new claim, ISC-30.2 `[~]`,
+  and the sequence is worth keeping because every step was a correction of the step before it.** The
+  Ubuntu run recorded two Linux-only defects and deliberately fixed neither; this closes both.
+  - **The prescription written a day earlier was wrong, and its own arm caught it.** This ISA said the
+    fix was `process.env.APPIMAGE ?? process.execPath`. `??` does not catch `APPIMAGE=""`, which would
+    have written an empty `Exec=` — so the shipped fix is a pure `autoLaunchExePath()` with three guards
+    (linux-only, non-empty-after-trim, absolute), each of which is a test arm rather than a comment.
+  - **Fixing the first defect made a second one reachable, and it was fixed in the same change.** An
+    AppImage's location is user-chosen, so `Exec=` had to stop being an unquoted interpolation:
+    `desktopExec()` now implements the Desktop Entry spec's two-level escaping, with paths in
+    `app-builder-lib`'s own safe set left byte-identical.
+  - **`probe:autolaunch` A9 went RED on its own stale expectation, which is the probe working.** It
+    asserted `Exec=${PROBE_EXE}` unquoted. The replacement is stronger than the literal it replaced: the
+    probe implements the spec's *reader* independently and requires the unescape to round-trip back to a
+    path with a space in it, so an escaping one level off in either direction fails where a substring
+    check passes. **9 / 0** after.
+  - **`desktopName` was measured to be a no-op at runtime BEFORE being set, and set anyway.** Electron
+    33.4.11's bundled init already defaults to `${app.name}.desktop` and the shipped package.json has no
+    `productName`, so `fuzzyclock.desktop` was already the value — an arm now pins `productName ===
+    undefined` so the day someone adds one is the day a test goes red. `dist:win` after the change reads
+    the key back out of `app.asar`: seven fields plus `desktopName`, eight.
+  - **Rule 17 discharged in full.** `main.ts` + `auto-launch.ts` moved and the packaging config changed,
+    so every probe green taken against the prior build was void. Re-run on this build: `probe:shell` 8/0,
+    `probe:display` 61/0 (10 diagnostic INCO), `probe:fade --workers 8` 8/8 blocking, `probe:pixels` 3/3
+    blocking, `probe:battery` 5/0, `probe:typeperf` 7/0 (A7 INCO by construction), `probe:displays` 3/3
+    with the three known diagnostic FAILs and 0 blocking, `probe:update` 5/0, `probe:cost` 4/0
+    (Electron 2.90× cheaper on CPU, RSS still indeterminate), `probe:autolaunch` 9/0, `probe:cpu-counter`
+    3 pass + 1 reading, `probe:icon` 6/0, and `dist:win` exit 0 → `probe:size` 7/0. Not re-run and why:
+    `probe:launchd` is darwin-only and there is no host in this session.
+  - **A fifth `probe:cpu-counter` run came in at 4.5%, UNDER a floor three runs had established**, so the
+    band in four files moved from "6-16%" to "4-16%" — and the point those comments already made (report
+    the rate, never assert it) is now made by the file that stated the band rather than against it.
+  - **One self-inflicted near-miss, written into `electron-builder.yml` where someone would repeat it.**
+    `asar extract-file <archive> package.json` writes to the BASENAME in the current directory without
+    asking; run from `electron/` it replaced the dev `package.json` with the eight-field packaged one,
+    taking every script and devDependency with it. Exit 0, no output — the only symptom was a later
+    command failing with `Script not found`. Recovered with `git checkout`, which worked only because the
+    file was committed. `git diff --stat` confirms the restored file differs from HEAD by exactly the one
+    intended line.
+  - Gates: `typecheck` 0, `bun test` **2441 / 0** (+13 arms, 279,801 expects), `build` 0. Count: the 3
+    `[ ]` and the passed 34 are unchanged; total 50 → 51 with ISC-30.2, so `progress: 34/51`.
+
 - **Linux smoked on a real host, 2026-08-30. No box flipped to `[x]` — a smoke is not a pass — but
   five claims moved from "no host" to partially measured, and one new claim was minted.** An Ubuntu
   24.04.4 x86_64 / X11 machine (NVIDIA GTX 1080, desktop) ran the Linux-relevant build: `bun install`
@@ -2285,9 +2386,10 @@ measured on this branch at or after that base.
   macOS), the auto-launch `.desktop` sink end-to-end with `desktop-file-validate` clean against a
   throwaway HOME (ISC-30 L note), and the overlay opening a real X11 window from both the dev binary
   and the packaged AppImage (ISC-10 L note, ISC-17 — tray attaches, no crash). **Two Linux-only
-  defects surfaced, neither a fix yet:** `main.ts:889` passes `process.execPath`, which inside an
-  AppImage is the ephemeral `/tmp/.mount_*` path (dead `Exec=` after a reboot — ISC-30); and
-  `desktopName` is unset, so `dist:linux` warns the running window may not associate with its launcher
+  defects surfaced, neither a fix at the time — both fixed the same day in the entry below:**
+  `main.ts:889` passes `process.execPath`, which inside an AppImage is the ephemeral `/tmp/.mount_*`
+  path (dead `Exec=` after a reboot — ISC-30, now ISC-30.2); and `desktopName` is unset, so
+  `dist:linux` warns the running window may not associate with its launcher
   entry (ISC-29.7). **Still `[UNPROBED]` on Linux:** pixels (transparency, click-through,
   always-on-top-over-fullscreen), Alt-Tab exclusion with a positive control, a real logout, native
   Wayland. Count: the 3 `[ ]` and the passed 34 are unchanged; total 49 → 50 with ISC-29.7, so

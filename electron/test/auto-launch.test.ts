@@ -30,8 +30,10 @@ import {
   LINUX_DESKTOP_FILE,
   WIN_RUN_KEY,
   WIN_RUN_VALUE,
+  autoLaunchExePath,
   darwinPlist,
   darwinPlistPath,
+  desktopExec,
   linuxDesktopEntry,
   linuxDesktopPath,
   type AutoLaunchPlatform,
@@ -249,6 +251,126 @@ describe("the Linux XDG autostart entry", () => {
     expect(await service.isEnabled()).toBe(true)
     expect(await service.disable()).toBe(true)
     expect(await service.isEnabled()).toBe(false)
+  })
+})
+
+describe("which path gets registered, which is not always the one we are running from", () => {
+  /** What `process.execPath` reads as inside a running AppImage. Measured on the Ubuntu host, 2026-08-30. */
+  const MOUNTED = "/tmp/.mount_FuzzyCOMM83Q/fuzzyclock"
+  /** What `$APPIMAGE` holds: the `.AppImage` file itself, which is the part that survives the exit. */
+  const APPIMAGE = "/home/alex/Applications/FuzzyClock-5.0.0-alpha.0.AppImage"
+
+  test("on Linux inside an AppImage it is $APPIMAGE, NOT the /tmp mount", () => {
+    // The defect this function exists for. Both halves are asserted: the right answer, and that the wrong
+    // answer is not the answer -- an implementation that ignored the env var would pass a bare
+    // `toBeTruthy()` and write an entry that launches nothing after the next reboot.
+    const resolved = autoLaunchExePath("linux", MOUNTED, APPIMAGE)
+    expect(resolved).toBe(APPIMAGE)
+    expect(resolved).not.toBe(MOUNTED)
+    expect(resolved).not.toContain("/tmp/.mount_")
+  })
+
+  test("on Linux with no AppImage it is execPath, so a dev run and a .deb still register something", () => {
+    expect(autoLaunchExePath("linux", "/opt/FuzzyClock/fuzzyclock", undefined)).toBe("/opt/FuzzyClock/fuzzyclock")
+  })
+
+  test("an empty or blank $APPIMAGE falls back, which `??` alone would not do", () => {
+    // `process.env.APPIMAGE ?? execPath` returns "" here: an inherited-but-unset variable is an empty string,
+    // not undefined, and `Exec=` with nothing after it is an invalid desktop entry rather than a fallback.
+    expect(autoLaunchExePath("linux", MOUNTED, "")).toBe(MOUNTED)
+    expect(autoLaunchExePath("linux", MOUNTED, "   ")).toBe(MOUNTED)
+  })
+
+  test("a RELATIVE $APPIMAGE falls back, because a relative Exec is resolved against $PATH", () => {
+    // The quiet one: a relative `Exec=` does not fail, it launches whatever else answers to that name.
+    expect(autoLaunchExePath("linux", MOUNTED, "FuzzyClock.AppImage")).toBe(MOUNTED)
+    expect(autoLaunchExePath("linux", MOUNTED, "./FuzzyClock.AppImage")).toBe(MOUNTED)
+  })
+
+  test("Windows and macOS ignore $APPIMAGE even when it is set", () => {
+    // A stray env var must not be able to redirect Alex's `FuzzyClock` Run value or the LaunchAgent, and
+    // neither platform has an AppImage to consult in the first place.
+    expect(autoLaunchExePath("win32", WIN_EXE, APPIMAGE)).toBe(WIN_EXE)
+    expect(autoLaunchExePath("darwin", POSIX_EXE, APPIMAGE)).toBe(POSIX_EXE)
+  })
+
+  test("the resolved path is what lands in the autostart file, end to end", async () => {
+    const { fs, files } = fakeFs()
+    const service = make("linux", { fs, exePath: autoLaunchExePath("linux", MOUNTED, APPIMAGE) })
+    expect(await service.enable()).toBe(true)
+    const written = files.get(linuxDesktopPath(HOME)) ?? ""
+    expect(written).toContain(`Exec=${APPIMAGE}`)
+    expect(written).not.toContain("/tmp/.mount_")
+  })
+})
+
+describe("desktopName, which is the other half of the same file format", () => {
+  /** The shipped manifest, read off disk: this is the copy electron-builder prunes and packages. */
+  async function manifest(): Promise<{ name?: string; productName?: string; desktopName?: string }> {
+    return JSON.parse(await Bun.file(new URL("../package.json", import.meta.url)).text()) as {
+      name?: string
+      productName?: string
+      desktopName?: string
+    }
+  }
+
+  test("it is set, which is what silences the builder warning and pins StartupWMClass", async () => {
+    // `dist:linux` on the Ubuntu host warned that without it, desktop environments may not link the running
+    // window to its launcher entry: electron-builder wrote `StartupWMClass` from `productName` while Electron
+    // derives its `app_id` from `desktopName`.
+    expect((await manifest()).desktopName).toBe("fuzzyclock.desktop")
+  })
+
+  test("the value equals what Electron would compute anyway, so it changes nothing at runtime", async () => {
+    // Electron 33.4.11's bundled init: `desktopName ?? `${app.name}.desktop``, where `app.name` is
+    // `productName ?? name` from the SHIPPED package.json — and `productName` is not in it (it lives in
+    // `electron-builder.yml`, and the packaged asar's copy has seven fields, none of them that one).
+    //
+    // This arm is what makes the config change safe rather than plausible: if a later edit adds
+    // `productName` here or renames the package, this fails and says the runtime `app_id` has moved.
+    const { name, productName, desktopName } = await manifest()
+    expect(productName).toBeUndefined()
+    expect(desktopName).toBe(`${String(name)}.desktop`)
+  })
+
+  test("and it is the same literal the autostart entry is named after", () => {
+    // The autostart file we hand-write and the launcher entry electron-builder generates now carry one
+    // identity between them, rather than two spellings that happen to look alike.
+    expect(LINUX_DESKTOP_FILE).toBe("fuzzyclock.desktop")
+  })
+})
+
+describe("the Exec value is quoted when the path needs it", () => {
+  test("an ordinary path is left alone, byte for byte", () => {
+    // The safe set is `app-builder-lib`'s own, so the packaged launcher entry and this autostart entry quote
+    // the same paths. No quotes here, and asserted as an exact equality so a wrapper cannot creep in.
+    expect(desktopExec("/opt/FuzzyClock/fuzzyclock")).toBe("/opt/FuzzyClock/fuzzyclock")
+    expect(desktopExec("/home/alex/App-1.2.3_x86.AppImage")).toBe("/home/alex/App-1.2.3_x86.AppImage")
+  })
+
+  test("a path with a space is quoted, which is the case an AppImage makes likely", () => {
+    // Unquoted, the launcher word-splits this into `/home/alex/My` plus one argument. The user chooses where
+    // an AppImage lives, so `My Apps` is an ordinary answer rather than a hostile one.
+    expect(desktopExec("/home/alex/My Apps/FuzzyClock.AppImage")).toBe('"/home/alex/My Apps/FuzzyClock.AppImage"')
+    expect(linuxDesktopEntry("/home/alex/My Apps/FuzzyClock.AppImage")).toContain(
+      'Exec="/home/alex/My Apps/FuzzyClock.AppImage"',
+    )
+  })
+
+  test("the four characters the spec escapes are escaped at BOTH levels", () => {
+    // The Desktop Entry Specification applies the string escape before the quoting escape, which is why it
+    // says a literal backslash inside a quoted argument needs four. Pinned per character rather than as one
+    // combined string, so a failure names which level is wrong.
+    expect(desktopExec('/a/b"c')).toBe('"/a/b\\\\"c"')
+    expect(desktopExec("/a/b`c")).toBe('"/a/b\\\\`c"')
+    expect(desktopExec("/a/b$c")).toBe('"/a/b\\\\$c"')
+    expect(desktopExec("/a/b\\c")).toBe('"/a/b\\\\\\\\c"')
+  })
+
+  test("$ is escaped rather than passed through, or the launcher expands it", () => {
+    // `Exec=/home/$USER/App` unexpanded is a path that exists; expanded by the launcher it is a different one.
+    // A `$` cannot reach the file unescaped, and the arm above pins the bytes -- this one pins the intent.
+    expect(desktopExec("/home/$USER/FuzzyClock.AppImage")).not.toContain("/$USER")
   })
 })
 
