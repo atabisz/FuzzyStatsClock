@@ -37,6 +37,7 @@
     "probe:cpu-counter": "bun scripts/probe-cpu-counter.ts",
     "probe:autolaunch": "bun scripts/probe-autolaunch.ts",
     "probe:launchd": "bun scripts/probe-launchd.ts",
+    "probe:mac-focus": "bun run build && bun scripts/probe-mac-focus.ts",
     "probe:update": "bun scripts/probe-update.ts",
     "dist:win": "bun run build && electron-builder --win --publish never",
     "dist:mac": "bun run build && electron-builder --mac --publish never",

@@ -41,7 +41,7 @@
  *      because "the C# guards it and we do not" is a question worth answering once instead of twice.
  */
 
-import { BrowserWindow, app } from "electron"
+import { BrowserWindow } from "electron"
 import type { WebContents } from "electron"
 import { join } from "node:path"
 import { IS_MAC } from "../platform.js"
@@ -103,7 +103,6 @@ export class SettingsWindowHost {
         if (win.isMinimized()) win.restore()
         win.show()
         win.focus()
-        this.#focusApp()
       }
       this.push()
       return
@@ -155,9 +154,18 @@ export class SettingsWindowHost {
       this.deps.log("error", `settings window failed to load ${url}: ${description} (${String(code)})`)
     })
 
+    // `show()` and nothing else, on every platform. There was an `app.focus({ steal: true })` here for macOS,
+    // on the reasoning that an accessory app is not activated merely by showing a window — so the form would
+    // sit in front while the typing went somewhere else. `probe:mac-focus` measured that on a real host and it
+    // is not true: `show()` is `makeKeyAndOrderFront`, and it activates the app and takes key focus by itself,
+    // from a genuinely deactivated accessory app, on this path and on the create-or-focus one above. The call
+    // was also not a working fallback for the case it was written for — with `show()` cut back to ordering-only,
+    // it activated the app but handed key focus to the OVERLAY, which has nothing to type into.
+    //
+    // The arms that keep this honest are F5-F9 there; F7 is the control that proves they can see a window
+    // which appears and never takes focus. If those go red, this is the comment to come back to.
     win.once("ready-to-show", () => {
       win.show()
-      this.#focusApp()
     })
 
     // `_settingsWindow.Closed += (_, _) => _settingsWindow = null`, plus the pin's falling edge.
@@ -212,21 +220,5 @@ export class SettingsWindowHost {
   destroy(): void {
     if (this.#win === null || this.#win.isDestroyed()) return
     this.#win.destroy()
-  }
-
-  /**
-   * macOS only: take keyboard focus.
-   *
-   * `hideFromAppSwitcher` makes this an accessory app (`app.dock.hide()` → the accessory activation policy),
-   * and an accessory app does not become the active application when one of its windows is shown — so the
-   * window can appear in front while the keystrokes keep going to whatever was active before it. `focus`
-   * with `steal` is the documented way for a background app to activate itself.
-   *
-   * UNVERIFIED on a macOS host: this is reasoned from the activation policy, not measured. On win32 and
-   * linux `show()`/`focus()` already do it, so the call is scoped to the platform that needs it.
-   */
-  #focusApp(): void {
-    if (!IS_MAC) return
-    app.focus({ steal: true })
   }
 }
