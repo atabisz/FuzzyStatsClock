@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 39/54
+progress: 40/55
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-31T00:35:00+10:00
+updated: 2026-08-31T02:10:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -634,13 +634,68 @@ misses it, because every feature either ported or was consciously retired with t
   as the menu model, `setStateAndRefresh` pushing freshness because **`popUpContextMenu` is
   `@platform darwin,win32`** and has no Linux implementation, so rebuilding on open is not available
   there. The live app logs `tray: win32/darwin -- menu rebuilt per open`. **NOT met, and the gap is
-  the interaction, not the code: nothing has clicked it.** No probe confirms the icon is in the
+  the interaction, not the code: nothing has clicked it.** ~~No probe confirms the icon is in the
   notification area, no probe opens the menu, and the Linux `click` difference is handled in code and
-  unexercised. **2026-08-30: on a real Ubuntu 24.04 / GNOME host the tray at least *attaches* with no
+  unexercised.~~ **Narrowed 2026-08-30 by ISC-17.1 below: the ADAPTER is now measured — Electron's own
+  `Menu`, built by the shipped class, item for item, and every real `MenuItem` clicked. What is left is
+  the shell's half: no probe confirms the icon is in the notification area, no NATIVE menu has been
+  opened, and the Linux `click` difference is still handled in code and unexercised.**
+  **2026-08-30: on a real Ubuntu 24.04 / GNOME host the tray at least *attaches* with no
   crash** — the live overlay run logs `tray: linux -- context menu attached up front, refreshed on
   every state change` — so libappindicator is present and `Tray` construction succeeds there; the
   click/right-click semantics are still `[UNPROBED]`. `core/tray-menu.ts` also has **no C# counterpart
   test** (`TrayMenuBuilder` has no suite), which its header says in place.
+- [x] **ISC-17.1. Electron accepts the menu template we describe to it, item for item, and every real
+  `MenuItem` dispatches the action it was built for.** `probe:tray-menu`, **18 / 0 on win32**,
+  `scripts/probe-tray-menu.ts` + `-app.cjs`. The same defect shape as the two found earlier this phase:
+  `core/tray-menu.ts` is covered as data by `test/tray-menu.test.ts`, and the twenty lines that hand that
+  data to Electron — `toMenuTemplate` and `AppTray` — were reachable by **nothing**, because `main/tray.ts`
+  imports `electron` and `bun test` cannot load it. What the gap costs is specific: Electron does not
+  validate a template and report on it, it builds what it can and ignores what it cannot, so a wrong
+  `type`, a `checked` without the explicit `type: "checkbox"` the source warns about, or a submenu passed
+  through un-mapped all yield a menu that opens, looks almost right, and is missing an entry or a tick,
+  with nothing logged. The only detector in the shipped build was a user noticing.
+  - **The lever is that TypeScript's `private` has no runtime existence.** `AppTray.buildMenu()` is
+    `private`; the harness is `.cjs` with no typechecker over it, so it asks the **shipped class** for the
+    very `Menu` it would hand to `popUpContextMenu` — dispatch wrapper and both pin listeners attached —
+    and reads Electron's own `menu.items`. **No native popup, no input grab, no cursor, no hardware**, so
+    this is safe to run at any time on Alex's desktop. Same lever as ISC-32.1, where the types that
+    vanished were the preload's parameter annotations.
+  - **Every expectation is derived from `buildTrayMenu(state)` in the driver, never hand-written** — the
+    discipline `probe:settings-window` uses for its DOM census. Adding a menu item cannot leave a stale
+    census behind. The state chosen is `clockType: "lcd"`, **third of four**, so an adapter that ticked by
+    position, ticked the first item, or ticked by identity would each read differently from ticking by
+    state; a second state with **every field flipped** proves the refresh.
+  - Graded: item count, labels, `type`s, `checked`, `enabled`/`visible` (T1–T7); all 12 actions dispatched
+    by clicking the real `MenuItem`s depth-first (T6); the platform branch — 0 menus built at construction
+    and one listener per click event on win32/darwin, 1 and 0 on Linux (T8); the icon loading non-empty
+    from the path the app itself passes, `main.ts:965` (T9); `dist/icon.png` byte-identical to
+    `assets/icon.png`, so a stale dist that ships the wrong art is caught (T9b); the pin's two event
+    routes with the watchdog arming and cancelling (T11); `setStateAndRefresh` (T14/T14b); `destroy()`
+    (T13).
+  - **T10 is a control inside the run**: a second `AppTray` on an unreadable path must produce the error
+    line naming that path. Without it T9 would be an arm that cannot fail.
+  - **Rule 18 — three mutations, each caught by a different cluster, none of them the same arm twice.**
+    (1) Drop `type: "checkbox"` — the exact silent failure `toMenuTemplate:75-76` names → T3, T5, T14b red,
+    all four checkboxes reported as `normal`. (2) Pass `item.items` straight through instead of recursing
+    → T5, T6, T14b red, and **T6's reading is the one with teeth: the four clock-type actions vanished
+    entirely**, because items built from raw core objects carry no `click`. That is a menu that opens and
+    silently does nothing. (3) Remove `setPin(false, "item clicked")` from `dispatch` → T12 and T11b red.
+    Rule 17 is discharged **by construction**: the probe bundles from `src/` and never rebuilds `dist/`,
+    and `sha256sum -c` confirmed all five `dist/` artefacts unchanged across the whole mutation sequence.
+  - **An asymmetry the first run found, and it is not a defect: `destroy()` cancels the watchdog but never
+    calls `setPin(false)`**, so a tray destroyed with the pin on leaves its consumer pinned and
+    un-notified. My arm expected four pin edges and got five. Harmless where the only caller is —
+    `main.ts:1112`, the quit tier — and `settingsWindow?.destroy()` on the very next line already skips
+    its own `closed` push for the same stated reason, that there is no renderer left to receive it. T11b
+    now asserts **five** edges with that written on it, so if a second, non-quit `destroy()` caller ever
+    appears, that arm is what has to be looked at.
+  - **Still out of reach, both named in `main/tray.ts`'s own header**: the icon's presence in the
+    notification area and a physical click on it (delivered by the desktop shell), and whether Electron
+    emits `menu-will-show` / `menu-will-close` on the `tray.popUpContextMenu` path — which needs a real
+    menu at a real cursor and a real dismissal. Everything **downstream** of that event is graded, and the
+    third close route, an item being clicked, needs no Electron event at all and is driven end to end.
+    win32 only; a Linux run flips T8 and T14 to their other branch and is the only evidence for it.
 - [x] **ISC-18. Settings persist at `app.getPath('userData')`, and the existing Windows settings file
   is imported once — matching monitors by GEOMETRY, not by key.** `%LOCALAPPDATA%\FuzzyClock\settings.json`
   must survive the transition; his live file is the one an upgrade meets, and per ISC-7.1 its
@@ -2467,8 +2522,10 @@ measured on this branch at or after that base.
   measured for one monitor and inferred for two. (3) **Unplug a monitor** with the widget on it. What is
   left is covered against recorded C# values or fakes and has not been seen on hardware. **Do not read the
   8/8 `probe:display` run as covering them** — it does not, and it says so in its own closing lines.
-- **Nothing has clicked the tray (ISC-17).** The icon's presence in the notification area, the menu
-  opening, and the Linux `click`-vs-`right-click` difference are all unexercised. `core/tray-menu.ts`
+- **Nothing has clicked the tray (ISC-17).** The icon's presence in the notification area, ~~the menu
+  opening~~ **the NATIVE menu opening (the built menu itself is now graded — ISC-17.1, `probe:tray-menu`
+  18/0, including a click on every real `MenuItem`)**, and the Linux `click`-vs-`right-click` difference
+  are all unexercised. `core/tray-menu.ts`
   additionally has **no C# counterpart test** — `TrayMenuBuilder` has no suite — and so does
   `core/reset.ts`, whose `ResetToDefaults` is a private method on a WPF `Window` and unreachable from
   the console harness. Both headers say so in place; every other Phase 3 expectation is a recorded C#
@@ -2685,6 +2742,26 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **The tray ADAPTER is measured — `probe:tray-menu`, 18 / 0, ISC-17.1, 2026-08-30.** ISC-17 said the gap
+  was "the interaction, not the code". Half of that was wrong: `toMenuTemplate` and `AppTray` are code no
+  test could reach, because `main/tray.ts` imports `electron`. The way in is the same one ISC-32.1 used —
+  **TypeScript's `private` has no runtime existence**, so a `.cjs` harness can ask the shipped class for the
+  `Menu` it would hand to `popUpContextMenu` and read Electron's own `menu.items`. No native popup, no
+  cursor, nothing on anyone's screen. Expectations derived from `buildTrayMenu(state)`, never hand-written.
+  - **Three mutations, three different clusters** (Rule 18, since the structural arms went green first run):
+    dropping `type: "checkbox"` reported all four checkboxes as `normal`; passing submenu items through
+    un-mapped made **the four clock-type actions vanish** — a menu that opens and does nothing, which is
+    exactly the failure class that has no other detector; removing the pin clear from `dispatch` reddened
+    T12 and T11b. Rule 17 discharged by construction — bundles from `src/`, never rebuilds `dist/`,
+    `sha256sum -c` clean across the sequence.
+  - **The first run found a real asymmetry and it is not a defect:** `destroy()` cancels the watchdog but
+    emits no closing pin edge. Harmless at its one call site (`main.ts:1112`, the quit tier), where the next
+    line documents the same reasoning for the settings window. Asserted at five edges with the reason on it.
+  - **A figure I had been quoting too precisely, corrected:** the suite's `expect()` total is **not** stable
+    at 280,470. It oscillates 280,470 / 280,471 on an unchanged tree, because
+    `test/cpu-delta.test.ts:222-229` puts an `expect` inside the documented CPU-sample retry loop, so the
+    total counts how many samples the real counter needed. The stable gate figures are **2511 tests / 0
+    fail / 59 files**; the assertion count is a range and must not be read as a change signal.
 - **The relay-body half of manual item 6 is closed — `probe:boundary`, 9 / 0, ISC-32.1, 2026-08-30.**
   Item 6 said "what is still owed here is the click and **the relay bodies**". The click is the shell's. The
   bodies, where they are guards, are now driven live: `main.ts`'s four validated `ipcMain.on` handlers each

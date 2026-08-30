@@ -42,6 +42,7 @@
     "probe:update": "bun scripts/probe-update.ts",
     "probe:restart": "bun run build && bun scripts/probe-restart.ts",
     "probe:boundary": "bun run build && bun scripts/probe-boundary.ts",
+    "probe:tray-menu": "bun run build && bun scripts/probe-tray-menu.ts",
     "dist:win": "bun run build && electron-builder --win --publish never",
     "dist:mac": "bun run build && electron-builder --mac --publish never",
     "dist:linux": "bun run build && electron-builder --linux --publish never"
