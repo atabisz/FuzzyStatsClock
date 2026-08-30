@@ -5,7 +5,9 @@
  *
  *   - **Synthetic snapshots** for the arithmetic and every failure mode. The inputs are hand-built because
  *     the interesting cases — a counter going backwards, a core count changing, two reads inside one tick —
- *     cannot be produced on demand from a real machine.
+ *     cannot be produced *on demand* from a real machine. One of them turns out to happen on its own,
+ *     often: see the retry note on the live arm, where a Windows per-core `idle` counter regressing in
+ *     6-12% of 60ms sample pairs is measured, and shown to be the kernel's rather than Bun's.
  *   - **The real `os.cpus()`**, twice, with work in between. That runs on this Windows host and is the arm
  *     that says the field names and units this module assumes are the ones Node actually reports. It is
  *     *not* parity evidence for macOS or Linux — the function is the same on all three, but only one of them
@@ -173,16 +175,61 @@ describe("against the real os.cpus() on this host", () => {
     // Measured here on Windows (32 logical cores), which is NOT the platform this module ships to — the
     // function is identical on all three, but only this one is under test. The macOS and Linux arms are the
     // sources' own evidence and need those hosts.
-    const before = readCpuSnapshot()
-    const deadline = performance.now() + 60
-    let sink = 0
-    while (performance.now() < deadline) sink += Math.sqrt(sink + 1)
-    expect(sink).toBeGreaterThan(0)
-    const after = readCpuSnapshot()
+    //
+    // ## Why this retries, and why the retry is not a loosened assertion
+    //
+    // The single-sample version of this arm asserted `not.toBe(UNAVAILABLE)` on the reasoning that "60ms is
+    // several ticks, so the counters must have moved". The ticks do move — the *summed* delta was never zero
+    // in 400 trials, min 1262ms — but the premise was still wrong, and it failed one full-suite run in four.
+    //
+    // The real cause is the backwards guard, firing for the reason the module's docblock does NOT list: a
+    // per-core `idle` counter goes BACKWARDS between two ordinary reads, by as much as -312ms, on an idle
+    // desktop with no sleep and no core going offline. `total` regressed by exactly the same amount every
+    // time, so `idle` is the only bucket involved. **Real node v24.20.0 reproduces it, which is the whole
+    // discriminator** — this is the Windows kernel's per-processor counter and not a Bun artefact. The rate
+    // is run-to-run variable and NOT a fixed property: 6.3%, 11.2% and 16.4% across three runs of 600, 600
+    // and 2000 pairs. Do not quote a single figure for it; `bun run probe:cpu-counter` measures the host.
+    //
+    // The same probe on the macOS arm64 host — the platform this module actually ships to — was **0 of 600
+    // under both runtimes**, which is why the product is not affected and only this arm needed changing.
+    //
+    // So UNAVAILABLE is a legitimate outcome of any one sample here, and the fix is to sample until one is
+    // available rather than to weaken what is asserted about it. `busy === UNAVAILABLE || in range` would
+    // have passed on a module that never returns anything else; this still requires a real percentage, and
+    // exhausting every attempt fails loudly with the count rather than as `-1 !== -1`.
+    //
+    // ## Why the bound is 40 and not the 10 it was first set to
+    //
+    // 10 came from a p^10 exhaustion probability of 3.2e-10, and **that arithmetic assumed the samples were
+    // independent, which they are not.** `probe:cpu-counter` measured the run-length histogram over 2000
+    // pairs and got `1x139 2x49 3x17 4x6 5x2 7x1`: a run of 7 consecutive UNAVAILABLEs, where independence
+    // predicts a run that long 4.6e-3 times in 2000 pairs. The regressions CLUSTER — which stands to
+    // reason, since whatever accounting or power-state transition makes a core's idle tick regress does not
+    // resolve inside 60ms — and the observed tail decays slower than geometric, so no closed-form bound
+    // derived from the per-sample rate is trustworthy here.
+    //
+    // A bound of 10 against an observed run of 7 is 1.4x of headroom, which is how the suite ends up
+    // intermittent again on a busier host. 40 is ~5.7x. It costs nothing in the ordinary case, because the
+    // loop stops at the first available reading and one sample is the overwhelmingly common outcome; the
+    // worst case it adds is 40 x 60ms of busy-looping, reachable only in a scenario never once observed.
+    // `probe:cpu-counter`'s A4 reads this very constant out of this file and fails if the margin against a
+    // measured run drops below 2x, so the two cannot drift apart.
+    const ATTEMPTS = 40
+    let busy = UNAVAILABLE
+    let taken = 0
+    while (taken < ATTEMPTS && busy === UNAVAILABLE) {
+      taken += 1
+      const before = readCpuSnapshot()
+      const deadline = performance.now() + 60
+      let sink = 0
+      while (performance.now() < deadline) sink += Math.sqrt(sink + 1)
+      expect(sink).toBeGreaterThan(0)
+      busy = cpuBusyPercent(before, readCpuSnapshot())
+    }
 
-    const busy = cpuBusyPercent(before, after)
-    // Not UNAVAILABLE: 60ms is several ticks on any of the three platforms, so the counters must have moved.
-    expect(busy).not.toBe(UNAVAILABLE)
+    expect(busy, `all ${String(taken)} of ${String(ATTEMPTS)} real samples came back UNAVAILABLE`).not.toBe(
+      UNAVAILABLE,
+    )
     expect(busy).toBeGreaterThanOrEqual(0)
     expect(busy).toBeLessThanOrEqual(100)
   })

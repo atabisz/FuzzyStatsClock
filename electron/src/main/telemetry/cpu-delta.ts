@@ -23,10 +23,22 @@
  *
  * ## The counters can go backwards, and it is not a rounding artefact
  *
- * Two ways, both real: a core going offline and coming back resets its ticks, and macOS renumbers cores
- * across a sleep/wake. Either produces a negative delta on some core while others are positive, so the
- * guard is on the *summed* total being positive AND no bucket having gone backwards — a sum can stay
- * positive while one core's reset quietly inflates the busy fraction past 100%.
+ * Three ways, all real, and the third was found by the guard firing where nothing predicted it. A core going
+ * offline and coming back resets its ticks; macOS renumbers cores across a sleep/wake; and **Windows simply
+ * reports a per-core `idle` that regresses between two ordinary reads** — by up to -312ms, on an idle desktop
+ * with no sleep and no core offlining. Real node v24.20.0 reproduces it, which makes it the kernel's counter
+ * rather than a runtime artefact. The rate varies run to run (6.3% to 16.4% of 60ms sample pairs across four
+ * runs on one host), so `bun run probe:cpu-counter` measures it rather than this comment asserting a figure,
+ * and the regressions come in **clusters** of up to 7 consecutive pairs rather than independently.
+ *
+ * The same probe on macOS arm64 was 0 of 600 under both runtimes, which is why this costs the product
+ * nothing: Windows takes its CPU from `typeperf`, and of the two platforms that DO use this function, macOS
+ * has not been seen to regress and Linux has never been measured. It cost a flaky test instead, and
+ * `test/cpu-delta.test.ts` carries the reasoning behind its retry bound.
+ *
+ * Any of the three produces a negative delta on some core while others are positive, so the guard is on the
+ * *summed* total being positive AND no bucket having gone backwards — a sum can stay positive while one
+ * core's reset quietly inflates the busy fraction past 100%.
  */
 
 import os from "node:os"

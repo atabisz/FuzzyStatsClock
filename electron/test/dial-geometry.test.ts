@@ -13,13 +13,23 @@
  * part no amount of reading the C# would settle. It is *not* proof that the transcription matches
  * MainWindow. That claim is carried by the eyes-on arm of ISC-21, not by this file.
  *
- * The comparison is exact (`toBe`) and that is a deliberate risk: if any of these ever drifts by an ulp
- * on another machine or another V8, the honest fix is to record the disagreement and loosen *that* row
- * with the measurement attached, not to pre-emptively soften all of them. IEEE-754 does not mandate
- * bit-identical transcendentals, so a green run here is a finding about these two implementations rather
- * than a guarantee. `dial-num 12` is the row that makes this worth having: `Math.sin(2 * Math.PI)` is
- * -2.4492935982947064e-16, not 0, so the "12" glyph sits at x 39.999999999999993 -- and both runtimes
- * agree on that, digit for digit.
+ * The comparison is exact (`toBe`) and that was called a deliberate risk here, with the remedy written
+ * down in advance: if any of these ever drifts by an ulp on another machine or another V8, record the
+ * disagreement and loosen *that* row with the measurement attached, rather than pre-emptively softening
+ * all of them. IEEE-754 does not mandate bit-identical transcendentals, so a green run here is a finding
+ * about particular implementations rather than a guarantee.
+ *
+ * **That risk materialised on 2026-08-30, and {@link ARCH_DIVERGENT} is the prescribed remedy applied.**
+ * The suite had only ever run on Windows x64; its first run on macOS arm64 (bun 1.4.0 on both, so the
+ * variable is the architecture's libm and not the runtime) failed 7 tests. Enumerating every field rather
+ * than chasing them one at a time gave the true extent: **13 of 376 fields, each by 1 to 4 ulps**, largest
+ * absolute disagreement 1.42e-14 on a dial 80 units across -- about one part in 5.6e15, which no renderer
+ * and no screen can express. So the divergence is real, bounded, and enumerated, and the table below
+ * carries both architectures' exact doubles for each of the thirteen.
+ *
+ * `dial-num 12` is the row that makes this worth having, and it did NOT diverge: `Math.sin(2 * Math.PI)`
+ * is -2.4492935982947064e-16, not 0, so the "12" glyph sits at x 39.999999999999993 -- and .NET on x64,
+ * V8 on x64 and V8 on arm64 all agree on that, digit for digit.
  *
  * ## ISC-22's discriminator lives here
  *
@@ -48,6 +58,58 @@ import { geometryFixture, num, rows } from "./lib/wpf-fixture.js"
 
 const fixture = geometryFixture()
 
+/**
+ * The thirteen coordinates where a macOS arm64 host disagrees with the x64-recorded fixture.
+ *
+ * Each entry is `[recorded, arm64]` -- both **exact** doubles, measured on 2026-08-30 by comparing all 376
+ * fixture fields on an M-series host (macOS 26.6.2, bun 1.4.0) against the same suite's Windows x64 run.
+ * Nothing here is a tolerance: the assertion still demands an exact match, just against a two-element set
+ * instead of one value. A third value -- a real geometry regression -- still fails, which a `toBeCloseTo`
+ * would have quietly absorbed. That is the whole reason for the shape.
+ *
+ * The keys read `<tag>.<index>.<field>`, matching the fixture's own tags. Deriving `arm64` from `recorded`
+ * by "add two ulps" was considered and rejected: the ulp step changes size at every power of two (see
+ * `dial-dot.56`, where `top` moves 4 ulps and `cy` 2 for the same 3.55e-15 of absolute drift, because 7.02
+ * and 8.02 sit either side of 8), so a derived value would be a guess dressed as a measurement.
+ */
+const ARCH_DIVERGENT = new Map<string, readonly [number, number]>([
+  ["dial-tick.8.x1", [13.153212482682406, 13.15321248268241]],
+  ["dial-tick.8.x2", [8.823085463760215, 8.823085463760219]],
+  ["dial-dot.11.left", [70.97409101749103, 70.97409101749102]],
+  ["dial-dot.11.cx", [71.97409101749103, 71.97409101749102]],
+  ["dial-dot.40.left", [8.689110867544652, 8.689110867544656]],
+  ["dial-dot.40.cx", [9.689110867544652, 9.689110867544656]],
+  ["dial-dot.56.top", [7.025908982508966, 7.02590898250897]],
+  ["dial-dot.56.cy", [8.025908982508966, 8.02590898250897]],
+  ["dial-num.4.top", [47.99999999999999, 48]],
+  ["dial-num.4.cy", [52.49999999999999, 52.5]],
+  ["dial-num.8.left", [14.349364905389038, 14.349364905389042]],
+  ["dial-num.8.cx", [18.349364905389038, 18.34936490538904]],
+  ["dial-hand.13:5.hourX2", [53.43249020867059, 53.4324902086706]],
+])
+
+/**
+ * Assert one coordinate against the fixture: exactly, unless it is one of the thirteen.
+ *
+ * For a listed field both assertions matter and they catch different things. `toContain(recorded)` keeps
+ * the table honest -- if the fixture is ever regenerated and a recorded value moves, the pair no longer
+ * describes it and this fails rather than silently accepting whatever the host produced. `toContain(actual)`
+ * is the real check: the host must produce one of the two architectures' values and not a third.
+ *
+ * A missing coordinate falls through to the exact assertion deliberately: `undefined` is not one of the
+ * two values, so the listed rows must not quietly treat "the array was short" as a pass. It is also what
+ * satisfies `toContain`'s element type without a cast.
+ */
+function expectCoordinate(key: string, actual: number | undefined, recorded: number): void {
+  const pair = ARCH_DIVERGENT.get(key)
+  if (pair === undefined || actual === undefined) {
+    expect(actual).toBe(recorded)
+    return
+  }
+  expect(pair).toContain(recorded)
+  expect(pair).toContain(actual)
+}
+
 describe("hour ticks, every endpoint measured", () => {
   const ticks = hourTicks()
 
@@ -63,10 +125,10 @@ describe("hour ticks, every endpoint measured", () => {
   )("tick $hour", (row) => {
     const tick = ticks[row.hour]
     expect(tick).toBeDefined()
-    expect(tick?.x1).toBe(row.x1)
-    expect(tick?.y1).toBe(row.y1)
-    expect(tick?.x2).toBe(row.x2)
-    expect(tick?.y2).toBe(row.y2)
+    expectCoordinate(`dial-tick.${String(row.hour)}.x1`, tick?.x1, row.x1)
+    expectCoordinate(`dial-tick.${String(row.hour)}.y1`, tick?.y1, row.y1)
+    expectCoordinate(`dial-tick.${String(row.hour)}.x2`, tick?.x2, row.x2)
+    expectCoordinate(`dial-tick.${String(row.hour)}.y2`, tick?.y2, row.y2)
   })
 
   test("there are twelve, and index 0 points straight up", () => {
@@ -92,12 +154,12 @@ describe("minute dots, every position measured", () => {
   )("dot $minute", (row) => {
     const dot = dots[row.minute]
     expect(dot).toBeDefined()
-    expect(dot?.cx).toBe(row.cx)
-    expect(dot?.cy).toBe(row.cy)
+    expectCoordinate(`dial-dot.${String(row.minute)}.cx`, dot?.cx, row.cx)
+    expectCoordinate(`dial-dot.${String(row.minute)}.cy`, dot?.cy, row.cy)
     // The WPF placement is the centre minus half the 2.0 dot size. An SVG circle wants the centre, so
     // both are carried: the fixture records `left`/`top` and the renderer uses `cx`/`cy`.
-    expect(dot?.left).toBe(row.left)
-    expect(dot?.top).toBe(row.top)
+    expectCoordinate(`dial-dot.${String(row.minute)}.left`, dot?.left, row.left)
+    expectCoordinate(`dial-dot.${String(row.minute)}.top`, dot?.top, row.top)
   })
 
   test("there are sixty, and each sits one unit up-left of its centre", () => {
@@ -128,10 +190,10 @@ describe("hour numbers, every position measured", () => {
     const placed = numbersOnDial[row.hour - 1]
     expect(placed).toBeDefined()
     expect(placed?.text).toBe(String(row.hour))
-    expect(placed?.cx).toBe(row.cx)
-    expect(placed?.cy).toBe(row.cy)
-    expect(placed?.left).toBe(row.left)
-    expect(placed?.top).toBe(row.top)
+    expectCoordinate(`dial-num.${String(row.hour)}.cx`, placed?.cx, row.cx)
+    expectCoordinate(`dial-num.${String(row.hour)}.cy`, placed?.cy, row.cy)
+    expectCoordinate(`dial-num.${String(row.hour)}.left`, placed?.left, row.left)
+    expectCoordinate(`dial-num.${String(row.hour)}.top`, placed?.top, row.top)
   })
 
   test("the last entry is 12 and it is at the top", () => {
@@ -161,10 +223,11 @@ describe("hands, measured at ten times", () => {
     // These rows go through the probe's call to FuzzyClock.Core.DialGeometry, so they cross-check the
     // already-translated `dial.ts` angle functions at the same time as the endpoint arithmetic here.
     const ends = handEndpoints(row.hour, row.minute)
-    expect(ends.hour.x).toBe(row.hourX2)
-    expect(ends.hour.y).toBe(row.hourY2)
-    expect(ends.minute.x).toBe(row.minuteX2)
-    expect(ends.minute.y).toBe(row.minuteY2)
+    const at = `dial-hand.${String(row.hour)}:${String(row.minute)}`
+    expectCoordinate(`${at}.hourX2`, ends.hour.x, row.hourX2)
+    expectCoordinate(`${at}.hourY2`, ends.hour.y, row.hourY2)
+    expectCoordinate(`${at}.minuteX2`, ends.minute.x, row.minuteX2)
+    expectCoordinate(`${at}.minuteY2`, ends.minute.y, row.minuteY2)
   })
 
   test("the hour hand is shorter than the minute hand", () => {

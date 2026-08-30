@@ -4,10 +4,10 @@ slug: fuzzyclock-v5-electron-port
 project: FuzzyStatsClock
 principal_stated_goal: "Lets do this work in a different branch, when complete we'll move it to the main branch and remove the wpf version. Create the branch and begin work"
 phase: build
-progress: 30/46
+progress: 34/50
 mode: interactive
 started: 2026-08-28T14:36:40+10:00
-updated: 2026-08-30T12:27:32+10:00
+updated: 2026-08-30T21:12:00+10:00
 branch: v5.0-electron-port
 merge_target: master
 base: ca611304c9937f9db6e9d4d7fc3ca4e2e15b28fe (branch point; the plan's and the feasibility run's measurements were taken here)
@@ -1059,9 +1059,10 @@ misses it, because every feature either ported or was consciously retired with t
 ### Phase 7 — Packaging, auto-launch, update check
 
 - [~] **ISC-29. An installer per platform installs, launches and auto-launches at login. CLOSED on
-  Windows 2026-08-30 for install / launch / uninstall / update-check; `[~]` on two counts, and they are
-  different kinds of open: NO LOGIN HAS BEEN OBSERVED on any platform, and the mac and linux installers
-  are configured but unbuildable on this host.** Includes a **CrowdStrike Falcon re-proof on Windows** —
+  Windows 2026-08-30 for install / launch / uninstall / update-check; **the mac installer is now BUILT
+  too** (ISC-29.4); `[~]` on two counts, and they are different kinds of open: NO LOGIN HAS BEEN OBSERVED
+  on any platform, and no Linux host exists so `AppImage` has never been assembled.** Includes a
+  **CrowdStrike Falcon re-proof on Windows** —
   Falcon blocks `garry-desktop`'s autostart spawn pair on this machine, and a packaged installer is a
   different case that must be proven, not assumed.
   - 8 files added (**2,245 LOC** of TS plus a 21,301-byte `.ico`) and 10 changed (**+625 / −37**);
@@ -1139,6 +1140,188 @@ misses it, because every feature either ported or was consciously retired with t
     chooses when to reject, which is the behaviour under test, so it cannot answer this. **B4's absence
     arm has a positive control**: `enabled: false` moves the HTTP counter zero times *on the same adapter
     B3 moved exactly once*.
+- [x] **ISC-29.4. The product icon exists at ≥512px, drawn rather than upscaled, and both platforms that
+  needed it accept it — the mac dmg is BUILT.** `probe:icon` **6 / 0** on Windows, `dist:mac` exit 0 on a
+  macOS 26.6.2 arm64 host, 2026-08-30.
+  - **The blocker was real and it is now measured rather than quoted.** `app.ico`'s largest entry is
+    256×256 and ICO cannot hold more — its size fields are single bytes with 0 meaning 256 — while
+    electron-builder's PNG→icns conversion refuses a source below 512×512. So `mac.icon` and `linux.icon`
+    were deliberately ABSENT and both targets packaged with the stock Electron icon. **This bullet used to
+    say the PNG→Linux-`set` conversion refused it too, and that half was WRONG** — the floor is icns-only,
+    which means `linux.icon`'s absence was collateral rather than forced. Retraction and measurement two
+    bullets down.
+    **The negative control settles that this was not folklore**: pointing `mac.icon` at a 256px downsample
+    of our own file fails the build with `Icon must be at least 512x512 pixels, provided: 256x256`
+    (`app-builder-lib/src/util/iconConverter.ts:307`, exit 1). It would have failed `dist:win` with it,
+    since the config is validated as a whole before a target is selected.
+  - **Redrawn, not resampled, and the parameters were RECOVERED from the shipped raster.** The artwork is
+    four primitives, so `scripts/make-icon.ts` renders it at any size from eleven numbers measured off
+    `assets/icon.png` (alpha-coverage area → outer radius; per-ring mean lightness → the ring's 50%
+    crossing; angular span vs radius → each hand's axis, half-width and tip), then refined by coordinate
+    descent against the pixels. **The descent landed on a round-number grid** — every shape parameter
+    within 0.2px of a clean hundredth of the canvas edge, both hand angles at 59.96° and 300.005° — so the
+    shipped values are the round ones, which score a *better* worst tile (1.85 vs 1.88) with nine fewer
+    degrees of freedom. The extra decimals were fitting the source's rasterizer, not its geometry.
+  - **A3's residual is a best case BY CONSTRUCTION and says so, which is why A4 exists.** The parameters
+    were chosen by minimising the very error A3 measures, so on its own that number is evidence of
+    nothing. A4 is six single-parameter mutations, each the size of a careless-fit mistake, each shown to
+    push the error clear of A3's limits — weakest at **3.74× its limit and 13.96× the residual**. **The
+    two-scale metric is the load-bearing choice**: global premultiplied MAE is blind to a small localised
+    error, so the worst-16×16-tile MAE is carried alongside it, each limit placed at the geometric mean of
+    measured residual and weakest mutation. Fit: **0.402/255 global, 1.848 worst tile.**
+  - **Determinism across architectures was measured, not assumed.** The Mac regenerated `icon.png` from
+    transferred source and **both the file sha256 and the pixel sha256 matched Windows byte-for-byte**
+    (x64 → arm64, bun 1.4.0 both). This matters because the renderer is trig-driven and the same suite's
+    dial tables turned out *not* to be portable (ISC-29.5).
+  - **What the mac run bought, at the artefact level.** `FuzzyClock-5.0.0-alpha.0-arm64.dmg`,
+    **87,794,076 bytes**; `Contents/Resources/icon.icns` **174,738 bytes** generated from our PNG, largest
+    image **1024×1024**, and `iconutil -c iconset` extracts a complete eleven-image ladder whose **real
+    pixel dimensions were checked one by one** rather than read off the filenames — which was worth doing,
+    because two pairs share a byte size and look like duplicates until measured. Rendered back through
+    macOS's own decoder and **looked at**: dark disc, white hub, hands at ten and two, the white annulus
+    invisible against a white matte exactly as A5's `r=0.44` sample predicts. `Info.plist` reads back
+    `LSUIElement => true`, `CFBundleIdentifier => org.tabisz.fuzzyclock`,
+    `LSApplicationCategoryType => public.app-category.utilities`, `CFBundleIconFile => icon.icns` — so the
+    whole mac block of the config is validated as written, not just the icon key.
+  - **Linux is split, and one half of that split was CLAIMED WRONG and then corrected against the code.**
+    The wrong version, recorded because retracting it quietly would hide the failure mode: "the converter
+    in `--format=set` mode emitted all eight sizes (16→512), exit 0, which is the exact code path
+    `linux.icon` drives." **It emits no ladder at all.** For a single `.png` source
+    `convertIcon({format: "set"})` hands the file back **as-is** with one entry at its own size —
+    `app-builder-lib/out/util/iconConverter.js`, the branch commented *"set: source is already a .png —
+    return as-is with its dimensions"* — measured directly at `[1024]`, exit 0. **And no 512 floor applies
+    to that format:** the same call on a 256px PNG returns `[256]`, where `format: "icns"` throws
+    `ERR_ICON_TOO_SMALL` on the identical input. So the floor is an icns constraint alone, `linux.icon` was
+    never the blocked half, and three files had overstated it for weeks.
+  - **How the wrong claim survived is the finding, and it is claim 8's modality rule biting from the other
+    side.** It was read off a `dist:linux` **build log** rather than off an artefact — and that build never
+    ran the icon step. Verified after the fact: `release/.icon-set` does not exist on the host that
+    supposedly produced it, and a re-run's log contains **zero** lines matching `icon`. `dist:linux` fails
+    at AppImage *assembly* with `spawn EBADARCH (86)` (`errno.h:226`, "Bad CPU type in executable"),
+    because electron-builder's downloaded `mksquashfs` is a Linux binary; `linux-arm64-unpacked` is
+    produced and nothing icon-related is. **Looking for the artefact is what caught it** — the same move
+    that A6 makes for the icns ladder, applied one target later.
+  - **What Linux therefore actually has:** a 1024×1024 PNG that the `set` path accepts and passes through,
+    which is what freedesktop wants, and **no AppImage and no desktop environment that has drawn it**. A
+    hosts gap on top of an unretracted-until-now overstatement.
+  - **The gotcha that cost the most, recorded because it does not look like a failure.** `dist:mac` needs
+    a real `node` on PATH, not just `bun`. electron-builder shells out to a bundled `icon-tool.js` driving
+    `vips.wasm`, and under bun-standing-in-for-node — which is what `bun run` does when no `node` exists —
+    that child **never returns**: 28 minutes elapsed for 19 seconds of CPU, no error, no timeout, an empty
+    `.icon-icns` directory. It reads as a slow build. With real node on PATH the same command finishes in
+    about a minute. Diagnosed by CPU-time-vs-elapsed, which is the measurement that distinguishes a hang
+    from slow work.
+  - **`win.icon` correctly stays `build/icon.ico`.** ICO cannot express a dimension above 256, so the
+    1024 PNG is not a candidate there, and C7 in `probe:size` still finds the ICO bytes inside the exe.
+- [x] **ISC-29.5. The test suite is architecture-portable, and it was NOT — 13 of 376 dial-geometry
+  fields disagree between x64 and arm64 by 1 to 4 ulps.** Found by running the suite on the Mac; **2428 / 0
+  on both architectures** after the fix.
+  - **The suite had only ever run on Windows x64.** Its first run on macOS arm64 failed 7 tests. bun 1.4.0
+    on both hosts, so the variable is the architecture's libm and not the runtime: ECMA-262 does not
+    bit-specify `Math.sin`/`Math.cos`, and `dial-geometry.test.ts` compares them with `toBe`.
+  - **Enumerated rather than chased.** Fixing the 7 reported failures one at a time would have left the
+    rest latent, so a throwaway enumerator compared **all 376 fixture fields** and printed both doubles,
+    the ULP distance via `DataView`/`getBigInt64`, and the absolute difference. True extent: **13 fields,
+    1–4 ulps, largest absolute disagreement 1.421e-14 on a dial 80 units across** — about one part in
+    5.6e15, which no renderer and no screen can express.
+  - **The remedy was the one the file's own docblock prescribed in advance**, written when the `toBe` was
+    chosen: *"record the disagreement and loosen that row with the measurement attached, rather than
+    pre-emptively softening all of them."* `ARCH_DIVERGENT` is a 13-entry map of `[recorded, arm64]`,
+    **both exact doubles**, and `expectCoordinate` still demands an exact match — just against a
+    two-element set. **A third value still fails**, which is precisely what a blanket `toBeCloseTo` would
+    have absorbed along with the noise. `toContain(recorded)` is the second assertion and it keeps the
+    table in step with the fixture: regenerate the fixture and a moved value no longer matches its pair.
+  - **Deriving arm64 from recorded by "add N ulps" was considered and rejected.** The ulp step changes
+    size at every power of two — see `dial-dot.56`, where `top` moves 4 ulps and `cy` 2 for the *same*
+    3.553e-15 of absolute drift, because 7.02 and 8.02 sit either side of 8. A derived value would be a
+    guess dressed as a measurement.
+  - **The row that makes the change worth having did NOT diverge.** `Math.sin(2π)` is
+    -2.4492935982947064e-16, not 0, so the "12" glyph sits at x **39.999999999999993** — and .NET on x64,
+    V8 on x64 and V8 on arm64 all agree on that digit for digit. The ISC-22 rotation-equivalence blocks
+    (1441 angles × 2 hands, plus all 720 reachable clock positions) and the `handTransform` string pins
+    are also untouched and still exact.
+  - **One further cross-host difference was chased down rather than waved at.** The suites report
+    different `expect()` totals — 279,775 on Windows vs 279,511 on the Mac — with the same 2428 tests.
+    That is entirely `cpu-delta.test.ts:162`, which loops over `os.cpus()` at 11 expects per core: 32
+    logical cores here, 8 there, and 264 is exactly the difference. Same tests, different topology.
+- [x] **ISC-29.6. The suite is FLAKE-FREE, and it was not: one live arm failed 1 full-suite run in 4,
+  because the Windows kernel reports a per-core `idle` tick counter that goes BACKWARDS between two
+  ordinary reads.** Found by re-running the gates after the retraction edits above; **2428 / 0 on six
+  consecutive runs** after the fix, with the repair path measured firing and passing. The fix took two
+  attempts: the first retry bound was derived from an independence assumption the permanent probe then
+  falsified, and both the bound and two published rate figures were corrected on that evidence.
+  - **A red gate on an unrelated edit, which is the only reason it was seen at all.** The edits in flight
+    were comments and prose; `bun test` came back **2427 pass / 1 fail** at `cpu-delta.test.ts:185`,
+    `expect(received).not.toBe(expected) / Expected: not -1`. Five runs of that file alone were green, so
+    the first honest description was "intermittent", not "broken by the edit".
+  - **The test's stated premise was the thing that was false, and the first measurement did not find it.**
+    The arm took one sample pair 60ms apart and asserted `not.toBe(UNAVAILABLE)`, reasoning *"60ms is
+    several ticks on any of the three platforms, so the counters must have moved."* A 400-trial probe on
+    the **summed** delta says the ticks do move: **zero zero-deltas, minimum 1262ms, median 2000ms**. That
+    result is what ruled out the obvious explanation and forced reading `cpuBusyPercent`'s other exit.
+  - **The real cause is the module's backwards guard, firing for a reason its own docblock did not list.**
+    A probe checking each core individually: **a per-core `idle` counter regresses between two ordinary
+    reads**, by as much as **−312ms**, on an idle desktop with no sleep and no core going offline. `total`
+    regressed by exactly the same amount in every instance, so `idle` is the only bucket involved. The
+    docblock had named two causes — a core offlining and macOS renumbering across sleep/wake — and the
+    dominant one on this host is neither.
+  - **The rate is run-to-run variable, and saying so cost retracting a figure I had already published
+    here.** Four runs on the same host read **6.3%, 11.2%, 13.7% and 16.4%** of 60ms sample pairs. An
+    earlier version of this bullet said "38 of 600 under Bun (6.3%) and 69 of 600 under real node (11.5%)"
+    and read the 6.3-vs-11.5 gap as a runtime difference; the very next bun run came back at 11.2%, on
+    top of node's figure. **That is the same defect as the retracted Linux claim two entries up — a number
+    stated more precisely than the evidence supports — caught this time by the instrument rather than by
+    an audit.** The honest form is a band, and `bun run probe:cpu-counter` is how it gets measured. Five
+    runs now: 6.0%, 6.3%, 11.2%, 13.7%, 16.4%.
+  - **Real node reproducing it AT ALL is the discriminator; the size of any gap is not.** Had only Bun
+    shown it, the finding would have been "our runtime's `os.cpus()` is lossy" and the fix might have been
+    a runtime workaround. Both runtimes showing it makes it the Windows per-processor counter itself, which
+    is not something this port can fix or should try to.
+  - **The platform that ships this module was measured, and it is clean: 0 of 600 under BOTH runtimes on
+    macOS arm64.** That is the load-bearing half for the product rather than the suite — Windows takes CPU
+    from `typeperf`, so `cpu-delta.ts` only ever runs on macOS and Linux, where a 6-16% per-sample
+    UNAVAILABLE rate would have made the CPU row flicker to `N/A` several times a minute — in visible
+    bursts, since the regressions cluster. Linux is still unmeasured, and that is stated rather than
+    assumed from the macOS result.
+  - **The fix retries the sample; it does NOT loosen what is asserted.** `busy === UNAVAILABLE || in range`
+    would have passed against a function that returns nothing else, and that is the version not written.
+    The arm samples until one reading is available and still demands a real percentage in `[0, 100]`;
+    exhausting every attempt fails with the count attached rather than as `-1 !== -1`.
+  - **The retry bound is 40, and the 10 it was first set to was unsafe — from arithmetic whose assumption
+    the probe then falsified.** 10 came from a per-sample rate raised to the tenth power, **3.2e-10, which
+    assumed the samples were independent.** Promoting the throwaway into `probe:cpu-counter` and having it
+    report the run-length histogram showed they are not: over 2000 pairs, `1x139 2x49 3x17 4x6 5x2 7x1` —
+    **a run of 7 consecutive UNAVAILABLEs where independence predicts one that long 4.6e-3 times**, and a
+    second run of 7 turned up in only 600 pairs, so runs that long are ordinary rather than freak. The tail
+    decays slower than geometric, which is physically unsurprising (whatever accounting transition regresses
+    a core's idle tick does not resolve inside 60ms) and means **no closed-form bound from the per-sample
+    rate is trustworthy here**. 10 against an observed 7 is 1.4× of headroom — one busier host from
+    intermittent again. 40 is 5.7×, costs nothing in the ordinary case (the loop stops at the first
+    available reading), and its worst case has never been observed.
+  - **The bound and its tripwire cannot drift apart, because A4 reads the constant out of the test file**
+    (`/const ATTEMPTS = (\d+)/`, throwing if absent) and requires **2× clear air** over the worst run it
+    measures rather than merely "larger" — the criterion that would have failed the original 10. Mutation
+    control: patched to `4`, A4 reported *"bound of 4 (read from the file) … margin 1.3x, need 2x"* and
+    FAILed; test file restored and `sha256sum -c` verified. So the arm reads the real constant and
+    discriminates, rather than passing by construction.
+  - **The repair path is exercised rather than merely present, and the instrument is the expect() count.**
+    Each attempt spends one `expect` on its busy-loop sink, so a retry is visible as 384 expects instead of
+    383, a second retry as 385. Without this, six green full-suite runs all reading exactly 279,775 expects
+    were the only evidence — and that number is what proved the new path had **never once been taken**. The
+    file was then run 120 times and the counts tallied — **119 at 383, 1 at 384, 0 failures**, so the retry
+    both fires and passes on the file as it now stands. Those runs are precisely the ones that used to fail.
+  - **The test's per-sample rate is NOT the probe's rate, and a 0-of-120 tally is what showed it.** An
+    intermediate tally read **120 of 120 at 383** — the path never taken — while `probe:cpu-counter` was
+    reporting 13.7% on the same host minutes earlier. The difference is the sampling context: the probe
+    loops back to back in one long-lived process, the test takes a single sample in a freshly started one.
+    So the probe's figure is an upper bound on what the suite sees, not a prediction of it, and the probe's
+    docblock says so. Re-running the tally with the probe loaded alongside produced the 1-in-120 above.
+    **This is also why the rate band is stated and not modelled:** that loaded run measured **6.0%**, the
+    LOWEST of the five, so the variation is not simply load tracking upward.
+  - **Rule 17 was checked rather than argued.** `src/main/telemetry/cpu-delta.ts` is a shipped module, so a
+    comment-only edit to it still has to be shown not to move the artefact: `dist/main.js` carries **no**
+    comment text at all (no docblock phrase from any source file appears in it, and it has zero JSDoc
+    continuation lines), so bun strips them and no probe green is voided. `bun run build` exit 0.
 - [~] **ISC-30. Linux auto-launch works via a hand-written `~/.config/autostart/*.desktop`. WRITTEN AND
   PROBED 2026-08-30; `[~]` because no Linux host exists** — this is a hosts gap, not unwritten work.
   `setLoginItemSettings` is `@platform darwin,win32` — there is no API to call.
@@ -1158,7 +1341,8 @@ misses it, because every feature either ported or was consciously retired with t
     neither `~/Library/LaunchAgents` nor `~/.config/autostart`), presence is what `isEnabled()` reads,
     `RunAtLoad` present, `KeepAlive` absent, `X-GNOME-Autostart-enabled=true` present, and **not one
     process is spawned** — a `launchctl load` would start a second copy the moment the box is ticked.
-    **Whether launchd and GNOME then honour the file needs a real host and stays open.**
+    **Whether launchd and GNOME then honour the file needs a real host. The darwin half of that is now
+    CLOSED — ISC-30.1. The linux half stays open.**
   - **Two Windows details are load-bearing and neither is obvious.** `reg.exe` takes `HKCU\...`, never
     PowerShell's `HKCU:\`. And the exe path goes into argv as **one element with no added quotes** —
     quoting it writes the quote characters *into* the value, producing a Run entry Windows silently
@@ -1187,7 +1371,45 @@ misses it, because every feature either ported or was consciously retired with t
   - **What no arm in that file proves, named rather than implied: that the value name is `FuzzyClock`.**
     The probe writes a scoped name *by design*, so the shipped constant is asserted by
     `test/auto-launch.test.ts` and by reading the source — never by a probe, and never against a live
-    key. And **neither half proves the app starts at login.**
+    key. And **no arm in `probe-autolaunch.ts` proves the app starts at login on any platform** —
+    that claim is ISC-30.1's, and only for darwin.
+- [x] **ISC-30.1. On darwin the plist is not merely well-formed, it is HONOURED: real `launchd` accepts
+  it, and `RunAtLoad` demonstrably spawns the program. `bun run probe:launchd` — 9 / 0 on a real macOS
+  26.6.2 arm64 login session, 2026-08-30.** This is the arm ISC-30's A9 explicitly could not run, and it
+  needed a host rather than more code.
+  - **The instrument is permanent, not a transcript.** `scripts/probe-launchd.ts` (~290 LOC) is wired as
+    `probe:launchd` and imports `DARWIN_LABEL`, `darwinPlist`, `darwinPlistPath` and the `AutoLaunch`
+    class from `src/main/auto-launch.js` — the same module the app ships — through the **production**
+    `fileSeam` and `processRunner`. It refuses to run off-darwin with exit 2 rather than pretending.
+  - **The interlock comes first, same shape as ISC-30's.** A1 asserts our label is ABSENT before anything
+    is written, censuses **Alex's six real LaunchAgents** (`com.google.GoogleUpdater.wake`,
+    `com.google.keystone.agent`, `com.google.keystone.xpcservice`, `com.interceptor.daemon`,
+    `com.pai.pulse`, `com.pai.voice-server`) with their sha256s, and confirms `launchctl print
+    gui/501/org.tabisz.fuzzyclock` exits non-zero. If the label is already in use the probe
+    `process.exit(1)`s before touching `~/Library/LaunchAgents`. **A9 is the arm that must never fail**:
+    the same census after teardown — `missing=[]`, `changed=[]`, `added=[]`, and our plist gone. Teardown
+    is in a `finally`, so an assertion failure mid-run still deregisters and deletes.
+  - **The chain is: valid → registered → spawns.** A2 — `enable()` writes exactly where `describe()` says
+    it will and `plutil -lint` exits 0 (a real parser, not a regex). A3 — `plutil -p` shows `Label`,
+    `RunAtLoad=true`, `ProcessType=Interactive` and `ProgramArguments[0]`, **and `KeepAlive` absent**,
+    where the absence is as load-bearing as the presences: with `KeepAlive` the job would be respawned
+    forever and quitting the overlay would not stick. A4 — `isEnabled()` tracks the file in both
+    directions. A5 — `launchctl bootstrap gui/501` exits 0 and `print` then finds the agent. A6 — a
+    marker file proves the program was actually **executed**, polled 40×100ms rather than slept behind a
+    fixed delay.
+  - **A7 is A6's control and the reason A6 means anything.** An otherwise byte-identical plist with
+    `RunAtLoad` removed registers fine and writes **no** marker. Without it, A6 is equally well explained
+    by `bootstrap` starting the job as a side effect, which would make the green say nothing about the
+    key the module actually sets.
+  - **One substitution, declared in the file's header:** `ProgramArguments` points at a marker-writing
+    shell script in a `mkdtemp` dir, not FuzzyClock's own binary. Same shape as `probe-update.ts`
+    substituting its feed URL — the arm is about launchd honouring the plist we generate, and pointing it
+    at the real app would add a GUI launch to a probe that must leave the session as it found it.
+  - **What this still does not prove, and it is the interesting half:** nothing here is a *login*. The
+    agent was bootstrapped into the running GUI session by hand; nobody logged out and back in. So the
+    claim bought is "launchd accepts our plist and honours `RunAtLoad` when it loads the job", not "the
+    overlay appears after a reboot". **And the linux sink remains untested against any desktop
+    environment** — ISC-30 stays `[~]` for exactly that reason, and it is a hosts gap.
 
 ### Phase 8-9 — Auto-contrast, then retirement
 
@@ -1717,10 +1939,14 @@ measured on this branch at or after that base.
 | ISC-26.3 / ISC-26.4 (does a transparent window actually composite; and was anyone looking) | `bun run probe:pixels` — `scripts/probe-pixels.ts` + `probe-pixels-app.cjs` + `screengrab.ps1`. ~~Currently INCONCLUSIVE, exit 0: the workstation is locked, so nothing is launched and nothing is measured~~ **3 of 3 blocking arms pass — X1-X4 all green on an unlocked session, and re-run on the Phase 7 tree** | **The first arm in this repo that reads a rendered pixel** — every other probe reads a decision, and `probe-display.ts:64` says so. **The backdrop is OURS, not the wallpaper**: the naive version captures the desktop, shows the transparent window, captures again and passes when they match — which also passes when a dark desktop sits under an opaque dark box. Magenta is chosen for being un-supplyable by any theme, wallpaper or Chromium default. **X2 is the control and is reported before X3 on purpose**: "still magenta" is equally what a window that never showed produces, so the same window with the same flags must turn the capture green when asked to paint opaque, or X3 is VOID and says so in its own verdict text. **The grid is not decoration** — a mean alone cannot tell magenta from a red/blue checker. **The rect is taken from the window's own reported bounds with a 12-DIP inset and multiplied by `scaleFactor`**, because the first run grabbed the *requested* rect, photographed the wallpaper and called it a failed paint; PowerShell is not per-monitor DPI aware. **`capturePage()` cannot answer this** — it captures the page's own surface, so a transparent page captures as transparent regardless of whether the OS honoured it. **The lock gate is the discriminator for the probe itself**: without it this file produced four specific, alarming, false FAILs, and `lib/session-lock.ts` fails OPEN so a broken query costs one contaminated run rather than permanently disabling every capture arm |
 
 | ISC-27 / ISC-28 (the 15 telemetry cells, and the per-platform sources) | `bun test` (2371 pass / 0 fail at `48e217c`, 12 new test files / 3,454 LOC), `bun run typecheck` and `bun run build` exit 0, `bun run probe:display` (**61 / 0 / 10 / 0**, five launches), `bun run probe:battery` (**5 / 0**, a live source watched for 30 s), `bun run probe:typeperf` (7 / 0 / 1); then a 15-case mutation run, three mutations × five cases | **The arm that found the phase's real defect is D11b, and it is the discriminator because it splits one question into three**: `0.00  0.00  0.00` is both a valid load-average line *and* exactly what an empty sample queue prints, so shape, value and **fed-ness** are asserted separately. A well-formed arm that cannot tell those apart is undiscriminating, and that is what let `core/load-average.ts` sit with correct tests and **zero importers** through two phases of green gates. **A live source's cadence cannot be faked by a fixture** — `probe:battery` watches 30 s of real readings, because a parser cannot fail to *arrive*, and arrival is the failure mode a fixture is structurally blind to. **The fixtures' provenance is asserted asymmetrically, because it differs**: the macOS captures are real (a physical M1, macOS 26.6.2) and pinned `-text` in `.gitattributes` so a CRLF conversion cannot corrupt the literal TAB in `macos-pmset-batt-ac-charged.txt`; **the Linux ones are synthetic, and both globs log the path they settled on** precisely because a wrong sysfs path is otherwise wrong in the module and in the fixture at once with nothing failing. **The tests found three defects in sources that already had green tests** — an `nvidia-smi` respawn every tick on a machine without it (whose module header *claimed* the probe returned it, a false doc claim in a green file), `node:path`'s `join` composing `/sys/class/drm\card0\...` so every Linux path depended on the host running the *test*, and `cpu-delta.ts:95` returning the sentinel for the zero total delta two `os.cpus()` reads inside one tick produce. **The placeholder was corrected against the C# rather than against this ISA**: the original writes the literal `"N/A"` and tests `< 0f`, and no WPF test asserts that string, so the port was being graded against a criterion three of our own documents got wrong. **Bounded**: Windows live only. All three platforms' sources are written and fixture-tested; one has been run |
-| ISC-29.1 (the two paid size debts, and the one measured-absent) | `bun run probe:size` from `electron/` after `bun run dist:win` — arms C1..C7, **7 / 0**, up from 5; plus `Get-AuthenticodeSignature` on both artefacts | **C6 fails in BOTH directions, which is the only shape that can measure a trim**: a language name matching nothing makes electron-builder log `no locales found matching wanted languages, skipping cleanup` and keep all 41MB **silently**, while an over-aggressive glob that removed `en-US.pak` would leave Chromium with no resource bundle at all — so the pass condition is "exactly one, and it is `en-US`", never "few `.pak` files". Measured 55 files / 41.0MB → 1 / 490,357 B. **C7 has a negative control and a defined inconclusive**: `assets/icon.png`'s 6,199 bytes are found byte-for-byte at offset **187,762,152** in the packaged exe and **absent from the identically-built stock `electron.exe`** — and if the control ever matches, C7 reports INCONCLUSIVE rather than PASS, because that means the control failed rather than the subject. **The build log is explicitly refused as evidence**: electron-builder prints `signing with signtool.exe` while `Get-AuthenticodeSignature` reads **`NotSigned`** on the installer *and* on `win-unpacked\FuzzyClock.exe`; the measurement wins. **Comparability is asserted rather than assumed**: every Phase 7 byte count is a *trimmed* number, so C5's own note says the P1.5 figures are not comparable and neither supersedes the other — 1.40× / 1.40× and 1.27× / 1.20× are two different packages. **Bounded**: Windows artefacts only, and C7 is a Windows-only pass — `dmg` and `AppImage` carry no `icon` key because `app.ico`'s largest entry is 256×256 where the conversion needs 512×512, and the config is validated as a whole, so pointing them at it would break `dist:win` too |
+| ISC-29.1 (the two paid size debts, and the one measured-absent) | `bun run probe:size` from `electron/` after `bun run dist:win` — arms C1..C7, **7 / 0**, up from 5; plus `Get-AuthenticodeSignature` on both artefacts | **C6 fails in BOTH directions, which is the only shape that can measure a trim**: a language name matching nothing makes electron-builder log `no locales found matching wanted languages, skipping cleanup` and keep all 41MB **silently**, while an over-aggressive glob that removed `en-US.pak` would leave Chromium with no resource bundle at all — so the pass condition is "exactly one, and it is `en-US`", never "few `.pak` files". Measured 55 files / 41.0MB → 1 / 490,357 B. **C7 has a negative control and a defined inconclusive**: `assets/icon.png`'s 6,199 bytes are found byte-for-byte at offset **187,762,152** in the packaged exe and **absent from the identically-built stock `electron.exe`** — and if the control ever matches, C7 reports INCONCLUSIVE rather than PASS, because that means the control failed rather than the subject. **The build log is explicitly refused as evidence**: electron-builder prints `signing with signtool.exe` while `Get-AuthenticodeSignature` reads **`NotSigned`** on the installer *and* on `win-unpacked\FuzzyClock.exe`; the measurement wins. **Comparability is asserted rather than assumed**: every Phase 7 byte count is a *trimmed* number, so C5's own note says the P1.5 figures are not comparable and neither supersedes the other — 1.40× / 1.40× and 1.27× / 1.20× are two different packages. **Bounded**: Windows artefacts only. `mac.icon` and `linux.icon` now both carry `build/icon.png` (ISC-29.4) and the greens here were **re-earned after that edit** under claim 17 rather than carried across it — but C1..C7 still measure `dist:win` output alone, and the 87,794,076-byte dmg built on the borrowed mac is deliberately **not** a row in this table: it came off a host with a `/tmp` node, not the release pipeline, so it is a build result and not a size baseline |
 | ISC-29.2 (the Falcon re-proof) | A one-off install probe, not a checked-in gate: silent `/S` install of `FuzzyClock Setup 5.0.0-alpha.0.exe`, launch with a `--user-data-dir` under `%TEMP%`, 20 s of process-tree and window sampling, tree re-hash, silent `/S` uninstall, then `Get-WinEvent` over Falcon's operational channel. **Not re-runnable without re-installing** | **The AV control comes first and is what licenses the result**: `CSFalconService` **Running** and Defender realtime protection **`False`**, so a clean run cannot be explained by Defender having allowed it — without that pair the whole probe measures the wrong product. **The evidence is behavioural, and the channel silence is labelled WEAK on a readability control**: `CrowdStrike-Falcon Sensor-CSFalconService/Operational` was read and carries only 4-hourly service-lifecycle records, so it would likely be silent about a block too — an empty channel is corroboration at best, and calling it proof was the easy false green here. **A launch is asserted as a window and a tree, not as an exit code**: a 4-process tree alive 20 s with a real `hwnd=30607408` at 105.7MB and 35 files written into its own profile including a 1,165-byte `settings.json`, because `Start-Process` returning is what a process that died immediately also looks like — **and it did look like that**: `ELECTRON_RUN_AS_NODE=1`, inherited from VS Code, made the packaged exe run as plain Node and exit **9** on `--user-data-dir`, which reads exactly like a Falcon block. **Alex's live profile is untouched by construction** — every launch is `--user-data-dir` into a temp dir, and `%LOCALAPPDATA%\FuzzyClock\settings.json`'s mtime was unchanged after the whole sequence. **Bounded, and the bound is the interesting part**: 20 seconds, one host, an **unsigned** artefact, and **no login-time arm** — Falcon's autostart-specific behaviour, the thing that actually blocks `garry-desktop`, is what manual item 5 tests and this run does not |
 | ISC-29.3 (the update check, live) | `bun run probe:update` from `electron/` — arms B1..B6, **5 / 0 / 1**. Three real requests to api.github.com plus a `Bun.serve` that accepts and never answers; ~6 s | **B1 disambiguates a 404 instead of shrugging at it**: `/repos` is fetched alongside `/releases/latest` because GitHub answers 404 both for "no releases yet" and for "not visible to you", and a check whose URL is wrong is a check that silently never fires. Live: **200, `tag_name 'v4.5.5'`, parsed in 22 ms.** **B2 stays INCONCLUSIVE rather than claiming a reproduction**: an empty-UA request got 200, not the documented 403, so either the runtime substituted its own header or the rule is no longer enforced — our UA is accepted either way, which is what the app needs; that it is *required* is unproven. **B4's absence arm has a positive control on the same adapter**: `enabled: false` moves the HTTP counter zero times where B3 moved it exactly once, so this is a real absence and not an adapter that cannot dial. **B5/B6 use a real socket because a fake `fetchImpl` chooses when to reject, which is the behaviour under test** — the deadline aborted at **5008 ms** against a 5000 ms budget *with one connection recorded* (null-in-5s is also what a request that never left the process looks like), and `cancelInFlight()` killed a live request at **152 ms**. **What the live answer exercised is the negative branch, and that is stated inside the PASS text rather than left to a reader**: `shouldOfferUpdate("5.0.0-alpha.0", v4.5.5)` is `false`, so **`updateNoticeText` has no live input on this run** and the offered path stays unexercised until a newer release exists. **Bounded**: no arm here proves the notice reaches the screen — the geometry is `test/layout.test.ts`, the glass is `probe:fade`/`probe:pixels`, the wiring is `main.ts`'s `pendingUpdateText`, and **nothing crosses all three** |
-| ISC-30 (auto-launch, all three sinks) | `bun run probe:autolaunch` from `electron/` — arms A1..A9, **9 / 0**, driving `main/auto-launch.ts` through the **production** `processRunner` and `fileSeam` from `src/main/seams.ts` against a live `HKCU` Run key and a real filesystem; plus `bun test` (`test/auto-launch.test.ts`, 303 LOC) for the value name | **The interlock is asserted before anything is written, and it is the first arm on purpose**: A1 puts five unsafe shapes through the guard against a runner that **throws if reached** — not `reg`, not the Run key, **no `/v` at all** (which names the *whole key*, where a `reg delete` would take every startup entry on the machine), more than one hit for the real value name, and any rewrite the real name survives — and the probe `process.exit(1)`s before touching the registry if the guard misbehaves. **A guard nobody tested is the likeliest thing here to be wrong, so it gets a positive control too**: a real `enable()` must pass *through* it with the name rewritten and the path untouched, or the five refusals would pass against a guard that simply refuses everything. **Two independent readers, and the second one is the parity claim**: A4 reads the value back through `reg query` (kind, exact data, **no `"` character at all** — quoting writes the quotes *into* the value and produces a Run entry Windows silently cannot launch) and through `[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(...)`'s `GetValue()` *and* `GetValueKind()`, which is the same .NET API `AutoLaunchService.cs` reads with. **A2 is the one arm proving the reader works against a value the module did not write** — Alex's own C#-written entry, read-only, where `RegistryValueKind.String` and `REG_SZ` are the same kind. **A8 is the arm that must never fail**: a before/after census of every value name under the key plus his entry byte-identical. **The seams were extracted so the probe drives the app's adapters and not a copy** — a green certifying an adapter the app does not use is worse than no probe, because it reads as coverage. **A9's absence arm is a dead runner**: the darwin and linux sinks write through the production `fileSeam` into a `mkdtemp` HOME with **zero processes spawned**, because a `launchctl load` would start a second copy the moment the box is ticked. **Two things this file deliberately does NOT prove, named in its own closing lines**: that the value name is `FuzzyClock` (it writes `FuzzyClockProbe-<pid>` by design, so the constant is the unit test's arm and the source's), and that anything starts at login |
+| ISC-29.4 (the 512px icon, and the mac/linux packaging it unblocks) | `bun run icon` then `bun run probe:icon` from `electron/` — arms A1..A6, **6 / 0**; plus `bun run dist:win` (exit 0) and `bun run probe:size` (**7 / 0**) re-run on Windows after the config edit, per claim 17; plus `bun run dist:mac` (exit 0) and a `dist:linux` attempt on `alex@10.127.60.135` (macOS 26.6.2 arm64), with `iconutil`, `sips` and `plutil` reading the artefacts back | **The blocker was a measurement before it was a fix, and the fix has a negative control for it**: pointing `mac.icon` at a 256px downsample of our own file fails with `Icon must be at least 512x512 pixels, provided: 256x256` (`app-builder-lib/src/util/iconConverter.ts:307`, exit 1) — so the config comment's account of what the 256px `app.ico` *would* have done is now a run, not a prediction. **The artwork is REDRAWN, not resampled**: `scripts/make-icon.ts` reconstructs the dial from geometry recovered off the shipped 256px raster, and the recovered parameters landing on a round grid (outer 0.48·S, ring inner 0.40, hub 0.09, hands at 60°/300°) is itself the evidence the recovery is right rather than fitted. **A3's residual is a best case BY CONSTRUCTION and the file says so — which is why A4 exists**: A3 compares our 1024 render downsampled against the shipped 256 raster, so a systematically wrong redraw could still score well; A4 therefore perturbs one parameter at a time, six ways, and every mutation must break the comparison. **Two error scales, because one hides the other**: global premultiplied MAE (0.402/255) is blind to a small localised error and worst-16×16-tile MAE (1.848/255) is not, each held to the geometric mean of measured residual and weakest mutation — and the weakest mutation sits **3.74×** its limit. **Determinism is cross-architecture, not just repeatable**: the Mac regenerated `build/icon.png` from transferred source and produced a byte-identical file (sha256 `347e64c6…`, pixel sha256 `5b82fb9d…`). **The mac results are artefact-level, not log-level**: 87,794,076-byte dmg, a 174,738-byte `icon.icns` generated from our PNG, an eleven-image ladder whose pixel dimensions were **checked one by one rather than read off the filenames** — worth doing, because two pairs share a byte size and look like duplicates until measured — and `LSUIElement`, the category and the appId all read back out of the built bundle's `Info.plist`. **The artwork was VIEWED**, decoded back to PNG by macOS's own decoder, per claim 8's appearance modality. **The Linux half carried a claim that was WRONG and is retracted in place rather than deleted**: an earlier version of this row said the conversion "emits all eight sizes at exit 0 — the exact path `linux.icon` drives." It emits no ladder — for a single `.png` source `convertIcon({format: "set"})` returns the file as-is at `[1024]` (`iconConverter.js`, *"set: source is already a .png — return as-is with its dimensions"*), and **no 512 floor applies to that format at all**: a 256px PNG returns `[256]` where `icns` throws `ERR_ICON_TOO_SMALL` on the same input. **The claim survived because it was read off a build log instead of an artefact, and the build never ran the step** — `release/.icon-set` does not exist and a re-run's log has zero `icon` lines, because `dist:linux` dies at AppImage *assembly* with `spawn EBADARCH (86)` on a Linux `mksquashfs`. **Bounded**: Linux has a pass-through PNG and nothing more — no AppImage, no desktop environment that has drawn it — and `win.icon` stays `build/icon.ico` on purpose, since ICO size fields are single bytes and the format cannot express 512 at all |
+| ISC-29.5 (the suite is architecture-portable) | `bun test` from `electron/` — **2428 pass / 0 fail** on Windows x64 **and** 2428 / 0 on macOS arm64 | **Seven real failures, enumerated rather than chased**: 13 of 376 dial-geometry fixture fields diverge by 1–4 ULP on arm64, because ECMA-262 does not bit-specify `Math.sin`/`Math.cos`. **The remedy was prescribed by the file's own docblock before the divergence existed**, and it is an exact two-element set, not a tolerance: `ARCH_DIVERGENT` maps each field to `[recorded, arm64]` as exact doubles and asserts the host produced one of the two and not a third. **The cheap fix was rejected on measurement**: deriving arm64 from recorded by "add N ulps" is unsound because the ULP step changes at every power of two. **A non-divergent row is kept exact as the counter-case** — `dial-num 12`'s `39.999999999999993` and the tick coordinates still assert `toBe`, so the table cannot quietly grow. **An absent coordinate falls through to the exact assertion**, so a short fixture array fails loudly rather than reading as "not one of the two values". **The 264-expect delta between hosts was traced, not waved at**: no test file reads `process.platform`, and per-file diffing pinned it to `cpu-delta.test.ts:162` looping `os.cpus()` at 11 expects per core — 32 cores vs 8 |
+| ISC-29.6 (the suite is flake-free) | `bun test` from `electron/` — **2428 / 0 on six consecutive runs** at 279,775 expects, plus **three separate 120-run tallies of `test/cpu-delta.test.ts`** as the repair-path instrument, plus `bun run probe:cpu-counter` — the throwaway promoted to a permanent 4-arm probe (600, 1200 and 2000 pairs) — with the original throwaways run under **both** bun and real node v24.20.0 on Windows x64 **and** on macOS arm64 | **A red gate on an unrelated edit is the only reason this was seen**: the edits in flight were prose, and `bun test` returned 2427 / 1 at `cpu-delta.test.ts:185`. Five runs of that file alone were green, so the honest first word was "intermittent". **The test's own stated premise was the false thing, and the obvious explanation was ruled out by measurement rather than by inspection**: it asserted `not.toBe(UNAVAILABLE)` on the reasoning that "60ms is several ticks, so the counters must have moved", and the ticks *do* move — 400 trials, **zero** zero-deltas, min 1262ms. **The cause is the module's backwards guard firing for a reason its docblock did not list**: a per-core `idle` counter regresses between two ordinary reads, by up to **−312ms**, on an idle desktop with no sleep and no core offlining — `total` moving by exactly the same amount each time, so `idle` is the sole bucket. **The rate is run-to-run variable and an earlier version of this row stated it too precisely — a self-caught repeat of the retracted Linux claim's defect.** It said "38 of 600 pairs under bun (6.3%) and 69 of 600 under real node (11.5%)" and read that gap as a runtime difference; five runs now read **6.0%, 6.3%, 11.2%, 13.7%, 16.4%**, with bun landing above node's figure and the lowest of the five coming from the most heavily loaded run, so the gap was noise and the variation is not even monotonic in load. **Real node reproducing it AT ALL is the discriminator, and the size of any gap is not**: bun-only would have made it a runtime bug worth working around, and both runtimes showing it makes it the Windows per-processor counter, which this port cannot fix. **The platform that actually ships this module was measured and is clean — 0 of 600 under both runtimes on macOS arm64** — which is the load-bearing half for the product, since Windows takes CPU from `typeperf` and a 6-16% per-sample `N/A` would have flickered the CPU row several times a minute — in bursts, since the regressions cluster — on the two platforms that use it. Linux stays unmeasured and is said so rather than inferred. **The fix retries, and the loosened version is the one deliberately not written**: `busy === UNAVAILABLE \|\| in range` would pass against a function that returns nothing else, so the arm samples until a reading is available, still demands `[0, 100]`, and reports the count on exhaustion instead of `-1 !== -1`. **The bound is 40 because the probe falsified the arithmetic that first set it to 10.** That 10 came from a per-sample rate raised to the tenth power — **3.2e-10, assuming independent samples**. A4's run-length histogram over 2000 pairs reads `1x139 2x49 3x17 4x6 5x2 7x1`: **a run of 7 consecutive UNAVAILABLEs where independence predicts 4.6e-3 of them**, with a second run of 7 inside a later 600-pair run, so they cluster and the tail decays slower than geometric. 10-against-7 is 1.4× of headroom; 40 is 5.7× and costs nothing when the first sample succeeds. **A4 cannot drift from the bound because it reads the constant out of the test file** and demands 2× rather than "larger" — the criterion that fails the original 10. **Mutation control:** patched to `4`, A4 read *"bound of 4 (read from the file) … margin 1.3x, need 2x"* and FAILed; restored, `sha256sum -c` OK. **The repair path is exercised, not merely present, and the `expect()` count is the instrument**: one expect per attempt makes a retry read 384 instead of 383, and the tally on the file as it now stands is **119 at 383, 1 at 384, 0 failures**. **A third tally is the most useful of the three: 120 of 120 at 383, the path never taken**, minutes after the probe read 13.7% on the same host — because the probe loops back-to-back in one long-lived process while the test takes one sample in a fresh one, so **the probe's rate is an upper bound on what the suite sees, not a prediction of it**, and the 1-in-120 above needed the probe running alongside to provoke it. **Rule 17 checked rather than argued**: the shipped module's edit is comment-only and `dist/main.js` contains no comment text at all (zero JSDoc continuation lines, no docblock phrase from any source file), so bun strips them and no probe green is voided; `bun run build` exit 0 |
+| ISC-30 (auto-launch, all three sinks) | `bun run probe:autolaunch` from `electron/` — arms A1..A9, **9 / 0**, driving `main/auto-launch.ts` through the **production** `processRunner` and `fileSeam` from `src/main/seams.ts` against a live `HKCU` Run key and a real filesystem; plus `bun test` (`test/auto-launch.test.ts`, 303 LOC) for the value name | **The interlock is asserted before anything is written, and it is the first arm on purpose**: A1 puts five unsafe shapes through the guard against a runner that **throws if reached** — not `reg`, not the Run key, **no `/v` at all** (which names the *whole key*, where a `reg delete` would take every startup entry on the machine), more than one hit for the real value name, and any rewrite the real name survives — and the probe `process.exit(1)`s before touching the registry if the guard misbehaves. **A guard nobody tested is the likeliest thing here to be wrong, so it gets a positive control too**: a real `enable()` must pass *through* it with the name rewritten and the path untouched, or the five refusals would pass against a guard that simply refuses everything. **Two independent readers, and the second one is the parity claim**: A4 reads the value back through `reg query` (kind, exact data, **no `"` character at all** — quoting writes the quotes *into* the value and produces a Run entry Windows silently cannot launch) and through `[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(...)`'s `GetValue()` *and* `GetValueKind()`, which is the same .NET API `AutoLaunchService.cs` reads with. **A2 is the one arm proving the reader works against a value the module did not write** — Alex's own C#-written entry, read-only, where `RegistryValueKind.String` and `REG_SZ` are the same kind. **A8 is the arm that must never fail**: a before/after census of every value name under the key plus his entry byte-identical. **The seams were extracted so the probe drives the app's adapters and not a copy** — a green certifying an adapter the app does not use is worse than no probe, because it reads as coverage. **A9's absence arm is a dead runner**: the darwin and linux sinks write through the production `fileSeam` into a `mkdtemp` HOME with **zero processes spawned**, because a `launchctl load` would start a second copy the moment the box is ticked. **Two things this file deliberately does NOT prove, named in its own closing lines**: that the value name is `FuzzyClock` (it writes `FuzzyClockProbe-<pid>` by design, so the constant is the unit test's arm and the source's), and that anything starts at login — the darwin side of that second one is now ISC-30.1's, measured against real `launchd` |
+| ISC-30.1 (darwin: launchd honours the plist) | `bun run probe:launchd` from `electron/` on `alex@10.127.60.135` (macOS 26.6.2 arm64, real GUI login session) — arms A1..A9, **9 / 0**, driving `main/auto-launch.ts` through the **production** `fileSeam` and `processRunner`; `plutil -lint`, `plutil -p`, `launchctl bootstrap`/`print`/`bootout` as the readers | **The interlock is first and it guards six of Alex's real agents**: A1 requires our label ABSENT, censuses `com.google.GoogleUpdater.wake`, `com.google.keystone.agent`, `com.google.keystone.xpcservice`, `com.interceptor.daemon`, `com.pai.pulse` and `com.pai.voice-server` with sha256s, confirms `launchctl print gui/501/org.tabisz.fuzzyclock` is non-zero, and `process.exit(1)`s before writing if the label is in use. **A9 is the arm that must never fail** — same census after teardown, `missing=[]` / `changed=[]` / `added=[]` and our plist gone, with teardown in a `finally` so a mid-run assertion failure still deregisters. **The chain is valid → registered → spawns, and each link has its own reader**: `plutil -lint` exit 0 (a real parser, not a regex), `plutil -p` for `Label` / `RunAtLoad=true` / `ProcessType=Interactive` / `ProgramArguments[0]` **and `KeepAlive` absent** — the absence load-bearing, since `KeepAlive` would respawn the job forever and quitting would not stick — `launchctl bootstrap gui/501` exit 0 with `print` finding the agent, then a marker file **polled 40×100ms rather than slept for**. **A7 is A6's control and the reason A6 means anything**: a byte-identical plist minus `RunAtLoad` registers fine and writes no marker, so A6 cannot be explained by `bootstrap` starting the job as a side effect. **One substitution, declared in the header**: `ProgramArguments` runs a marker-writing script in a `mkdtemp` dir, not FuzzyClock's binary — same shape as `probe-update.ts` substituting its URL. **One informational field is labelled as such after being wrong**: `launchctl print` lists the flag as a bare token in a pipe-delimited `properties = …` line, so an earlier `=`-matching regex printed `false` while A6 was green — an informational field contradicting a load-bearing one is worse than no field. **Bounded, and this is the interesting half**: nothing here is a *login*. The agent was bootstrapped into the running session by hand, so the claim is "launchd accepts our plist and honours `RunAtLoad` when it loads the job", never "the overlay appears after a reboot" |
 
 ### Still outstanding
 
@@ -1734,9 +1960,12 @@ measured on this branch at or after that base.
   confirm the overlay appears.** `probe:autolaunch` proves the Run value exists, holds the right
   unquoted path, is `REG_SZ`/`String`, and reads back through a reader this port does not own — **a
   registry value is not a launch**, and the gap between them is Winlogon, Falcon and the shell's startup
-  sequencing. Same shape on macOS (`launchctl` loading the LaunchAgent) and Linux (the desktop
-  environment honouring `~/.config/autostart`), where it also needs the hosts. This is what keeps ISC-29
-  and ISC-30 at `[~]`, and it is one logoff.
+  sequencing. **The macOS half of this shrank on 2026-08-30 rather than closing**: ISC-30.1 proved real
+  `launchd` accepts the plist and that `RunAtLoad` genuinely spawns the program, with a
+  no-`RunAtLoad` twin as the control — but the job was bootstrapped into a running session by hand, so
+  what remains there is the logout itself. **Linux still needs both**: a host, and then a desktop
+  environment honouring `~/.config/autostart`. This is what keeps ISC-29 and ISC-30 at `[~]`, and on
+  Windows it is one logoff.
 - **The shipped artefacts are unsigned, and this one is a purchase rather than a task.**
   `Get-AuthenticodeSignature` reads `NotSigned` on both `FuzzyClock Setup 5.0.0-alpha.0.exe` and
   `win-unpacked\FuzzyClock.exe`, while **electron-builder logs `signing with signtool.exe` on the way
@@ -1744,11 +1973,17 @@ measured on this branch at or after that base.
   bite on it; it needs a code-signing certificate and an Apple Developer ID, neither of which exists.
   Two consequences already recorded rather than deferred: ISC-29.2's Falcon run measured an **unsigned**
   artefact, and every ISC-29.1 byte count will move when a signature is added.
-- **There is no ≥512px icon source, so the mac and linux targets would package the stock Electron icon.**
-  `app.ico`'s largest entry is **256×256** and electron-builder's PNG→icns/Linux-set conversion needs
-  **512×512** — so pointing those targets at it would *fail* the build rather than skip the icon, and
-  because the config is validated as a whole before a target is chosen, that failure would break
-  `dist:win` too. Both therefore carry no `icon` key, which is what makes **C7 a Windows-only pass**.
+- ~~**There is no ≥512px icon source, so the mac and linux targets would package the stock Electron icon.**~~
+  **PAID 2026-08-30 — ISC-29.4.** `scripts/make-icon.ts` **redraws** the dial at 1024×1024 from geometry
+  recovered off the shipped raster instead of upscaling it, `probe:icon` holds the result to that raster
+  with six mutations proving the comparison can fail, and both `mac.icon` and `linux.icon` now carry
+  `build/icon.png`. The 512 floor this bullet asserted is now a **measurement**: a 256px downsample of
+  our own file fails with `Icon must be at least 512x512 pixels, provided: 256x256`, exit 1 — **and that
+  floor is icns-only**, which is a correction to this bullet's own premise: the 256 source blocked
+  `mac.icon`, never `linux.icon`. `dist:mac` on a borrowed macOS arm64 host exited 0 with a real
+  `icon.icns` in the bundle; the Linux `set` conversion accepts the file at exit 0 and returns it as-is
+  at `[1024]`, generating no ladder. **C7 is still a Windows-only pass**, but now because
+  `probe:size` only ever runs against `dist:win` output — not for want of an icon.
 - **The v5 uninstall entry sits BESIDE the WPF one, and that is Phase 9's problem to close.** Apps &
   Features listed `FuzzyClock 5.0.0-alpha.0` (NSIS) and `FuzzyClock 4.5.5` (Inno) as two separate
   products, because NSIS does not replace an Inno registration. The mirror image of the Run-key problem,
@@ -1947,6 +2182,115 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **The icon and the borrowed mac, 2026-08-30 (after Phase 7 closed). Four claims bought, two of them
+  defects in our own suite, and three published claims retracted — all three self-caught, none pushed.**
+  Alex's ask was two things — "create a suitable 512px icon ourselves" and use the macOS host — and the
+  second turned into three purchases rather than one, then the retraction's own gate run bought a fourth,
+  whose first fix was itself wrong and whose correction retracted two more figures. ISC-29.4 (`[x]`, the
+  icon plus the mac/linux packaging it unblocks), ISC-29.5 (`[x]`, the suite is architecture-portable),
+  ISC-29.6 (`[x]`, the suite is flake-free) and ISC-30.1 (`[x]`, darwin `launchd` honours the plist).
+  `probe:icon` **6 / 0**, `probe:launchd` **9 / 0**, `probe:cpu-counter` **3 / 0 / 1 reading**, `dist:mac`
+  exit 0, `dist:win` + `probe:size` **7 / 0** re-earned on Windows after the config edit, `bun test`
+  **2428 / 0 on both x64 and arm64** and on six consecutive Windows runs. 30/46 → 34/50. **The pattern
+  across all three retractions is one thing: a claim stated more precisely than its evidence, surviving
+  because nothing had gone looking for the artefact.** Two were caught by building the instrument anyway.
+  - **The icon is redrawn, not resampled, and the geometry recovery has its own tell.** Upscaling a 256px
+    raster to 1024 would have satisfied electron-builder and looked wrong. `scripts/make-icon.ts`
+    reconstructs the dial from parameters recovered off the shipped raster — and those parameters landing
+    on a round grid (outer 0.48·S, ring inner 0.40, hub 0.09, hands at 60°/300°) is the evidence the
+    recovery is right rather than fitted to the residual.
+  - **A comparison whose best case is guaranteed needs mutations, and the file says so about itself.**
+    A3 downsamples our render back to 256 and compares, which flatters a systematically wrong redraw —
+    hence A4's six single-parameter perturbations, and hence **two** error scales, because a global MAE is
+    blind to a small localised error and a worst-16×16-tile MAE is not. Weakest mutation sits 3.74× its
+    limit.
+  - **The 512 floor stopped being folklore — and measuring it falsified half of what we had said about
+    it.** It had been quoted in three files as the reason `mac.icon` **and `linux.icon`** were absent. A
+    256px downsample of our own file now fails with
+    `Icon must be at least 512x512 pixels, provided: 256x256` (`iconConverter.ts:307`, exit 1) — so the
+    claim that pointing the old `app.ico` at `mac.icon` would have *failed the build* rather than skipped
+    the icon is a run, not a prediction. **But the same file passes `format: "set"` at `[256]`, so the
+    floor is icns-only and `linux.icon` was never blocked by it.**
+  - **`dist:mac` HANGS under bun-standing-in-for-node, and the diagnosis was CPU-time-vs-elapsed.** With
+    no `node` on the Mac's PATH, `bun run` substitutes itself for electron-builder's
+    `#!/usr/bin/env node` `icon-tool.js`, which drives `vips.wasm`. It never returns: **28 minutes elapsed
+    for 19 seconds of CPU**, no error, no timeout, empty output dir. Elapsed time alone reads as a slow
+    build; the ratio is what distinguishes a hang from slow work. Real node finishes in about a minute.
+    Recorded in `electron-builder.yml` for whoever runs it next.
+  - **The Mac found a real defect in our tests, and enumeration beat tolerance.** Seven failures, all in
+    `dial-geometry.test.ts`: 13 of 376 fixture fields diverge by 1-4 ULP on arm64 because ECMA-262 does not
+    bit-specify `Math.sin`/`Math.cos`. The remedy is an exact two-element set per field — **the fix the
+    file's own docblock had prescribed before the divergence existed** — not a blanket epsilon, and not the
+    tempting "add N ulps to the recorded value", which is unsound because the ULP step changes at every
+    power of two. Non-divergent rows stay `toBe` so the table cannot quietly grow.
+  - **A cross-host difference was chased instead of waved at.** 279,775 vs 279,511 `expect()`s on the same
+    2428 tests. No test file reads `process.platform`; per-file diffing pinned it to `cpu-delta.test.ts:162`
+    looping `os.cpus()` at 11 expects per core — 32 cores vs 8, exactly 264.
+  - **ISC-30's A9 said "whether launchd honours the file needs a real host", so the host got a permanent
+    instrument rather than a transcript.** `probe:launchd` drives the shipped module through the production
+    seams: `plutil -lint` validates, `launchctl bootstrap` registers, and a marker file proves the program
+    **ran**. Its A7 is the arm that makes A6 mean something — a byte-identical plist minus `RunAtLoad`
+    registers and writes no marker, so A6 cannot be explained by `bootstrap` starting the job as a side
+    effect. Alex's six real LaunchAgents were censused by sha256 before and after: `missing=[]`,
+    `changed=[]`, `added=[]`.
+  - **An informational field contradicted a load-bearing one, which is worse than having no field.** A5
+    printed `runatload in print=false` while A6 was green: `launchctl print` emits the flag as a bare token
+    in a pipe-delimited `properties = …` line, not `runatload = 1`. Fixed the match, relabelled the field
+    as a breadcrumb, and wrote down why.
+  - **Determinism was checked across architectures, not just repeated.** The Mac regenerated
+    `build/icon.png` from transferred source and produced a byte-identical file — both the container and
+    the decoded-pixel sha256 match. And the artwork was **viewed**, decoded back through macOS's own icns
+    decoder, because claim 8 makes appearance an eyes-on modality.
+  - **What the mac bought and what it did not.** Bought: an 87,794,076-byte dmg at exit 0, a 174,738-byte
+    `icon.icns` with an eleven-image ladder whose dimensions were checked one by one (two pairs share a
+    byte size and look like duplicates until measured), four `Info.plist` keys read back out of the built
+    bundle, and — by a **direct `convertIcon` call, not a build** — the Linux `set` conversion at exit 0.
+    Not bought: any AppImage — `spawn EBADARCH (86)`, macOS refusing to exec electron-builder's Linux
+    `mksquashfs`, a host-tooling limit cleanly separated from the icon question — and no login on any
+    platform.
+  - **A claim in this very entry was FALSE, and finding it is the entry's most useful line.** The first
+    draft said the Linux conversion "emitted all eight sizes (16→512) from this file, exit 0 — the exact
+    code path `linux.icon` drives", and it went into `electron-builder.yml`, `probe-icon.ts`,
+    `probe-size.ts`, ISC-29.4, the plan and a commit message before anything falsified it. What falsified
+    it was looking for the artefact: `release/.icon-set` **does not exist** on the host that supposedly
+    produced it. Re-running `dist:linux` with real node showed why — it dies at AppImage assembly and
+    `grep -in icon` over its log returns **zero lines**, so the icon step never runs there at all. Calling
+    `convertIcon({format: "set"})` directly returns `[{file: build/icon.png, size: 1024}]`: the source
+    handed back as-is, `iconConverter.js`'s own branch comment being `set: source is already a .png —
+    return as-is with its dimensions`. Two corrections fall out: there is no ladder, and **the 512 floor
+    is icns-only** (measured both ways on a 256px downsample — `set` returns `[256]`, `icns` throws
+    `ERR_ICON_TOO_SMALL`), so three files had wrongly called `linux.icon` a blocked half for weeks. The
+    generalisable failure is **a green read off a build log for a step that build never executed** — the
+    same class this ISA warns about elsewhere, arriving from the side where the log was real and the
+    step was not. Retracted in place at every site rather than deleted, and the commit was amended
+    before any push, so the false claim is in no published history.
+  - **And re-running the gates for that amend turned up a flake nobody was looking for — ISC-29.6.**
+    `bun test` came back **2427 / 1** on a set of edits that were entirely prose. The failing arm asserted
+    that two real `os.cpus()` snapshots 60ms apart cannot yield `UNAVAILABLE`; the Windows kernel reports a
+    per-core `idle` counter that goes **backwards** between ordinary reads — by up to **−312ms**, in
+    **6.0% to 16.4%** of 60ms sample pairs across five runs — which is the module's own backwards guard
+    firing for a reason its docblock had not listed. Node reproducing it is what makes it the kernel's
+    rather than the runtime's. **macOS arm64 is 0 of 600 under both runtimes**, so the two platforms that
+    actually use this module are unaffected and the cost was a flaky gate, not a flickering CPU row. Fixed
+    by sampling repeatedly rather than by weakening the assertion, and the retry path is **exercised and
+    passing (119/1/0 over 120 runs)** — visible because each attempt spends one `expect`, so a retry reads
+    384 instead of 383.
+  - **The flake fix's own first version was also wrong, and the fix for THAT is the useful artefact.** The
+    retry bound was 10, from a `p^10` exhaustion probability of 3.2e-10 — **arithmetic that assumed the
+    samples were independent, which nobody had checked.** Promoting the throwaway probe into
+    `probe:cpu-counter` and having it print a run-length histogram checked it: `1x139 2x49 3x17 4x6 5x2
+    7x1` over 2000 pairs, a run of **7** where independence predicts 4.6e-3 of them, and another run of 7
+    inside a later 600-pair run. The regressions **cluster**, the tail is heavier than geometric, and a
+    bound of 10 was sitting at 1.4× of observed behaviour — which is how a suite goes intermittent again
+    three weeks later. Bound raised to 40 (5.7×, free when the first sample succeeds), and A4 now **reads
+    the constant out of the test file** and demands 2× clear air, mutation-controlled by patching it to 4
+    and watching A4 fail at 1.3×. Three lessons, and the third is new: **a red gate on an unrelated edit is
+    a gift**; the summed-delta probe is what *ruled out* the obvious explanation and forced the per-core
+    one; and **a throwaway instrument is worth promoting precisely because the permanent version measures
+    things the throwaway had no reason to print** — the clustering, and separately the fact that a 120-run
+    tally can read 0-of-120 while the probe reads 13.7% on the same host, because a tight loop and a fresh
+    process are not the same sampling context. Two figures published in this very entry were retracted on
+    that evidence.
 - **Phase 7 close-out, 2026-08-30. Packaging, auto-launch and the update check ship on Windows; the
   exit criterion's "auto-launches at login" is split rather than claimed.** ISC-29 → `[~]` with three new
   sub-claims — 29.1 (**two of the three P1.5 size debts paid and measured, the third measured to be

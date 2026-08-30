@@ -68,22 +68,82 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
 
-# ── The two targets that cannot be built or measured on this host ──────────────────
+# ── The two targets that cannot be BUILT on this host ──────────────────────────────
 #
 # `dmg` needs macOS (hdiutil) and `AppImage` needs Linux tooling; electron-builder refuses
 # both from Windows rather than producing something wrong, and `probe:size` says so in its
-# closing note. So everything below is CONFIGURED AND UNBUILT, and it is written out in
-# full anyway because the alternative — discovering the config gaps on a borrowed mac — is
-# the expensive order.
+# closing note. So everything below is CONFIGURED here and packaged elsewhere, and it is
+# written out in full anyway because the alternative — discovering the config gaps on a
+# borrowed mac — is the expensive order.
 #
-# Neither carries an `icon`: see `scripts/extract-icon.ts`. `app.ico`'s largest entry is
-# 256x256 and electron-builder's PNG→icns/Linux-set conversion requires 512x512, so
-# pointing these at the 256 source would fail the build rather than skip the icon. Both
-# therefore package with the stock Electron icon until a real 512+ source exists.
+# That borrowed mac happened on 2026-08-30, so the mac half of this block is no longer a
+# plan. `dist:mac` on a macOS 26.6.2 arm64 host exited 0 and produced
+# FuzzyClock-5.0.0-alpha.0-arm64.dmg (87,794,076 bytes), and the whole config below was
+# validated as written — `LSUIElement`, the category and the appId all read back out of the
+# built bundle's Info.plist. `dist:linux` from that same host got as far as
+# `linux-arm64-unpacked` and then failed at AppImage assembly with `spawn EBADARCH (86)`:
+# electron-builder's downloaded `mksquashfs` is a Linux binary and macOS will not exec it.
+# That is a host-tooling limit, not a config gap, and it is the reason `linux` below is still
+# waiting on a real Linux host rather than on anything in this file.
+#
+# One gotcha for whoever runs this next, because it cost half an hour: **`dist:mac` needs a
+# real `node` on PATH, not just `bun`.** electron-builder shells out to a bundled
+# `icon-tool.js` that drives `vips.wasm`, and under bun-standing-in-for-node (which is what
+# `bun run` does when no `node` exists) that child never returns — 28 minutes elapsed for 19
+# seconds of CPU, no error, no timeout. It is a hang, not a failure, so it reads like a slow
+# build. With real node on PATH the same command finishes in about a minute.
+#
+# Both now carry `build/icon.png`, and it is a different file from `build/icon.ico`:
+#   - The ICO is `FuzzyClock.App/app.ico`, copied by `scripts/extract-icon.ts`. Its largest
+#     entry is 256x256 and the format cannot hold more — ICO dimensions are single bytes.
+#   - electron-builder's PNG→icns conversion refuses a source below 512x512, so for a long
+#     time these two keys were deliberately ABSENT and both targets packaged with the stock
+#     Electron icon. Pointing `mac.icon` at the 256 source would not have "skipped the icon",
+#     it would have failed the build — and failed `dist:win` with it, since the config is
+#     validated as a whole before a target is selected.
+#     **The 512 floor is an ICNS constraint only, and the earlier version of this comment was
+#     wrong to extend it to Linux.** Measured by calling `convertIcon` on a 256x256 PNG both
+#     ways: `format: "icns"` throws `ERR_ICON_TOO_SMALL`, `format: "set"` returns `[256]` at
+#     exit 0. So `linux.icon` was never the blocked half — `mac.icon` was, and Linux was
+#     simply waiting on the same file.
+#   - `scripts/make-icon.ts` removes that constraint by REDRAWING the artwork from recovered
+#     geometry instead of upscaling it, at 1024x1024. `bun run probe:icon` holds it to the
+#     shipped raster (premultiplied MAE 0.402/255 globally, 1.848 in the worst 16x16 tile)
+#     and proves the comparison can fail, via six single-parameter mutations.
+#
+# The conversions accept it, measured rather than assumed:
+#   - macOS: `dist:mac` generated Contents/Resources/icon.icns from this PNG, 174,738 bytes,
+#     largest image 1024x1024, and `iconutil -c iconset` extracts a complete ladder — 16, 32,
+#     48, 128, 256, 512, 1024 with the @2x variants, eleven images, real pixel dimensions
+#     checked one by one rather than trusted from the filenames. Rendered back to PNG through
+#     macOS's own decoder and looked at: dark disc, white hub, hands at ten and two.
+#   - Linux: `convertIcon({format: "set"})` accepts this file at exit 0 and returns `[1024]` —
+#     and "returns" is literal. For a single `.png` source the converter hands the file back
+#     AS-IS (`out/util/iconConverter.js`, the branch commented `set: source is already a .png
+#     — return as-is with its dimensions`); it generates no size ladder. So what Linux ships
+#     is this one 1024x1024 PNG, which is what freedesktop wants, and there is nothing
+#     multi-size to inspect. **An earlier version of this comment claimed the converter
+#     "emitted all eight sizes (16→512), exit 0". That was wrong and is retracted here rather
+#     than quietly deleted** — see the note below about why no build ever produced it.
+#   - And the 512 floor above is not folklore. Pointing `mac.icon` at a 256px downsample of
+#     this very file fails the build with `Icon must be at least 512x512 pixels, provided:
+#     256x256` (app-builder-lib/src/util/iconConverter.ts:307, exit 1) — so the sentence about
+#     what would have happened with the 256 source is a measurement now, not a prediction.
+#
+# **The Linux icon path was measured by calling `convertIcon` directly, NOT by a build, and
+# that distinction is the whole reason the retraction above was needed.** A `dist:linux` run
+# never reaches the icon step at all: it fails at AppImage assembly (below), and its log
+# contains **zero** lines matching `icon` — checked, after `release/.icon-set` turned out not
+# to exist on the host that supposedly produced it. A green read off a build that never ran
+# the step is the failure mode here, and it took looking for the artefact to catch it.
+#
+# What is still NOT bought: that a Linux desktop environment draws the result. No AppImage has
+# been assembled and no Linux host has displayed the icon.
 
 mac:
   target: dmg
   category: public.app-category.utilities
+  icon: build/icon.png
   # The overlay is not a document app and has no dock presence worth keeping; `LSUIElement`
   # is the plist half of what `app.dock.hide()` does at runtime, and setting it here stops
   # the dock icon appearing for the moment between launch and that call.
@@ -93,6 +153,7 @@ mac:
 linux:
   target: AppImage
   category: Utility
+  icon: build/icon.png
   # No `desktop:` override. electron-builder derives the launcher entry's `Name` from
   # `productName`, which is the same literal `main/auto-launch.ts` writes into its XDG
   # autostart file — so the two agree without a third place to keep in step. The override

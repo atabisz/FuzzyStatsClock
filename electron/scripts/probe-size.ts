@@ -470,11 +470,24 @@ console.log(
   `\n${String(passed)} passed / ${String(failed)} failed / ${String(inconclusive)} inconclusive`,
 )
 console.log(
-  "\nWindows only. The mac dmg and linux AppImage targets are configured but NOT built —\n" +
+  "\nWindows only. The mac dmg and linux AppImage targets are configured but NOT built here —\n" +
     "electron-builder needs the host platform for those, and a size asserted from this box\n" +
-    "would be exactly the class of claim AC-3 forbids. Both also carry no `icon` — app.ico's\n" +
-    "largest entry is 256x256 and the icns/Linux conversion needs 512, so C7's arm below is a\n" +
-    "Windows-only pass and those two targets ship the stock Electron icon.",
+    "would be exactly the class of claim AC-3 forbids. Both carry an `icon` of their own,\n" +
+    "`build/icon.png` at 1024x1024, drawn by `scripts/make-icon.ts` because app.ico cannot\n" +
+    "exceed 256 and the icns conversion needs 512; `probe:icon` holds that PNG to the shipped\n" +
+    "artwork. C7 below is still a Windows-only arm — it looks for ICO bytes in an exe.\n" +
+    "\n" +
+    "The MAC icon has now been measured on a real macOS arm64 host (2026-08-30): `dist:mac`\n" +
+    "exited 0 and produced an 87.8MB dmg whose bundle carries a 1024x1024 icon.icns generated\n" +
+    "from that PNG. The mac dmg SIZE is still not asserted anywhere, and deliberately so — it\n" +
+    "was built on a borrowed host with a /tmp node, not the release pipeline, so it is a build\n" +
+    "result and not a size baseline.\n" +
+    "\n" +
+    "The LINUX icon is a weaker claim than an earlier draft of this note said. That draft had\n" +
+    "the converter 'emitting all eight sizes'; it does not — for a single .png source it hands\n" +
+    "the file back as-is, measured at [1024], with no 512 floor on that format at all. And it\n" +
+    "was measured by calling convertIcon directly, because a dist:linux run fails at AppImage\n" +
+    "assembly before any icon step and logs nothing about icons.",
 )
 console.log(
   "The icon half of that debt is PAID and C7 measures it. The signature half is NOT, and it\n" +

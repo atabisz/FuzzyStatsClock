@@ -47,7 +47,14 @@
  * expected bytes, that the parent directory gets created (a fresh account has neither
  * `~/Library/LaunchAgents` nor `~/.config/autostart`), that presence is what `isEnabled()` reads, and that
  * **not one process is spawned** — a `launchctl load` would start a second copy the moment the box is
- * ticked. Whether launchd and GNOME then honour the file needs a real host, and that stays open.
+ * ticked.
+ *
+ * Whether launchd and GNOME then honour the file needs a real host. **The darwin half of that is now
+ * closed** — `scripts/probe-launchd.ts` runs the same class against real `launchd` on a real macOS arm64
+ * session (9/9 on 2026-08-30): `plutil` validates the plist, `launchctl bootstrap` registers it, and
+ * `RunAtLoad` demonstrably spawns the program named in it, with a no-`RunAtLoad` twin as the control that
+ * says the spawn is not just bootstrap's side effect. **The linux half stays open** — no host here has had
+ * GNOME read the `.desktop` file.
  *
  *     bun run probe:autolaunch
  */
