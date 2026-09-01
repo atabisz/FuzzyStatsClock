@@ -917,6 +917,51 @@ misses it, because every feature either ported or was consciously retired with t
     to suppress it.** The tray is the route to every setting, `isModifierHeld` is tested over all 256
     combinations, the driver logs the limitation once at startup, and a real reader is a one-line
     change.
+- [x] **ISC-24.1. `screen.getCursorScreenPoint()` does not track the cursor on Linux/X11 — the source is
+  replaced there, with the watchdog as the floor.** ISC-24 recorded the poll "measured healthy" — but on
+  Windows and macOS only; Linux was never in that measurement, and Electron's Ozone/X11 backend does not
+  run a fresh `XQueryPointer` — it returns the position cached from the last mouse event delivered to one
+  of the app's own windows. The proximity halo is by definition the region *around and outside* the
+  widget, so the app gets no events there and the reading does not move during an approach or a retreat.
+  Two reported symptoms, one cause: (a) **the fade never runs** — a 20-step `xte` walk toward the widget
+  produced exactly one `onRatio`, and it was `1.0`, so the widget snaps between full and invisible at its
+  own edge; (b) **the widget stays invisible after the cursor leaves** — once `setIgnoreMouseEvents(true)`
+  is applied the reading freezes at the last on-widget position and no restore transition is ever emitted,
+  tray toggle the only cure. `{ forward: true }` re-measured on Linux delivers ~0 renderer `mousemove`,
+  same as the other two platforms, so it is not the escape.
+  - **Primary fix — `main/x11-cursor.ts`.** `XQueryPointer` on the root window *does* track the real
+    pointer (verified 5/5 across the desktop via `libX11` on the same session). `X11CursorSource` reads it
+    through the `x11` package — pure JavaScript, no native build, one new runtime dependency — polling at
+    16 ms into a cache that the synchronous `getCursorScreenPoint()` contract reads. `main.ts` passes it as
+    the `GhostDriver` cursor source **only on Linux**; Windows and macOS keep `screen`. `XQueryPointer` is
+    physical pixels and the driver compares against DIP bounds, so the reading is divided by the primary
+    display's scale factor — exact at 1.0 (the common Linux case and this host), carrying the same
+    mixed-scale caveat ISC-24 already records for the ratio. On any connection failure — no `x11` package,
+    connect error, connect timeout, client `error`/`end`, failed request — it degrades to
+    `screen.getCursorScreenPoint()` and logs once, so the worst case is exactly the old behaviour plus
+    the watchdog, never a crash or a garbage `(0,0)`.
+  - **Floor — `GhostDriverOptions.staleCursorRestoreTicks`** (`STALE_CURSOR_RESTORE_TICKS` ≈ 3 s /
+    `SAMPLE_MS`), passed only on Linux. While click-through is applied, an unchanged cursor reading for
+    that many consecutive ticks forces a restore through the disable-edge path, then suppresses
+    re-activation until the reading changes so a genuinely parked cursor settles visible-and-interactive
+    rather than flipping every N ticks. Redundant while `X11CursorSource` is live; the real guard for the
+    degraded path.
+  - **Evidence.** Live run on X11 with the real `GhostDriver` + `X11CursorSource`: approach produced a
+    graded `onRatio` ramp `0.05 → 0.13 → … → 0.95 → 1.00` (13 intermediate values), retreat the mirror
+    back to `0.00` with `restore-with-event` at the end; `degraded=false`, "cursor source is
+    XQueryPointer". Earlier control-vs-fix run for the watchdog: off → STUCK (isActive true, ratio 1),
+    on → logs `click-through cleared (stale cursor watchdog — …)`, isActive false, style `[true,false]`,
+    ratio 0. Tests: `test/x11-cursor.test.ts` 10 arms (fallback before first reply; getter returns the
+    polled point; `physicalToDip` applied to the live reading not the fallback; each of connect-error /
+    connect-timeout / client-`error` / client-`end` / failed-`QueryPointer` degrades and logs once;
+    `stop()` terminates and makes `poll()` a no-op; `start()` idempotent) + 6 new `ghost-driver.test.ts`
+    watchdog arms. `bun test` 2527 pass / 0 fail, `typecheck` + `build` exit 0.
+  - **Open:** `bun.lock` — the repo's lockfile is written by a bun newer than this host's 1.3.11, which
+    cannot parse it (`lockfileVersion: 2`). Adding the `x11` dependency needs `bun install` on the
+    maintainer's bun to regenerate it; `package.json` carries the dependency, the lockfile change was
+    reverted here to avoid a format downgrade. Drag still reads `screen.getCursorScreenPoint()` directly
+    (`main.ts`), unchanged and out of scope — the pointer is over the widget during a drag, the one case
+    where that reading does update on Linux.
 - [x] **ISC-25. Click-through toggles against renderer-measured hit boxes.** `setIgnoreMouseEvents(true)`
   is Electron's `WS_EX_TRANSPARENT` on Windows and the equivalent elsewhere, so the C#'s `SetWindowLong`
   + `SWP_FRAMECHANGED` pair is one call. **`probe-shell.ts`'s S8 is the before-half and it is green: the
@@ -2754,6 +2799,33 @@ measured on this branch at or after that base.
 
 ## Changelog
 
+- **Ghost mode is broken on Linux/X11 — the cursor poll doesn't track the pointer there. ISC-24.1,
+  2026-09-01.** Two reports, one cause. First: the pointer crossing the widget makes the clock vanish and
+  never return (tray toggle recovers it, re-enabling re-arms it). Then: the proximity fade doesn't
+  fade — it snaps. Root-caused against real Electron 33 windows driven by `xte`: Electron's Ozone/X11
+  `screen.getCursorScreenPoint()` does not run `XQueryPointer`, it returns the position cached from the
+  last mouse event over one of the app's own windows — so it does not move while the pointer is in the
+  halo (outside the widget), and it freezes outright once `setIgnoreMouseEvents(true)` is applied. A
+  20-step walk toward the widget produced one `onRatio`, value `1.0`. ISC-24's "measured healthy" was
+  Windows + macOS only. `{ forward: true }` re-measured on Linux delivers ~0 renderer `mousemove`, same
+  as the other two. **Fix, two parts:** (1) `main/x11-cursor.ts` — `X11CursorSource` reads `XQueryPointer`
+  on the root window via the pure-JS `x11` package (one new runtime dep, no native build), polled into a
+  cache behind the synchronous getter; `main.ts` uses it as the `GhostDriver` cursor source on Linux
+  only, with a logged fallback to `screen.getCursorScreenPoint()` on any X failure. Verified live: the
+  fade now produces a graded `0.05 → … → 1.00` ramp on approach and the mirror on retreat. (2) The
+  Linux-only stale-cursor watchdog in `GhostDriver` (`staleCursorRestoreTicks` ≈ 3 s) stays as the floor
+  for the degraded path. `test/x11-cursor.test.ts` (10 arms) + 6 `ghost-driver.test.ts` watchdog arms;
+  suite 2527 pass / 0 fail. `main/ghost.ts`, `main/x11-cursor.ts` (new), `main.ts`, `package.json` (dep).
+  **`bun.lock` left for the maintainer** — this host's bun 1.3.11 cannot parse the repo's newer
+  `lockfileVersion: 2`, so the `x11` dep needs `bun install` on the maintainer's bun to lock cleanly.
+- **conjectured** by ISC-24 as written that `screen.getCursorScreenPoint()` polling was sound on every
+  platform, on the strength of a Windows + macOS measurement ("measured healthy on both"). **refuted-by**
+  a live Linux/X11 reproduction: the reading only updates from events over the app's own windows, so it
+  neither tracks the cursor across the halo (no fade) nor sees it leave once click-through is applied (no
+  restore). **criterion-now** the Linux cursor source is `XQueryPointer` via `main/x11-cursor.ts`, not
+  `screen`. The measurement was real but its scope was two platforms, not three — the same shape as the
+  `freemem` and `forward:true` entries below, where a reading that generalised cleanly on the platforms
+  tested did not hold on the one that was not.
 - **The tray probe minted a Linux task: L9, 2026-08-30 (`cd80c72` pushed, then this bookkeeping).** No new
   claim and no code — `probe:tray-menu` shipped with `T8` and `T14` written against `IS_LINUX`, so the
   `setContextMenu` branch of `main/tray.ts` is *already graded by the instrument* and simply has never been

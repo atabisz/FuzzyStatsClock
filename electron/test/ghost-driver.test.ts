@@ -42,7 +42,12 @@ interface Harness {
   readonly styleWrites: boolean[]
 }
 
-function harness(options: { readonly readModifiers?: () => ModifierConfig } = {}): Harness {
+function harness(
+  options: {
+    readonly readModifiers?: () => ModifierConfig
+    readonly staleCursorRestoreTicks?: number
+  } = {},
+): Harness {
   const calls: string[] = []
   const ratios: number[] = []
   const styleWrites: boolean[] = []
@@ -69,6 +74,9 @@ function harness(options: { readonly readModifiers?: () => ModifierConfig } = {}
     onRestored: () => calls.push("restored"),
     log: (level, message) => calls.push(`log:${level}:${message}`),
     ...(options.readModifiers === undefined ? {} : { readModifiers: options.readModifiers }),
+    ...(options.staleCursorRestoreTicks === undefined
+      ? {}
+      : { staleCursorRestoreTicks: options.staleCursorRestoreTicks }),
   })
   driver.applySettings(true, RADIUS, DEFAULT_MODIFIER_CONFIG)
 
@@ -355,5 +363,95 @@ describe("the modifier seam, which ships with no reader", () => {
     held = NO_MODIFIERS
     h.driver.tick()
     expect(h.calls).toEqual(["ratio:1", "ignore:true"])
+  })
+})
+
+describe("the Linux/X11 stale-cursor watchdog (ISC-24.2)", () => {
+  // Ported context: `screen.getCursorScreenPoint()` freezes at the last on-widget reading once
+  // `setIgnoreMouseEvents(true)` is applied on Ozone/X11, so the poll never sees the cursor leave the
+  // halo and the widget stays invisible. Reproduced against a real Electron 33 window driven by `xte`.
+  // The watchdog forces a restore after N frozen ticks. Only Linux passes the option; the arms here
+  // pass a small N so the count is legible.
+
+  test("a frozen reading while click-through is applied forces a restore after N ticks", () => {
+    const h = fresh(harness({ staleCursorRestoreTicks: 5 }))
+    h.moveTo(150, 150)
+    h.driver.tick() // activate
+    expect(h.styleWrites).toEqual([true])
+    // Five more ticks with the reading never changing — this is the freeze.
+    for (let i = 0; i < 5; i++) h.driver.tick()
+    expect(h.styleWrites).toEqual([true, false])
+    expect(h.driver.isActive).toBe(false)
+    expect(h.ratios.at(-1)).toBe(0)
+    expect(h.calls.some((c) => c.includes("stale cursor watchdog"))).toBe(true)
+  })
+
+  test("with the option absent (Windows / macOS) a frozen on-widget reading never trips it", () => {
+    // The negative control: on the two platforms where a parked-cursor reading is the truth rather than
+    // a stale cache, the pure poll must be left alone.
+    const h = fresh(harness())
+    h.moveTo(150, 150)
+    for (let i = 0; i < 60; i++) h.driver.tick()
+    expect(h.styleWrites).toEqual([true])
+    expect(h.driver.isActive).toBe(true)
+    expect(h.calls.some((c) => c.includes("watchdog"))).toBe(false)
+  })
+
+  test("a reading that keeps changing over the widget never trips it", () => {
+    // `staleTicks` resets on every changed reading, so a live poll — even one parked visually in place
+    // but reporting sub-pixel jitter — stays ghosted for as long as the cursor is there.
+    const h = fresh(harness({ staleCursorRestoreTicks: 5 }))
+    for (let i = 0; i < 40; i++) {
+      h.moveTo(140 + (i % 12), 150) // 140..151, all inside the 100..200 widget → ratio stays 1
+      h.driver.tick()
+    }
+    expect(h.styleWrites).toEqual([true])
+    expect(h.driver.isActive).toBe(true)
+    expect(h.calls.some((c) => c.includes("watchdog"))).toBe(false)
+  })
+
+  test("a cursor parked OFF the widget never accrues toward a restore", () => {
+    // The `sampler.isActive` guard on the counter: an idle poll of a parked cursor away from the widget
+    // is legitimately unchanging and must cost nothing, exactly as D-08 requires.
+    const h = fresh(harness({ staleCursorRestoreTicks: 5 }))
+    for (let i = 0; i < 60; i++) h.driver.tick() // default cursor (1000,1000), off-widget
+    expect(h.calls).toEqual([])
+    expect(h.styleWrites).toEqual([])
+  })
+
+  test("after a watchdog restore, activation is suppressed until the reading actually changes", () => {
+    const h = fresh(harness({ staleCursorRestoreTicks: 5 }))
+    h.moveTo(150, 150)
+    h.driver.tick()
+    for (let i = 0; i < 5; i++) h.driver.tick() // trips the watchdog
+    expect(h.styleWrites).toEqual([true, false])
+
+    // Still frozen at the same point: no re-activation, however many ticks pass.
+    for (let i = 0; i < 20; i++) h.driver.tick()
+    expect(h.styleWrites).toEqual([true, false])
+    expect(h.driver.isActive).toBe(false)
+
+    // The reading finally moves (still over the widget): the suppression lifts and the next tick
+    // re-activates through the normal sampler path.
+    h.moveTo(151, 150)
+    h.driver.tick()
+    expect(h.styleWrites).toEqual([true, false, true])
+    expect(h.driver.isActive).toBe(true)
+  })
+
+  test("a tray toggle off-then-on clears a wedged suppression", () => {
+    const h = fresh(harness({ staleCursorRestoreTicks: 5 }))
+    h.moveTo(150, 150)
+    h.driver.tick()
+    for (let i = 0; i < 5; i++) h.driver.tick() // watchdog trips, suppression on
+    for (let i = 0; i < 5; i++) h.driver.tick() // still suppressed
+    expect(h.driver.isActive).toBe(false)
+
+    h.driver.applySettings(false, RADIUS, DEFAULT_MODIFIER_CONFIG)
+    h.driver.applySettings(true, RADIUS, DEFAULT_MODIFIER_CONFIG)
+    // Enable edge wiped the latch: the very next tick, with the cursor still on the widget, re-activates.
+    h.driver.tick()
+    expect(h.driver.isActive).toBe(true)
+    expect(h.styleWrites.at(-1)).toBe(true)
   })
 })

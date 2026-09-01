@@ -17,7 +17,33 @@
  * **No `{ forward: true }`.** That option asks Chromium to keep delivering `mousemove` into a
  * click-through window, and it is exactly the mechanism ISC-24 forbids -- measured here delivering zero
  * events. The cursor poll below exists because of that measurement; passing `forward` would reintroduce
- * the dependency on a thing that does not work while also being the slower of the two.
+ * the dependency on a thing that does not work while also being the slower of the two. Re-measured on
+ * Linux/X11 after the report below: `{ forward: true }` delivers ~0 renderer `mousemove` there too, so
+ * the verdict now spans all three platforms rather than two.
+ *
+ * ## The Linux/X11 cursor problem, and the two-part fix
+ *
+ * ISC-24 recorded `screen.getCursorScreenPoint()` "measured healthy" on Windows and macOS. Linux was
+ * never in that measurement, and it does not hold there: Electron's Ozone/X11 backend does not run a
+ * fresh `XQueryPointer`, it returns the position cached from the last mouse event delivered to one of
+ * the app's own windows. So the reading does not move while the cursor is in the halo (outside the
+ * widget) -- no fade, just a snap at the widget's edge -- and it freezes outright once
+ * `setIgnoreMouseEvents(true)` is applied, so no restore transition is ever emitted and the widget
+ * stays invisible with the tray toggle as the only cure. Reproduced against a real Electron 33 window
+ * driven by `xte`: a 20-step walk toward the widget produced one `onRatio`, value `1.0`.
+ *
+ * **Primary fix: `main/x11-cursor.ts`.** On Linux `main.ts` hands this driver an `X11CursorSource`
+ * instead of `screen` -- it reads `XQueryPointer` on the root window, which tracks the real pointer,
+ * and falls back to `screen.getCursorScreenPoint()` if the X connection fails.
+ *
+ * **Floor: {@link GhostDriverOptions.staleCursorRestoreTicks}**, passed only on Linux. While
+ * click-through is applied, an unchanged cursor reading for that many consecutive ticks is taken as a
+ * frozen state and forces a restore through the same path the disable edge uses. Re-activation is then
+ * suppressed until the reading actually changes, so a genuinely parked cursor does not flip the widget
+ * in and out every N ticks -- it settles visible-and-interactive until the next real cursor movement.
+ * Redundant while `X11CursorSource` is live; the guard for the degraded fallback path. Windows and
+ * macOS pass `undefined` and keep the pure poll, because there the reading of a parked cursor is the
+ * truth rather than a stale cache.
  *
  * ## D-06's asymmetry, and the one call that closes it
  *
@@ -59,6 +85,14 @@ import type { WindowBounds } from "../core/ghost-rect.js"
 /** `System.Threading.Timer(…, 0, 33)` -- SAMP-04. 33 ms, not 16: the C#'s cadence, measured. */
 export const SAMPLE_MS = 33
 
+/**
+ * Linux/X11 default for {@link GhostDriverOptions.staleCursorRestoreTicks}: ~3 s of an unchanged cursor
+ * reading while click-through is applied. 3 s rather than 1 -- a false positive un-ghosts a widget the
+ * user is deliberately hovering, and holding a cursor motionless on a small always-on-top clock for three
+ * whole seconds is rare enough that the trade favours the stuck-invisible case the watchdog exists for.
+ */
+export const STALE_CURSOR_RESTORE_TICKS = Math.round(3000 / SAMPLE_MS)
+
 /** The Electron surfaces this driver touches. Structural, so a test passes a literal. */
 export interface GhostWindowLike {
   getBounds(): WindowBounds
@@ -80,6 +114,12 @@ export interface GhostDriverOptions {
   readonly log: (level: "info" | "warn" | "error", message: string) => void
   /** Injected for the reason in the header. Omitted means "no key is ever held". */
   readonly readModifiers?: () => ModifierConfig
+  /**
+   * Linux/X11 only -- see the header's freeze section. After this many consecutive ticks with a
+   * byte-identical cursor reading *while click-through is applied*, force a restore. `undefined` or `0`
+   * disables the watchdog, which is what Windows and macOS pass.
+   */
+  readonly staleCursorRestoreTicks?: number
 }
 
 export class GhostDriver {
@@ -90,6 +130,12 @@ export class GhostDriver {
   #skipped = 0
   readonly #options: GhostDriverOptions
   readonly #readModifiers: () => ModifierConfig
+
+  /** Watchdog state -- see the header's Linux freeze section. All three are inert when the option is off. */
+  #lastCursorKey = ""
+  #staleTicks = 0
+  /** Set by the watchdog restore; cleared the moment the cursor reading changes. */
+  #suppressUntilCursorMoves = false
 
   constructor(options: GhostDriverOptions) {
     this.#options = options
@@ -140,6 +186,12 @@ export class GhostDriver {
     this.sampler.fadeRadiusPx = radiusPx
     this.sampler.modifiers = modifiers
     if (wasEnabled && !enabled) this.#clearClickThrough("ghost mode disabled")
+    // A tray toggle is the user's manual recovery from a wedged watchdog, so the enable edge always
+    // hands the driver a clean slate rather than one that might still be suppressing activation.
+    if (!wasEnabled && enabled) {
+      this.#staleTicks = 0
+      this.#suppressUntilCursorMoves = false
+    }
   }
 
   start(): void {
@@ -176,6 +228,32 @@ export class GhostDriver {
     }
 
     const cursor = this.#options.cursor.getCursorScreenPoint()
+
+    // The Linux/X11 stale-cursor watchdog. See the header. `staleTicks` only counts while click-through
+    // is applied, because that is the only state the reading can freeze in -- an idle poll of a parked
+    // cursor is legitimately unchanging and must not accrue toward a restore.
+    const cursorKey = `${String(cursor.x)},${String(cursor.y)}`
+    if (cursorKey === this.#lastCursorKey) {
+      if (this.sampler.isActive) this.#staleTicks++
+    } else {
+      this.#lastCursorKey = cursorKey
+      this.#staleTicks = 0
+      this.#suppressUntilCursorMoves = false
+    }
+    if (this.#suppressUntilCursorMoves) {
+      this.#skipped++
+      return
+    }
+    const staleLimit = this.#options.staleCursorRestoreTicks ?? 0
+    if (staleLimit > 0 && this.sampler.isActive && this.#staleTicks >= staleLimit) {
+      this.#clearClickThrough(
+        `stale cursor watchdog — ${String(this.#staleTicks)} ticks frozen at ${cursorKey} (Linux getCursorScreenPoint)`,
+      )
+      this.#suppressUntilCursorMoves = true
+      this.#skipped++
+      return
+    }
+
     const edges = boundsToEdges(win.getBounds())
     const held = this.isModifierHeld
 
@@ -221,7 +299,9 @@ export class GhostDriver {
   }
 
   /**
-   * The disable edge, ported from `MainWindow.SetGhostModeEnabled(false)`'s `CR-01` block.
+   * The disable edge, ported from `MainWindow.SetGhostModeEnabled(false)`'s `CR-01` block, and reused
+   * verbatim by the Linux stale-cursor watchdog -- both want exactly this: style off, sampler flag off,
+   * ratio zeroed, `#staleTicks` reset so the count starts fresh on the next activation.
    *
    * Three writes, and all three are needed: clear the style, clear the sampler's flag, and zero the
    * ratio. Dropping the middle one is the defect `GhostSampler.deactivate`'s doc-comment describes --
@@ -232,6 +312,7 @@ export class GhostDriver {
   #clearClickThrough(why: string): void {
     const wasActive = this.sampler.isActive
     this.sampler.deactivate()
+    this.#staleTicks = 0
     const win = this.#options.window
     if (!win.isDestroyed()) win.setIgnoreMouseEvents(false)
     if (wasActive) this.#options.log("info", `ghost: click-through cleared (${why})`)

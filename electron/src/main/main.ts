@@ -52,6 +52,7 @@ import { isHoverFastRefresh, pushCpuSample, uptimeLine } from "../core/load-aver
 import { formatUptime } from "../core/uptime.js"
 import { UNAVAILABLE, type StatsSample, type StatsSource } from "../shared.js"
 import {
+  IS_LINUX,
   IS_MAC,
   IS_WIN,
   applyPlatformWindowTraits,
@@ -68,7 +69,8 @@ import { UpdateChecker, shouldOfferUpdate, updateNoticeText } from "./update-che
 import { WindowPlacer, displayGeometries } from "./window-placement.js"
 import type { CommitReason } from "./window-placement.js"
 import { AppTray } from "./tray.js"
-import { GhostDriver } from "./ghost.js"
+import { GhostDriver, STALE_CURSOR_RESTORE_TICKS } from "./ghost.js"
+import { X11CursorSource } from "./x11-cursor.js"
 import { SettingsWindowHost } from "./settings-window.js"
 import { applySettingsEdit, buildSettingsForm, isEditableField } from "../core/settings-form.js"
 import { DEFAULTS } from "../core/settings.js"
@@ -165,6 +167,7 @@ let placer: WindowPlacer | null = null
 let tray: AppTray | null = null
 let mainWindow: BrowserWindow | null = null
 let ghost: GhostDriver | null = null
+let x11Cursor: X11CursorSource | null = null
 let autoLaunch: AutoLaunch | null = null
 let updateChecker: UpdateChecker | null = null
 let settingsWindow: SettingsWindowHost | null = null
@@ -911,9 +914,29 @@ app.whenReady().then(() => {
   //
   // `screen` is passed as the cursor source and `win` as the window: both satisfy `main/ghost.ts`'s
   // structural interfaces, which is what lets the driver be tested with no Electron on the path.
+  //
+  // On Linux the cursor source is NOT `screen`: `screen.getCursorScreenPoint()` there returns the
+  // position cached from the last mouse event over one of the app's own windows, so it does not move
+  // while the pointer crosses the proximity halo (which is by definition outside the widget) and the
+  // fade never runs. `X11CursorSource` reads `XQueryPointer` on the root window instead, which tracks
+  // the real pointer, and falls back to `screen.getCursorScreenPoint()` if the X connection fails.
+  // ISC-24.1. `XQueryPointer` is physical pixels; the driver compares against DIP bounds, so the
+  // conversion divides by the primary display's scale factor — exact at 1.0 (the common Linux case),
+  // and carrying the same mixed-scale caveat ISC-24 already records for the ratio itself.
+  if (IS_LINUX) {
+    const scale = screen.getPrimaryDisplay().scaleFactor
+    x11Cursor = new X11CursorSource({
+      fallback: () => screen.getCursorScreenPoint(),
+      log,
+      ...(scale === 1
+        ? {}
+        : { physicalToDip: (p) => ({ x: Math.round(p.x / scale), y: Math.round(p.y / scale) }) }),
+    })
+    x11Cursor.start()
+  }
   ghost = new GhostDriver({
     window: win,
-    cursor: screen,
+    cursor: x11Cursor ?? screen,
     // Target only. The renderer owns the interpolation — PERF-01, and the reason a busy main process
     // delays where the fade is going rather than how smoothly it gets there.
     onRatio: (ratio) => sendGhost({ ratio }),
@@ -926,6 +949,12 @@ app.whenReady().then(() => {
       sendGhost({ reset: true })
       if (!settings.backdropAlwaysVisible) sendBackdrop(false)
     },
+    // Linux/X11 only: `screen.getCursorScreenPoint()` freezes at the last on-widget reading once
+    // `setIgnoreMouseEvents(true)` is applied there, so the poll never sees the cursor leave and the
+    // widget stays invisible with the tray toggle as the only cure. The watchdog forces a restore after
+    // ~3 s of a frozen reading. Windows and macOS pass `undefined` and keep the pure poll — see
+    // `main/ghost.ts`'s header. Filed as ISC-24.1.
+    ...(IS_LINUX ? { staleCursorRestoreTicks: STALE_CURSOR_RESTORE_TICKS } : {}),
     log,
   })
   ghost.start()
@@ -1102,6 +1131,8 @@ app.on("before-quit", () => {
   // crash guard — but a 33 ms timer left running through teardown is 30 chances a second to be wrong about
   // that ordering.
   ghost?.stop()
+  // The X11 cursor poll and its socket — Linux only, null everywhere else.
+  x11Cursor?.stop()
   // Without this the `typeperf` children outlive the app: they are spawned by this process but nothing
   // reparents or reaps them on exit.
   source?.stop()
